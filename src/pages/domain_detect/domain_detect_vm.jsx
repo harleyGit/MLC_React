@@ -7,6 +7,20 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 export default class DomainDetectVM {
+
+    /* 根据域名查询IP地址 */
+    static requestNSLookupDomainInfo = ({}={}) =>{
+
+        // 这里使用跨域解决问题
+        const domainURL = `/dns.alidns/resolve?name=${domain}&type=A`;
+
+        return NetManager.getWithURL(domainURL, {
+          headers: { Accept: "application/dns-json" }
+        }).then((data) => {
+          console.log("AliDNS result:", data);
+        });
+        
+    }
    
     static fetchDomainLatencyInfo = async ({ domain, callback }) => {
       // 模拟请求延迟信息
