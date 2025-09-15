@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 09:31:27
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2025-09-15 13:42:37
+ * @LastEditTime: 2025-09-15 14:12:16
  * @FilePath: /MLC_React/src/App.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -21,13 +21,16 @@ function App() {
   const [count, setCount] = useState(0)
 
   return (
+    <Routes>
+      <Route path="/home" element={<HomePage />} />
+      <Route path="/domain-detection" element={<DomainDetectView />} />
+      <Route path="/app/guide_video" element={<GuideVideoView />} />
+      <Route path="/" element={<Navigate to="/home" />}></Route>
+    </Routes>
+  )
+
+  return (
     <>
-     <Routes>
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/domain-detection" element={<DomainDetectView />} />
-        <Route path="/app/guide_video" element={<GuideVideoView />} />
-        <Route path="/" element={<Navigate to="/home" />}></Route>
-      </Routes>
     <div>
       <h1>Hello React</h1>
       <p>当前环境: {import.meta.env.VITE_APP_ENV}</p>
