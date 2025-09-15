@@ -1,3 +1,16 @@
+:root {
+  --cm-hg-max-mobileW: 1024px; /*移动端手机屏幕最大宽度*/
+  --cm-hg-pc-font14: 14px; /*pc端16px字体大小*/
+  --cm-hg-mobile-font14: 0.14rem; /*移动端16px字体大小*/
+  --cm-hg-pc-font16: 16px;
+  --cm-hg-mobile-font16: 0.16rem;
+  --cm-hg-style: #f5f7fa;
+  --cm-hg-radius-default: 3px;
+  --cm-hg-border-level-2-color: #dcdcdc;
+  --cm-hg-dt-color-specialcomponent: #fff;
+  --cm-hg-dt-color-hover: blue;
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;

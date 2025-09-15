@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 09:31:27
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2025-09-11 19:50:40
+ * @LastEditTime: 2025-09-11 21:15:09
  * @FilePath: /MLC_React/src/App.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -10,12 +10,24 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
+import React from 'react';
+import { NavLink,Routes, Route, Router, Navigate } from 'react-router-dom';
+import HomePage from './pages/home_module/HomePage';
+import DomainDetectView from './pages/domain_detect/domain_detect_view';
+import GuideVideoView from './pages/app/guide_video/GuideVideoView';
+
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
     <>
+     <Routes>
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/domain-detection" element={<DomainDetectView />} />
+        <Route path="/app/guide_video" element={<GuideVideoView />} />
+        <Route path="/" element={<Navigate to="/home" />}></Route>
+      </Routes>
     <div>
       <h1>Hello React</h1>
       <p>当前环境: {import.meta.env.VITE_APP_ENV}</p>

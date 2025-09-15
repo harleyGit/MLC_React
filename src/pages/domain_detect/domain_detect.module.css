@@ -1,0 +1,347 @@
+/* 定义局部变量 */
+.domainDetectPage {
+  --cm-hg-dt-card-radius: 6px;
+  --cm-hg-dt-color-hover: blue; /* 定义 hover 时的颜色 */
+}
+/* 定义鼠标悬停效果 */
+.domainDetectPage .domainDetectPage-head-input-border11:hover {
+  border-color: var(--cm-hg-dt-color-hover); /* 使用局部变量 */
+}
+
+body {
+  font-size: 16px;
+}
+
+.domainDetectPage-scrollable-container {
+  width: 100%;
+  height: 100%; /* 设置容器高度 */
+  overflow-y: auto; /* 启用垂直滚动 */
+  border: 1px solid #ccc;
+  padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  background-color: #ebe8e8;
+}
+
+.domainDetectPage-head-container {
+  padding-top: 16px;
+  padding-bottom: 16px;
+  background-color: white;
+  border-radius: 6px;
+  /* background-color: red; */
+}
+.domainDetectPage-head-detect-card {
+  margin-top: 20px;
+}
+.domainDetectPage-head-detect-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: baseline;
+  border-bottom: 1px solid #dcdcdc;
+}
+.domainDetectPage-head-detect-lab {
+  padding: 16px 24px;
+  font-weight: bold;
+}
+.domainDetectPage-lookup-text-normal {
+  padding: 16px 24px;
+  flex-wrap: nowrap; /* 保证一行显示 */
+  font-size: 16px;
+  line-height: 22px;
+  font-family: "PingFang SC", "Microsoft YaHei", "Arial Regular";
+}
+
+.domainDetectPage-head-detect-ping {
+  align-content: center;
+  background-color: #0048cd;
+  border: var(--cm-hg-radius-default);
+  font-size: 14px;
+  height: 32px;
+  border-radius: var(--cm-hg-radius-default);
+  color: white;
+  padding: 2px 8px;
+}
+
+.domainDetectPage-head-input-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 16px 24px;
+}
+
+.domainDetectPage-head-input-border {
+  list-style: none;
+  height: 32px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--cm-hg-radius-default);
+  border-color: var(--cm-hg-border-level-2-color);
+  padding: 0 8px;
+  background-color: var(--cm-hg-dt-color-specialcomponent);
+  outline: none;
+  color: black;
+  font-size: 14px;
+  line-height: 22px;
+  font-family: "PingFang SC", "Microsoft YaHei", "Arial Regular";
+  width: 40%;
+  box-sizing: border-box;
+  /* transition: all cubic-bezier(0.38, 0, 0.24, 1) 0.2s; */
+  transition: background-color 0.3s ease; /* 平滑过渡背景色变化 */
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  line-height: 32px;
+}
+/* 鼠标悬停状态 */
+.domainDetectPage-head-input-border:hover {
+  border-color: var(--cm-hg-dt-color-hover);
+}
+/* 聚焦状态 */
+.domainDetectPage-head-input-border:focus-within {
+  border-color: var(--td-brand-color);
+  box-shadow: 0 0 0 2px var(--td-brand-color-focus);
+}
+/* 禁用状态 */
+.domainDetectPage-head-input-border.disabled,
+.domainDetectPage-head-input-border[disabled] {
+  background-color: var(--td-bg-color-component-disabled);
+  color: var(--td-text-color-disabled);
+  cursor: not-allowed;
+  border-color: var(--td-border-color-disabled);
+}
+/* 错误状态 */
+.domainDetectPage-head-input-border.error {
+  border-color: var(--td-error-color);
+  box-shadow: 0 0 0 2px var(--td-error-color-focus);
+}
+/* 可选：图标样式 */
+.domainDetectPage-head-input-border .input-icon {
+  margin-right: 4px;
+  display: flex;
+  align-items: center;
+  color: var(--td-text-color-secondary);
+}
+
+.domainDetectPage-head-input {
+  width: 100%;
+  padding: 10px;
+  height: 100%;
+  border: none;
+  outline: none;
+}
+
+.domainDetectPage-head-detect-btn {
+  background-color: #0048cd;
+  border: var(--cm-hg-radius-default);
+  font-size: 14px;
+  height: 32px;
+  border-radius: var(--cm-hg-radius-default);
+  margin-left: 10px;
+  color: white; /* 字体颜色为白色 */
+  text-align: center; /* 水平居中 */
+  display: flex; /* 使用 flex 保证垂直也居中 */
+  align-items: center; /* 垂直居中 */
+  justify-content: center; /* 水平居中 */
+  border: none; /* 去除边框 */
+  cursor: pointer; /* 鼠标样式 */
+}
+
+.domainDetectPage-ip-card-container {
+  margin-top: 20px;
+}
+
+.domainDetectPage-ip-bottom-container {
+  /* background-color: purple; */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px 24px;
+  margin-top: 8px;
+}
+
+.domainDetectPage-device-info-cell {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: nowrap; /* 保证一行显示 */
+  font-size: 16px;
+  line-height: 22px;
+  font-family: "PingFang SC", "Microsoft YaHei", "Arial Regular";
+  /* background-color: red; */
+}
+.domainDetectPage-device-info-cell-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 1; /* 均匀撑满父容器 */
+  text-align: left;
+  padding-bottom: 10px;
+  /* background-color: #90caf9; */
+  /* border: 1px solid #42a5f5; */
+}
+.domainDetectPage-device-info-cell-left-title {
+  width: 150px;
+  height: 32px;
+  align-content: center;
+  /* background-color: yellow; */
+}
+.domainDetectPage-device-info-cell-left-value {
+  /* width: auto; */
+  width: 240px;
+  /*min-width: 166px; /*最小宽度 240 */
+  /*max-width: 600px;  最大宽度（超过则换行或截断） */
+  /* height: 32px; */
+  min-height: 32px;
+  word-wrap: break-word; /* 长单词或内容自动换行 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal; /* 换行：nowrap ， 不允许换行， 换行： normal */
+
+  align-content: center;
+  /* background-color: #dcdcdc; */
+}
+.domainDetectPage-device-info-cell-left-delegate {
+  width: 600px;
+  height: auto;
+  white-space: normal;
+  align-content: start;
+  /* background-color: red; */
+}
+
+.domainDetectPage-domains-container {
+  display: flex;
+  flex-direction: row; /* PC 端横排 */
+  justify-content: flex-start;
+  align-items: center;
+  /* background-color: red; */
+  align-items: stretch; /* 让子组件等高 */
+  width: 100%; /* 确保占满父容器 */
+  gap: 16px;
+}
+
+.domainDetectPage-domains-card {
+  flex: 1; /* 关键点，让它自动拉伸宽度 */
+  margin-right: 16px; /* 两个组件之间的间距 */
+}
+
+/* 处理最后一个不留右间距 
+  :last-child 是 CSS 的一种伪类选择器，意思是：选择其父元素中“最后一个子元素”。
+  */
+.domainDetectPage-domains-card:last-child {
+  margin-right: 0;
+}
+
+/* ======= 响应式断点：移动端样式 ======= */
+/*
+    确保组件在不同设备上良好显示，您可以使用媒体查询来调整样式
+    当浏览器窗口的宽度小于或等于 768 像素时，调整 .scrollable-container 容器的高度为 200 像素，.scrollable-item 项目的高度为 80 像素
+    */
+@media (max-width: 1024px) {
+  .domainDetectPage-domains-container {
+    display: flex;
+    flex-direction: column; /* PC 端横排 */
+    justify-content: flex-start;
+    align-items: center;
+    /* background-color: red; */
+    align-items: stretch; /* 让子组件等高 */
+    width: 100%; /* 确保占满父容器 */
+    gap: 16px;
+  }
+
+  .domainDetectPage-domains-card {
+    flex: 1; /* 关键点，让它自动拉伸宽度 */
+    margin-right: 0px;
+  }
+
+  .domainDetectPage-mobile-domain-info-cell {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+    overflow: visible; /* 确保没有裁剪 */
+    /* background-color: red; */
+    margin: 4px 0px;
+  }
+
+  .domainDetectPage-device-info-cell-left-title {
+    width: 150px;
+    height: 32px;
+    align-content: center;
+    flex-shrink: 0; /* 不缩小  #ccc*/
+  }
+
+  .domainDetectPage-device-info-cell-left-value {
+    flex: 1; /* 占据剩余空间 */
+    min-height: 32px;
+    word-break: break-word; /* 保证长单词断开换行 */
+    white-space: normal;
+    overflow-wrap: break-word; /* 防止超出容器 */
+    /* background-color: #dcdcdc; */
+  }
+
+  .domainDetectPage-head-input-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: baseline;
+    padding: 16px 24px 4px 4px;
+    /* background-color: yellow; */
+  }
+
+  .domainDetectPage-head-input-border {
+    /* list-style: none; */
+    height: 32px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: var(--cm-hg-radius-default);
+    border-color: var(--cm-hg-border-level-2-color);
+    /* padding: 0 8px; */
+    background-color: var(--cm-hg-dt-color-specialcomponent);
+    outline: none;
+    color: black;
+    font-size: var(--cm-hg-mobile-font14);
+    line-height: 22px;
+    font-family: "PingFang SC", "Microsoft YaHei", "Arial Regular";
+    width: 100%;
+    box-sizing: border-box;
+    /* transition: all cubic-bezier(0.38, 0, 0.24, 1) 0.2s; */
+    transition: background-color 0.3s ease; /* 平滑过渡背景色变化 */
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    line-height: 32px;
+    /* background-color: red; */
+  }
+
+  .domainDetectPage-head-input {
+    flex: 1;
+    padding: 10px;
+    height: 100%;
+    border: none;
+    outline: none;
+  }
+
+  .domainDetectPage-head-detect-btn {
+    display: flex; /* 使用 flex 保证垂直也居中 */
+    align-items: center; /* 垂直居中 */
+    justify-content: center; /* 水平居中 */
+    margin-top: 6px;
+    background-color: #0048cd;
+    width: 100%;
+    border: var(--cm-hg-radius-default);
+    font-size: var(--cm-hg-mobile-font14);
+    border-radius: var(--cm-hg-radius-default);
+    color: white; /* 字体颜色为白色 */
+    text-align: center; /* 水平居中 */
+    border: none; /* 去除边框 */
+    cursor: pointer; /* 鼠标样式 */
+  }
+}
