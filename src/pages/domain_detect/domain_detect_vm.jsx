@@ -8,6 +8,7 @@
  */
 import HttpIPManager from '../../api/HttpIPManager';
 import NetManager from '../../api/HttpManagerV1';
+import { getSystemInfo } from '../../utils/SystemInfoUtil';
 
 export default class DomainDetectVM {
 

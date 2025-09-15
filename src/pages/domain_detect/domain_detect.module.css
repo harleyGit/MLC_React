@@ -24,6 +24,7 @@ body {
   justify-content: flex-start;
   align-items: stretch;
   background-color: #ebe8e8;
+  background-color: red;
 }
 
 .domainDetectPage-head-container {
