@@ -2,15 +2,105 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 20:24:11
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2025-09-12 09:50:38
+ * @LastEditTime: 2025-09-15 15:53:51
  * @FilePath: /MLC_React/src/pages/domain_detect/domain_detect_vm.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
+import { queryDNS } from 'cf-doh';
 import HttpIPManager from '../../api/HttpIPManager';
 import NetManager from '../../api/HttpManagerV1';
 import { getSystemInfo } from '../../utils/SystemInfoUtil';
 
 export default class DomainDetectVM {
+
+  static requestNSLookupCMDomainInfo = () => {
+        
+        const domainGroups = this.getDomainGroups();
+        const promises = [];
+      
+        for (const groupKey in domainGroups) {
+          if (groupKey === "otherDomain") {
+            break;
+          }
+      
+          const group = domainGroups[groupKey];
+          for (let i = 0; i < group.length; i++) {
+            for (let j = 0; j < group[i].length; j++) {
+              const domainObj = group[i][j];
+              const domain = Object.keys(domainObj)[0];
+      
+              if (domain) {
+                const p = this.requestQueryDNSForDomainInfo({ domain, isInput: false })
+                  .then((info) => {
+                    domainObj[domain] = info;
+                  })
+                  .catch(() => {
+                    domainObj[domain] = null;
+                  });
+                promises.push(p);
+              }
+            }
+          }
+        }
+      
+        // 等待所有请求完成后返回最终结构
+        return Promise.all(promises).then(() => domainGroups);
+      }
+    
+      static requestQueryDNSForDomainInfo = async ({domain, isInput = true} = {}) => {
+    
+        if (!domain?.trim()) {
+          return isInput ? Promise.reject("请输入正确域名，比如：google.com") :  Promise.reject("-.-")
+        }
+    
+        try {
+          const aRecords = await queryDNS(domain, "A");
+          //const aaaaRecords = await queryDNS(domain, "AAAA");
+          // console.info('🍎 域名iP：', aRecords)
+          let output = ""
+          if (isInput) {
+            output = DomainDetectVM.handelInputLookupDomain01(aRecords, domain);
+          } else {
+            output = DomainDetectVM.handleLookupDomain01(aRecords, output);
+          }
+          return output
+        } catch (err) {
+          return err;
+        }
+       
+      };
+    
+      static handleLookupDomain01(datas, output) {
+        if (datas) {
+          datas.forEach((ipStr) => {
+            // 如果是以 .com 结尾的字符串，直接跳过
+            if (typeof ipStr === "string" && ipStr.endsWith(".com.")) {
+              return;
+            }
+            output += `[${ipStr}]\n`;
+          });
+        } else {
+          output += 'domain not found\n';
+        }
+        return output;
+      }
+    
+      static handelInputLookupDomain01(datas, domain) {
+        let output = `Server:\t -.- \nAddress: -.- #53\n\n\n`;
+        if (datas) {
+          output += `Non-authoritative answer:\n`;
+          output += `Name:\t${domain}\n`;
+          datas.forEach((ipStr) => {
+            if (typeof ipStr === "string" && ipStr.endsWith(".com.")) {
+              return;
+            }
+            output += `Address: ${ipStr}\n`;
+          });
+        } else {
+          output += `*** ${domain} not found\n`;
+        }
+        return output;
+      }
 
     /* 根据域名查询IP地址 */
     static requestNSLookupDomainInfo = ({}={}) =>{

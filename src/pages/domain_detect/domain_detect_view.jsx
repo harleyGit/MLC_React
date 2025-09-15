@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 20:23:52
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2025-09-15 14:16:01
+ * @LastEditTime: 2025-09-15 15:52:28
  * @FilePath: /MLC_React/src/pages/domain_detect/domain_detect_view.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -38,12 +38,27 @@ class DomainDetectView extends React.Component {
       this.fetchIP();
       //获取设备信息
       this.fetchDeviceInfo();
+
+      // 这个若是放在线上会出现因为后端没有配置代理，无法使用
       this.getCMDomainLookupInfo();
+
+      this.getCMDomainLookupInfo01();
   
       DomainDetectVM.testEnvironVariable();
     }
   
+    getCMDomainLookupInfo01 = () => {
+      DomainDetectVM.requestNSLookupCMDomainInfo()
+        .then((resp) => {
+          // 强制触发组件刷新
+          this.setState({ lookupDomainIPs: { ...resp } });
+        })
+        .catch((err) => {});
+    };
+
+
     getCMDomainLookupInfo = () => {
+      return
       DomainDetectVM.requestLookupCMDomainInfo()
         .then((resp) => {
           // 强制触发组件刷新
