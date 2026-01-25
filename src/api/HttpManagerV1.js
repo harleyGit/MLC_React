@@ -2,7 +2,7 @@
  * @Author: huanggang huanggang@imilab.com
  * @Date: 2025-05-08 16:12:43
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2025-09-15 16:41:22
+ * @LastEditTime: 2026-01-26 00:24:32
  * @FilePath: /app-web/imi-diagnosis/src/http_module/HttpRequest.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -93,7 +93,7 @@ class NetAPI {
    * @param {Object} body - 请求体
    * @param {Object} [options] - 额外配置
    */
-  static postWithURL = (url, body, options = {}) => {
+  postWithURL = (url, body, options = {}) => {
     return new Promise((resolve, reject) => {
       this.request({ url, method: "POST", body, ...options })
         .then((data) => {

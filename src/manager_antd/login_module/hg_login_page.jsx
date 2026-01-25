@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:27:11
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-25 23:55:38
+ * @LastEditTime: 2026-01-26 01:19:45
  * @FilePath: /MLC_React/src/manager_antd/login_module/hglogin_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -22,14 +22,15 @@ class HGLoginPage extends Component {
 
   handleSubmit = (values) => {
     this.setState({ loading: true });
-    // 调用接口，路径为 /api/profile
-    HGNet.get("/auth/login")
+    HGNet.post("/auth/login", {
+      phone: "13800000000",
+      password: "123456",
+    })
       .then((res) => {
-        console.log("用户信息", res);
-        setUser(res);
+        console.log("登录成功", res);
       })
       .catch((err) => {
-        console.error("接口错误", err);
+        console.error("登录失败", err);
       });
 
     setTimeout(() => {

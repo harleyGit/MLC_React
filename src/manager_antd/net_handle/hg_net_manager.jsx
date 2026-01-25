@@ -1,4 +1,4 @@
-import NetManager from "./NetAPI"; // 假设 NetAPI 在同目录下
+import NetManager from "../../api/HttpManagerV1";
 
 class HGNetManager {
   constructor(baseURL = "http://localhost:8080") {
@@ -65,7 +65,6 @@ class HGNetManager {
 const HGNet = new HGNetManager();
 
 export default HGNet;
-
 
 /**
  *
