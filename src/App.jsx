@@ -2,21 +2,40 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 09:31:27
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2025-09-15 14:12:16
+ * @LastEditTime: 2026-01-25 22:50:00
  * @FilePath: /MLC_React/src/App.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import HomePage from './pages/home_module/HomePage';
-import DomainDetectView from './pages/domain_detect/domain_detect_view';
-import GuideVideoView from './pages/app/guide_video/GuideVideoView';
+import React, { Component } from "react";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import "./App.css";
+import HGLoginPage from "./manager_antd/login_module/hg_login_page";
+import HGRegisterPage from "./manager_antd/login_module/hg_ register_page";
 
 
+
+class App extends Component {
+  render() {
+    return (
+      <Router>
+        <div
+          className="App"
+          style={{ backgroundColor: "#f0f2f5", minHeight: "100vh" }}
+        >
+          <Routes>
+            <Route path="/" element={<HGLoginPage />} />
+            <Route path="/login" element={<HGLoginPage />} />
+            <Route path="/register" element={<HGRegisterPage />} />
+          </Routes>
+        </div>
+      </Router>
+    );
+  }
+}
+
+export default App;
+
+/*
 function App() {
   const [count, setCount] = useState(0)
 
@@ -61,3 +80,4 @@ function App() {
 }
 
 export default App
+*/
