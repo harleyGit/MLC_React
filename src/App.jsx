@@ -2,33 +2,25 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 09:31:27
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-25 22:50:00
+ * @LastEditTime: 2026-01-25 23:26:59
  * @FilePath: /MLC_React/src/App.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import React, { Component } from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { Component } from "react";
+import { RouterProvider } from "react-router";
 import "./App.css";
-import HGLoginPage from "./manager_antd/login_module/hg_login_page";
-import HGRegisterPage from "./manager_antd/login_module/hg_ register_page";
-
-
+import HGRouter from "./manager_antd/router/hg_index";
 
 class App extends Component {
   render() {
     return (
-      <Router>
-        <div
-          className="App"
-          style={{ backgroundColor: "#f0f2f5", minHeight: "100vh" }}
-        >
-          <Routes>
-            <Route path="/" element={<HGLoginPage />} />
-            <Route path="/login" element={<HGLoginPage />} />
-            <Route path="/register" element={<HGRegisterPage />} />
-          </Routes>
-        </div>
-      </Router>
+      <div
+        className="App"
+        style={{ backgroundColor: "#f0f2f5", minHeight: "100vh" }}
+      >
+        {/* 直接用 RouterProvider，不需要包裹 div */}
+        <RouterProvider router={HGRouter} />
+      </div>
     );
   }
 }
