@@ -2,18 +2,23 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:58:51
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-25 23:19:36
+ * @LastEditTime: 2026-01-27 10:43:09
  * @FilePath: /MLC_React/src/manager_antd/router/hg_index.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import { createBrowserRouter } from "react-router-dom";
+import HGAuthGuard from "../auth/hg_auth_guard";
 import HGRegisterPage from "../login_module/hg_ register_page";
 import HGLoginPage from "../login_module/hg_login_page";
 
 const HGRouter = createBrowserRouter([
   {
     path: "/",
-    element: <HGLoginPage />,
+    element: (
+      <HGAuthGuard>
+        <HGLoginPage />
+      </HGAuthGuard>
+    ),
   },
   {
     path: "/login",
