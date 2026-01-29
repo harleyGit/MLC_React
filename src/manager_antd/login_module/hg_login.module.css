@@ -1,0 +1,55 @@
+.page {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f7fa;
+  }
+  
+  .card {
+    width: 100%;
+    max-width: 400px;
+    padding: 32px 28px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    box-sizing: border-box;
+  }
+  
+  .title {
+    text-align: center;
+    margin-bottom: 24px;
+    font-size: 22px;
+    font-weight: 600;
+  }
+  
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 16px;
+  }
+  
+  .link {
+    color: #1677ff;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  
+  .link:hover {
+    text-decoration: underline;
+  }
+  
+  /* 📱 移动端适配 */
+  @media (max-width: 480px) {
+    .card {
+      margin: 0 16px;
+      padding: 24px 20px;
+      border-radius: 10px;
+    }
+  
+    .title {
+      font-size: 20px;
+    }
+  }
+  
