@@ -10,7 +10,7 @@ import React from "react"; // ✅ 默认导出
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import "./index.css";
-import HGRouter from "./manager_antd/router/hg_index.jsx";
+import HGRouter from "./manager_antd/router/hg_router.jsx";
 import reportWebVitals from "./optimize/reportWebVitals.js";
 
 createRoot(document.getElementById("root")).render(
