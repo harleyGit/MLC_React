@@ -93,7 +93,7 @@ class HGLoginPage extends Component {
           >
             <Item
               name="username"
-              rules={[{ required: true, message: "请输入用户名" }]}
+              rules={[{ required: true, message: "请输入邮箱/手机号码" }]}
             >
               <Input prefix={<UserOutlined />} placeholder="用户名" />
             </Item>
