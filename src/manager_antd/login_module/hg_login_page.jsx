@@ -1,24 +1,22 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:27:11
- * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-01-29 23:18:59
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-01-30 09:56:20
  * @FilePath: /MLC_React/src/manager_antd/login_module/hglogin_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Form, Input } from "antd";
 import React, { Component } from "react";
+import { DEBUG_MAP, TOKEN_KEY } from "../auth/hg_auth";
 import HGNet from "../net_handle/hg_net_manager";
 import styles from "./hg_login.module.css";
-import { TOKEN_KEY } from "../auth/hg_auth";
-
 
 const { Item } = Form;
 
 class HGLoginPage extends Component {
   formRef = React.createRef();
-  
 
   state = {
     loading: false,
@@ -84,9 +82,10 @@ class HGLoginPage extends Component {
             name="login"
             onFinish={this.handleSubmit}
             size="large"
-            initialValues={{//默认值
-              username: "admin",
-              password: "123456",
+            initialValues={{
+              //默认值
+              username: DEBUG_MAP.userName, //"admin",
+              password: DEBUG_MAP.password, //"123456",
             }}
           >
             <Item

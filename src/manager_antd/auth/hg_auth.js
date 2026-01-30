@@ -1,11 +1,20 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-26 11:38:26
- * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-01-29 23:18:46
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-01-30 09:55:48
  * @FilePath: /MLC_React/src/manager_antd/auth/hg_auth.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
+/* DEBUG环境默认值设置 */
+const env = import.meta.env;
+const isDebug = env.VITE_APP_ENV === "debug";
+export const DEBUG_MAP = isDebug
+  ? {
+      userName: env.VITE_DEFAULT_USERNAME,
+      password: env.VIETE_DEFAULT_PASSWORD,
+    }
+  : {};
 
 export const TOKEN_KEY = "manager_token";
 // 判断是否登录
