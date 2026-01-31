@@ -6,11 +6,21 @@
   width: 100vw;
   height: 100vh;
   display: flex;
-  
+
   align-items: center;
   justify-content: center;
   background: #f5f7fa;
 }
+/* .content 整体居中，内部的标题自然就在顶部居中，表单在其下方。 */
+.content {
+  width: 100%;
+  max-width: 400px; /* 可选：限制表单宽度 */
+  padding: 32px;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  background: white; /* 表单背景更清晰 */
+}
+
 
 .title {
   text-align: center;

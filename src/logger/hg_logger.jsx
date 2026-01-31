@@ -98,7 +98,7 @@ export function LogOut(...args) {
 // 错误日志（生产环境也会强制上报）
 // 范例：LogError("登录失败", error);
 export function LogError(...args) {
-  console.error("[ERROR]", ...args);
+  console.error("❌[ERROR]", ...args);
   if (process.env.NODE_ENV !== "development") {
     sendLogToServer("ERROR", args);
   }

@@ -1,7 +1,34 @@
 import { TOKEN_KEY } from "../auth/hg_auth";
 import HGNet from "../net_handle/hg_net_manager_vm";
 
+// 📌 注册方式枚举（推荐用对象形式，避免魔法字符串）
+export const HGRegisterType = {
+  PHONE: "phone",
+  EMAIL: "email",
+  WECHAT: "wechat",
+};
+
+// 可选：反向映射或标签
+export const HGRegisterTypeLabel = {
+  [HGRegisterType.PHONE]: "手机号",
+  [HGRegisterType.EMAIL]: "邮箱",
+  [HGRegisterType.WECHAT]: "微信",
+};
+
 export default class HGLoginVM {
+  static requestSendVerifyCode = ({ phone }) => {
+    return HGNet.sendCode({ phone: phone })
+      .then((res) => {
+        if (res.code === 200) {
+          return res;
+        } else {
+          throw new Error(res.message || "发送验证码失败");
+        }
+      })
+      .catch((err) => {
+        throw err;
+      });
+  };
   static requestLogin = ({ phone, password }) => {
     // 调用真正的登录接口（返回 Promise）
     return HGNet.postUserLogin({ phone, password })

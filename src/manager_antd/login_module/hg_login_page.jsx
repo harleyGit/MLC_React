@@ -13,7 +13,7 @@ import { DEBUG_MAP } from "../auth/hg_auth";
 import { WithNavigation } from "../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../router/hg_router_path";
 import styles from "./hg_login.module.css";
-import HGLoginVM from "./hg_login_vm";
+import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
 import { LogOut } from "../../logger/hg_logger";
 
 const { Item } = Form;
@@ -53,6 +53,7 @@ class HGLoginPage extends Component {
     this.props.navigate?.(ROUTE_PATH.REGISTER, {
       state: {
         userName: userName,
+        registerType: HGRegisterType.PHONE
       },
     });
   };

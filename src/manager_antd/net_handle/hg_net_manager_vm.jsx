@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-31 16:32:04
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-31 17:00:15
+ * @LastEditTime: 2026-01-31 17:38:06
  * @FilePath: /MLC_React/src/manager_antd/net_handle/hg_net_manager_vm.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -11,10 +11,9 @@ import { HGMANAGER_API } from "../api/hg_api_constants";
 
 class HGNetManagerVM extends HGNetManager {
   // 发送验证码
-  sendCode(phone, password) {
+  sendCode({phone}) {
     return this.post(HGMANAGER_API.SEND_CODE, {
       phone,
-      password,
     });
   }
 
