@@ -1,4 +1,4 @@
-import NetManager from "../../api/HttpManagerV1";
+import NetManager from "./HttpManagerV1";
 
 class HGNetManager {
   constructor(baseURL = "http://localhost:8080") {
@@ -61,10 +61,7 @@ class HGNetManager {
   }
 }
 
-// 创建一个默认实例
-const HGNet = new HGNetManager();
-
-export default HGNet;
+export default HGNetManager;
 
 /**
  *

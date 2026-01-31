@@ -149,3 +149,42 @@ class NetAPI {
 
 const NetManager = new NetAPI();
 export default NetManager;
+
+
+/** 拦截器增加【还没有加入】
+ // src/utils/request.js
+import axios from 'axios';
+
+// 创建实例
+const request = axios.create({
+  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080', // 可配置
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 请求拦截器（可选：加 token）
+request.interceptors.request.use(
+  (config) => {
+    // 例如从 localStorage 读 token
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// 响应拦截器（统一处理错误）
+request.interceptors.response.use(
+  (response) => response.data, // 直接返回 data
+  (error) => {
+    console.error('API 请求失败:', error);
+    return Promise.reject(error);
+  }
+);
+
+export default request;
+ * **/

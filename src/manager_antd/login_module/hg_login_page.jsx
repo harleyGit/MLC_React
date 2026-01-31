@@ -2,18 +2,18 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:27:11
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-31 11:03:23
+ * @LastEditTime: 2026-01-31 17:13:43
  * @FilePath: /MLC_React/src/manager_antd/login_module/hglogin_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
-import { Button, Form, Input } from "antd";
+import { Button, Form, Input, message } from "antd";
 import React, { Component } from "react";
-import { DEBUG_MAP, TOKEN_KEY } from "../auth/hg_auth";
-import HGNet from "../net_handle/hg_net_manager";
+import { DEBUG_MAP } from "../auth/hg_auth";
 import { WithNavigation } from "../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../router/hg_router_path";
 import styles from "./hg_login.module.css";
+import HGLoginVM from "./hg_login_vm";
 
 const { Item } = Form;
 
@@ -22,63 +22,51 @@ class HGLoginPage extends Component {
 
   state = {
     loading: false,
+    userName: "",
   };
 
   handleSubmit = (values) => {
     console.log("🍎 values：", values);
     // return;
     this.setState({ loading: true });
-    HGNet.post("/auth/login", {
+    HGLoginVM.requestLogin({
       phone: values.username,
       password: values.password,
     })
-      .then((res) => {
-        console.log("登录成功", res);
-        localStorage.setItem(TOKEN_KEY, res.result?.token);
-
-        const from = this.props.location.state?.from || ROUTE_PATH.USER_PROFILE;
-        // window.location.href = "/home";
+      .then((data) => {
+        // 这里的 data 是你上面 return response.data 的结果
+        const from = this.props.location.state?.from || ROUTE_PATH.HOME;
         this.props.navigate?.(from);
         this.setState({ loading: false });
       })
-      .catch((err) => {
+      .catch((error) => {
         this.setState({ loading: false });
-        console.error("登录失败", err);
+        // 处理登录失败
+        message.error(error.message);
       });
-
-    // setTimeout(() => {
-    //   // 🔜 替换为真实 API 调用
-    //   console.log("登录数据:", values);
-    //   message.success("登录成功！");
-    //   // 示例跳转：window.location.href = '/dashboard';
-    //   this.setState({ loading: false });
-    // }, 800);
   };
-
-  formRef = React.createRef();
-
-  state = {
-    loading: false,
-  };
-
-  // handleSubmit = (values) => {
-  //   this.setState({ loading: true });
-
-  //   // 模拟登录
-  //   setTimeout(() => {
-  //     console.log("login values:", values);
-  //     this.setState({ loading: false });
-  //   }, 1000);
-  // };
 
   handleRegister = () => {
-    this.props.navigate?.(ROUTE_PATH.REGISTER);
+    const { userName } = this.state;
+    this.props.navigate?.(ROUTE_PATH.REGISTER, {
+      state: {
+        userName: userName,
+      },
+    });
   };
 
   handleForgetPassword = () => {
     this.props.navigate?.("/forget-password");
   };
 
+  handleUserNameInputChange = (e) => {
+    const value = e.target.value;
+    // 此时 inputValue 是实时的输入值
+    this.setState({
+      userName: value,
+    });
+    console.log("当前输入值：", value);
+  };
   render() {
     return (
       <div className={styles.page}>
@@ -99,7 +87,11 @@ class HGLoginPage extends Component {
               name="username"
               rules={[{ required: true, message: "请输入邮箱/手机号码" }]}
             >
-              <Input prefix={<UserOutlined />} placeholder="用户名" />
+              <Input
+                prefix={<UserOutlined />}
+                placeholder="用户名"
+                onChange={this.handleUserNameInputChange}
+              />
             </Item>
 
             <Item
