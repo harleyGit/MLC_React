@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:30:41
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-31 21:18:17
+ * @LastEditTime: 2026-02-01 00:29:52
  * @FilePath: /MLC_React/src/manager_antd/login_module/hg_ register_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -13,12 +13,12 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { Button, Form, Input, message } from "antd";
-// import { Component, React } from "react";
 import React, { Component } from "react";
 import { LogError, LogOut } from "../../logger/hg_logger";
 import { WithNavigation } from "../router/hg_naviagion_hook";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
 import styles from "./hg_register.module.css";
+import { ROUTE_PATH } from "../router/hg_router_path";
 
 const { Item } = Form;
 
@@ -38,6 +38,7 @@ class HGRegisterPage extends Component {
       registerType: location.state.registeType || HGRegisterType.PHONE, // true=邮箱，false=手机号
       contactWay: "",
       userName: location.state?.userName || "",
+      verifyCode: "", //验证码
     };
   }
 
@@ -98,15 +99,50 @@ class HGRegisterPage extends Component {
     HGLoginVM.requestSendVerifyCode({
       phone: contactWay,
     })
-      .then((data) => {
-        LogOut("data:", data);
-        this.setState({ codeLoading: false });
+      .then((code) => {
+        if (this.formRef.current) {
+          this.formRef.current.setFieldsValue({ code: code });
+        }
+        // ✅ 关键：主动设置表单字段值
+        // this.formRef.current?.setFieldsValue({
+        //   code: code,
+        // });
+        this.setState({ codeLoading: false, verifyCode: code });
       })
       .catch((error) => {
         LogError("错误：", error);
         this.setState({ codeLoading: false });
         // 处理登录失败
         message.error(error.message);
+      });
+  };
+
+  /** 提交注册 */
+  handleSubmit = (values) => {
+    if (values.password !== values.confirmPassword) {
+      message.error("两次密码不一致");
+      return;
+    }
+    LogOut("表单值：", values);
+    this.setState({ loading: true });
+
+    HGLoginVM.requestRegisterUser({
+      userName: values.username,
+      phone: values.phone,
+      code: values.code,
+      password: values.password,
+    })
+      .then((res) => {
+        message.success("注册成功，请登录");
+        this.props.navigate(ROUTE_PATH.LOGIN);
+      })
+      .catch((err) => {
+        LogError("注册错误：", err);
+        // 注册失败
+        message.error(err.message);
+      })
+      .finally(() => {
+        this.setState({ loading: false });
       });
   };
 
@@ -128,23 +164,7 @@ class HGRegisterPage extends Component {
   toggleInputType = () => {
     this.setState((prev) => ({ useEmail: !prev.useEmail }));
   };
-  /** 提交注册 */
-  handleSubmit = (values) => {
-    if (values.password !== values.confirmPassword) {
-      message.error("两次密码不一致");
-      return;
-    }
 
-    this.setState({ loading: true });
-
-    // 🔜 替换为真实注册 API
-    setTimeout(() => {
-      console.log("注册数据:", values);
-      message.success("注册成功，请登录");
-      this.setState({ loading: false });
-      this.props.navigate("/login");
-    }, 1000);
-  };
   inputChange = (e) => {
     const value = e.target.value;
     this.setState(
@@ -157,10 +177,16 @@ class HGRegisterPage extends Component {
   };
 
   render() {
-    const { loading, codeLoading, countdown, userName, registerType } =
-      this.state;
+    const {
+      loading,
+      codeLoading,
+      countdown,
+      userName,
+      registerType,
+      verifyCode,
+    } = this.state;
     const isEmail = registerType == HGRegisterType.EMAIL;
-    console.log("🍎用户名：userName:", userName);
+
     return (
       <div className={styles.container}>
         <div className={styles.content}>
@@ -170,6 +196,7 @@ class HGRegisterPage extends Component {
             size="large"
             initialValues={{
               username: userName || "",
+              code: verifyCode,
             }}
             onFinish={this.handleSubmit}
           >
@@ -212,26 +239,23 @@ class HGRegisterPage extends Component {
                 />
               </Item>
             )}
-
-            <Item
-              name="code"
-              rules={[{ required: true, message: "请输入验证码" }]}
-            >
-              <div className={styles.codeRow}>
+            <div className={styles.codeRow}>
+              <Item
+                name="code"
+                rules={[{ required: true, message: "请输入验证码" }]}
+                style={{ flex: 1, marginBottom: 0 }}   // ⭐ 核心 2
+              >
                 <Input placeholder="验证码" />
-                <Button
-                  type="primary"
-                  onClick={this.handleSendCode}
-                  disabled={this.state.countdown > 0}
-                  loading={this.state.codeLoading}
-                >
-                  {this.state.countdown > 0
-                    ? `${this.state.countdown}s`
-                    : "发送验证码"}
-                </Button>
-              </div>
-            </Item>
-
+              </Item>
+              <Button
+                type="primary"
+                onClick={this.handleSendCode}
+                disabled={countdown > 0}
+                loading={codeLoading}
+              >
+                {countdown > 0 ? `${countdown}s` : "发送验证码"}
+              </Button>
+            </div>
             <Item
               name="password"
               rules={[{ required: true, message: "请输入密码" }]}

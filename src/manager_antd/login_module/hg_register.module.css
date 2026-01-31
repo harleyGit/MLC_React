@@ -21,7 +21,6 @@
   background: white; /* 表单背景更清晰 */
 }
 
-
 .title {
   text-align: center;
   margin-bottom: 24px;
@@ -29,9 +28,17 @@
 
 .codeRow {
   display: flex;
+  width: 100%; /* ⭐ 核心 3：整行宽度 */
   gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
-.codeRow input {
-  flex: 1;
+.codeRow :global(.ant-form-item) {
+  margin-bottom: 0;
+}
+
+.codeRow :global(.ant-input),
+.codeRow :global(.ant-input-affix-wrapper) {
+  width: 100%;
 }

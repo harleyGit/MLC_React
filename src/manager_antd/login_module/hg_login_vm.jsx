@@ -1,3 +1,4 @@
+import { LogOut } from "../../logger/hg_logger";
 import { TOKEN_KEY } from "../auth/hg_auth";
 import HGNet from "../net_handle/hg_net_manager_vm";
 
@@ -16,11 +17,22 @@ export const HGRegisterTypeLabel = {
 };
 
 export default class HGLoginVM {
-  static requestSendVerifyCode = ({ phone }) => {
-    return HGNet.sendCode({ phone: phone })
+  /* 注册：
+    curl -X POST http://localhost:8080/user/register \
+        -H "Content-Type: application/json" \
+        -d '{"account":"13800000000","code":"564877"}'
+*/
+  static requestRegisterUser = ({ userName, phone, code, password }) => {
+    return HGNet.registerNewUser({
+      userName: userName,
+      phone: phone,
+      code: code,
+      password: password,
+    })
       .then((res) => {
+        LogOut("注册响应：", res);
         if (res.code === 200) {
-          return res;
+          return res.result.code;
         } else {
           throw new Error(res.message || "发送验证码失败");
         }
@@ -29,6 +41,31 @@ export default class HGLoginVM {
         throw err;
       });
   };
+  /*发送验证码 
+    curl -X POST http://localhost:8080/auth/send_code -d "phone=13800000000" 
+  */
+  static requestSendVerifyCode = ({ phone }) => {
+    return HGNet.sendCode({ phone: phone })
+      .then((res) => {
+        if (res.code === 200) {
+          return res.result.code;
+        } else {
+          throw new Error(res.message || "发送验证码失败");
+        }
+      })
+      .catch((err) => {
+        throw err;
+      });
+  };
+  /* 登录 
+  curl -X POST http://localhost:8080/auth/login \
+  -d "phone=13800000000" \
+  -d "code=255830"
+
+  或者
+
+    curl -X POST http://localhost:8080/auth/login -d "phone=13800000000&code=255830"
+  */
   static requestLogin = ({ phone, password }) => {
     // 调用真正的登录接口（返回 Promise）
     return HGNet.postUserLogin({ phone, password })
@@ -53,3 +90,14 @@ export default class HGLoginVM {
       });
   };
 }
+
+/**
+ *
+    // 🔜 替换为真实注册 API
+    setTimeout(() => {
+      console.log("注册数据:", values);
+      message.success("注册成功，请登录");
+      this.setState({ loading: false });
+      // this.props.navigate("/login");
+    }, 1000);
+*/
