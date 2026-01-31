@@ -12,7 +12,7 @@ export default class HGLoginVM {
         if (response.code === 200) {
           localStorage.setItem(TOKEN_KEY, response.result?.token);
           // 成功：返回你需要的数据结构，比如只返回 data
-          return response.data; // 页面 .then(res) 拿到的就是 data
+          return response.result; // 页面 .then(res) 拿到的就是 data
         } else {
           // 失败：抛出错误，会被 .catch 捕获
           throw new Error(response.message || "登录失败");
