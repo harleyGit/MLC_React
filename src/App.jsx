@@ -2,17 +2,79 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 09:31:27
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-30 21:07:44
+ * @LastEditTime: 2026-02-01 22:27:48
  * @FilePath: /MLC_React/src/App.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import { Component } from "react";
+import { Layout, Menu } from "antd";
+import React, { Component } from "react";
 import { RouterProvider } from "react-router";
+import {
+  Link,
+  Redirect,
+  Route,
+  BrowserRouter as Router,
+  Switch,
+} from "react-router-dom";
 import "./App.css";
+import styles from "./App.module.css";
 import HGRouter from "./manager_antd/router/hg_router";
+import About from "./pages/About";
+import Home from "./pages/Home";
+import Products from "./pages/Products";
+import Profile from "./pages/Profile";
+
+const { Header, Content, Footer } = Layout;
 
 class App extends Component {
-  render() {
+  constructor(props) {
+    super(props);
+    this.state = {
+      current: "home",
+    };
+  }
+
+  componentDidMount() {
+    this.updateCurrentFromPath();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (
+      this.props.location &&
+      prevProps.location &&
+      prevProps.location.pathname !== this.props.location.pathname
+    ) {
+      this.updateCurrentFromPath();
+    }
+  }
+
+  updateCurrentFromPath = () => {
+    if (!this.props.location) return;
+
+    const path = this.props.location.pathname;
+    switch (path) {
+      case "/":
+        this.setState({ current: "home" });
+        break;
+      case "/products":
+        this.setState({ current: "products" });
+        break;
+      case "/about":
+        this.setState({ current: "about" });
+        break;
+      case "/profile":
+        this.setState({ current: "profile" });
+        break;
+      default:
+        this.setState({ current: "home" });
+    }
+  };
+
+  handleClick = (e) => {
+    this.setState({ current: e.key });
+  };
+
+  render0() {
     return (
       <div
         className="App"
@@ -23,9 +85,63 @@ class App extends Component {
       </div>
     );
   }
-}
+  render() {
+    const { current } = this.state;
 
-export default App;
+    return (
+      <Router>
+        <Layout className={styles.layout}>
+          <Header>
+            <div className={styles.logo} />
+            <Menu
+              theme="dark"
+              mode="horizontal"
+              selectedKeys={[current]}
+              onClick={this.handleClick}
+            >
+              <Menu.Item key="home">
+                <Link to="/" className={styles.menuLink}>
+                  首页
+                </Link>
+              </Menu.Item>
+              <Menu.Item key="products">
+                <Link to="/products" className={styles.menuLink}>
+                  产品
+                </Link>
+              </Menu.Item>
+              <Menu.Item key="about">
+                <Link to="/about" className={styles.menuLink}>
+                  我们
+                </Link>
+              </Menu.Item>
+              <Menu.Item key="profile">
+                <Link to="/profile" className={styles.menuLink}>
+                  我的信息
+                </Link>
+              </Menu.Item>
+            </Menu>
+          </Header>
+
+          <Content style={{ padding: "50px 0" }}>
+            <div className={styles.contentWrapper}>
+              <Switch>
+                <Route exact path="/" component={Home} />
+                <Route path="/products" component={Products} />
+                <Route path="/about" component={About} />
+                <Route path="/profile" component={Profile} />
+                <Redirect to="/" />
+              </Switch>
+            </div>
+          </Content>
+
+          <Footer style={{ textAlign: "center", padding: "24px 0" }}>
+            Ant Design ©2026
+          </Footer>
+        </Layout>
+      </Router>
+    );
+  }
+}
 
 /*
 function App() {

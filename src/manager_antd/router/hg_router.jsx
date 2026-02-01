@@ -8,9 +8,9 @@
  */
 import { createBrowserRouter } from "react-router-dom";
 import HGAuthGuard from "../auth/hg_auth_guard";
-import HGHomePage from "../home/hg_home_page";
 import HGRegisterPage from "../login_module/hg_ register_page";
 import HGLoginPage from "../login_module/hg_login_page";
+import HGHomePage from "../page_modules/home/hg_home_page";
 import HGUpdateUserProfilePage from "../user/hg_update_user_profile_page";
 import HGUserProfilePage from "../user/hg_user_profile_page";
 import { ROUTE_PATH } from "./hg_router_path";
