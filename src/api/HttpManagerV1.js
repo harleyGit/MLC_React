@@ -2,12 +2,13 @@
  * @Author: huanggang huanggang@imilab.com
  * @Date: 2025-05-08 16:12:43
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-01 18:30:38
+ * @LastEditTime: 2026-02-01 18:55:15
  * @FilePath: /app-web/imi-diagnosis/src/http_module/HttpRequest.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 
 import { LogError } from "../logger/hg_logger";
+import { TOKEN_KEY } from "../manager_antd/auth/hg_auth";
 import { redirectToLogin, showError, showWarning } from "./hg_ui_feedback";
 
 export const ResultCodeMap = {
@@ -65,6 +66,9 @@ export function handleError(err) {
 }
 
 class NetAPI {
+  constructor() {
+    this.refreshTokenPromise = null; // 用于缓存刷新 token 的 Promise
+  }
   async get(url) {
     try {
       const response = await fetch(url);
@@ -75,6 +79,11 @@ class NetAPI {
       console.error("GET 请求出错:", error);
       throw error;
     }
+  }
+
+  getAuthHeaders() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
   /** request()里，传入的参数做解构，然后一一对应使用。
@@ -91,6 +100,8 @@ class NetAPI {
     // 超时控制
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
+    // 注入 token
+    headers = { ...headers, ...this.getAuthHeaders() };
 
     try {
       const response = await fetch(url, {
@@ -106,6 +117,10 @@ class NetAPI {
       clearTimeout(id);
       // ① HTTP 层错误
       if (!response.ok) {
+        // 401 单独处理
+        if (response.status === 401) {
+          return this.handle401({ url, method, headers, body, timeout });
+        }
         throw {
           type: "HTTP_ERROR",
           status: response.status,
@@ -117,6 +132,9 @@ class NetAPI {
 
       // ② 业务层错误
       const { code, message, result, tid, timestamp } = data;
+      if (code === 401) {
+        return this.handle401({ url, method, headers, body, timeout });
+      }
       if (code !== 200) {
         throw {
           type: "BIZ_ERROR",
@@ -187,6 +205,48 @@ class NetAPI {
   deleteWithURL = (url, options = {}) => {
     return this.request({ url, method: "DELETE", ...options });
   };
+
+  async handle401(originalRequest) {
+    // 只发一次刷新请求
+    if (!this.refreshTokenPromise) {
+      this.refreshTokenPromise = this.refreshToken();
+    }
+
+    try {
+      await this.refreshTokenPromise;
+      // 刷新成功，重试原请求
+      return this.request(originalRequest);
+    } catch (err) {
+      // 刷新失败，清理 token 并跳登录
+      localStorage.removeItem("manager_token");
+      window.location.href = "/login";
+      throw err;
+    } finally {
+      this.refreshTokenPromise = null;
+    }
+  }
+
+  async refreshToken() {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken)
+      throw { type: "AUTH_ERROR", message: "没有 refresh token" };
+
+    const url = `${process.env.VITE_API_BASE}/auth/refresh`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) throw { type: "AUTH_ERROR", message: "刷新 token 失败" };
+    const data = await res.json();
+
+    if (data.code !== 200)
+      throw { type: "AUTH_ERROR", message: data.message || "刷新 token 失败" };
+
+    // 保存新 token
+    localStorage.setItem("manager_token", data.result.token);
+  }
 }
 
 const NetManager = new NetAPI();
