@@ -31,31 +31,26 @@ export default class HGLoginVM {
     })
       .then((res) => {
         LogOut("注册响应：", res);
-        if (res.code === 200) {
-          return res.result.code;
-        } else {
-          throw new Error(res.message || "发送验证码失败");
-        }
+        return res;
       })
       .catch((err) => {
         throw err;
       });
   };
   /*发送验证码 
-    curl -X POST http://localhost:8080/auth/send_code -d "phone=13800000000" 
+    curl -X GET http://localhost:8080/auth/send_code -d "phone=13800000000" 
+
+    ✔ 不判断 code
+    ✔ 不 catch
+    ✔ 不 throw
   */
   static requestSendVerifyCode = ({ phone }) => {
-    return HGNet.sendCode({ phone: phone })
-      .then((res) => {
-        if (res.code === 200) {
-          return res.result.code;
-        } else {
-          throw new Error(res.message || "发送验证码失败");
-        }
-      })
-      .catch((err) => {
-        throw err;
-      });
+    // res 就是后端 result
+    return HGNet.sendCode({ phone }).then((res) => {
+      LogOut(res);
+      // res === 后端 result
+      return res.code;
+    });
   };
   /* 登录 
   curl -X POST http://localhost:8080/auth/login \
@@ -73,14 +68,11 @@ export default class HGLoginVM {
         // 👇 在这里处理响应结果
         // 例如：假设后端返回 { code: 200, data: { token: 'xxx' } }
 
-        if (response.code === 200) {
-          localStorage.setItem(TOKEN_KEY, response.result?.token);
-          // 成功：返回你需要的数据结构，比如只返回 data
-          return response.result; // 页面 .then(res) 拿到的就是 data
-        } else {
-          // 失败：抛出错误，会被 .catch 捕获
-          throw new Error(response.message || "登录失败");
-        }
+        LogOut("登录 res：", response);
+
+        localStorage.setItem(TOKEN_KEY, response?.token);
+        // 成功：返回你需要的数据结构，比如只返回 data
+        return response.result; // 页面 .then(res) 拿到的就是 data
       })
       .catch((error) => {
         // 👇 可选：统一错误处理（如弹窗提示）

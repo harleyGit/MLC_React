@@ -1,3 +1,4 @@
+import { LogOut } from "../logger/hg_logger";
 import NetManager from "./HttpManagerV1";
 
 class HGNetManager {
@@ -17,6 +18,10 @@ class HGNetManager {
       return `${this.baseURL}/${path}`;
     }
   }
+  getFullURLV2(path) {
+    return `${process.env.VITE_API_URL}${path}`;
+  }
+  
 
   /**
    * GET 请求
@@ -36,6 +41,7 @@ class HGNetManager {
     const url = query
       ? `${this.getFullURL(path)}?${query}`
       : this.getFullURL(path);
+    LogOut("params:", params, "query:", query, "url:", url);
     return NetManager.getWithURL(url);
   }
 
@@ -67,7 +73,11 @@ class HGNetManager {
    * @param {Object} options
    */
   delete(path, options = {}) {
-    const url = this.getFullURL(path);
+    const query = new URLSearchParams(params).toString();
+    const url = query
+      ? `${this.getFullURL(path)}?${query}`
+      : this.getFullURL(path);
+
     return NetManager.deleteWithURL(url, options);
   }
 }

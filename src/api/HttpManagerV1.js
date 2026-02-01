@@ -2,10 +2,68 @@
  * @Author: huanggang huanggang@imilab.com
  * @Date: 2025-05-08 16:12:43
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-26 00:24:32
+ * @LastEditTime: 2026-02-01 18:30:38
  * @FilePath: /app-web/imi-diagnosis/src/http_module/HttpRequest.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
+
+import { LogError } from "../logger/hg_logger";
+import { redirectToLogin, showError, showWarning } from "./hg_ui_feedback";
+
+export const ResultCodeMap = {
+  200: { type: "success" },
+
+  400: { type: "warn", message: "参数错误" },
+  401: { type: "auth", message: "登录已过期，请重新登录" },
+  403: { type: "auth", message: "无权限访问" },
+
+  429: { type: "warn", message: "请求过于频繁" },
+
+  500: { type: "error", message: "服务器内部错误" },
+  10001: { type: "warn", message: "验证码错误" },
+  10002: { type: "warn", message: "验证码已过期" },
+};
+
+export function handleError(err) {
+  LogError("Request Error:", err);
+
+  // HTTP / 网络 / 超时
+  if (err.type !== "BIZ_ERROR") {
+    showError(err.message || "网络异常");
+    return;
+  }
+
+  const map = ResultCodeMap[err.code];
+
+  if (!map) {
+    showError(err.message || "未知业务错误");
+    return;
+  }
+
+  switch (map.type) {
+    case "auth":
+      showError(map.message);
+      redirectToLogin();
+      break;
+
+    case "warn":
+      showWarning(map.message || err.message);
+      break;
+
+    case "error":
+      showError(map.message || err.message);
+      break;
+
+    default:
+      showError(err.message);
+  }
+
+  // 可选：把 tid 打出来
+  if (err.tid) {
+    console.warn("TID:", err.tid);
+  }
+}
+
 class NetAPI {
   async get(url) {
     try {
@@ -46,25 +104,49 @@ class NetAPI {
       });
 
       clearTimeout(id);
-
+      // ① HTTP 层错误
       if (!response.ok) {
-        throw new Error(`HTTP 错误: ${response.status} ${response.statusText}`);
+        throw {
+          type: "HTTP_ERROR",
+          status: response.status,
+          message: response.statusText,
+        };
       }
 
-      // 根据响应类型处理
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        return await response.json();
-      } else {
-        return await response.text();
+      const data = await response.json();
+
+      // ② 业务层错误
+      const { code, message, result, tid, timestamp } = data;
+      if (code !== 200) {
+        throw {
+          type: "BIZ_ERROR",
+          code,
+          message,
+          tid,
+          timestamp,
+        };
       }
+      // ③ 成功：只返回 result
+      return result;
     } catch (error) {
+      // ④ 超时
       if (error.name === "AbortError") {
-        console.error(`请求超时 (${timeout}ms):`, url);
-        throw new Error(`请求超时 (${timeout}ms)`);
+        throw {
+          type: "TIMEOUT",
+          message: `请求超时 (${timeout}ms)`,
+        };
       }
-      console.error(`${method} 请求出错:`, error);
-      throw error;
+
+      // ⑤ 已结构化错误，直接抛
+      if (error.type) {
+        throw error;
+      }
+
+      // ⑥ 兜底未知错误
+      throw {
+        type: "UNKNOWN",
+        message: error.message || "未知错误",
+      };
     }
   }
 
@@ -74,17 +156,7 @@ class NetAPI {
    * @param {Object} [options] - 额外配置
    */
   getWithURL = (url, options = {}) => {
-    return new Promise((resolve, reject) => {
-      this.request({ url, method: "GET", ...options })
-        .then((data) => {
-          // 你可以在这里加额外处理
-          resolve(data);
-        })
-        .catch((error) => {
-          // 统一错误处理
-          reject(error);
-        });
-    });
+    return this.request({ url, method: "GET", ...options });
   };
 
   /**
@@ -94,17 +166,7 @@ class NetAPI {
    * @param {Object} [options] - 额外配置
    */
   postWithURL = (url, body, options = {}) => {
-    return new Promise((resolve, reject) => {
-      this.request({ url, method: "POST", body, ...options })
-        .then((data) => {
-          // 你可以在这里加额外处理
-          resolve(data);
-        })
-        .catch((error) => {
-          // 统一错误处理
-          reject(error);
-        });
-    });
+    return this.request({ url, method: "POST", body, ...options });
   };
 
   /**
@@ -114,17 +176,7 @@ class NetAPI {
    * @param {Object} [options] - 额外配置
    */
   putWithURL = (url, body, options = {}) => {
-    return new Promise((resolve, reject) => {
-      this.request({ url, method: "PUT", body, ...options })
-        .then((data) => {
-          // 你可以在这里加额外处理
-          resolve(data);
-        })
-        .catch((error) => {
-          // 统一错误处理
-          reject(error);
-        });
-    });
+    return this.request({ url, method: "PUT", body, ...options });
   };
 
   /**
@@ -133,23 +185,12 @@ class NetAPI {
    * @param {Object} [options] - 额外配置
    */
   deleteWithURL = (url, options = {}) => {
-    return new Promise((resolve, reject) => {
-      this.request({ url, method: "DELETE", ...options })
-        .then((data) => {
-          // 你可以在这里加额外处理
-          resolve(data);
-        })
-        .catch((error) => {
-          // 统一错误处理
-          reject(error);
-        });
-    });
+    return this.request({ url, method: "DELETE", ...options });
   };
 }
 
 const NetManager = new NetAPI();
 export default NetManager;
-
 
 /** 拦截器增加【还没有加入】
  // src/utils/request.js
