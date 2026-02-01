@@ -2,19 +2,19 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:27:11
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-01 09:37:35
+ * @LastEditTime: 2026-02-01 22:41:26
  * @FilePath: /MLC_React/src/manager_antd/login_module/hglogin_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Form, Input, message } from "antd";
 import React, { Component } from "react";
-import { DEBUG_MAP } from "../auth/hg_auth";
-import { WithNavigation } from "../router/hg_naviagion_hook";
-import { ROUTE_PATH } from "../router/hg_router_path";
+import { LogOut } from "../../../logger/hg_logger";
+import { DEBUG_MAP } from "../../auth/hg_auth";
+import { WithNavigation } from "../../router/hg_naviagion_hook";
+import { ROUTE_PATH } from "../../router/hg_router_path";
 import styles from "./hg_login.module.css";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
-import { LogOut } from "../../logger/hg_logger";
 
 const { Item } = Form;
 
@@ -35,7 +35,7 @@ class HGLoginPage extends Component {
       password: values.password,
     })
       .then((data) => {
-        LogOut("data:", data)
+        LogOut("data:", data);
         // 这里的 data 是你上面 return response.data 的结果
         const from = this.props.location.state?.from || ROUTE_PATH.HOME;
         this.props.navigate?.(from);
@@ -54,8 +54,8 @@ class HGLoginPage extends Component {
       state: {
         userName: userName,
         registerType: HGRegisterType.PHONE,
-        testEmail:'harleysor@qq.com',
-        testCode:123456,
+        testEmail: "harleysor@qq.com",
+        testCode: 123456,
       },
     });
   };

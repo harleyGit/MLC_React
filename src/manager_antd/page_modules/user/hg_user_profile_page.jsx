@@ -2,15 +2,15 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-30 21:08:37
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-31 11:44:45
+ * @LastEditTime: 2026-02-01 22:43:25
  * @FilePath: /MLC_React/src/manager_antd/user/hg_user_profile_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
  *   HGUserProfilePage → HGUpdateUserProfilePage 页面传参（class 组件）
 */
 import React from "react";
-import { WithNavigation } from "../router/hg_naviagion_hook";
-import { ROUTE_PATH } from "../router/hg_router_path";
+import { WithNavigation } from "../../router/hg_naviagion_hook";
+import { ROUTE_PATH } from "../../router/hg_router_path";
 import CSStyles from "./hg_user_profile.module.css";
 
 class HGUserProfilePage extends React.Component {

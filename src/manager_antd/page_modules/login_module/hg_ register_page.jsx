@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:30:41
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-01 18:38:08
+ * @LastEditTime: 2026-02-01 22:47:56
  * @FilePath: /MLC_React/src/manager_antd/login_module/hg_ register_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -14,11 +14,12 @@ import {
 } from "@ant-design/icons";
 import { Button, Form, Input, message } from "antd";
 import React, { Component } from "react";
-import { handleError } from "../../api/HttpManagerV1";
-import { showSuccess } from "../../api/hg_ui_feedback";
-import { LogError, LogOut } from "../../logger/hg_logger";
-import { WithNavigation } from "../router/hg_naviagion_hook";
-import { ROUTE_PATH } from "../router/hg_router_path";
+// import { handleError } from "../../api/HttpManagerV1";
+import { handleError } from "../../../api/HttpManagerV1";
+import { showSuccess } from "../../../api/hg_ui_feedback";
+import { LogError, LogOut } from "../../../logger/hg_logger";
+import { WithNavigation } from "../../router/hg_naviagion_hook";
+import { ROUTE_PATH } from "../../router/hg_router_path";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
 import styles from "./hg_register.module.css";
 
