@@ -2,27 +2,26 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 09:31:27
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-01 22:27:48
+ * @LastEditTime: 2026-02-01 23:06:46
  * @FilePath: /MLC_React/src/App.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import { Layout, Menu } from "antd";
+import { Layout, Menu, Switch } from "antd";
 import React, { Component } from "react";
 import { RouterProvider } from "react-router";
 import {
   Link,
-  Redirect,
+  Navigate,
   Route,
   BrowserRouter as Router,
-  Switch,
 } from "react-router-dom";
 import "./App.css";
 import styles from "./App.module.css";
+import About from "./manager_antd/page_modules/about/hg_about_page";
+import HGHomePage from "./manager_antd/page_modules/home/hg_home_page";
+import Products from "./manager_antd/page_modules/product/hg_ products_page";
+import Profile from "./manager_antd/page_modules/profile/hg_profile_page";
 import HGRouter from "./manager_antd/router/hg_router";
-import About from "./pages/About";
-import Home from "./pages/Home";
-import Products from "./pages/Products";
-import Profile from "./pages/Profile";
 
 const { Header, Content, Footer } = Layout;
 
@@ -125,11 +124,11 @@ class App extends Component {
           <Content style={{ padding: "50px 0" }}>
             <div className={styles.contentWrapper}>
               <Switch>
-                <Route exact path="/" component={Home} />
+                <Route exact path="/" component={HGHomePage} />
                 <Route path="/products" component={Products} />
                 <Route path="/about" component={About} />
                 <Route path="/profile" component={Profile} />
-                <Redirect to="/" />
+                <Navigate to="/" />
               </Switch>
             </div>
           </Content>
@@ -142,6 +141,7 @@ class App extends Component {
     );
   }
 }
+export default App;
 
 /*
 function App() {
@@ -162,7 +162,10 @@ function App() {
       <h1>Hello React</h1>
       <p>当前环境: {import.meta.env.VITE_APP_ENV}</p>
       <p>API 地址: {import.meta.env.VITE_API_URL}</p>
-    </div>
+    </div>import About from './manager_antd/page_modules/about/hg_about_page';
+import { Redirect } from 'react-router-dom';
+import { Switch } from 'react-router-dom';
+
       <div>
         <a href="https://vite.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
