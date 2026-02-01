@@ -23,9 +23,20 @@ class HGNetManager {
    * @param {string} path - 接口相对路径
    * @param {Object} options - 额外配置
    */
-  get(path, options = {}) {
-    const url = this.getFullURL(path);
-    return NetManager.getWithURL(url, options);
+  get(path, params = {}) {
+    /*
+    query = new URLSearchParams({
+      phone: "17681317668",
+      code: "1234",
+    }).toString();
+  
+    query结果为： "phone=17681317668&code=1234"
+    */
+    const query = new URLSearchParams(params).toString();
+    const url = query
+      ? `${this.getFullURL(path)}?${query}`
+      : this.getFullURL(path);
+    return NetManager.getWithURL(url);
   }
 
   /**
