@@ -76,7 +76,7 @@ this.props.navigate?.("/register", {
 
 **`register.js`**
 
-```
+```js
 componentDidMount() {
     const { location } = this.props;
     LogOut(
@@ -92,7 +92,7 @@ componentDidMount() {
 
 **各个页面必须被`‌withRouter`包裹后才能导出来使用**
 
-```
+```js
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 
 export function withRouter(Component) {

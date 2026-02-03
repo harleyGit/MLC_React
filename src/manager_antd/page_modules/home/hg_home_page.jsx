@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-26 11:43:08
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-01 22:33:27
+ * @LastEditTime: 2026-02-03 10:36:58
  * @FilePath: /MLC_React/src/manager_antd/home/hg_home_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -24,6 +24,9 @@ class HGHomePage extends React.Component {
         <Button type="primary" danger onClick={this.handleLogout}>
           退出登录
         </Button>
+        <button onClick={() => this.props.navigate("/profile")}>
+          查看我的资料
+        </button>
       </div>
     );
   }

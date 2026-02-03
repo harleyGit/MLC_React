@@ -2,25 +2,14 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2025-09-11 09:31:27
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-01 23:06:46
+ * @LastEditTime: 2026-02-03 10:49:54
  * @FilePath: /MLC_React/src/App.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import { Layout, Menu, Switch } from "antd";
+import { Layout } from "antd";
 import React, { Component } from "react";
 import { RouterProvider } from "react-router";
-import {
-  Link,
-  Navigate,
-  Route,
-  BrowserRouter as Router,
-} from "react-router-dom";
 import "./App.css";
-import styles from "./App.module.css";
-import About from "./manager_antd/page_modules/about/hg_about_page";
-import HGHomePage from "./manager_antd/page_modules/home/hg_home_page";
-import Products from "./manager_antd/page_modules/product/hg_ products_page";
-import Profile from "./manager_antd/page_modules/profile/hg_profile_page";
 import HGRouter from "./manager_antd/router/hg_router";
 
 const { Header, Content, Footer } = Layout;
@@ -33,47 +22,7 @@ class App extends Component {
     };
   }
 
-  componentDidMount() {
-    this.updateCurrentFromPath();
-  }
-
-  componentDidUpdate(prevProps) {
-    if (
-      this.props.location &&
-      prevProps.location &&
-      prevProps.location.pathname !== this.props.location.pathname
-    ) {
-      this.updateCurrentFromPath();
-    }
-  }
-
-  updateCurrentFromPath = () => {
-    if (!this.props.location) return;
-
-    const path = this.props.location.pathname;
-    switch (path) {
-      case "/":
-        this.setState({ current: "home" });
-        break;
-      case "/products":
-        this.setState({ current: "products" });
-        break;
-      case "/about":
-        this.setState({ current: "about" });
-        break;
-      case "/profile":
-        this.setState({ current: "profile" });
-        break;
-      default:
-        this.setState({ current: "home" });
-    }
-  };
-
-  handleClick = (e) => {
-    this.setState({ current: e.key });
-  };
-
-  render0() {
+  render() {
     return (
       <div
         className="App"
@@ -82,62 +31,6 @@ class App extends Component {
         {/* 直接用 RouterProvider，不需要包裹 div */}
         <RouterProvider router={HGRouter} />
       </div>
-    );
-  }
-  render() {
-    const { current } = this.state;
-
-    return (
-      <Router>
-        <Layout className={styles.layout}>
-          <Header>
-            <div className={styles.logo} />
-            <Menu
-              theme="dark"
-              mode="horizontal"
-              selectedKeys={[current]}
-              onClick={this.handleClick}
-            >
-              <Menu.Item key="home">
-                <Link to="/" className={styles.menuLink}>
-                  首页
-                </Link>
-              </Menu.Item>
-              <Menu.Item key="products">
-                <Link to="/products" className={styles.menuLink}>
-                  产品
-                </Link>
-              </Menu.Item>
-              <Menu.Item key="about">
-                <Link to="/about" className={styles.menuLink}>
-                  我们
-                </Link>
-              </Menu.Item>
-              <Menu.Item key="profile">
-                <Link to="/profile" className={styles.menuLink}>
-                  我的信息
-                </Link>
-              </Menu.Item>
-            </Menu>
-          </Header>
-
-          <Content style={{ padding: "50px 0" }}>
-            <div className={styles.contentWrapper}>
-              <Switch>
-                <Route exact path="/" component={HGHomePage} />
-                <Route path="/products" component={Products} />
-                <Route path="/about" component={About} />
-                <Route path="/profile" component={Profile} />
-                <Navigate to="/" />
-              </Switch>
-            </div>
-          </Content>
-
-          <Footer style={{ textAlign: "center", padding: "24px 0" }}>
-            Ant Design ©2026
-          </Footer>
-        </Layout>
-      </Router>
     );
   }
 }
