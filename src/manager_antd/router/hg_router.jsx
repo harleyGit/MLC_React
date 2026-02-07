@@ -8,10 +8,12 @@
  */
 import { createBrowserRouter } from "react-router-dom";
 import HGAuthGuard from "../auth/hg_auth_guard";
+import HGAboutPage from "../page_modules/about/hg_about_page";
 import HGHomePage from "../page_modules/home/hg_home_page";
 import HGTopNavLayout from "../page_modules/home/hg_top_nav_layout";
 import HGRegisterPage from "../page_modules/login_module/hg_ register_page";
 import HGLoginPage from "../page_modules/login_module/hg_login_page";
+import HGProducts from "../page_modules/product/hg_ products_page";
 import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile_page";
 import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
 import { WithNavigation } from "./hg_naviagion_hook";
@@ -29,6 +31,14 @@ const HGRouter = createBrowserRouter([
       </HGAuthGuard>
     ),
     children: [
+      {
+        path: ROUTE_PATH.PRODUCTS,
+        element: <HGProducts />,
+      },
+      {
+        path: ROUTE_PATH.ABOUT,
+        element: <HGAboutPage />,
+      },
       {
         path: ROUTE_PATH.DEFAULT,
         element: <HGHomePage />,

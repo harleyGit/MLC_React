@@ -9,7 +9,7 @@
 import React, { Component } from "react";
 import styles from "./hg_ products.module.css";
 
-class Products extends Component {
+class HGProducts extends Component {
   render() {
     return (
       <div className={styles.container}>
@@ -24,4 +24,4 @@ class Products extends Component {
   }
 }
 
-export default Products;
+export default HGProducts;

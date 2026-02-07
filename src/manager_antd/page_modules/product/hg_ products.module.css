@@ -1,15 +1,18 @@
 /* src/pages/Products.module.css */
 .container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 24px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    padding: 32px;
-  }
-  
-  .productList {
-    margin-top: 16px;
-    padding-left: 20px;
-  }
+  display: flex;
+  align-items: center;
+  justify-items: center;
+  width: 100vw;
+  height: 100vh;
+  margin: 0 auto;
+  padding: 0 24px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.productList {
+  margin-top: 16px;
+  padding-left: 20px;
+}

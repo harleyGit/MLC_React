@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-02-03 10:29:22
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-03 10:37:27
+ * @LastEditTime: 2026-02-07 16:33:29
  * @FilePath: /MLC_React/src/manager_antd/page_modules/home/hg_top_nav_layout.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -36,9 +36,10 @@ class HGTopNavLayout extends Component {
 
   getCurrentPage = () => {
     const path = this.props.location?.pathname || "/";
-    if (path === "/" || path === "/home") return "home";
-    if (path === "/products") return "products";
-    if (path === "/about") return "about";
+    if (path === ROUTE_PATH.DEFAULT || path === ROUTE_PATH.HOME)
+      return "home";
+    if (path === ROUTE_PATH.PRODUCTS) return "products";
+    if (path === ROUTE_PATH.ABOUT) return "about";
     if (path === ROUTE_PATH.USER_PROFILE) return "profile";
     return "home";
   };
@@ -65,17 +66,17 @@ class HGTopNavLayout extends Component {
             onClick={this.handleClick}
           >
             <Menu.Item key="home">
-              <Link to="/home" className={styles.menuLink}>
+              <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>
                 首页
               </Link>
             </Menu.Item>
             <Menu.Item key="products">
-              <Link to="/products" className={styles.menuLink}>
+              <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>
                 产品
               </Link>
             </Menu.Item>
             <Menu.Item key="about">
-              <Link to="/about" className={styles.menuLink}>
+              <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>
                 我们
               </Link>
             </Menu.Item>
