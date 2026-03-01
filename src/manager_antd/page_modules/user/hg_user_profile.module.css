@@ -6,3 +6,20 @@
   justify-content: center;
   background: #f5f7fa;
 }
+.container {
+  padding: 24px;
+  background-color: #f5f6fa;
+  min-height: 100vh;
+}
+
+/* 表格优化 */
+:global(.ant-table) {
+  background-color: #ffffff;
+}
+
+/* 标题加粗 */
+:global(.ant-card-head-title) {
+  font-weight: 600;
+  font-size: 18px;
+}
+

@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-31 16:20:25
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-01-31 22:07:37
+ * @LastEditTime: 2026-03-01 19:00:26
  * @FilePath: /MLC_React/src/manager_antd/api/hg_api_constants.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
@@ -12,4 +12,5 @@ export const HGMANAGER_API = {
   LOGIN: "/auth/login", //登录
   REGISTER_NEW_USER: "user/register", //注册新用户
   SEND_CODE: "/auth/send_code", //验证码
+  UserList: "/profile/list", //用户列表
 };
