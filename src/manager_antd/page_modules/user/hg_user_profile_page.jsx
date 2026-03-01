@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-30 21:08:37
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-07 17:28:13
+ * @LastEditTime: 2026-03-01 22:25:27
  * @FilePath: /MLC_React/src/manager_antd/user/hg_user_profile_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
@@ -11,6 +11,7 @@
 import { Button, Card, message, Space, Table } from "antd";
 import Input from "antd/es/input/Input";
 import React from "react";
+import { LogOut } from "../../../logger/hg_logger";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";
@@ -42,15 +43,36 @@ class HGUserProfilePage extends React.Component {
   /**
    * 模拟服务端分页
    */
-  fetchUsers = (page, pageSize, keyword = "") => {
+  fetchUsers = (pageNum, pageSize) => {
     this.setState({ loading: true });
 
-    HGUserVM.requestUserInfoDataList({pageSize:pageSize, page:page}).then((res) => {
-      console.log("获取用户列表成功", res);
-      ALL_USERS = res.result;
-    }); 
+    HGUserVM.requestUserInfoDataList({
+      pageSize: pageSize,
+      pageNum: pageNum,
+    })
+      .then((res) => {
+        console.log("获取用户列表成功", res);
+        // ALL_USERS = res.result;
+        this.setState({
+          data: res.result,
+          result: res?.result ?? [],
+          total: res?.total ?? 0,
+          pagination: {
+            current: res.pageIndex,
+            pageSize,
+            total: res.total,
+          },
+        });
+      })
+      .catch((err) => {
+        // console.error("获取用户列表失败", err);
+        message.error("Failed to fetch user data");
+      })
+      .finally(() => {
+        this.setState({ loading: false });
+      });
 
-    setTimeout(() => {
+    /*setTimeout(() => {
       let filtered = ALL_USERS;
 
       if (keyword) {
@@ -75,6 +97,7 @@ class HGUserProfilePage extends React.Component {
         },
       });
     }, 500);
+    */
   };
 
   /**
@@ -82,7 +105,11 @@ class HGUserProfilePage extends React.Component {
    */
   handleTableChange = (paginationInfo) => {
     const { keyword } = this.state;
-    this.fetchUsers(paginationInfo.current, paginationInfo.pageSize, keyword);
+    this.fetchUsers({
+      pageSize: paginationInfo.current,
+      pageNum: paginationInfo.pageSize,
+      keyword,
+    });
   };
 
   /**
@@ -95,53 +122,11 @@ class HGUserProfilePage extends React.Component {
 
   render() {
     const { data, loading, pagination } = this.state;
-
-    const columns = [
-      {
-        title: "ID",
-        dataIndex: "id",
-        width: 80,
-      },
-      {
-        title: "User ID",
-        dataIndex: "user_id",
-      },
-      {
-        title: "User Name",
-        dataIndex: "user_name",
-      },
-      {
-        title: "Email",
-        dataIndex: "email",
-      },
-      {
-        title: "Phone",
-        dataIndex: "phone",
-      },
-      {
-        title: "Password Hash",
-        dataIndex: "password_hash",
-        render: () => "******",
-      },
-      {
-        title: "Salt",
-        dataIndex: "salt",
-        render: () => "******",
-      },
-      {
-        title: "Created At",
-        dataIndex: "created_at",
-      },
-      {
-        title: "Updated At",
-        dataIndex: "updated_at",
-      },
-    ];
-
+    LogOut("🍎 用户列表数据：", data);
     return (
       <div className={styles.container}>
         <Card
-          title="User Profile List"
+          title="用户列表"
           extra={
             <Space>
               <Search
@@ -160,8 +145,8 @@ class HGUserProfilePage extends React.Component {
           }
         >
           <Table
-            rowKey="id"
-            columns={columns}
+            rowKey={(record) => record.userID}
+            columns={this.userTableColumns()}
             dataSource={data}
             loading={loading}
             pagination={{
@@ -175,6 +160,77 @@ class HGUserProfilePage extends React.Component {
       </div>
     );
   }
+
+  userTableColumns = () => {
+    return [
+      {
+        title: "用户ID",
+        dataIndex: "userID",
+        width: 180,
+        render: (text, record) => {
+          return <span>{text}</span>;
+        },
+      },
+      {
+        title: "用户名",
+        dataIndex: "userName",
+        width: 80,
+        render: (text, record) => {
+          return <span>{text ?? "-.-"}</span>;
+        },
+      },
+      {
+        title: "手机号",
+        dataIndex: "phone",
+        width: 80,
+        render: (text, record) => {
+          return <span>{text ?? "-.-"}</span>;
+        },
+      },
+      {
+        title: "📮邮箱",
+        dataIndex: "email",
+        width: 80,
+        render: (text, record) => {
+          return <span>{text ?? "-.-"}</span>;
+        },
+      },
+      {
+        title: "手机号",
+        dataIndex: "phone",
+      },
+      {
+        title: "Password签名值✍️",
+        dataIndex: "passwordHash",
+        width: 180,
+        render: (text, record) => {
+          return <span>{text ?? "-.-"}</span>;
+        },
+      },
+      {
+        title: "Salt",
+        dataIndex: "salt",
+        width: 80,
+        render: () => "******",
+      },
+      {
+        title: "创建时间",
+        dataIndex: "created_at",
+        width: 80,
+        render: (text, record) => {
+          return <span>{text ?? "-.-"}</span>;
+        },
+      },
+      {
+        title: "更新时间",
+        dataIndex: "updated_at",
+        width: 80,
+        render: (text, record) => {
+          return <span>{text ?? "-.-"}</span>;
+        },
+      },
+    ];
+  };
 }
 
 export default WithNavigation(HGUserProfilePage);
