@@ -18,7 +18,21 @@
 	- [全局状态【Redux/Context/Zustand】](#全局状态【Redux/Context/Zustand】)
 
 
+```sh
+MLC_React/
+├── AGENTS.md
+├── rules/
+│   ├── common.md
+│   ├── react.md
+│   ├── ios.md
+│   └── go.md
+└── codex-pro-init.sh
 
+
+想iOS、GO、React共用一套AGENTS.md文件，如下：
+chmod +x codex-pro-init.sh
+./codex-pro-init.sh /path/to/MLC_GO
+```
 
 
 
