@@ -113,7 +113,7 @@ class NetAPI {
 
   // request 统一合并 token、公共 header 和业务 header，并根据请求体生成签名后发起请求。
   // 这里会避免给 GET / HEAD 塞 body，防止浏览器或服务端对请求语义判断出错。
-  async request({ url, method = "GET", headers = {}, body, timeout = 5000 }) {
+  async request({ url, method = "GET", headers = {}, body, timeout = 5000, _hasRetried = false }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     const upperMethod = method.toUpperCase();
@@ -161,7 +161,14 @@ class NetAPI {
 
       if (!response.ok) {
         if (response.status === 401) {
-          return this.handle401({ url, method: upperMethod, headers, body, timeout });
+          return this.handle401({
+            url,
+            method: upperMethod,
+            headers,
+            body,
+            timeout,
+            _hasRetried,
+          });
         }
 
         throw {
@@ -175,7 +182,14 @@ class NetAPI {
       const { code, message, result, tid, timestamp } = data;
 
       if (code === 401) {
-        return this.handle401({ url, method: upperMethod, headers, body, timeout });
+        return this.handle401({
+          url,
+          method: upperMethod,
+          headers,
+          body,
+          timeout,
+          _hasRetried,
+        });
       }
 
       if (code !== 200) {
@@ -322,7 +336,7 @@ class NetAPI {
   // normalizeSignPath 对齐 Go 服务在 root handler 中的 StripPrefix 行为，保证前后端签名使用同一条 path。
   normalizeSignPath(path = "") {
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    const stripPrefixes = ["/api/v1/auth", "/api/v1/profile", "/api/v1/test", "/auth", "/user", "/profile", "/test"];
+    const stripPrefixes = ["/api/v1/auth", "/api/v1/user", "/api/v1/profile", "/api/v1/test", "/auth", "/user", "/profile", "/test"];
 
     for (const prefix of stripPrefixes) {
       if (cleanPath === prefix) {
@@ -406,25 +420,40 @@ class NetAPI {
     return `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   }
 
+  // handle401 只做一次 refresh 重试；失败后抛错给页面处理，避免请求层强制退出登录。
   async handle401(originalRequest) {
+    if (originalRequest?._hasRetried) {
+      throw {
+        type: "AUTH_ERROR",
+        status: 401,
+        message: "登录状态失效，请重新登录",
+      };
+    }
+
     if (!this.refreshTokenPromise) {
       this.refreshTokenPromise = this.refreshToken();
     }
 
     try {
       await this.refreshTokenPromise;
-      return this.request(originalRequest);
+      return this.request({
+        ...originalRequest,
+        _hasRetried: true,
+      });
     } catch (err) {
-      localStorage.removeItem("manager_token");
-      window.location.href = "/login";
-      throw err;
+      throw {
+        type: "AUTH_ERROR",
+        status: 401,
+        message: err?.message || "登录状态失效，请重新登录",
+      };
     } finally {
       this.refreshTokenPromise = null;
     }
   }
 
   async refreshToken() {
-    const refreshToken = localStorage.getItem("refresh_token");
+    const refreshToken =
+      localStorage.getItem("refresh_token") || localStorage.getItem("refreshToken");
     if (!refreshToken) {
       throw { type: "AUTH_ERROR", message: "没有 refresh token" };
     }
@@ -447,7 +476,13 @@ class NetAPI {
       throw { type: "AUTH_ERROR", message: data.message || "刷新 token 失败" };
     }
 
-    localStorage.setItem("manager_token", data.result.token);
+    localStorage.setItem(TOKEN_KEY, data?.result?.token);
+    if (data?.result?.refreshToken || data?.result?.refresh_token) {
+      localStorage.setItem(
+        "refresh_token",
+        data?.result?.refreshToken ?? data?.result?.refresh_token
+      );
+    }
   }
 }
 

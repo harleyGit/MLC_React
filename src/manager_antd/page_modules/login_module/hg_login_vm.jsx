@@ -65,8 +65,18 @@ export default class HGLoginVM {
     return HGNet.postUserLogin({ phone, password })
       .then((response) => {
         LogOut("登录 res：", response);
+        // 兼容 access token / refresh token 的常见字段命名，避免后续请求 401 直接退出。
+        const accessToken =
+          response?.token ?? response?.accessToken ?? response?.access_token;
+        const refreshToken =
+          response?.refreshToken ?? response?.refresh_token;
 
-        localStorage.setItem(TOKEN_KEY, response?.token);
+        if (accessToken) {
+          localStorage.setItem(TOKEN_KEY, accessToken);
+        }
+        if (refreshToken) {
+          localStorage.setItem("refresh_token", refreshToken);
+        }
         // request() 已经返回后端 result，这里直接返回 response。
         return response;
       })
