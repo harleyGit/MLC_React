@@ -88,7 +88,7 @@ class HGTopNavLayout extends Component {
           </Menu>
         </Header>
 
-        <Content style={{ padding: "50px 0" }}>
+        <Content className={styles.content}>
           <div className={styles.contentWrapper}>
             <Outlet /> {/* 渲染子路由 */}
           </div>

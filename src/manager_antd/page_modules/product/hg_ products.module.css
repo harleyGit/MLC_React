@@ -1,15 +1,14 @@
 /* src/pages/Products.module.css */
 .container {
   display: flex;
-  align-items: center;
-  justify-items: center;
-  width: 100vw;
-  height: 100vh;
-  margin: 0 auto;
-  padding: 0 24px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 24px;
   background: #f5f7fa;
-  border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
 }
 
 .productList {
