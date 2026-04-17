@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-30 21:08:37
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-03-01 22:25:27
+ * @LastEditTime: 2026-04-18 11:00:00
  * @FilePath: /MLC_React/src/manager_antd/user/hg_user_profile_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
@@ -25,6 +25,10 @@ class HGUserProfilePage extends React.Component {
       data: [],
       loading: false,
       keyword: "",
+      // cursor 分页映射：pageNum -> cursor
+      cursorByPage: {
+        1: 0,
+      },
       pagination: {
         current: 1,
         pageSize: 10,
@@ -41,83 +45,91 @@ class HGUserProfilePage extends React.Component {
   }
 
   /**
-   * 模拟服务端分页
+   * 拉取用户列表（cursor 分页）
    */
-  fetchUsers = (pageNum, pageSize) => {
+  fetchUsers = (pageNum, pageSize, keyword = "") => {
     this.setState({ loading: true });
 
+    const { cursorByPage } = this.state;
+    const currentCursor = Number(cursorByPage[pageNum] ?? 0);
+
     HGUserVM.requestUserInfoDataList({
-      pageSize: pageSize,
-      pageNum: pageNum,
+      pageSize,
+      pageNum,
+      keyword,
+      cursor: currentCursor,
     })
       .then((res) => {
         console.log("获取用户列表成功", res);
-        // ALL_USERS = res.result;
-        this.setState({
-          data: res.result,
-          result: res?.result ?? [],
-          total: res?.total ?? 0,
-          pagination: {
-            current: res.pageIndex,
-            pageSize,
-            total: res.total,
-          },
+
+        this.setState((prevState) => {
+          const nextCursorByPage = { ...prevState.cursorByPage };
+
+          if (res?.hasMore && Number(res?.nextCursor) > 0) {
+            nextCursorByPage[pageNum + 1] = Number(res.nextCursor);
+          }
+
+          return {
+            data: res?.result ?? [],
+            pagination: {
+              current: pageNum,
+              pageSize,
+              total: res?.total ?? 0,
+            },
+            cursorByPage: nextCursorByPage,
+          };
         });
       })
-      .catch((err) => {
-        // console.error("获取用户列表失败", err);
+      .catch(() => {
         message.error("Failed to fetch user data");
       })
       .finally(() => {
         this.setState({ loading: false });
       });
-
-    /*setTimeout(() => {
-      let filtered = ALL_USERS;
-
-      if (keyword) {
-        filtered = ALL_USERS.filter(
-          (item) =>
-            item.user_name.includes(keyword) ||
-            item.email.includes(keyword) ||
-            item.phone.includes(keyword)
-        );
-      }
-
-      const start = (page - 1) * pageSize;
-      const end = start + pageSize;
-
-      this.setState({
-        data: filtered.slice(start, end),
-        loading: false,
-        pagination: {
-          current: page,
-          pageSize,
-          total: filtered.length,
-        },
-      });
-    }, 500);
-    */
   };
 
   /**
    * 表格分页变化
    */
   handleTableChange = (paginationInfo) => {
-    const { keyword } = this.state;
-    this.fetchUsers({
-      pageSize: paginationInfo.current,
-      pageNum: paginationInfo.pageSize,
-      keyword,
-    });
+    const { keyword, pagination } = this.state;
+    const pageSizeChanged = paginationInfo.pageSize !== pagination.pageSize;
+
+    if (pageSizeChanged) {
+      this.setState(
+        {
+          cursorByPage: { 1: 0 },
+          pagination: {
+            ...pagination,
+            current: 1,
+            pageSize: paginationInfo.pageSize,
+          },
+        },
+        () => {
+          this.fetchUsers(1, paginationInfo.pageSize, keyword);
+        }
+      );
+      return;
+    }
+
+    this.fetchUsers(paginationInfo.current, paginationInfo.pageSize, keyword);
   };
 
   /**
    * 搜索
    */
   handleSearch = (value) => {
-    this.setState({ keyword: value });
-    this.fetchUsers(1, this.state.pagination.pageSize, value);
+    // 统一去除首尾空格，避免把纯空白词传给后端。
+    const keyword = (value ?? "").trim();
+    this.setState(
+      {
+        keyword,
+        cursorByPage: { 1: 0 },
+      },
+      () => {
+        this.fetchUsers(1, this.state.pagination.pageSize, keyword);
+      }
+    );
   };
 
   render() {
@@ -234,45 +246,3 @@ class HGUserProfilePage extends React.Component {
 }
 
 export default WithNavigation(HGUserProfilePage);
-
-/* 参数传递调用方法测试
-  componentDidUpdate(prevProps) {
-    const prevState = prevProps.location.state;
-    const currentState = this.props.location.state;
-    console.log(
-      "🍎 用户信息页 fromB:",
-      currentState?.fromB,
-      "preState:",
-      prevState
-    );
-    // 👇 监听 HGUpdateUserProfilePage 回传的数据
-    if (currentState?.fromB && prevState !== currentState) {
-      this.setState({
-        refreshed: true,
-        count: currentState.newCount,
-      });
-    }
-  }
-
-  goToUpdateUserProfilePage = () => {
-    this.props.navigate(ROUTE_PATH.HOME, {
-      state: {
-        from: "HGUserProfilePage",
-        count: this.state.count,
-      },
-    });
-  };
-
-  render() {
-    return (
-      <div className={CSStyles.page}>
-        <h2>Page HGUserProfilePage</h2>
-        <p>count: {this.state.count}</p>
-        <p>refreshed: {String(this.state.refreshed)}</p>
-        <button onClick={this.goToUpdateUserProfilePage}>
-          去 Page HGUpdateUserProfilePage
-        </button>
-      </div>
-    );
-  }
-*/

@@ -322,7 +322,7 @@ class NetAPI {
   // normalizeSignPath 对齐 Go 服务在 root handler 中的 StripPrefix 行为，保证前后端签名使用同一条 path。
   normalizeSignPath(path = "") {
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    const stripPrefixes = ["/auth", "/user", "/profile", "/test"];
+    const stripPrefixes = ["/api/v1/auth", "/api/v1/profile", "/api/v1/test", "/auth", "/user", "/profile", "/test"];
 
     for (const prefix of stripPrefixes) {
       if (cleanPath === prefix) {
