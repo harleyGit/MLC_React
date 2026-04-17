@@ -1,8 +1,11 @@
 import { LogOut } from "../logger/hg_logger";
 import NetManager from "./HttpManagerV1";
 
+const env = import.meta.env;
+const defaultBaseURL = env.DEV ? "" : env.VITE_API_URL || "http://localhost:8080";
+
 class HGNetManager {
-  constructor(baseURL = "http://localhost:8080") {
+  constructor(baseURL = defaultBaseURL) {
     this.baseURL = baseURL;
   }
 
@@ -19,7 +22,7 @@ class HGNetManager {
     }
   }
   getFullURLV2(path) {
-    return `${process.env.VITE_API_URL}${path}`;
+    return `${defaultBaseURL}${path}`;
   }
   
 

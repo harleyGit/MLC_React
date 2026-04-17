@@ -38,6 +38,21 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""), // 去掉 /api
       },
+
+      "/auth": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+
+      "/user": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+
+      "/profile": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
 });
