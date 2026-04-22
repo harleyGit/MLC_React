@@ -14,6 +14,7 @@ import HGTopNavLayout from "../page_modules/home/hg_top_nav_layout";
 import HGRegisterPage from "../page_modules/login_module/hg_ register_page";
 import HGLoginPage from "../page_modules/login_module/hg_login_page";
 import HGProducts from "../page_modules/product/hg_ products_page";
+import HGEditUserPage from "../page_modules/user/edit_user_info/hg_edit_user_page";
 import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile_page";
 import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
 import { WithNavigation } from "./hg_naviagion_hook";
@@ -55,6 +56,10 @@ const HGRouter = createBrowserRouter([
         path: ROUTE_PATH.USER_PROFILE,
         element: <HGUserProfilePage />,
       },
+      {
+        path: ROUTE_PATH.EDIT_USER_INFO,
+        element: <HGEditUserPage />,
+      },
     ],
   },
 
@@ -71,6 +76,14 @@ const HGRouter = createBrowserRouter([
     element: (
       <HGAuthGuard>
         <HGUpdateUserProfilePage />
+      </HGAuthGuard>
+    ),
+  },
+  {
+    path: ROUTE_PATH.EDIT_USER_INFO,
+    element: (
+      <HGAuthGuard>
+        <HGEditUserPage />
       </HGAuthGuard>
     ),
   },

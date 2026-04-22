@@ -13,6 +13,7 @@ export const ROUTE_PATH = {
   HOME: "/home", //首页
   USER_PROFILE: "/profile", //用户信息
   UPDATE_USER_PROIFE: "/profile/edit", //更新用户信息
+  EDIT_USER_INFO: "/account/setting", //账号设置(编辑用户信息页)
   LOGIN: "/login", //登录
   REGISTER: "/register", //注册
 };

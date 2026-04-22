@@ -1,0 +1,145 @@
+export const MENU_KEYS = {
+  INFO: "info",
+  AVATAR: "avatar",
+  SECURITY: "security",
+};
+
+export const MENU_LIST = [
+  {
+    key: MENU_KEYS.INFO,
+    label: "我的信息",
+  },
+  {
+    key: MENU_KEYS.AVATAR,
+    label: "我的头像",
+  },
+  {
+    key: MENU_KEYS.SECURITY,
+    label: "账号安全",
+  },
+];
+
+const SECURITY_ITEM_MAP = {
+  qq: {
+    title: "绑定QQ号",
+    desc: "绑定后可使用 QQ 快速登录。",
+    boundText: "已绑定",
+    unboundText: "未绑定",
+  },
+  password: {
+    title: "设定密码",
+    desc: "用于账号登录与高风险操作验证。",
+    boundText: "已设置",
+    unboundText: "未设置",
+  },
+  phone: {
+    title: "绑定手机",
+    desc: "用于登录保护与找回账号。",
+    boundText: "已绑定",
+    unboundText: "未绑定",
+  },
+  email: {
+    title: "绑定邮箱",
+    desc: "用于接收安全通知和找回密码。",
+    boundText: "已绑定",
+    unboundText: "未绑定",
+  },
+  wechat: {
+    title: "绑定微信号",
+    desc: "绑定后可使用微信扫码登录。",
+    boundText: "已绑定",
+    unboundText: "未绑定",
+  },
+};
+
+/**
+ * 编辑用户信息页的 VM 工具类，约束：仅处理本地状态和展示映射，不直接请求后端。
+ */
+export default class HGEditUserPageVM {
+  /**
+   * 创建页面初始状态。
+   * @returns {{
+   *   activeMenuKey: string,
+   *   profileForm: {nickName: string, signature: string, gender: string, birthDate: string},
+   *   avatarPreviewUrl: string,
+   *   securityItems: Array<{key: string, bound: boolean}>,
+   *   operationTips: string
+   * }} 页面可直接用于 class state 的初始对象。
+   */
+  static createInitialState() {
+    return {
+      activeMenuKey: MENU_KEYS.INFO,
+      profileForm: {
+        nickName: "Harley",
+        signature: "保持热爱，奔赴山海。",
+        gender: "保密",
+        birthDate: "",
+      },
+      avatarPreviewUrl: "",
+      securityItems: [
+        { key: "qq", bound: false },
+        { key: "password", bound: false },
+        { key: "phone", bound: true },
+        { key: "email", bound: false },
+        { key: "wechat", bound: false },
+      ],
+      operationTips: "",
+    };
+  }
+
+  /**
+   * 生成账号安全展示数据。
+   * @param {Array<{key: string, bound: boolean}>} securityItems 安全项基础状态。
+   * @returns {Array<{key: string, bound: boolean, title: string, desc: string, statusText: string, actionText: string}>}
+   * 用于视图渲染的完整安全项数据。
+   */
+  static buildSecurityViewItems(securityItems) {
+    return (securityItems ?? []).map((item) => {
+      const securityMeta = SECURITY_ITEM_MAP[item.key];
+      return {
+        ...item,
+        title: securityMeta?.title ?? item.key,
+        desc: securityMeta?.desc ?? "",
+        statusText: item.bound
+          ? securityMeta?.boundText ?? "已完成"
+          : securityMeta?.unboundText ?? "未完成",
+        actionText: item.bound
+          ? "修改"
+          : item.key === "password"
+            ? "去设置"
+            : "立即绑定",
+      };
+    });
+  }
+
+  /**
+   * 创建指定安全项的下一状态（绑定）。
+   * @param {Array<{key: string, bound: boolean}>} securityItems 当前安全项列表。
+   * @param {string} targetKey 需要变更的安全项 key。
+   * @returns {Array<{key: string, bound: boolean}>} 只更新目标项 bound=true 的新数组。
+   */
+  static buildNextSecurityItems(securityItems, targetKey) {
+    return (securityItems ?? []).map((item) => {
+      if (item.key !== targetKey) {
+        return item;
+      }
+      return {
+        ...item,
+        bound: true,
+      };
+    });
+  }
+
+  /**
+   * 生成安全项操作提示文案。
+   * @param {string} targetKey 安全项 key。
+   * @returns {string} 对应提示文案；key 无效时返回空字符串。
+   */
+  static buildSecurityActionTip(targetKey) {
+    const actionItem = SECURITY_ITEM_MAP[targetKey];
+    if (!actionItem) {
+      return "";
+    }
+    return `${actionItem.title}操作已提交（示例页面，暂未对接后端接口）。`;
+  }
+}

@@ -1,0 +1,270 @@
+.page {
+  min-height: 100vh;
+  padding: 24px;
+  background: #f4f6fb;
+  box-sizing: border-box;
+}
+
+.panel {
+  max-width: 1100px;
+  margin: 0 auto;
+  min-height: 700px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(20, 35, 80, 0.08);
+  overflow: hidden;
+  display: flex;
+}
+
+.menuWrap {
+  width: 220px;
+  border-right: 1px solid #eceff5;
+  background: #fafbff;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.menuTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #1f2d4d;
+  font-weight: 600;
+}
+
+.menuItem {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #44516f;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: #edf3ff;
+}
+
+.menuItemActive {
+  background: #e2eeff;
+  color: #1a6af4;
+  font-weight: 600;
+}
+
+.contentWrap {
+  flex: 1;
+  padding: 28px 32px;
+  box-sizing: border-box;
+}
+
+.operationTips {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1659cf;
+  background: #eef4ff;
+}
+
+.contentBlock {
+  max-width: 760px;
+}
+
+.contentTitle {
+  margin: 0 0 20px;
+  font-size: 24px;
+  line-height: 32px;
+  color: #1a2340;
+}
+
+.formItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.formLabel {
+  font-size: 14px;
+  color: #5b6580;
+}
+
+.inputControl {
+  border: 1px solid #d8ddeb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #1e2a46;
+  outline: none;
+}
+
+.inputControl:focus {
+  border-color: #3b82f6;
+}
+
+.textareaControl {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.genderGroup {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.genderOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #2e3d61;
+}
+
+.primaryButton {
+  margin-top: 8px;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 18px;
+  background: #1a73ff;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.primaryButton:hover {
+  background: #0f5fda;
+}
+
+.avatarEditor {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.avatarPreviewBox {
+  width: 160px;
+  height: 160px;
+  border-radius: 10px;
+  background: #f1f4fa;
+  border: 1px solid #dbe2f2;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatarPreviewImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarPlaceholder {
+  font-size: 14px;
+  color: #7a859f;
+}
+
+.avatarAction {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fileControl {
+  width: 260px;
+  font-size: 14px;
+}
+
+.securityList {
+  border-top: 1px solid #edf1fb;
+}
+
+.securityRow {
+  display: grid;
+  grid-template-columns: 150px 1fr 140px 92px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 8px 16px 0;
+  border-bottom: 1px solid #edf1fb;
+}
+
+.securityName {
+  font-size: 16px;
+  color: #1f2c4a;
+  font-weight: 500;
+}
+
+.securityDesc {
+  font-size: 14px;
+  color: #66728f;
+}
+
+.securityStatus {
+  font-size: 14px;
+}
+
+.statusBound {
+  color: #0f9d58;
+}
+
+.statusUnbound {
+  color: #d97000;
+}
+
+.linkButton {
+  border: 0;
+  background: transparent;
+  color: #1a73ff;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: right;
+}
+
+.linkButton:hover {
+  color: #0f5fda;
+}
+
+@media (max-width: 960px) {
+  .panel {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .menuWrap {
+    width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid #eceff5;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .menuTitle {
+    width: 100%;
+  }
+
+  .contentWrap {
+    padding: 20px 16px;
+  }
+
+  .avatarEditor {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .securityRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 14px 0;
+  }
+
+  .linkButton {
+    text-align: left;
+    padding: 0;
+  }
+}
