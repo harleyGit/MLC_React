@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:58:51
  * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-04-18 00:36:11
+ * @LastEditTime: 2026-04-23 00:10:19
  * @FilePath: /MLC_React/src/manager_antd/router/hg_index.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -19,6 +19,7 @@ import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile
 import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
 import { WithNavigation } from "./hg_naviagion_hook";
 import { ROUTE_PATH } from "./hg_router_path";
+import React from "react";
 
 // 包装布局组件以支持类组件访问路由方法
 const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);

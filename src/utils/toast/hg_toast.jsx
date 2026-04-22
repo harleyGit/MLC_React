@@ -1,4 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
+
+/** 使用案例
+ * HGToast.info("保存成功");
+ * HGToast.error("请求失败，请稍后重试", 3000);
+*/
+
 /**
  * HGToast：基于原生 DOM 的轻量提示组件工具类。
  * 约束：不依赖第三方 UI 库；支持自动消失、动画和多类型提示。
@@ -45,7 +51,11 @@ class HGToast {
     if (lowerType === "warm" || lowerType === "warning") {
       return "warn";
     }
-    if (lowerType === "success" || lowerType === "error" || lowerType === "warn") {
+    if (
+      lowerType === "success" ||
+      lowerType === "error" ||
+      lowerType === "warn"
+    ) {
       return lowerType;
     }
     return "info";
@@ -118,7 +128,9 @@ class HGToast {
    * @returns {HTMLDivElement} 页面 toast 容器。
    */
   static ensureContainer() {
-    const existingContainer = document.getElementById(HGToast.TOAST_CONTAINER_ID);
+    const existingContainer = document.getElementById(
+      HGToast.TOAST_CONTAINER_ID
+    );
     if (existingContainer) {
       return existingContainer;
     }

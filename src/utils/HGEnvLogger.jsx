@@ -1,3 +1,9 @@
+/** 使用案例
+ * HGEnvLogger.info("列表加载完成", { count: 10 });
+ * HGEnvLogger.warm("接口耗时偏高");
+ * HGEnvLogger.error("提交失败", err);
+*/
+
 /**
  * 环境日志工具：
  * - debug: 🐛
@@ -34,7 +40,12 @@ export default class HGEnvLogger {
     if (env === "pre") {
       return "pre";
     }
-    if (env === "release" || env === "production" || env === "prod" || env === "product") {
+    if (
+      env === "release" ||
+      env === "production" ||
+      env === "prod" ||
+      env === "product"
+    ) {
       return "product";
     }
     return "product";
@@ -47,7 +58,11 @@ export default class HGEnvLogger {
    */
   static normalizeLevel(level) {
     const lowerLevel = String(level ?? "info").toLowerCase();
-    if (lowerLevel === "warn" || lowerLevel === "warm" || lowerLevel === "warning") {
+    if (
+      lowerLevel === "warn" ||
+      lowerLevel === "warm" ||
+      lowerLevel === "warning"
+    ) {
       return "warn";
     }
     if (lowerLevel === "error") {
@@ -63,8 +78,10 @@ export default class HGEnvLogger {
    * @returns {string} 统一前缀，包含环境和等级图标。
    */
   static buildPrefix(env, level) {
-    const envIcon = HGEnvLogger.ENV_ICON_MAP[env] ?? HGEnvLogger.ENV_ICON_MAP.product;
-    const levelIcon = HGEnvLogger.LEVEL_ICON_MAP[level] ?? HGEnvLogger.LEVEL_ICON_MAP.info;
+    const envIcon =
+      HGEnvLogger.ENV_ICON_MAP[env] ?? HGEnvLogger.ENV_ICON_MAP.product;
+    const levelIcon =
+      HGEnvLogger.LEVEL_ICON_MAP[level] ?? HGEnvLogger.LEVEL_ICON_MAP.info;
     return `${envIcon}${levelIcon}[${env.toUpperCase()}][${level.toUpperCase()}]`;
   }
 
