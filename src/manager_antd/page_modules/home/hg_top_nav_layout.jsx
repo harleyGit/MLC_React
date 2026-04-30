@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-02-03 10:29:22
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-07 16:33:29
+ * @LastEditTime: 2026-04-30 21:31:34
  * @FilePath: /MLC_React/src/manager_antd/page_modules/home/hg_top_nav_layout.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -11,6 +11,7 @@ import { Layout, Menu } from "antd";
 import React, { Component } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { ROUTE_PATH } from "../../router/hg_router_path";
+import { logout } from "../../auth/hg_auth";
 import styles from "./hg_top_nav_layout.module.css";
 
 const { Header, Content, Footer } = Layout;
@@ -61,8 +62,7 @@ class HGTopNavLayout extends Component {
    */
   getCurrentPage = () => {
     const path = this.props.location?.pathname || "/";
-    if (path === ROUTE_PATH.DEFAULT || path === ROUTE_PATH.HOME)
-      return "home";
+    if (path === ROUTE_PATH.DEFAULT || path === ROUTE_PATH.HOME) return "home";
     if (path === ROUTE_PATH.PRODUCTS) return "products";
     if (path === ROUTE_PATH.ABOUT) return "about";
     if (path === ROUTE_PATH.USER_PROFILE) return "profile";
@@ -114,17 +114,19 @@ class HGTopNavLayout extends Component {
    */
   gotoUserProfile = () => {
     this.setState({ showUserDropdown: false });
-    this.props.navigate(ROUTE_PATH.USER_PROFILE);
+    this.props.navigate(ROUTE_PATH.EDIT_USER_INFO);
   };
 
   /**
-   * 根据需求：点击退出登录跳转到用户信息编辑页 HGEditUserPage。
-   * 约束：仅做页面跳转，不清理 token（按当前需求保留登录态）。
+   * 退出登录：清除登录态并跳转到登录页。
+   * 约束：先关闭浮层，调用 logout 清除 token，再跳转到登录页。
    */
-  gotoEditUserPageByLogout = () => {
+  gotoLogoutPage = () => {
     this.setState({ showUserDropdown: false });
-    this.props.navigate(ROUTE_PATH.EDIT_USER_INFO);
+    logout();
+    this.props.navigate(ROUTE_PATH.LOGIN);
   };
+ 
 
   /**
    * 组件主渲染：顶部导航 + 头像下拉 + 子路由内容容器 + 页脚。
@@ -193,7 +195,7 @@ class HGTopNavLayout extends Component {
                 <button
                   type="button"
                   className={styles.dropdownItem}
-                  onClick={this.gotoEditUserPageByLogout}
+                  onClick={this.gotoLogoutPage}
                 >
                   退出登录
                 </button>
