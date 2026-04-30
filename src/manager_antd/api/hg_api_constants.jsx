@@ -13,4 +13,6 @@ export const HGMANAGER_API = {
   REGISTER_NEW_USER: "/api/v1/auth/register", // 注册新用户
   SEND_CODE: "/api/v1/auth/send_code", // 验证码
   UserList: "/api/v1/profile/list", // 用户列表（对齐 Go UserMiddlewareGroup 的 /list 路由）
+  PROFILE_UPDATE: "/api/v1/profile/update", // 更新用户资料
+  AVATAR_UPLOAD: "/api/v1/profile/avatar", // 上传头像
 };

@@ -1,3 +1,6 @@
+import { LogOut } from "../../../../logger/hg_logger";
+import HGNet from "../../../../manager_antd/net_handle/hg_net_manager_vm";
+
 export const MENU_KEYS = {
   INFO: "info",
   AVATAR: "avatar",
@@ -56,6 +59,67 @@ const SECURITY_ITEM_MAP = {
  * 编辑用户信息页的 VM 工具类，约束：仅处理本地状态和展示映射，不直接请求后端。
  */
 export default class HGEditUserPageVM {
+  /**
+   * 调用后端更新用户资料接口。
+   * @param {Object} profileData - 需要更新的资料字段
+   * @param {string} [profileData.nickname] - 昵称
+   * @param {string} [profileData.signature] - 签名
+   * @param {number} [profileData.gender] - 性别 (0: 保密, 1: 男, 2: 女)
+   * @param {string} [profileData.birth_date] - 出生日期 (YYYY-MM-DD)
+   * @param {string} [profileData.avatar_url] - 头像URL
+   * @returns {Promise<Object>} 返回更新后的用户资料
+   * @throws {Error} 请求失败时抛出错误
+   */
+  static updateUserProfile = ({ nickname, signature, gender, birth_date, avatar_url }) => {
+    return HGNet.updateUserProfile({
+      nickname,
+      signature,
+      gender,
+      birth_date,
+      avatar_url,
+    })
+      .then((response) => {
+        LogOut("更新用户资料响应：", response);
+        return response;
+      })
+      .catch((error) => {
+        console.error("更新用户资料失败:", error);
+        throw error;
+      });
+  };
+
+  /**
+   * 上传头像文件。
+   * @param {FormData} formData - 包含头像文件的 FormData 对象
+   * @returns {Promise<Object>} 返回上传结果，包含头像 URL
+   * @throws {Error} 请求失败时抛出错误
+   */
+  static uploadAvatar = (formData) => {
+    return HGNet.uploadAvatar(formData)
+      .then((response) => {
+        LogOut("上传头像响应：", response);
+        return response;
+      })
+      .catch((error) => {
+        console.error("上传头像失败:", error);
+        throw error;
+      });
+  };
+
+  /**
+   * 将前端性别文案转换为后端 gender 数值。
+   * @param {string} genderText - 前端显示的性别文案 ("保密"/"男"/"女")
+   * @returns {number} 后端对应的 gender 数值 (0: 保密, 1: 男, 2: 女)
+   */
+  static genderTextToValue(genderText) {
+    const genderMap = {
+      "保密": 0,
+      "男": 1,
+      "女": 2,
+    };
+    return genderMap[genderText] ?? 0;
+  }
+
   /**
    * 创建页面初始状态。
    * @returns {{

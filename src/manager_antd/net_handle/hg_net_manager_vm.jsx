@@ -51,6 +51,32 @@ class HGNetManagerVM extends HGNetManager {
       password,
     });
   }
+
+  // 更新用户资料
+  updateUserProfile({ nickname, signature, gender, birth_date, avatar_url }) {
+    const body = {};
+    if (nickname !== undefined && nickname !== "") {
+      body.nickname = nickname;
+    }
+    if (signature !== undefined && signature !== "") {
+      body.signature = signature;
+    }
+    if (gender !== undefined) {
+      body.gender = gender;
+    }
+    if (birth_date !== undefined && birth_date !== "") {
+      body.birth_date = birth_date;
+    }
+    if (avatar_url !== undefined && avatar_url !== "") {
+      body.avatar_url = avatar_url;
+    }
+    return this.put(HGMANAGER_API.PROFILE_UPDATE, body);
+  }
+
+  // 上传头像
+  uploadAvatar(formData) {
+    return this.post(HGMANAGER_API.AVATAR_UPLOAD, formData);
+  }
 }
 
 // 创建一个默认实例

@@ -4,6 +4,7 @@ import HGEditUserPageVM, {
   MENU_KEYS,
   MENU_LIST,
 } from "./hg_edit_user_page_vm";
+import { handleError } from "../../../../api/HttpManagerV1";
 
 class HGEditUserPage extends React.Component {
   /**
@@ -15,6 +16,7 @@ class HGEditUserPage extends React.Component {
     // 页面核心状态：菜单、资料表单、头像预览、安全项以及操作提示。
     this.state = HGEditUserPageVM.createInitialState();
     this.avatarObjectUrl = "";
+    this.selectedAvatarFile = null;
   }
 
   /**
@@ -57,12 +59,29 @@ class HGEditUserPage extends React.Component {
 
   /**
    * 保存个人资料。
-   * 约束：当前为示例页，只更新本地提示文案，不调用后端接口。
+   * 约束：调用后端 UpdateProfile 接口更新用户资料，成功/失败均展示操作提示。
    */
-  handleSaveProfile = () => {
-    this.setState({
-      operationTips: "个人资料已保存（示例页面，暂未对接后端接口）。",
-    });
+  handleSaveProfile = async () => {
+    const { profileForm } = this.state;
+    
+    const profileData = {
+      nickname: profileForm.nickName,
+      signature: profileForm.signature,
+      gender: HGEditUserPageVM.genderTextToValue(profileForm.gender),
+      birth_date: profileForm.birthDate || undefined,
+    };
+    
+    try {
+      await HGEditUserPageVM.updateUserProfile(profileData);
+      this.setState({
+        operationTips: "个人资料已保存成功。",
+      });
+    } catch (error) {
+      handleError(error);
+      this.setState({
+        operationTips: "个人资料保存失败，请稍后重试。",
+      });
+    }
   };
 
   /**
@@ -88,6 +107,7 @@ class HGEditUserPage extends React.Component {
     }
 
     this.avatarObjectUrl = URL.createObjectURL(file);
+    this.selectedAvatarFile = file;
     this.setState({
       avatarPreviewUrl: this.avatarObjectUrl,
       operationTips: `已选择头像：${file.name}`,
@@ -95,20 +115,33 @@ class HGEditUserPage extends React.Component {
     event.target.value = "";
   };
 
-  /**
-   * 保存头像。
-   * 约束：未选择头像时给出阻断提示；当前只做本地提示，不请求后端。
-   */
-  handleSaveAvatar = () => {
-    if (!this.state.avatarPreviewUrl) {
+/**
+    * 保存头像。
+    * 约束：未选择头像时给出阻断提示；调用后端上传接口。
+    */
+  handleSaveAvatar = async () => {
+    if (!this.selectedAvatarFile) {
       this.setState({
         operationTips: "请先选择头像图片。",
       });
       return;
     }
-    this.setState({
-      operationTips: "头像已保存（示例页面，暂未对接后端接口）。",
-    });
+    
+    const formData = new FormData();
+    formData.append("avatar", this.selectedAvatarFile);
+    
+    try {
+      await HGEditUserPageVM.uploadAvatar(formData);
+      this.setState({
+        operationTips: "头像已保存成功。",
+      });
+      this.selectedAvatarFile = null;
+    } catch (error) {
+      handleError(error);
+      this.setState({
+        operationTips: "头像保存失败，请稍后重试。",
+      });
+    }
   };
 
   /**
