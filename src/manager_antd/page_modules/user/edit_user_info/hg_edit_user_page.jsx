@@ -1,10 +1,8 @@
 import React from "react";
-import styles from "./hg_edit_user_page.module.css";
-import HGEditUserPageVM, {
-  MENU_KEYS,
-  MENU_LIST,
-} from "./hg_edit_user_page_vm";
 import { handleError } from "../../../../api/HttpManagerV1";
+import { LogOut } from "../../../../logger/hg_logger";
+import styles from "./hg_edit_user_page.module.css";
+import HGEditUserPageVM, { MENU_KEYS, MENU_LIST } from "./hg_edit_user_page_vm";
 
 class HGEditUserPage extends React.Component {
   /**
@@ -60,20 +58,33 @@ class HGEditUserPage extends React.Component {
   /**
    * 保存个人资料。
    * 约束：调用后端 UpdateProfile 接口更新用户资料，成功/失败均展示操作提示。
+   * 成功后将后端返回的最新用户资料同步到本地表单状态。
    */
   handleSaveProfile = async () => {
     const { profileForm } = this.state;
-    
+
     const profileData = {
       nickname: profileForm.nickName,
       signature: profileForm.signature,
       gender: HGEditUserPageVM.genderTextToValue(profileForm.gender),
       birth_date: profileForm.birthDate || undefined,
     };
-    
+
     try {
-      await HGEditUserPageVM.updateUserProfile(profileData);
+      const response = await HGEditUserPageVM.updateUserProfile(profileData);
+      LogOut("用户资料响应数据为：", response);
+
+      // 将后端返回的最新资料同步到本地表单状态
+      const newProfileForm = {
+        nickName: response.nickname ?? profileForm.nickName,
+        signature: response.signature ?? profileForm.signature,
+        gender:
+          HGEditUserPageVM.genderValueToText(response.gender) ??
+          profileForm.gender,
+        birthDate: response.birth_date ?? profileForm.birthDate,
+      };
       this.setState({
+        profileForm: newProfileForm,
         operationTips: "个人资料已保存成功。",
       });
     } catch (error) {
@@ -115,10 +126,10 @@ class HGEditUserPage extends React.Component {
     event.target.value = "";
   };
 
-/**
-    * 保存头像。
-    * 约束：未选择头像时给出阻断提示；调用后端上传接口。
-    */
+  /**
+   * 保存头像。
+   * 约束：未选择头像时给出阻断提示；调用后端上传接口。
+   */
   handleSaveAvatar = async () => {
     if (!this.selectedAvatarFile) {
       this.setState({
@@ -126,10 +137,10 @@ class HGEditUserPage extends React.Component {
       });
       return;
     }
-    
+
     const formData = new FormData();
     formData.append("avatar", this.selectedAvatarFile);
-    
+
     try {
       await HGEditUserPageVM.uploadAvatar(formData);
       this.setState({
@@ -180,7 +191,9 @@ class HGEditUserPage extends React.Component {
             <button
               key={menuItem.key}
               type="button"
-              className={`${styles.menuItem} ${isActive ? styles.menuItemActive : ""}`}
+              className={`${styles.menuItem} ${
+                isActive ? styles.menuItemActive : ""
+              }`}
               onClick={() => this.handleMenuClick(menuItem.key)}
             >
               {menuItem.label}
@@ -206,7 +219,9 @@ class HGEditUserPage extends React.Component {
             className={styles.inputControl}
             value={profileForm.nickName}
             maxLength={24}
-            onChange={(event) => this.handleProfileFieldChange("nickName", event.target.value)}
+            onChange={(event) =>
+              this.handleProfileFieldChange("nickName", event.target.value)
+            }
           />
         </label>
         <label className={styles.formItem}>
@@ -215,7 +230,9 @@ class HGEditUserPage extends React.Component {
             className={`${styles.inputControl} ${styles.textareaControl}`}
             value={profileForm.signature}
             maxLength={120}
-            onChange={(event) => this.handleProfileFieldChange("signature", event.target.value)}
+            onChange={(event) =>
+              this.handleProfileFieldChange("signature", event.target.value)
+            }
           />
         </label>
         <div className={styles.formItem}>
@@ -228,7 +245,9 @@ class HGEditUserPage extends React.Component {
                     type="radio"
                     name="gender"
                     checked={profileForm.gender === genderValue}
-                    onChange={() => this.handleProfileFieldChange("gender", genderValue)}
+                    onChange={() =>
+                      this.handleProfileFieldChange("gender", genderValue)
+                    }
                   />
                   <span>{genderValue}</span>
                 </label>
@@ -242,10 +261,16 @@ class HGEditUserPage extends React.Component {
             type="date"
             className={styles.inputControl}
             value={profileForm.birthDate}
-            onChange={(event) => this.handleProfileFieldChange("birthDate", event.target.value)}
+            onChange={(event) =>
+              this.handleProfileFieldChange("birthDate", event.target.value)
+            }
           />
         </label>
-        <button type="button" className={styles.primaryButton} onClick={this.handleSaveProfile}>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          onClick={this.handleSaveProfile}
+        >
           保存资料
         </button>
       </section>
@@ -264,7 +289,11 @@ class HGEditUserPage extends React.Component {
         <div className={styles.avatarEditor}>
           <div className={styles.avatarPreviewBox}>
             {avatarPreviewUrl ? (
-              <img src={avatarPreviewUrl} alt="头像预览" className={styles.avatarPreviewImg} />
+              <img
+                src={avatarPreviewUrl}
+                alt="头像预览"
+                className={styles.avatarPreviewImg}
+              />
             ) : (
               <span className={styles.avatarPlaceholder}>未上传头像</span>
             )}
@@ -276,7 +305,11 @@ class HGEditUserPage extends React.Component {
               className={styles.fileControl}
               onChange={this.handleAvatarChange}
             />
-            <button type="button" className={styles.primaryButton} onClick={this.handleSaveAvatar}>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={this.handleSaveAvatar}
+            >
               保存头像
             </button>
           </div>
@@ -304,7 +337,9 @@ class HGEditUserPage extends React.Component {
                 <div className={styles.securityDesc}>{securityItem.desc}</div>
                 <div
                   className={`${styles.securityStatus} ${
-                    securityItem.bound ? styles.statusBound : styles.statusUnbound
+                    securityItem.bound
+                      ? styles.statusBound
+                      : styles.statusUnbound
                   }`}
                 >
                   {securityItem.statusText}
@@ -350,7 +385,9 @@ class HGEditUserPage extends React.Component {
         <div className={styles.panel}>
           {this.renderLeftMenu()}
           <main className={styles.contentWrap}>
-            {operationTips ? <div className={styles.operationTips}>{operationTips}</div> : null}
+            {operationTips ? (
+              <div className={styles.operationTips}>{operationTips}</div>
+            ) : null}
             {this.renderRightContent()}
           </main>
         </div>

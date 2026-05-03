@@ -121,6 +121,20 @@ export default class HGEditUserPageVM {
   }
 
   /**
+   * 将后端 gender 数值转换为前端性别文案。
+   * @param {number} genderValue - 后端 gender 数值 (0: 保密, 1: 男, 2: 女)
+   * @returns {string} 前端显示的性别文案 ("保密"/"男"/"女")
+   */
+  static genderValueToText(genderValue) {
+    const genderMap = {
+      0: "保密",
+      1: "男",
+      2: "女",
+    };
+    return genderMap[genderValue] ?? "保密";
+  }
+
+  /**
    * 创建页面初始状态。
    * @returns {{
    *   activeMenuKey: string,
