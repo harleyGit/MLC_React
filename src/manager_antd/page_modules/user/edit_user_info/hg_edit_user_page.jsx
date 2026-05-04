@@ -18,6 +18,28 @@ class HGEditUserPage extends React.Component {
   }
 
   /**
+   * 生命周期挂载：进入页面时获取当前用户信息并填充到表单。
+   */
+  async componentDidMount() {
+    try {
+      const userInfo = await HGEditUserPageVM.getUserProfile();
+      this.setState({
+        profileForm: {
+          nickName: userInfo.nickname ?? "",
+          signature: userInfo.signature ?? "",
+          gender: HGEditUserPageVM.genderValueToText(userInfo.gender),
+          birthMonth: userInfo.birth_month ?? "",
+        },
+      });
+    } catch (error) {
+      handleError(error);
+      this.setState({
+        operationTips: "获取用户信息失败，请刷新重试。",
+      });
+    }
+  }
+
+  /**
    * 生命周期卸载：释放头像预览 Object URL，避免浏览器内存泄漏。
    */
   componentWillUnmount() {
@@ -67,7 +89,7 @@ class HGEditUserPage extends React.Component {
       nickname: profileForm.nickName,
       signature: profileForm.signature,
       gender: HGEditUserPageVM.genderTextToValue(profileForm.gender),
-      birth_date: profileForm.birthDate || undefined,
+      birth_month: profileForm.birthMonth || undefined,
     };
 
     try {
@@ -81,7 +103,7 @@ class HGEditUserPage extends React.Component {
         gender:
           HGEditUserPageVM.genderValueToText(response.gender) ??
           profileForm.gender,
-        birthDate: response.birth_date ?? profileForm.birthDate,
+        birthMonth: response.birth_month ?? profileForm.birthMonth,
       };
       this.setState({
         profileForm: newProfileForm,
@@ -260,9 +282,9 @@ class HGEditUserPage extends React.Component {
           <input
             type="date"
             className={styles.inputControl}
-            value={profileForm.birthDate}
+            value={profileForm.birthMonth}
             onChange={(event) =>
-              this.handleProfileFieldChange("birthDate", event.target.value)
+              this.handleProfileFieldChange("birthMonth", event.target.value)
             }
           />
         </label>

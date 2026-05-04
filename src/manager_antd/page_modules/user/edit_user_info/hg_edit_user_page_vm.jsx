@@ -60,22 +60,39 @@ const SECURITY_ITEM_MAP = {
  */
 export default class HGEditUserPageVM {
   /**
+   * 调用后端获取当前登录用户信息接口。
+   * @returns {Promise<Object>} 返回用户信息
+   * @throws {Error} 请求失败时抛出错误
+   */
+  static getUserProfile = () => {
+    return HGNet.getUserProfile()
+      .then((response) => {
+        LogOut("获取用户信息响应：", response);
+        return response;
+      })
+      .catch((error) => {
+        console.error("获取用户信息失败:", error);
+        throw error;
+      });
+  };
+
+  /**
    * 调用后端更新用户资料接口。
    * @param {Object} profileData - 需要更新的资料字段
    * @param {string} [profileData.nickname] - 昵称
    * @param {string} [profileData.signature] - 签名
    * @param {number} [profileData.gender] - 性别 (0: 保密, 1: 男, 2: 女)
-   * @param {string} [profileData.birth_date] - 出生日期 (YYYY-MM-DD)
+   * @param {string} [profileData.birth_month] - 出生日期 (YYYY-MM-DD)
    * @param {string} [profileData.avatar_url] - 头像URL
    * @returns {Promise<Object>} 返回更新后的用户资料
    * @throws {Error} 请求失败时抛出错误
    */
-  static updateUserProfile = ({ nickname, signature, gender, birth_date, avatar_url }) => {
+  static updateUserProfile = ({ nickname, signature, gender, birth_month, avatar_url }) => {
     return HGNet.updateUserProfile({
       nickname,
       signature,
       gender,
-      birth_date,
+      birth_month,
       avatar_url,
     })
       .then((response) => {
@@ -138,7 +155,7 @@ export default class HGEditUserPageVM {
    * 创建页面初始状态。
    * @returns {{
    *   activeMenuKey: string,
-   *   profileForm: {nickName: string, signature: string, gender: string, birthDate: string},
+   *   profileForm: {nickName: string, signature: string, gender: string, birthMonth: string},
    *   avatarPreviewUrl: string,
    *   securityItems: Array<{key: string, bound: boolean}>,
    *   operationTips: string
@@ -148,10 +165,10 @@ export default class HGEditUserPageVM {
     return {
       activeMenuKey: MENU_KEYS.INFO,
       profileForm: {
-        nickName: "Harley",
-        signature: "保持热爱，奔赴山海。",
+        nickName: "",
+        signature: "",
         gender: "保密",
-        birthDate: "",
+        birthMonth: "",
       },
       avatarPreviewUrl: "",
       securityItems: [

@@ -10,6 +10,11 @@ import HGNetManager from "../../api/hg_net_manager";
 import { HGMANAGER_API } from "../api/hg_api_constants";
 
 class HGNetManagerVM extends HGNetManager {
+  /* 获取当前登录用户信息 */
+  getUserProfile = () => {
+    return this.get(HGMANAGER_API.PROFILE);
+  };
+
   /* 获取用户列表 */
   getUserDataList = ({ pageSize, pageNum, cursor, keyword }) => {
     const params = { pageSize };
@@ -53,7 +58,7 @@ class HGNetManagerVM extends HGNetManager {
   }
 
   // 更新用户资料
-  updateUserProfile({ nickname, signature, gender, birth_date, avatar_url }) {
+  updateUserProfile({ nickname, signature, gender, birth_month, avatar_url }) {
     const body = {};
     if (nickname !== undefined && nickname !== "") {
       body.nickname = nickname;
@@ -64,8 +69,8 @@ class HGNetManagerVM extends HGNetManager {
     if (gender !== undefined) {
       body.gender = gender;
     }
-    if (birth_date !== undefined && birth_date !== "") {
-      body.birth_date = birth_date;
+    if (birth_month !== undefined && birth_month !== "") {
+      body.birth_month = birth_month;
     }
     if (avatar_url !== undefined && avatar_url !== "") {
       body.avatar_url = avatar_url;

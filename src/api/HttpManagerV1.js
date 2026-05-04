@@ -107,6 +107,7 @@ class NetAPI {
       "X-Language": navigator.language || "zh-CN",
       "X-Request-ID": requestId,
       "X-Timestamp": timestamp,
+      "X-Role": "user",  // 用户角色，可选值: admin / user
       ...extraHeaders,
     };
   }
