@@ -151,6 +151,7 @@ class HGEditUserPage extends React.Component {
   /**
    * 保存头像。
    * 约束：未选择头像时给出阻断提示；调用后端上传接口。
+   * 上传成功后更新头像预览 URL。
    */
   handleSaveAvatar = async () => {
     if (!this.selectedAvatarFile) {
@@ -164,9 +165,17 @@ class HGEditUserPage extends React.Component {
       const result = await HGEditUserPageVM.uploadAvatar(this.selectedAvatarFile);
       LogOut("头像上传结果：", result);
 
-      this.setState({
+      // 更新头像预览 URL（使用服务器返回的 URL）
+      const newState = {
         operationTips: result.isNew ? "头像已上传成功。" : "头像已存在，直接使用。",
-      });
+      };
+      
+      // 如果返回了头像 URL，更新预览
+      if (result.avatarUrl) {
+        newState.avatarPreviewUrl = result.avatarUrl;
+      }
+      
+      this.setState(newState);
       this.selectedAvatarFile = null;
     } catch (error) {
       handleError(error);

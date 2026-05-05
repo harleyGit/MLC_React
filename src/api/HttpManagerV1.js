@@ -121,12 +121,19 @@ class NetAPI {
     const authHeaders = this.getAuthHeaders();
     const commonHeaders = this.getCommonHeaders(headers);
     const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    const isBinaryData = body instanceof Uint8Array || body instanceof ArrayBuffer || body instanceof Blob;
 
-    const defaultHeaders = isFormData
-      ? {}
-      : {
-          "Content-Type": "application/json",
-        };
+    // 根据请求体类型设置默认 Content-Type
+    let defaultContentType = "application/json";
+    if (isFormData) {
+      defaultContentType = undefined; // FormData 由浏览器自动设置
+    } else if (isBinaryData) {
+      defaultContentType = "application/octet-stream";
+    }
+
+    const defaultHeaders = defaultContentType
+      ? { "Content-Type": defaultContentType }
+      : {};
 
     let mergedHeaders = {
       ...defaultHeaders,
@@ -263,7 +270,7 @@ class NetAPI {
     return this.request({ url, method: "DELETE", ...options });
   };
 
-  // buildRequestBody 统一处理 JSON 和 FormData 请求体，保证签名内容与真实请求体一致。
+  // buildRequestBody 统一处理 JSON、FormData 和二进制请求体，保证签名内容与真实请求体一致。
   buildRequestBody(body, method, isFormData) {
     if (body === undefined || body === null) {
       return undefined;
@@ -274,6 +281,11 @@ class NetAPI {
     }
 
     if (isFormData) {
+      return body;
+    }
+
+    // 二进制数据（Uint8Array、ArrayBuffer、Blob）直接返回，不做 JSON 转换
+    if (body instanceof Uint8Array || body instanceof ArrayBuffer || body instanceof Blob) {
       return body;
     }
 
@@ -312,6 +324,12 @@ class NetAPI {
     // FormData 文件上传时，前后端统一使用空字符串计算签名
     // 因为 multipart 二进制内容无法在前端精确计算
     if (typeof FormData !== "undefined" && body instanceof FormData) {
+      return "";
+    }
+
+    // 二进制数据上传时，前后端统一使用空字符串计算签名
+    // 因为二进制内容无法在前端精确计算
+    if (body instanceof Uint8Array || body instanceof ArrayBuffer || body instanceof Blob) {
       return "";
     }
 

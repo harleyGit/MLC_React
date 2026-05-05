@@ -78,9 +78,14 @@ class HGNetManagerVM extends HGNetManager {
     return this.put(HGMANAGER_API.PROFILE_UPDATE, body);
   }
 
-  // 上传头像
-  uploadAvatar(formData) {
-    return this.post(HGMANAGER_API.AVATAR_UPLOAD, formData);
+  // 上传头像（二进制流方式）
+  uploadAvatar(imageData, ext = "png") {
+    // 通过 query 参数传递图片格式
+    return this.post(`${HGMANAGER_API.AVATAR_UPLOAD}?ext=${ext}`, imageData, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+      },
+    });
   }
 }
 

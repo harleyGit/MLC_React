@@ -106,7 +106,7 @@ export default class HGEditUserPageVM {
   };
 
 /**
- * 上传头像文件。
+ * 上传头像文件（二进制流方式）。
  * @param {File} file - 头像文件对象
  * @returns {Promise<Object>} 返回上传结果，包含 avatarUrl 和 isNew
  * @throws {Error} 请求失败时抛出错误
@@ -126,18 +126,22 @@ static uploadAvatar = (file) => {
     return Promise.reject(new Error("图片大小不能超过 10MB"));
   }
 
-  const formData = new FormData();
-  formData.append("avatar", file);
+  // 从文件名或 MIME 类型推断扩展名
+  const ext = file.name.split(".").pop().toLowerCase() || "png";
 
-  return HGNet.uploadAvatar(formData)
-    .then((response) => {
-      LogOut("上传头像响应：", response);
-      return response;
-    })
-    .catch((error) => {
-      console.error("上传头像失败:", error);
-      throw error;
-    });
+  // 读取文件为二进制数据
+  return file.arrayBuffer().then((buffer) => {
+    const imageData = new Uint8Array(buffer);
+    return HGNet.uploadAvatar(imageData, ext)
+      .then((response) => {
+        LogOut("上传头像响应：", response);
+        return response;
+      })
+      .catch((error) => {
+        console.error("上传头像失败:", error);
+        throw error;
+      });
+  });
 };
 
   /**
