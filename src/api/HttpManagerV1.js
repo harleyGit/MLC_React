@@ -2,7 +2,7 @@
  * @Author: huanggang huanggang@imilab.com
  * @Date: 2025-05-08 16:12:43
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-04-17 10:10:00
+ * @LastEditTime: 2026-05-06 01:05:44
  * @FilePath: /app-web/imi-diagnosis/src/http_module/HttpRequest.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -447,7 +447,7 @@ class NetAPI {
       };
     }
 
-    if (!this.refreshTokenPromise) {
+    if (!this.refreshTokenPromise) {// token刷想
       this.refreshTokenPromise = this.refreshToken();
     }
 
@@ -476,7 +476,7 @@ class NetAPI {
     }
 
     const apiBase = getApiBase();
-    const url = `${apiBase}/auth/refresh`;
+    const url = `${apiBase}/api/v1/auth/refresh`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
