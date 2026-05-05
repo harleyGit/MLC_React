@@ -160,13 +160,12 @@ class HGEditUserPage extends React.Component {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("avatar", this.selectedAvatarFile);
-
     try {
-      await HGEditUserPageVM.uploadAvatar(formData);
+      const result = await HGEditUserPageVM.uploadAvatar(this.selectedAvatarFile);
+      LogOut("头像上传结果：", result);
+
       this.setState({
-        operationTips: "头像已保存成功。",
+        operationTips: result.isNew ? "头像已上传成功。" : "头像已存在，直接使用。",
       });
       this.selectedAvatarFile = null;
     } catch (error) {

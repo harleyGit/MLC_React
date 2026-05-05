@@ -309,12 +309,10 @@ class NetAPI {
       return "";
     }
 
+    // FormData 文件上传时，前后端统一使用空字符串计算签名
+    // 因为 multipart 二进制内容无法在前端精确计算
     if (typeof FormData !== "undefined" && body instanceof FormData) {
-      const data = {};
-      body.forEach((value, key) => {
-        data[key] = value;
-      });
-      return JSON.stringify(data);
+      return "";
     }
 
     if (typeof body === "string") {

@@ -105,23 +105,40 @@ export default class HGEditUserPageVM {
       });
   };
 
-  /**
-   * 上传头像文件。
-   * @param {FormData} formData - 包含头像文件的 FormData 对象
-   * @returns {Promise<Object>} 返回上传结果，包含头像 URL
-   * @throws {Error} 请求失败时抛出错误
-   */
-  static uploadAvatar = (formData) => {
-    return HGNet.uploadAvatar(formData)
-      .then((response) => {
-        LogOut("上传头像响应：", response);
-        return response;
-      })
-      .catch((error) => {
-        console.error("上传头像失败:", error);
-        throw error;
-      });
-  };
+/**
+ * 上传头像文件。
+ * @param {File} file - 头像文件对象
+ * @returns {Promise<Object>} 返回上传结果，包含 avatarUrl 和 isNew
+ * @throws {Error} 请求失败时抛出错误
+ */
+static uploadAvatar = (file) => {
+  if (!file) {
+    return Promise.reject(new Error("请选择头像文件"));
+  }
+
+  if (!file.type.startsWith("image/")) {
+    return Promise.reject(new Error("请选择图片文件"));
+  }
+
+  // 限制文件大小 10MB
+  const MAX_SIZE = 10 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    return Promise.reject(new Error("图片大小不能超过 10MB"));
+  }
+
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  return HGNet.uploadAvatar(formData)
+    .then((response) => {
+      LogOut("上传头像响应：", response);
+      return response;
+    })
+    .catch((error) => {
+      console.error("上传头像失败:", error);
+      throw error;
+    });
+};
 
   /**
    * 将前端性别文案转换为后端 gender 数值。
