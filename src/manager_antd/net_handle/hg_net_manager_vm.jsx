@@ -87,6 +87,11 @@ class HGNetManagerVM extends HGNetManager {
       },
     });
   }
+
+  // 获取用户头像
+  getAvatar() {
+    return this.get(HGMANAGER_API.AVATAR_UPLOAD);
+  }
 }
 
 // 创建一个默认实例

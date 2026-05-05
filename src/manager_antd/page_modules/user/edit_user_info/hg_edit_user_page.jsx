@@ -18,7 +18,7 @@ class HGEditUserPage extends React.Component {
   }
 
   /**
-   * 生命周期挂载：进入页面时获取当前用户信息并填充到表单。
+   * 生命周期挂载：进入页面时获取当前用户信息并填充到表单，同时获取头像。
    */
   async componentDidMount() {
     try {
@@ -31,6 +31,14 @@ class HGEditUserPage extends React.Component {
           birthMonth: userInfo.birth_month ?? "",
         },
       });
+
+      // 获取用户头像
+      const avatarResult = await HGEditUserPageVM.getAvatar();
+      if (avatarResult && avatarResult.avatarUrl) {
+        this.setState({
+          avatarPreviewUrl: avatarResult.avatarUrl,
+        });
+      }
     } catch (error) {
       handleError(error);
       this.setState({

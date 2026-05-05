@@ -144,6 +144,23 @@ static uploadAvatar = (file) => {
   });
 };
 
+/**
+ * 获取用户头像。
+ * @returns {Promise<Object>} 返回头像信息，包含 avatarUrl
+ * @throws {Error} 请求失败时抛出错误
+ */
+static getAvatar = () => {
+  return HGNet.getAvatar()
+    .then((response) => {
+      LogOut("获取头像响应：", response);
+      return response;
+    })
+    .catch((error) => {
+      console.error("获取头像失败:", error);
+      throw error;
+    });
+};
+
   /**
    * 将前端性别文案转换为后端 gender 数值。
    * @param {string} genderText - 前端显示的性别文案 ("保密"/"男"/"女")
