@@ -52,7 +52,7 @@ const SECURITY_ITEM_MAP = {
 const SECURITY_CODE_API_PATH = "/api/v1/profile/security/send_code";
 
 // 安全项更新接口：提交 QQ、密码、手机、邮箱、微信号设置。
-const SECURITY_UPDATE_API_PATH = "/api/v1/profile/security/update";
+const SECURITY_UPDATE_API_PATH = "/api/v1/profile/security";
 
 // 手机号格式约束：仅做前端基础格式阻断，最终以后端校验为准。
 const PHONE_PATTERN = /^1[3-9]\d{9}$/;
@@ -65,6 +65,14 @@ const QQ_PATTERN = /^[1-9]\d{4,11}$/;
 
 // 微信号格式约束：6-20 位，以字母开头，可包含数字、下划线和减号。
 const WECHAT_PATTERN = /^[A-Za-z][-_A-Za-z0-9]{5,19}$/;
+
+// 后端账号安全接口字段映射，必须与 HGUpdateUserSecurityReqDTO 的 JSON 字段保持一致。
+const SECURITY_REQUEST_FIELD_MAP = {
+  qq: "qq",
+  phone: "phone",
+  email: "email",
+  wechat: "wechat",
+};
 
 /**
  * 账号安全页 VM：集中处理安全项展示映射、输入校验和接口封装。
@@ -79,7 +87,8 @@ export default class HGAccountSecurityPageVM {
   static createInitialState(userProfile = {}) {
     return {
       userProfile,
-      securityItems: HGAccountSecurityPageVM.buildSecurityItemsFromProfile(userProfile),
+      securityItems:
+        HGAccountSecurityPageVM.buildSecurityItemsFromProfile(userProfile),
       activeSecurityKey: "",
       securityForm: HGAccountSecurityPageVM.createSecurityForm(),
       codeLoading: false,
@@ -136,7 +145,9 @@ export default class HGAccountSecurityPageVM {
         ...item,
         title: securityMeta?.title ?? item.key,
         desc: currentValue
-          ? `${securityMeta?.desc ?? ""} 当前：${HGAccountSecurityPageVM.maskSecurityValue(
+          ? `${
+              securityMeta?.desc ?? ""
+            } 当前：${HGAccountSecurityPageVM.maskSecurityValue(
               item.key,
               currentValue
             )}`
@@ -147,8 +158,8 @@ export default class HGAccountSecurityPageVM {
         actionText: item.bound
           ? "修改"
           : item.key === "password"
-            ? "去设置"
-            : "立即绑定",
+          ? "去设置"
+          : "立即绑定",
       };
     });
   }
@@ -163,7 +174,10 @@ export default class HGAccountSecurityPageVM {
     return Object.keys(SECURITY_ITEM_MAP).map((securityKey) => {
       return {
         key: securityKey,
-        bound: HGAccountSecurityPageVM.isSecurityItemBound(userProfile, securityKey),
+        bound: HGAccountSecurityPageVM.isSecurityItemBound(
+          userProfile,
+          securityKey
+        ),
       };
     });
   }
@@ -203,7 +217,11 @@ export default class HGAccountSecurityPageVM {
    */
   static getBoundSecurityValue(userProfile = {}, itemKey) {
     const valueMap = {
-      qq: userProfile.qq ?? userProfile.qq_no ?? userProfile.qqNumber ?? userProfile.qq_number,
+      qq:
+        userProfile.qq ??
+        userProfile.qq_no ??
+        userProfile.qqNumber ??
+        userProfile.qq_number,
       phone: userProfile.phone,
       email: userProfile.email,
       wechat:
@@ -230,7 +248,9 @@ export default class HGAccountSecurityPageVM {
           userProfile.password_hash
       );
     }
-    return Boolean(HGAccountSecurityPageVM.getBoundSecurityValue(userProfile, itemKey));
+    return Boolean(
+      HGAccountSecurityPageVM.getBoundSecurityValue(userProfile, itemKey)
+    );
   }
 
   /**
@@ -295,7 +315,10 @@ export default class HGAccountSecurityPageVM {
       if (itemBound && !securityForm.oldPassword) {
         return { valid: false, message: "请输入当前密码。" };
       }
-      if (!securityForm.passwordValue || securityForm.passwordValue.length < 6) {
+      if (
+        !securityForm.passwordValue ||
+        securityForm.passwordValue.length < 6
+      ) {
         return { valid: false, message: "新密码至少需要6位。" };
       }
       if (securityForm.passwordValue !== securityForm.confirmPassword) {
@@ -347,19 +370,16 @@ export default class HGAccountSecurityPageVM {
    * @returns {Promise<Object>} 接口响应结果。
    */
   static updateAccountSecurity({ itemKey, securityForm }) {
-    const requestBody = {
-      security_type: itemKey,
-    };
+    const requestBody = {};
 
     if (itemKey === "password") {
-      requestBody.old_password = securityForm.oldPassword || undefined;
-      requestBody.new_password = securityForm.passwordValue;
-    } else {
-      requestBody.target = `${securityForm.targetValue ?? ""}`.trim();
+      requestBody.password = securityForm.passwordValue;
+      return HGNet.put(SECURITY_UPDATE_API_PATH, requestBody);
     }
 
-    if (HGAccountSecurityPageVM.shouldUseVerificationCode(itemKey)) {
-      requestBody.code = securityForm.verificationCode;
+    const requestField = SECURITY_REQUEST_FIELD_MAP[itemKey];
+    if (requestField) {
+      requestBody[requestField] = `${securityForm.targetValue ?? ""}`.trim();
     }
 
     return HGNet.put(SECURITY_UPDATE_API_PATH, requestBody);
@@ -401,6 +421,8 @@ export default class HGAccountSecurityPageVM {
    */
   static buildSecuritySuccessTip(targetKey) {
     const actionItem = SECURITY_ITEM_MAP[targetKey];
-    return actionItem ? `${actionItem.detailTitle}成功。` : "账号安全设置成功。";
+    return actionItem
+      ? `${actionItem.detailTitle}成功。`
+      : "账号安全设置成功。";
   }
 }
