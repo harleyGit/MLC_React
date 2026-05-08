@@ -2,28 +2,29 @@ import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
 import { LogOut } from "../../../../logger/hg_logger";
 import styles from "./hg_edit_user_page.module.css";
+import HGAccountSecurityPage from "./hg_account_security_page";
 import HGEditUserPageVM, { MENU_KEYS, MENU_LIST } from "./hg_edit_user_page_vm";
 
 class HGEditUserPage extends React.Component {
   /**
    * 构造函数：初始化页面本地状态与头像 Object URL 缓存引用。
-   * 约束：仅维护页面展示态，不在此处触发网络请求。
+   * 约束：仅维护页面壳、资料表单和头像预览，账号安全由子模块维护。
    */
   constructor(props) {
     super(props);
-    // 页面核心状态：菜单、资料表单、头像预览、安全项以及操作提示。
     this.state = HGEditUserPageVM.createInitialState();
     this.avatarObjectUrl = "";
     this.selectedAvatarFile = null;
   }
 
   /**
-   * 生命周期挂载：进入页面时获取当前用户信息并填充到表单，同时获取头像。
+   * 生命周期挂载：进入页面时获取当前用户资料和头像。
    */
   async componentDidMount() {
     try {
       const userInfo = await HGEditUserPageVM.getUserProfile();
       this.setState({
+        userProfile: userInfo,
         profileForm: {
           nickName: userInfo.nickname ?? "",
           signature: userInfo.signature ?? "",
@@ -32,9 +33,8 @@ class HGEditUserPage extends React.Component {
         },
       });
 
-      // 获取用户头像
       const avatarResult = await HGEditUserPageVM.getAvatar();
-      if (avatarResult && avatarResult.avatarUrl) {
+      if (avatarResult?.avatarUrl) {
         this.setState({
           avatarPreviewUrl: avatarResult.avatarUrl,
         });
@@ -59,12 +59,23 @@ class HGEditUserPage extends React.Component {
   /**
    * 切换左侧菜单。
    * @param {string} menuKey 目标菜单标识（info/avatar/security）。
-   * 约束：切换菜单时清空操作提示，避免跨模块提示混淆。
+   * 约束：只切换一级模块并清空父页面操作提示。
    */
   handleMenuClick = (menuKey) => {
     this.setState({
       activeMenuKey: menuKey,
       operationTips: "",
+    });
+  };
+
+  /**
+   * 同步账号安全子模块更新后的用户资料快照。
+   * @param {Object} nextUserProfile 更新后的用户资料对象。
+   * 约束：只更新父页面资料快照，避免重置当前菜单和头像状态。
+   */
+  handleUserProfileChange = (nextUserProfile) => {
+    this.setState({
+      userProfile: nextUserProfile,
     });
   };
 
@@ -87,12 +98,10 @@ class HGEditUserPage extends React.Component {
 
   /**
    * 保存个人资料。
-   * 约束：调用后端 UpdateProfile 接口更新用户资料，成功/失败均展示操作提示。
-   * 成功后将后端返回的最新用户资料同步到本地表单状态。
+   * 约束：调用后端 UpdateProfile 接口，成功后同步最新表单和用户资料快照。
    */
   handleSaveProfile = async () => {
-    const { profileForm } = this.state;
-
+    const { profileForm, userProfile } = this.state;
     const profileData = {
       nickname: profileForm.nickName,
       signature: profileForm.signature,
@@ -103,17 +112,17 @@ class HGEditUserPage extends React.Component {
     try {
       const response = await HGEditUserPageVM.updateUserProfile(profileData);
       LogOut("用户资料响应数据为：", response);
-
-      // 将后端返回的最新资料同步到本地表单状态
       const newProfileForm = {
         nickName: response.nickname ?? profileForm.nickName,
         signature: response.signature ?? profileForm.signature,
-        gender:
-          HGEditUserPageVM.genderValueToText(response.gender) ??
-          profileForm.gender,
+        gender: HGEditUserPageVM.genderValueToText(response.gender) ?? profileForm.gender,
         birthMonth: response.birth_month ?? profileForm.birthMonth,
       };
       this.setState({
+        userProfile: {
+          ...userProfile,
+          ...response,
+        },
         profileForm: newProfileForm,
         operationTips: "个人资料已保存成功。",
       });
@@ -158,8 +167,7 @@ class HGEditUserPage extends React.Component {
 
   /**
    * 保存头像。
-   * 约束：未选择头像时给出阻断提示；调用后端上传接口。
-   * 上传成功后更新头像预览 URL。
+   * 约束：未选择头像时给出阻断提示；调用后端上传接口并同步预览 URL。
    */
   handleSaveAvatar = async () => {
     if (!this.selectedAvatarFile) {
@@ -172,17 +180,12 @@ class HGEditUserPage extends React.Component {
     try {
       const result = await HGEditUserPageVM.uploadAvatar(this.selectedAvatarFile);
       LogOut("头像上传结果：", result);
-
-      // 更新头像预览 URL（使用服务器返回的 URL）
       const newState = {
         operationTips: result.isNew ? "头像已上传成功。" : "头像已存在，直接使用。",
       };
-      
-      // 如果返回了头像 URL，更新预览
       if (result.avatarUrl) {
         newState.avatarPreviewUrl = result.avatarUrl;
       }
-      
       this.setState(newState);
       this.selectedAvatarFile = null;
     } catch (error) {
@@ -191,27 +194,6 @@ class HGEditUserPage extends React.Component {
         operationTips: "头像保存失败，请稍后重试。",
       });
     }
-  };
-
-  /**
-   * 处理账号安全项动作。
-   * @param {string} itemKey 安全项标识（qq/password/phone/email/wechat）。
-   * 约束：仅更新点击条目为已完成状态，并同步更新操作提示文案。
-   */
-  handleSecurityAction = (itemKey) => {
-    const nextSecurityItems = HGEditUserPageVM.buildNextSecurityItems(
-      this.state.securityItems,
-      itemKey
-    );
-    const actionTip = HGEditUserPageVM.buildSecurityActionTip(itemKey);
-    if (!actionTip) {
-      return;
-    }
-
-    this.setState({
-      securityItems: nextSecurityItems,
-      operationTips: actionTip,
-    });
   };
 
   /**
@@ -229,9 +211,7 @@ class HGEditUserPage extends React.Component {
             <button
               key={menuItem.key}
               type="button"
-              className={`${styles.menuItem} ${
-                isActive ? styles.menuItemActive : ""
-              }`}
+              className={`${styles.menuItem} ${isActive ? styles.menuItemActive : ""}`}
               onClick={() => this.handleMenuClick(menuItem.key)}
             >
               {menuItem.label}
@@ -357,43 +337,15 @@ class HGEditUserPage extends React.Component {
   };
 
   /**
-   * 渲染“账号安全”内容区。
-   * @returns {React.ReactNode} 安全项列表 JSX。
+   * 渲染“账号安全”内容区入口。
+   * @returns {React.ReactNode} 独立账号安全子模块。
    */
   renderSecurityContent = () => {
-    const securityViewItems = HGEditUserPageVM.buildSecurityViewItems(
-      this.state.securityItems
-    );
     return (
-      <section className={styles.contentBlock}>
-        <h3 className={styles.contentTitle}>账号安全</h3>
-        <div className={styles.securityList}>
-          {securityViewItems.map((securityItem) => {
-            return (
-              <div key={securityItem.key} className={styles.securityRow}>
-                <div className={styles.securityName}>{securityItem.title}</div>
-                <div className={styles.securityDesc}>{securityItem.desc}</div>
-                <div
-                  className={`${styles.securityStatus} ${
-                    securityItem.bound
-                      ? styles.statusBound
-                      : styles.statusUnbound
-                  }`}
-                >
-                  {securityItem.statusText}
-                </div>
-                <button
-                  type="button"
-                  className={styles.linkButton}
-                  onClick={() => this.handleSecurityAction(securityItem.key)}
-                >
-                  {securityItem.actionText}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <HGAccountSecurityPage
+        userProfile={this.state.userProfile}
+        onUserProfileChange={this.handleUserProfileChange}
+      />
     );
   };
 
@@ -417,13 +369,14 @@ class HGEditUserPage extends React.Component {
    * @returns {React.ReactNode} 页面根节点 JSX。
    */
   render() {
-    const { operationTips } = this.state;
+    const { activeMenuKey, operationTips } = this.state;
+    const shouldShowTips = operationTips && activeMenuKey !== MENU_KEYS.SECURITY;
     return (
       <div className={styles.page}>
         <div className={styles.panel}>
           {this.renderLeftMenu()}
           <main className={styles.contentWrap}>
-            {operationTips ? (
+            {shouldShowTips ? (
               <div className={styles.operationTips}>{operationTips}</div>
             ) : null}
             {this.renderRightContent()}

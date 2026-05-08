@@ -180,55 +180,6 @@
   font-size: 14px;
 }
 
-.securityList {
-  border-top: 1px solid #edf1fb;
-}
-
-.securityRow {
-  display: grid;
-  grid-template-columns: 150px 1fr 140px 92px;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 8px 16px 0;
-  border-bottom: 1px solid #edf1fb;
-}
-
-.securityName {
-  font-size: 16px;
-  color: #1f2c4a;
-  font-weight: 500;
-}
-
-.securityDesc {
-  font-size: 14px;
-  color: #66728f;
-}
-
-.securityStatus {
-  font-size: 14px;
-}
-
-.statusBound {
-  color: #0f9d58;
-}
-
-.statusUnbound {
-  color: #d97000;
-}
-
-.linkButton {
-  border: 0;
-  background: transparent;
-  color: #1a73ff;
-  font-size: 14px;
-  cursor: pointer;
-  text-align: right;
-}
-
-.linkButton:hover {
-  color: #0f5fda;
-}
-
 @media (max-width: 960px) {
   .panel {
     flex-direction: column;
@@ -255,16 +206,5 @@
   .avatarEditor {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .securityRow {
-    grid-template-columns: 1fr;
-    gap: 6px;
-    padding: 14px 0;
-  }
-
-  .linkButton {
-    text-align: left;
-    padding: 0;
   }
 }
