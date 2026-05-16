@@ -19,6 +19,7 @@ export const DEBUG_MAP = isDebug
   : {};
 
 export const TOKEN_KEY = "manager_token";
+export const REFRESH_TOKEN_KEY = "refresh_token";
 
 // 判断是否登录
 export function getToken() {
@@ -51,5 +52,7 @@ export function isAuthenticated() {
 // 退出登录
 export function logout() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem("refreshToken");
   HGUserProfileStorage.clearUserProfile();
 }

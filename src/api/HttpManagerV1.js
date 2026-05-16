@@ -10,13 +10,16 @@
 // TODO: 拦截器：https://www.qianwen.com/chat/8be707867a6a45e28a20910026bb9354
 
 import { LogError } from "../logger/hg_logger";
-import { TOKEN_KEY } from "../manager_antd/auth/hg_auth";
+import { REFRESH_TOKEN_KEY, TOKEN_KEY } from "../manager_antd/auth/hg_auth";
 import { redirectToLogin, showError, showWarning } from "./hg_ui_feedback";
 
 const env = import.meta.env;
 const getApiBase = () => {
   return env.DEV ? "" : env.VITE_API_BASE || env.VITE_API_URL || "";
 };
+
+// 后端统一的 token 无效业务码集合，需要与 HTTP 401 一样触发刷新链路。
+const TOKEN_INVALID_CODES = new Set([401, 101001]);
 
 export const ResultCodeMap = {
   200: { type: "success" },
@@ -189,7 +192,7 @@ class NetAPI {
       const data = await response.json();
       const { code, message, result, tid, timestamp } = data;
 
-      if (code === 401) {
+      if (this.isTokenInvalidCode(code)) {
         return this.handle401({
           url,
           method: upperMethod,
@@ -438,6 +441,7 @@ class NetAPI {
   }
 
   // sha256Bytes 是 Web Crypto 不可用时的 SHA-256 实现，仅用于请求签名降级。
+  // 这个是为了解决在局域网也可以ke 访问的http服务，不能使用webcrypto情况下兼容。
   sha256Bytes(bytes) {
     const constants = [
       0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
@@ -573,6 +577,11 @@ class NetAPI {
     return String(Math.floor(Date.now() / 1000));
   }
 
+  // isTokenInvalidCode 集中维护后端 token 失效码，避免鉴权判断散落在请求流程中。
+  isTokenInvalidCode(code) {
+    return TOKEN_INVALID_CODES.has(code);
+  }
+
   generateRequestId() {
     if (typeof crypto !== "undefined" && crypto.randomUUID) {
       return crypto.randomUUID();
@@ -614,17 +623,30 @@ class NetAPI {
 
   async refreshToken() {
     const refreshToken =
-      localStorage.getItem("refresh_token") || localStorage.getItem("refreshToken");
+      localStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem("refreshToken");
     if (!refreshToken) {
       throw { type: "AUTH_ERROR", message: "没有 refresh token" };
     }
 
     const apiBase = getApiBase();
     const url = `${apiBase}/api/v1/auth/refresh`;
+    const body = { refreshToken };
+    const commonHeaders = this.getCommonHeaders();
+    const requestHeaders = {
+      "Content-Type": "application/json",
+      ...commonHeaders,
+    };
+    requestHeaders["X-Signature"] = await this.buildSignature({
+      url,
+      method: "POST",
+      headers: requestHeaders,
+      body,
+    });
+
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      headers: requestHeaders,
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -640,7 +662,7 @@ class NetAPI {
     localStorage.setItem(TOKEN_KEY, data?.result?.token);
     if (data?.result?.refreshToken || data?.result?.refresh_token) {
       localStorage.setItem(
-        "refresh_token",
+        REFRESH_TOKEN_KEY,
         data?.result?.refreshToken ?? data?.result?.refresh_token
       );
     }

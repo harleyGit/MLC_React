@@ -7,7 +7,7 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import { LogOut } from "../../../logger/hg_logger";
-import { TOKEN_KEY } from "../../auth/hg_auth";
+import { REFRESH_TOKEN_KEY, TOKEN_KEY } from "../../auth/hg_auth";
 import HGNet from "../../net_handle/hg_net_manager_vm";
 
 // 📌 注册方式枚举（推荐用对象形式，避免魔法字符串）
@@ -75,7 +75,7 @@ export default class HGLoginVM {
           localStorage.setItem(TOKEN_KEY, accessToken);
         }
         if (refreshToken) {
-          localStorage.setItem("refresh_token", refreshToken);
+          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
         // request() 已经返回后端 result，这里直接返回 response。
         return response;
