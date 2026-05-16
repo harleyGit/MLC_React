@@ -4,11 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite --mode debug",
+    "dev": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite --mode debug --host",
+    "dev:pre": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite --mode pre --host",
+    "dev:release": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite --mode release --host",
     "build:pre": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite build --mode pre",
     "build:release": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite build --mode release",
     "lint": "eslint .",
-    "preview": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite preview"
+    "preview": "PATH=\"$HOME/.nvm/versions/node/v20.19.0/bin:$PATH\" vite preview --host"
   },
   "dependencies": {
     "antd": "^6.2.1",
