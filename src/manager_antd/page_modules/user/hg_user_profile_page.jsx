@@ -12,6 +12,7 @@ import { Button, Card, message, Space, Table } from "antd";
 import Input from "antd/es/input/Input";
 import React from "react";
 import { LogOut } from "../../../logger/hg_logger";
+import HGLoading from "../../components/hg_loading";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";
@@ -137,6 +138,11 @@ class HGUserProfilePage extends React.Component {
     LogOut("🍎 用户列表数据：", data);
     return (
       <div className={styles.container}>
+        <HGLoading
+          fullscreen
+          text="正在加载用户列表..."
+          visible={loading}
+        />
         <Card
           title="用户列表"
           extra={
@@ -179,7 +185,7 @@ class HGUserProfilePage extends React.Component {
         title: "用户ID",
         dataIndex: "userID",
         width: 180,
-        render: (text, record) => {
+        render: (text) => {
           return <span>{text}</span>;
         },
       },
@@ -187,7 +193,7 @@ class HGUserProfilePage extends React.Component {
         title: "用户名",
         dataIndex: "userName",
         width: 80,
-        render: (text, record) => {
+        render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
       },
@@ -195,7 +201,7 @@ class HGUserProfilePage extends React.Component {
         title: "手机号",
         dataIndex: "phone",
         width: 80,
-        render: (text, record) => {
+        render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
       },
@@ -203,7 +209,7 @@ class HGUserProfilePage extends React.Component {
         title: "📮邮箱",
         dataIndex: "email",
         width: 80,
-        render: (text, record) => {
+        render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
       },
@@ -215,7 +221,7 @@ class HGUserProfilePage extends React.Component {
         title: "Password签名值✍️",
         dataIndex: "passwordHash",
         width: 180,
-        render: (text, record) => {
+        render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
       },
@@ -229,7 +235,7 @@ class HGUserProfilePage extends React.Component {
         title: "创建时间",
         dataIndex: "created_at",
         width: 80,
-        render: (text, record) => {
+        render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
       },
@@ -237,7 +243,7 @@ class HGUserProfilePage extends React.Component {
         title: "更新时间",
         dataIndex: "updated_at",
         width: 80,
-        render: (text, record) => {
+        render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
       },
@@ -245,4 +251,6 @@ class HGUserProfilePage extends React.Component {
   };
 }
 
-export default WithNavigation(HGUserProfilePage);
+const HGUserProfilePageWithNavigation = WithNavigation(HGUserProfilePage);
+
+export default HGUserProfilePageWithNavigation;

@@ -10,9 +10,11 @@ import { LockOutlined, UserOutlined } from "@ant-design/icons";
 import { Button, Form, Input, message } from "antd";
 import React, { Component } from "react";
 import { LogOut } from "../../../logger/hg_logger";
+import HGLoading from "../../components/hg_loading";
 import { DEBUG_MAP } from "../../auth/hg_auth";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../../router/hg_router_path";
+import HGEditUserPageVM from "../user/edit_user_info/hg_edit_user_page_vm";
 import styles from "./hg_login.module.css";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
 
@@ -36,7 +38,9 @@ class HGLoginPage extends Component {
     })
       .then((data) => {
         LogOut("data:", data);
-        // 这里的 data 是你上面 return response.data 的结果
+        return HGEditUserPageVM.getUserProfile();
+      })
+      .then(() => {
         const from = this.props.location.state?.from || ROUTE_PATH.HOME;
         this.props.navigate?.(from);
         this.setState({ loading: false });
@@ -75,6 +79,11 @@ class HGLoginPage extends Component {
   render() {
     return (
       <div className={styles.page}>
+        <HGLoading
+          fullscreen
+          text="正在登录..."
+          visible={this.state.loading}
+        />
         <div className={styles.card}>
           <h2 className={styles.title}>用户登录</h2>
 
@@ -132,4 +141,6 @@ class HGLoginPage extends Component {
   }
 }
 
-export default WithNavigation(HGLoginPage);
+const HGLoginPageWithNavigation = WithNavigation(HGLoginPage);
+
+export default HGLoginPageWithNavigation;

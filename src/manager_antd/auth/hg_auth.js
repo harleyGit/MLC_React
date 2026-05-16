@@ -6,6 +6,8 @@
  * @FilePath: /MLC_React/src/manager_antd/auth/hg_auth.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
+import HGUserProfileStorage from "../storage/hg_user_profile_storage";
+
 /* DEBUG环境默认值设置 */
 const env = import.meta.env;
 const isDebug = env.VITE_APP_ENV === "debug";
@@ -17,6 +19,7 @@ export const DEBUG_MAP = isDebug
   : {};
 
 export const TOKEN_KEY = "manager_token";
+
 // 判断是否登录
 export function getToken() {
   // console.log("auth token 🍎：", localStorage.getItem(TOKEN_KEY));
@@ -33,7 +36,7 @@ export function isTokenExpired(token) {
     const payload = JSON.parse(atob(token.split(".")[1]));
     const exp = payload.exp * 1000;
     return Date.now() > exp;
-  } catch (e) {
+  } catch {
     return true;
   }
 }
@@ -48,4 +51,5 @@ export function isAuthenticated() {
 // 退出登录
 export function logout() {
   localStorage.removeItem(TOKEN_KEY);
+  HGUserProfileStorage.clearUserProfile();
 }

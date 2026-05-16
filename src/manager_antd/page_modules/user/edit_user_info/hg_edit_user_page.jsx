@@ -1,6 +1,8 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
 import { LogOut } from "../../../../logger/hg_logger";
+import HGLoading from "../../../components/hg_loading";
+import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_edit_user_page.module.css";
 import HGAccountSecurityPage from "./hg_account_security_page";
 import HGEditUserPageVM, { MENU_KEYS, MENU_LIST } from "./hg_edit_user_page_vm";
@@ -21,6 +23,7 @@ class HGEditUserPage extends React.Component {
    * 生命周期挂载：进入页面时获取当前用户资料和头像。
    */
   async componentDidMount() {
+    this.setState({ loading: true });
     try {
       const userInfo = await HGEditUserPageVM.getUserProfile();
       this.setState({
@@ -44,6 +47,8 @@ class HGEditUserPage extends React.Component {
       this.setState({
         operationTips: "获取用户信息失败，请刷新重试。",
       });
+    } finally {
+      this.setState({ loading: false });
     }
   }
 
@@ -74,6 +79,7 @@ class HGEditUserPage extends React.Component {
    * 约束：只更新父页面资料快照，避免重置当前菜单和头像状态。
    */
   handleUserProfileChange = (nextUserProfile) => {
+    HGUserProfileStorage.saveUserProfile(nextUserProfile);
     this.setState({
       userProfile: nextUserProfile,
     });
@@ -110,6 +116,7 @@ class HGEditUserPage extends React.Component {
     };
 
     try {
+      this.setState({ loading: true });
       const response = await HGEditUserPageVM.updateUserProfile(profileData);
       LogOut("用户资料响应数据为：", response);
       const newProfileForm = {
@@ -131,6 +138,8 @@ class HGEditUserPage extends React.Component {
       this.setState({
         operationTips: "个人资料保存失败，请稍后重试。",
       });
+    } finally {
+      this.setState({ loading: false });
     }
   };
 
@@ -178,6 +187,7 @@ class HGEditUserPage extends React.Component {
     }
 
     try {
+      this.setState({ loading: true });
       const result = await HGEditUserPageVM.uploadAvatar(this.selectedAvatarFile);
       LogOut("头像上传结果：", result);
       const newState = {
@@ -193,6 +203,8 @@ class HGEditUserPage extends React.Component {
       this.setState({
         operationTips: "头像保存失败，请稍后重试。",
       });
+    } finally {
+      this.setState({ loading: false });
     }
   };
 
@@ -369,10 +381,15 @@ class HGEditUserPage extends React.Component {
    * @returns {React.ReactNode} 页面根节点 JSX。
    */
   render() {
-    const { activeMenuKey, operationTips } = this.state;
+    const { activeMenuKey, loading, operationTips } = this.state;
     const shouldShowTips = operationTips && activeMenuKey !== MENU_KEYS.SECURITY;
     return (
       <div className={styles.page}>
+        <HGLoading
+          fullscreen
+          text="正在处理用户资料..."
+          visible={loading}
+        />
         <div className={styles.panel}>
           {this.renderLeftMenu()}
           <main className={styles.contentWrap}>

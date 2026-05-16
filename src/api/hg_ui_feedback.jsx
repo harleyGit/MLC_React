@@ -7,6 +7,7 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import { message } from 'antd';
+import HGUserProfileStorage from '../manager_antd/storage/hg_user_profile_storage';
 
 /**
  * 错误提示（红）
@@ -43,6 +44,7 @@ export function showSuccess(msg) {
 export function redirectToLogin() {
     // 清理本地登录态
     localStorage.removeItem("manager_token");
+    HGUserProfileStorage.clearUserProfile();
   
     // 带回跳地址
     const redirect = encodeURIComponent(window.location.pathname);

@@ -1,5 +1,6 @@
 import { LogOut } from "../../../../logger/hg_logger";
 import HGNet from "../../../../manager_antd/net_handle/hg_net_manager_vm";
+import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 
 export const MENU_KEYS = {
   INFO: "info",
@@ -35,6 +36,7 @@ export default class HGEditUserPageVM {
     return HGNet.getUserProfile()
       .then((response) => {
         LogOut("获取用户信息响应：", response);
+        HGUserProfileStorage.saveUserProfile(response);
         return response;
       })
       .catch((error) => {
@@ -64,6 +66,11 @@ export default class HGEditUserPageVM {
     })
       .then((response) => {
         LogOut("更新用户资料响应：", response);
+        const currentProfile = HGUserProfileStorage.getUserProfile() || {};
+        HGUserProfileStorage.saveUserProfile({
+          ...currentProfile,
+          ...response,
+        });
         return response;
       })
       .catch((error) => {
@@ -157,7 +164,7 @@ export default class HGEditUserPageVM {
 
   /**
    * 创建页面初始状态。
-   * @returns {{activeMenuKey: string, userProfile: Object, profileForm: Object, avatarPreviewUrl: string, operationTips: string}} 页面 class state 初始对象。
+   * @returns {{activeMenuKey: string, userProfile: Object, profileForm: Object, avatarPreviewUrl: string, operationTips: string, loading: boolean}} 页面 class state 初始对象。
    */
   static createInitialState() {
     return {
@@ -171,6 +178,7 @@ export default class HGEditUserPageVM {
       },
       avatarPreviewUrl: "",
       operationTips: "",
+      loading: false,
     };
   }
 }
