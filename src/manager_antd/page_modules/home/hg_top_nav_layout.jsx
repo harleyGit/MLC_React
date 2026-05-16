@@ -12,6 +12,7 @@ import React, { Component } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { ROUTE_PATH } from "../../router/hg_router_path";
 import { logout } from "../../auth/hg_auth";
+import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
 import styles from "./hg_top_nav_layout.module.css";
 
 const { Header, Content, Footer } = Layout;
@@ -66,7 +67,7 @@ class HGTopNavLayout extends Component {
     if (path === ROUTE_PATH.PRODUCTS) return "products";
     if (path === ROUTE_PATH.ABOUT) return "about";
     if (path === ROUTE_PATH.USER_PROFILE) return "profile";
-    if (path === ROUTE_PATH.EDIT_USER_INFO) return "profile";
+    if (path === ROUTE_PATH.EDIT_USER_INFO) return "avatar";
     return "home";
   };
 
@@ -91,8 +92,10 @@ class HGTopNavLayout extends Component {
    */
   toggleUserDropdown = () => {
     this.setState((prevState) => {
+      const nextShowUserDropdown = !prevState.showUserDropdown;
       return {
-        showUserDropdown: !prevState.showUserDropdown,
+        current: nextShowUserDropdown ? "avatar" : this.getCurrentPage(),
+        showUserDropdown: nextShowUserDropdown,
       };
     });
   };
@@ -104,8 +107,60 @@ class HGTopNavLayout extends Component {
    */
   handleDocumentClick = (event) => {
     if (!this.avatarMenuRef.current?.contains(event.target)) {
-      this.setState({ showUserDropdown: false });
+      this.setState({
+        current: this.getCurrentPage(),
+        showUserDropdown: false,
+      });
     }
+  };
+
+  /**
+   * 获取本地缓存用户资料。
+   * @returns {Object} 当前可用于页面展示的用户资料；无缓存时返回空对象。
+   */
+  getUserProfile = () => {
+    return HGUserProfileStorage.getUserProfile() || {};
+  };
+
+  /**
+   * 获取用户展示名称。
+   * @param {Object} userProfile 本地缓存用户资料。
+   * @returns {string} 优先昵称，其次用户名，最后使用默认占位。
+   */
+  getUserDisplayName = (userProfile) => {
+    return (
+      userProfile.nickname ||
+      userProfile.username ||
+      userProfile.userName ||
+      "用户"
+    );
+  };
+
+  /**
+   * 获取头像图片地址。
+   * @param {Object} userProfile 本地缓存用户资料。
+   * @returns {string} 可展示的头像地址；无头像时返回空字符串。
+   */
+  getUserAvatarUrl = (userProfile) => {
+    return userProfile.avatar_url || userProfile.avatarUrl || "";
+  };
+
+  /**
+   * 获取头像文字占位。
+   * @param {string} displayName 用户展示名称。
+   * @returns {string} 截取后的头像文字，限制长度避免撑破圆形容器。
+   */
+  getAvatarText = (displayName) => {
+    return displayName.slice(0, 2).toUpperCase();
+  };
+
+  /**
+   * 获取用户信息副标题。
+   * @param {Object} userProfile 本地缓存用户资料。
+   * @returns {string} 优先展示签名，其次邮箱、手机号；都不存在则为空。
+   */
+  getUserSubtitle = (userProfile) => {
+    return userProfile.signature || userProfile.email || userProfile.phone || "";
   };
 
   /**
@@ -134,6 +189,14 @@ class HGTopNavLayout extends Component {
    */
   render() {
     const { current, showUserDropdown } = this.state;
+    const userProfile = this.getUserProfile();
+    const userDisplayName = this.getUserDisplayName(userProfile);
+    const userAvatarUrl = this.getUserAvatarUrl(userProfile);
+    const avatarText = this.getAvatarText(userDisplayName);
+    const userSubtitle = this.getUserSubtitle(userProfile);
+    const avatarButtonClassName = `${styles.avatarButton} ${
+      current === "avatar" ? styles.avatarButtonActive : ""
+    }`;
 
     return (
       <Layout className={styles.layout}>
@@ -170,18 +233,38 @@ class HGTopNavLayout extends Component {
           <div className={styles.avatarWrap} ref={this.avatarMenuRef}>
             <button
               type="button"
-              className={styles.avatarButton}
+              className={avatarButtonClassName}
               onClick={this.toggleUserDropdown}
             >
-              <span className={styles.avatarText}>HG</span>
+              {userAvatarUrl ? (
+                <img
+                  className={styles.avatarImage}
+                  src={userAvatarUrl}
+                  alt={userDisplayName}
+                />
+              ) : (
+                <span className={styles.avatarText}>{avatarText}</span>
+              )}
             </button>
             {showUserDropdown ? (
               <div className={styles.userDropdown}>
                 <div className={styles.userInfoCard}>
-                  <div className={styles.userInfoAvatar}>HG</div>
+                  <div className={styles.userInfoAvatar}>
+                    {userAvatarUrl ? (
+                      <img
+                        className={styles.userInfoAvatarImage}
+                        src={userAvatarUrl}
+                        alt={userDisplayName}
+                      />
+                    ) : (
+                      avatarText
+                    )}
+                  </div>
                   <div className={styles.userInfoText}>
-                    <div className={styles.userName}>Harley</div>
-                    <div className={styles.userSubtitle}>欢迎回来</div>
+                    <div className={styles.userName}>{userDisplayName}</div>
+                    {userSubtitle ? (
+                      <div className={styles.userSubtitle}>{userSubtitle}</div>
+                    ) : null}
                   </div>
                 </div>
                 <div className={styles.dropdownDivider} />
