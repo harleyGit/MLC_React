@@ -1,4 +1,5 @@
 import HGNet from "../../../../manager_antd/net_handle/hg_net_manager_vm";
+import { HGMANAGER_API } from "../../../api/hg_api_constants";
 
 const SECURITY_ITEM_MAP = {
   qq: {
@@ -47,12 +48,6 @@ const SECURITY_ITEM_MAP = {
     unboundText: "未绑定",
   },
 };
-
-// 验证码接口：邮箱等非手机号安全项使用当前资料安全接口。
-const SECURITY_CODE_API_PATH = "/api/v1/profile/security/send_code";
-
-// 安全项更新接口：提交 QQ、密码、手机、邮箱、微信号设置。
-const SECURITY_UPDATE_API_PATH = "/api/v1/profile/security";
 
 // 手机号格式约束：仅做前端基础格式阻断，最终以后端校验为准。
 const PHONE_PATTERN = /^1[3-9]\d{9}$/;
@@ -356,7 +351,7 @@ export default class HGAccountSecurityPageVM {
     if (itemKey === "phone") {
       return HGNet.sendCode({ phone: targetValue });
     }
-    return HGNet.post(SECURITY_CODE_API_PATH, {
+    return HGNet.post(HGMANAGER_API.SECURITY_CODE_API_PATH, {
       security_type: itemKey,
       target: targetValue,
     });
@@ -374,7 +369,7 @@ export default class HGAccountSecurityPageVM {
 
     if (itemKey === "password") {
       requestBody.password = securityForm.passwordValue;
-      return HGNet.put(SECURITY_UPDATE_API_PATH, requestBody);
+      return HGNet.put(HGMANAGER_API.SECURITY_UPDATE_API_PATH, requestBody);
     }
 
     const requestField = SECURITY_REQUEST_FIELD_MAP[itemKey];
@@ -382,7 +377,7 @@ export default class HGAccountSecurityPageVM {
       requestBody[requestField] = `${securityForm.targetValue ?? ""}`.trim();
     }
 
-    return HGNet.put(SECURITY_UPDATE_API_PATH, requestBody);
+    return HGNet.put(HGMANAGER_API.SECURITY_UPDATE_API_PATH, requestBody);
   }
 
   /**

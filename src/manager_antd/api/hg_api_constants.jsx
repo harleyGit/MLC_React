@@ -2,13 +2,17 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-31 16:20:25
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-03 21:35:41
+ * @LastEditTime: 2026-05-10 11:38:53
  * @FilePath: /MLC_React/src/manager_antd/api/hg_api_constants.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
  * antd 图标：https://ant.design/components/icon?spm=5176.28103460.0.0.51986308ocBoJk
 */
 export const HGMANAGER_API = {
+  // 验证码接口：邮箱等非手机号安全项使用当前资料安全接口。
+  SECURITY_CODE_API_PATH: "/api/v1/profile/security/send_code",
+  // 安全项更新接口：提交 QQ、密码、手机、邮箱、微信号设置。
+  SECURITY_UPDATE_API_PATH: "/api/v1/profile/security",
   LOGIN: "/api/v1/auth/login", // 登录
   REGISTER_NEW_USER: "/api/v1/auth/register", // 注册新用户
   SEND_CODE: "/api/v1/auth/send_code", // 验证码
