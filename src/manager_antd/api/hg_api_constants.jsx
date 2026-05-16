@@ -13,6 +13,8 @@ export const HGMANAGER_API = {
   SECURITY_CODE_API_PATH: "/api/v1/profile/security/send_code",
   // 安全项更新接口：提交 QQ、密码、手机、邮箱、微信号设置。
   SECURITY_UPDATE_API_PATH: "/api/v1/profile/security",
+  // 账号安全信息接口：进入账号安全页时读取 user_security 当前字段。
+  SECURITY_ACCOUNT_API_PATH: "/api/v1/profile/account",
   LOGIN: "/api/v1/auth/login", // 登录
   REGISTER_NEW_USER: "/api/v1/auth/register", // 注册新用户
   SEND_CODE: "/api/v1/auth/send_code", // 验证码

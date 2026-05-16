@@ -18,6 +18,15 @@ class HGAccountSecurityPage extends React.Component {
     super(props);
     this.state = HGAccountSecurityPageVM.createInitialState(props.userProfile);
     this.countdownTimer = null;
+    this.isUnmounted = false;
+  }
+
+  /**
+   * 生命周期挂载：进入账号安全页时读取后端账号安全表数据。
+   * 约束：请求结果合并到当前资料快照，避免覆盖父页面已有非安全字段。
+   */
+  componentDidMount() {
+    this.fetchAccountSecurityInfo();
   }
 
   /**
@@ -48,10 +57,42 @@ class HGAccountSecurityPage extends React.Component {
    * 生命周期卸载：清理验证码倒计时定时器，避免异步 setState 泄漏。
    */
   componentWillUnmount() {
+    this.isUnmounted = true;
     if (this.countdownTimer) {
       clearInterval(this.countdownTimer);
     }
   }
+
+  /**
+   * 获取账号安全信息并同步安全项展示状态。
+   * 约束：失败只给本模块提示，不阻断已有父级用户资料渲染。
+   */
+  fetchAccountSecurityInfo = async () => {
+    try {
+      const accountSecurityInfo = await HGAccountSecurityPageVM.getAccountSecurity();
+      if (this.isUnmounted) {
+        return;
+      }
+
+      const nextUserProfile = {
+        ...(this.props.userProfile ?? {}),
+        ...this.state.userProfile,
+        ...accountSecurityInfo,
+      };
+      this.props.onUserProfileChange?.(nextUserProfile);
+      this.setState({
+        userProfile: nextUserProfile,
+        securityItems:
+          HGAccountSecurityPageVM.buildSecurityItemsFromProfile(nextUserProfile),
+      });
+    } catch (error) {
+      if (this.isUnmounted) {
+        return;
+      }
+      handleError(error);
+      this.setState({ tips: "获取账号安全信息失败，请刷新重试。" });
+    }
+  };
 
   /**
    * 进入指定安全项详情页。

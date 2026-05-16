@@ -358,6 +358,15 @@ export default class HGAccountSecurityPageVM {
   }
 
   /**
+   * 调用账号安全信息接口。
+   * @returns {Promise<Object>} 当前用户账号安全信息。
+   * 约束：只用 GET 读取数据，不在 VM 中改写组件状态。
+   */
+  static getAccountSecurity() {
+    return HGNet.get(HGMANAGER_API.SECURITY_ACCOUNT_API_PATH);
+  }
+
+  /**
    * 调用账号安全设置接口。
    * @param {Object} params 提交参数。
    * @param {string} params.itemKey 安全项 key。
