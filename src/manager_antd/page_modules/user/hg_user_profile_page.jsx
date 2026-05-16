@@ -183,7 +183,7 @@ class HGUserProfilePage extends React.Component {
     return [
       {
         title: "用户ID",
-        dataIndex: "userID",
+        dataIndex: "user_id",
         width: 180,
         render: (text) => {
           return <span>{text}</span>;
@@ -191,8 +191,8 @@ class HGUserProfilePage extends React.Component {
       },
       {
         title: "用户名",
-        dataIndex: "userName",
-        width: 80,
+        dataIndex: "user_name",
+        width: 180,
         render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
