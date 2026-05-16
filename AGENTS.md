@@ -96,26 +96,5 @@
 
 ## Git Commit 规范
 
-提交代码到 git 远程仓库时，commit message 格式：
-
-```
-<type>: <emoji> <description>
-```
-
-类型与 emoji 对照：
-- `feat`: 🍒 新功能
-- `fix`: 💯 修复问题
-- `docs`: 🍎🧩 文档变更
-- `style`: 🍄 代码格式（不影响代码运行的变动）
-- `refactor`: 🍀 重构（既不是新增功能，也不是修改bug）
-- `test`: ☔️ 增加测试
-
-示例：
-```
-feat: 🍒 新增用户登录功能
-fix: 💯 修复登录验证逻辑错误
-docs: 🍎🧩 更新API文档
-style: 🍄 格式化代码缩进
-refactor: 🍀 重构用户服务层
-test: ☔️ 添加用户模块单元测试
-```
+- 使用全局 skill：`dev_general_skill`。
+- 提交代码或生成 commit message 时，以该 skill 中的 Git Commit Convention 为准。
