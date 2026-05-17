@@ -1,0 +1,163 @@
+.page {
+  min-height: 100vh;
+  padding: 26px;
+  box-sizing: border-box;
+  background: #f6f7f8;
+}
+
+.topBar {
+  max-width: 1280px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pageTitle {
+  margin: 0;
+  color: #18191c;
+  font-size: 26px;
+  line-height: 34px;
+}
+
+.subTitle {
+  margin: 6px 0 0;
+  color: #9499a0;
+  font-size: 14px;
+}
+
+.backButton {
+  border: 1px solid #ccd0d7;
+  border-radius: 8px;
+  padding: 9px 16px;
+  background: #fff;
+  color: #61666d;
+  cursor: pointer;
+}
+
+.backButton:hover {
+  color: #00aeec;
+  border-color: #00aeec;
+}
+
+.mainGrid {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 20px;
+}
+
+.rightPanel {
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(20, 35, 80, 0.06);
+  padding: 20px;
+}
+
+.videoPreview {
+  margin: 16px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #18191c;
+}
+
+.videoPlayer {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+}
+
+.videoPlaceholder {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9499a0;
+}
+
+.globalSettings {
+  max-width: 1280px;
+  margin: 20px auto 0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(20, 35, 80, 0.06);
+  padding: 20px 24px;
+}
+
+.tips {
+  max-width: 1280px;
+  margin: 16px auto 0;
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: #fff1f0;
+  color: #d4380d;
+  font-size: 14px;
+}
+
+.actionBar {
+  max-width: 1280px;
+  margin: 18px auto 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.draftButton,
+.submitButton {
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.draftButton {
+  border: 1px solid #ccd0d7;
+  background: #fff;
+  color: #61666d;
+}
+
+.draftButton:hover {
+  border-color: #00aeec;
+  color: #00aeec;
+}
+
+.submitButton {
+  border: 0;
+  background: #00aeec;
+  color: #fff;
+}
+
+.submitButton:hover {
+  background: #009bd5;
+}
+
+.submitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding: 18px;
+  }
+
+  .topBar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionBar {
+    justify-content: stretch;
+  }
+
+  .draftButton,
+  .submitButton {
+    flex: 1;
+  }
+}

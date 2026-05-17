@@ -1,0 +1,77 @@
+.container {
+  padding: 16px 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.switchLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.switchInput {
+  display: none;
+}
+
+.switchTrack {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: #ccd0d7;
+  transition: background 0.2s ease;
+}
+
+.switchInput:checked + .switchTrack {
+  background: #00aeec;
+}
+
+.switchThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+
+.switchInput:checked + .switchTrack .switchThumb {
+  transform: translateX(18px);
+}
+
+.switchText {
+  font-size: 15px;
+  color: #18191c;
+  font-weight: 500;
+}
+
+.hint {
+  font-size: 12px;
+  color: #9499a0;
+}
+
+.timeRow {
+  margin-top: 12px;
+}
+
+.timeInput {
+  border: 1px solid #ccd0d7;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #18191c;
+  outline: none;
+}
+
+.timeInput:focus {
+  border-color: #00aeec;
+}

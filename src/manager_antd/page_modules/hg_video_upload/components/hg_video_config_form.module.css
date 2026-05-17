@@ -1,0 +1,96 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.formItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  position: relative;
+}
+
+.formLabel {
+  color: #61666d;
+  font-size: 14px;
+}
+
+.required {
+  color: #d4380d;
+}
+
+.tagLimit {
+  color: #9499a0;
+  font-size: 12px;
+}
+
+.inputControl {
+  border: 1px solid #ccd0d7;
+  border-radius: 8px;
+  padding: 10px 12px;
+  outline: none;
+  color: #18191c;
+  font-size: 14px;
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+
+.inputControl:focus {
+  border-color: #00aeec;
+}
+
+.textareaControl {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.charCount {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  font-size: 12px;
+  color: #9499a0;
+}
+
+.radioGroup {
+  display: flex;
+  gap: 20px;
+}
+
+.radioOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #18191c;
+  cursor: pointer;
+}
+
+.radioOption input[type="radio"] {
+  accent-color: #00aeec;
+}
+
+.coverArea {
+  width: 100%;
+  height: 160px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f6f7f8;
+  border: 1px dashed #ccd0d7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coverPreview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverEmpty {
+  color: #9499a0;
+  font-size: 14px;
+}

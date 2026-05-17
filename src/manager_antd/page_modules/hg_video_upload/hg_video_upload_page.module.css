@@ -1,0 +1,168 @@
+.page {
+  max-width: 860px;
+}
+
+.headerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 32px;
+  color: #18191c;
+  font-weight: 600;
+}
+
+.headerTag {
+  border-radius: 999px;
+  padding: 5px 12px;
+  background: #e7f7ff;
+  color: #00a1d6;
+  font-size: 13px;
+}
+
+.processWrap {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28px;
+  color: #61666d;
+  font-size: 14px;
+}
+
+.processItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.processIndex {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  background: #00aeec;
+  color: #fff;
+  font-size: 13px;
+}
+
+.processLine {
+  flex: 1;
+  height: 1px;
+  min-width: 44px;
+  margin: 0 12px;
+  background: #e3e5e7;
+}
+
+.uploadBox {
+  min-height: 310px;
+  border: 2px dashed #ccd0d7;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f6fbff 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.uploadBoxActive {
+  border-color: #00aeec;
+  background: #effaff;
+  box-shadow: 0 12px 28px rgba(0, 174, 236, 0.14);
+}
+
+.uploadIcon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  margin-bottom: 16px;
+  background: #00aeec;
+  color: #fff;
+  font-size: 44px;
+  line-height: 66px;
+}
+
+.uploadTitle {
+  font-size: 18px;
+  color: #18191c;
+  font-weight: 600;
+}
+
+.uploadDesc {
+  margin-top: 8px;
+  color: #9499a0;
+  font-size: 13px;
+}
+
+.uploadButton {
+  margin-top: 24px;
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 38px;
+  background: #00aeec;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.uploadButton:hover {
+  background: #009bd5;
+}
+
+.fileInput {
+  display: none;
+}
+
+.tips {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff1f0;
+  color: #d4380d;
+  font-size: 14px;
+}
+
+.ruleCard {
+  margin-top: 24px;
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: #f6f7f8;
+  color: #61666d;
+}
+
+.ruleCard h4 {
+  margin: 0 0 10px;
+  color: #18191c;
+  font-size: 16px;
+}
+
+.ruleCard p {
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+@media (max-width: 760px) {
+  .headerBar,
+  .processWrap {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .processLine {
+    display: none;
+  }
+
+  .uploadBox {
+    min-height: 260px;
+    padding: 24px 16px;
+  }
+}

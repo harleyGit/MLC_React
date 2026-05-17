@@ -15,6 +15,7 @@ import HGRegisterPage from "../page_modules/login_module/hg_ register_page";
 import HGLoginPage from "../page_modules/login_module/hg_login_page";
 import HGProducts from "../page_modules/product/hg_ products_page";
 import HGEditUserPage from "../page_modules/user/edit_user_info/hg_edit_user_page";
+import HGVideoUploadEditPage from "../page_modules/hg_video_upload/hg_video_upload_edit_page";
 import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile_page";
 import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
 import { WithNavigation } from "./hg_naviagion_hook";
@@ -23,6 +24,8 @@ import React from "react";
 
 // 包装布局组件以支持类组件访问路由方法
 const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);
+const WrappedHGEditUserPage = WithNavigation(HGEditUserPage);
+const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 
 const HGRouter = createBrowserRouter([
   //受保护的主布局路由
@@ -59,7 +62,11 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.EDIT_USER_INFO,
-        element: <HGEditUserPage />,
+        element: <WrappedHGEditUserPage />,
+      },
+      {
+        path: ROUTE_PATH.VIDEO_UPLOAD_EDIT,
+        element: <WrappedHGVideoUploadEditPage />,
       },
     ],
   },
@@ -84,7 +91,15 @@ const HGRouter = createBrowserRouter([
     path: ROUTE_PATH.EDIT_USER_INFO,
     element: (
       <HGAuthGuard>
-        <HGEditUserPage />
+        <WrappedHGEditUserPage />
+      </HGAuthGuard>
+    ),
+  },
+  {
+    path: ROUTE_PATH.VIDEO_UPLOAD_EDIT,
+    element: (
+      <HGAuthGuard>
+        <WrappedHGVideoUploadEditPage />
       </HGAuthGuard>
     ),
   },

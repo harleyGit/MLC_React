@@ -1,0 +1,100 @@
+.container {
+  width: 100%;
+}
+
+.selectedWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.selectedTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #e7f7ff;
+  color: #00aeec;
+  font-size: 13px;
+}
+
+.selectedTagText {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.removeBtn {
+  border: none;
+  background: none;
+  color: #9499a0;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+}
+
+.removeBtn:hover {
+  color: #d4380d;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tagItem {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #e3e5e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #18191c;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tagItem:hover {
+  border-color: #00aeec;
+  color: #00aeec;
+}
+
+.tagItemActive {
+  border-color: #00aeec;
+  background: #e7f7ff;
+  color: #00aeec;
+}
+
+.tagItemDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tagIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.checkMark {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00aeec;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}

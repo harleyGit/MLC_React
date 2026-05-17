@@ -1,0 +1,43 @@
+.tabBar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e3e5e7;
+}
+
+.tabItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  border: none;
+  background: none;
+  color: #61666d;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.tabItem:hover {
+  color: #18191c;
+}
+
+.tabItemActive {
+  color: #00aeec;
+  font-weight: 600;
+}
+
+.tabLabel {
+  white-space: nowrap;
+}
+
+.tabIndicator {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: #00aeec;
+}

@@ -1,0 +1,75 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radioLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #18191c;
+  cursor: pointer;
+}
+
+.radioLabel input[type="checkbox"] {
+  accent-color: #00aeec;
+  width: 16px;
+  height: 16px;
+}
+
+.commercialBox {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e3e5e7;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.commercialItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.commercialLabel {
+  font-size: 13px;
+  color: #61666d;
+}
+
+.selectControl {
+  border: 1px solid #ccd0d7;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 14px;
+  color: #18191c;
+  background: #fff;
+  outline: none;
+}
+
+.selectControl:focus {
+  border-color: #00aeec;
+}
+
+.inputControl {
+  border: 1px solid #ccd0d7;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 14px;
+  color: #18191c;
+  outline: none;
+}
+
+.inputControl:focus {
+  border-color: #00aeec;
+}

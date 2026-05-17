@@ -1,0 +1,108 @@
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e3e5e7;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.item:hover {
+  border-color: #ccd0d7;
+}
+
+.itemActive {
+  border-color: #00aeec;
+  box-shadow: 0 2px 8px rgba(0, 174, 236, 0.12);
+}
+
+.videoLogo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #f6f7f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00aeec;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.infoArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.videoName {
+  font-size: 14px;
+  color: #18191c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+
+.progressBar {
+  height: 4px;
+  border-radius: 2px;
+  background: #e3e5e7;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 2px;
+  background: #00aeec;
+  transition: width 0.3s ease;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.progressText {
+  font-size: 14px;
+  color: #00aeec;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+}
+
+.completedText {
+  font-size: 13px;
+  color: #52c41a;
+  margin-right: 4px;
+}
+
+.actionBtn {
+  border: 1px solid #ccd0d7;
+  border-radius: 6px;
+  padding: 5px 12px;
+  background: #fff;
+  color: #61666d;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionBtn:hover {
+  border-color: #00aeec;
+  color: #00aeec;
+}
+
+.actionBtnDanger {
+  border-color: #ffccc7;
+  color: #d4380d;
+}
+
+.actionBtnDanger:hover {
+  border-color: #d4380d;
+  background: #fff1f0;
+}

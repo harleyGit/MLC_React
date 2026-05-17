@@ -6,6 +6,8 @@ import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_edit_user_page.module.css";
 import HGAccountSecurityPage from "./hg_account_security_page";
 import HGEditUserPageVM, { MENU_KEYS, MENU_LIST } from "./hg_edit_user_page_vm";
+import HGVideoUploadPage from "../../hg_video_upload/hg_video_upload_page";
+import { ROUTE_PATH } from "../../../router/hg_router_path";
 
 class HGEditUserPage extends React.Component {
   /**
@@ -209,6 +211,19 @@ class HGEditUserPage extends React.Component {
   };
 
   /**
+   * 处理投稿视频选择后的页面跳转。
+   * @param {Array<File>} videoFiles 用户选择的本地视频文件列表。
+   * 约束：文件对象只通过路由 state 传给下一页展示元信息，不在此处上传后端。
+   */
+  handleUploadVideoSelected = (videoFiles) => {
+    this.props.navigate?.(`${ROUTE_PATH.VIDEO_UPLOAD_EDIT}?spm_id_from=333.788.top_bar.upload`, {
+      state: {
+        uploadVideos: videoFiles,
+      },
+    });
+  };
+
+  /**
    * 渲染左侧菜单区域。
    * @returns {React.ReactNode} 菜单 JSX。
    */
@@ -362,6 +377,14 @@ class HGEditUserPage extends React.Component {
   };
 
   /**
+   * 渲染“投稿”内容区入口。
+   * @returns {React.ReactNode} 视频投稿上传入口 JSX。
+   */
+  renderUploadContent = () => {
+    return <HGVideoUploadPage onVideoSelected={this.handleUploadVideoSelected} />;
+  };
+
+  /**
    * 根据当前菜单渲染右侧主内容。
    * @returns {React.ReactNode} 当前激活模块对应的 JSX。
    */
@@ -372,6 +395,9 @@ class HGEditUserPage extends React.Component {
     }
     if (activeMenuKey === MENU_KEYS.SECURITY) {
       return this.renderSecurityContent();
+    }
+    if (activeMenuKey === MENU_KEYS.UPLOAD) {
+      return this.renderUploadContent();
     }
     return this.renderInfoContent();
   };
