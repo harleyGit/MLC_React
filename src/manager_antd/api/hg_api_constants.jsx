@@ -23,4 +23,7 @@ export const HGMANAGER_API = {
   PROFILE: "/api/v1/profile/info", // 获取用户信息
   PROFILE_UPDATE: "/api/v1/profile/update", // 更新用户资料
   AVATAR_UPLOAD: "/api/v1/profile/avatar", // 上传头像
+  VIDEO_UPLOAD_FILE: "/api/v1/video_upload/upload", // 上传视频文件
+  VIDEO_UPLOAD_DRAFT: "/api/v1/video_upload/draft", // 保存视频稿件草稿
+  VIDEO_UPLOAD_SUBMIT: "/api/v1/video_upload/submit", // 提交视频稿件审核
 };

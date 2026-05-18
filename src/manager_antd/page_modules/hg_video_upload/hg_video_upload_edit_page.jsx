@@ -38,7 +38,7 @@ class HGVideoUploadEditPage extends React.Component {
   }
 
   /**
-   * 生命周期挂载：为本地视频创建预览地址，启动模拟上传进度。
+   * 生命周期挂载：为本地视频创建预览地址，并调用后端真实上传接口。
    * 约束：没有视频时保持空态，避免页面报错。
    */
   componentDidMount() {
@@ -57,7 +57,7 @@ class HGVideoUploadEditPage extends React.Component {
       return { videos: updatedVideos };
     });
 
-    this.startSimulatedUpload();
+    this.startUploadQueue();
   }
 
   /**
@@ -67,37 +67,53 @@ class HGVideoUploadEditPage extends React.Component {
     Object.values(this.previewUrls).forEach((url) => {
       URL.revokeObjectURL(url);
     });
-    if (this.uploadTimer) {
-      clearInterval(this.uploadTimer);
-    }
   }
 
   /**
-   * 启动模拟上传进度。
-   * 约束：仅用于前端演示，真实场景应替换为后端上传逻辑。
+   * 逐个上传视频文件，保持同一 submissionId 以支持多 P 投稿。
    */
-  startSimulatedUpload = () => {
-    this.uploadTimer = setInterval(() => {
-      this.setState((prevState) => {
-        let allDone = true;
-        const updatedVideos = prevState.videos.map((v) => {
-          if (v.status === "uploading" && v.progress < 100) {
-            allDone = false;
-            const newProgress = Math.min(v.progress + Math.random() * 15, 100);
-            return {
-              ...v,
-              progress: newProgress,
-              status: newProgress >= 100 ? "completed" : "uploading",
-            };
-          }
-          return v;
-        });
-        if (allDone) {
-          clearInterval(this.uploadTimer);
-        }
-        return { videos: updatedVideos };
+  startUploadQueue = async () => {
+    const { videos } = this.state;
+    let submissionId = "";
+
+    for (let index = 0; index < videos.length; index += 1) {
+      const localVideo = videos[index];
+      this.updateVideoUploadState(localVideo.id, {
+        status: "uploading",
+        progress: 10,
       });
-    }, 500);
+
+      try {
+        const uploadResult = await HGVideoUploadEditPageVM.uploadVideoFile({
+          file: localVideo.file,
+          submissionId,
+          partNumber: index + 1,
+        });
+        submissionId = submissionId || uploadResult.submissionId;
+        this.updateVideoUploadState(localVideo.id, {
+          status: "completed",
+          progress: 100,
+          submissionId: uploadResult.submissionId,
+          videoId: uploadResult.videoId,
+          fileUrl: uploadResult.fileUrl,
+          filePath: uploadResult.filePath,
+          md5: uploadResult.md5,
+        });
+      } catch (error) {
+        this.updateVideoUploadState(localVideo.id, {
+          status: "failed",
+          progress: 0,
+        });
+        this.setState({ tips: error?.message || `视频「${localVideo.name}」上传失败` });
+        return;
+      }
+    }
+  };
+
+  updateVideoUploadState = (videoId, patch) => {
+    this.setState((prevState) => ({
+      videos: prevState.videos.map((v) => (v.id === videoId ? { ...v, ...patch } : v)),
+    }));
   };
 
   /**
@@ -141,7 +157,7 @@ class HGVideoUploadEditPage extends React.Component {
       videos: prevState.videos.map((v) =>
         v.id === videoId ? { ...v, progress: 0, status: "uploading" } : v
       ),
-    }));
+    }), this.startUploadQueue);
   };
 
   /**
@@ -196,16 +212,34 @@ class HGVideoUploadEditPage extends React.Component {
 
   /**
    * 提交全部稿件。
-   * 约束：校验所有视频配置，通过后提示（未接入后端）。
+   * 约束：先校验所有视频配置，再调用保存草稿或提交审核接口。
    */
-  handleSubmit = () => {
+  handleSubmit = async (targetStatus = "reviewing") => {
     const { videos, configs } = this.state;
     const validateResult = HGVideoUploadEditPageVM.validateAllConfigs(videos, configs);
     if (!validateResult.valid) {
       this.setState({ tips: validateResult.message });
       return;
     }
-    this.setState({ tips: "稿件信息校验通过，后续可接入真实发布接口。" });
+
+    const payload = HGVideoUploadEditPageVM.buildSubmissionPayload(this.state);
+    this.setState({ submitting: true, tips: "正在保存稿件信息..." });
+    try {
+      const response = targetStatus === "draft"
+        ? await HGVideoUploadEditPageVM.saveDraft(payload)
+        : await HGVideoUploadEditPageVM.submit(payload);
+      this.setState({
+        submitting: false,
+        tips: targetStatus === "draft"
+          ? `草稿已保存：${response.submissionId}`
+          : `投稿已提交审核：${response.submissionId}`,
+      });
+    } catch (error) {
+      this.setState({
+        submitting: false,
+        tips: error?.message || "稿件提交失败，请稍后重试。",
+      });
+    }
   };
 
   /**
@@ -295,6 +329,7 @@ class HGVideoUploadEditPage extends React.Component {
       commercialInfo,
       moreSettings,
       videos,
+      submitting,
     } = this.state;
 
     return (
@@ -349,15 +384,16 @@ class HGVideoUploadEditPage extends React.Component {
           <button
             type="button"
             className={styles.draftButton}
-            onClick={this.handleSubmit}
+            onClick={() => this.handleSubmit("draft")}
+            disabled={submitting || videos.length === 0}
           >
             保存草稿
           </button>
           <button
             type="button"
             className={styles.submitButton}
-            onClick={this.handleSubmit}
-            disabled={videos.length === 0}
+            onClick={() => this.handleSubmit("reviewing")}
+            disabled={submitting || videos.length === 0}
           >
             立即投稿
           </button>

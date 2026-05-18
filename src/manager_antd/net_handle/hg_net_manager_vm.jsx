@@ -92,6 +92,28 @@ class HGNetManagerVM extends HGNetManager {
   getAvatar() {
     return this.get(HGMANAGER_API.AVATAR_UPLOAD);
   }
+
+  uploadVideoFile({ file, submissionId, partNumber }) {
+    const formData = new FormData();
+    if (submissionId) {
+      formData.append("submissionId", submissionId);
+    }
+    formData.append("partNumber", String(partNumber || 1));
+    // 小字段先于 file 写入，后端可流式读取 multipart，避免大文件被缓存到临时目录。
+    formData.append("file", file);
+
+    return this.post(HGMANAGER_API.VIDEO_UPLOAD_FILE, formData, {
+      timeout: 10 * 60 * 1000,
+    });
+  }
+
+  saveVideoDraft(body) {
+    return this.post(HGMANAGER_API.VIDEO_UPLOAD_DRAFT, body);
+  }
+
+  submitVideo(body) {
+    return this.post(HGMANAGER_API.VIDEO_UPLOAD_SUBMIT, body);
+  }
 }
 
 // 创建一个默认实例

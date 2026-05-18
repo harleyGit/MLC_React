@@ -1,3 +1,5 @@
+import HGNet from "../../net_handle/hg_net_manager_vm";
+
 export default class HGVideoUploadEditPageVM {
   /**
    * 创建上传后稿件编辑页初始状态。
@@ -32,6 +34,80 @@ export default class HGVideoUploadEditPageVM {
         featuredComment: false,
       },
       tips: "",
+      submitting: false,
+    };
+  }
+
+  static uploadVideoFile({ file, submissionId, partNumber }) {
+    return HGNet.uploadVideoFile({ file, submissionId, partNumber });
+  }
+
+  static saveDraft(payload) {
+    return HGNet.saveVideoDraft(payload);
+  }
+
+  static submit(payload) {
+    return HGNet.submitVideo(payload);
+  }
+
+  static buildSubmissionPayload(state) {
+    const {
+      videos,
+      configs,
+      scheduleEnabled,
+      publishTime,
+      allowSecondaryCreation,
+      hasCommercial,
+      commercialInfo,
+      moreSettings,
+    } = state;
+    const firstVideo = videos[0] || {};
+    const firstConfig = configs[firstVideo.id] || {};
+
+    return {
+      submissionId: firstVideo.submissionId,
+      title: firstConfig.title || firstVideo.name || "",
+      coverUrl: firstConfig.coverUrl || firstVideo.fileUrl || "",
+      category: firstConfig.category || "",
+      videoType: firstConfig.videoType || "自制",
+      sourceUrl: firstConfig.sourceUrl || "",
+      description: firstConfig.description || "",
+      allowSecondaryCreation,
+      watermark: moreSettings.watermark,
+      visibility: moreSettings.visibility,
+      declaration: moreSettings.declaration,
+      cardConfig: {},
+      dolbyAudio: moreSettings.dolbyAudio,
+      hiResAudio: moreSettings.hiResAudio,
+      closeDanmaku: moreSettings.disableDanmaku,
+      closeComment: moreSettings.disableComment,
+      featuredComment: moreSettings.featuredComment,
+      dynamicDescription: moreSettings.dynamicDescription || "",
+      hideFromProfile: moreSettings.hideFromProfile || false,
+      schedule: {
+        enabled: scheduleEnabled,
+        scheduledTime: publishTime,
+      },
+      commercial: {
+        enabled: hasCommercial,
+        promotionType: commercialInfo.type || "",
+        promotionName: commercialInfo.name || "",
+        promotionForm: commercialInfo.form || "",
+      },
+      videos: videos.map((video, index) => {
+        const config = configs[video.id] || {};
+        return {
+          videoId: video.videoId || video.id,
+          partNumber: index + 1,
+          title: config.title || video.name || "",
+          coverUrl: config.coverUrl || video.fileUrl || "",
+          videoType: config.videoType || "自制",
+          sourceUrl: config.sourceUrl || "",
+          category: config.category || "",
+          description: config.description || "",
+          tags: config.tags || [],
+        };
+      }),
     };
   }
 
@@ -121,6 +197,12 @@ export default class HGVideoUploadEditPageVM {
   static validateAllConfigs(videos, configs) {
     for (let i = 0; i < videos.length; i++) {
       const video = videos[i];
+      if (video.status !== "completed" || !video.videoId) {
+        return {
+          valid: false,
+          message: `视频「${video.name}」尚未上传完成。`,
+        };
+      }
       const config = configs[video.id];
       if (!config) continue;
       const result = HGVideoUploadEditPageVM.validateVideoConfig(config);
