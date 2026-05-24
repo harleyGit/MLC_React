@@ -3,86 +3,78 @@
  * @Date: 2026-05-25 10:00:00
  * @LastEditors: GangHuang harleysor@qq.com
  * @LastEditTime: 2026-05-25 10:00:00
- * @FilePath: /MLC_React/src/manager_antd/page_modules/personal_center/hg_personal_center_page.jsx
- * @Description: 个人中心页面，左侧菜单 + 右侧内容区布局
+ * @FilePath: /MLC_React/src/manager_antd/page_modules/personal_center/hg_content_center_page.jsx
+ * @Description: 内容中心页面，左侧菜单 + 右侧内容区布局
  */
 import React from "react";
+import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
+import HGBreadcrumbPage from "../../../components/hg_breadcrumb/hg_breadcrumb_page";
 import HGCourseManagementPage from "./course_management/hg_course_management_page";
-import styles from "./hg_personal_center.module.css";
-
-/**
- * SVG 图标组件。
- */
-const Icon = {
-  /** 投稿图标 */
-  Upload: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  /** 课程图标 */
-  Course: () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2V3zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7V3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  /** 上传文件图标 */
-  FileUpload: () => (
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <line x1="12" y1="18" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-      <polyline points="9 15 12 12 15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  ),
-};
+import HGContentCenterVM, { MENU_KEY } from "./hg_content_center_vm";
+import styles from "./hg_content_center.module.css";
+import iconUpload from "../../../assets/icons/icon_upload.svg";
+import iconCourse from "../../../assets/icons/icon_course.svg";
+import iconFileUpload from "../../../assets/icons/icon_file_upload.svg";
 
 /**
  * 菜单项配置。
  */
 const MENU_ITEMS = [
-  { key: "upload", label: "投稿功能", icon: Icon.Upload },
-  { key: "course", label: "课程管理", icon: Icon.Course },
-  { key: "course_submit", label: "课程提交", icon: Icon.Course },
+  { key: MENU_KEY.UPLOAD, label: "投稿功能", icon: <img src={iconUpload} alt="投稿" width="18" height="18" /> },
+  { key: MENU_KEY.COURSE, label: "课程管理", icon: <img src={iconCourse} alt="课程" width="18" height="18" /> },
+  { key: MENU_KEY.COURSE_SUBMIT, label: "课程提交", icon: <img src={iconCourse} alt="课程提交" width="18" height="18" /> },
 ];
 
 /**
- * 模拟投稿数据。
- */
-const MOCK_UPLOADS = [
-  { id: 1, name: "崩坏星穹铁道角色介绍.mp4", size: "128MB", status: "success", date: "2026-05-20" },
-  { id: 2, name: "原神4.0版本前瞻.mp4", size: "256MB", status: "success", date: "2026-05-18" },
-  { id: 3, name: "绝区零实机演示.mp4", size: "512MB", status: "pending", date: "2026-05-25" },
-];
-
-/**
- * 模拟课程数据。
- */
-const MOCK_COURSES = [
-  { id: 1, title: "React 入门到精通", cover: "", lessons: 24, students: 1280, status: "published" },
-  { id: 2, title: "JavaScript 高级编程", cover: "", lessons: 18, students: 890, status: "published" },
-  { id: 3, title: "CSS 动画实战", cover: "", lessons: 12, students: 456, status: "draft" },
-];
-
-/**
- * 个人中心页面组件。
+ * 内容中心页面组件。
  * 职责：展示左侧菜单（投稿功能、课程管理）和右侧内容区。
  * 约束：使用类组件实现，菜单切换不触发路由跳转。
  */
-class HGPersonalCenterPage extends React.Component {
+class HGContentCenterPage extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      activeMenu: "upload",
+      activeMenu: MENU_KEY.UPLOAD,
+      uploads: [],
+      courses: [],
+      loading: false,
     };
   }
 
   /**
-   * 处理菜单点击切换。
-   * @param {string} key 菜单项 key。
+   * 生命周期挂载：加载初始数据。
    */
-  handleMenuClick = (key) => {
-    this.setState({ activeMenu: key });
+  componentDidMount() {
+    this.loadData();
+  }
+
+  /**
+   * 加载页面数据。
+   */
+  loadData = async () => {
+    this.setState({ loading: true });
+    try {
+      const [uploadRes, courseRes] = await Promise.all([
+        HGContentCenterVM.fetchUploadList(),
+        HGContentCenterVM.fetchCourseList(),
+      ]);
+      this.setState({
+        uploads: uploadRes.data || [],
+        courses: courseRes.data || [],
+      });
+    } catch {
+      // 错误处理
+    } finally {
+      this.setState({ loading: false });
+    }
+  };
+
+  /**
+   * 处理菜单点击切换。
+   * @param {{key: string}} e 菜单点击事件对象。
+   */
+  handleMenuClick = (e) => {
+    this.setState({ activeMenu: e.key });
   };
 
   /**
@@ -93,23 +85,28 @@ class HGPersonalCenterPage extends React.Component {
     const { activeMenu } = this.state;
     return (
       <div className={styles.sider}>
-        <div className={styles.siderTitle}>个人中心</div>
-        {MENU_ITEMS.map((item) => {
-          const IconComponent = item.icon;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              className={`${styles.menuItem} ${activeMenu === item.key ? styles.menuItemActive : ""}`}
-              onClick={() => this.handleMenuClick(item.key)}
-            >
-              <span className={styles.menuItemIcon}>
-                <IconComponent />
-              </span>
-              {item.label}
-            </button>
-          );
-        })}
+        <div className={styles.siderTitle}>内容中心</div>
+        <HGMenuPage
+          mode="inline"
+          theme="light"
+          selectedKeys={[activeMenu]}
+          onClick={this.handleMenuClick}
+          items={MENU_ITEMS}
+        />
+      </div>
+    );
+  };
+
+  /**
+   * 渲染面包屑导航。
+   * @returns {React.ReactNode} 面包屑节点。
+   */
+  renderBreadcrumb = () => {
+    const { activeMenu } = this.state;
+    const breadcrumbItems = HGContentCenterVM.getBreadcrumbItems(activeMenu);
+    return (
+      <div className={styles.breadcrumbWrap}>
+        <HGBreadcrumbPage items={breadcrumbItems} />
       </div>
     );
   };
@@ -119,20 +116,21 @@ class HGPersonalCenterPage extends React.Component {
    * @returns {React.ReactNode} 投稿内容节点。
    */
   renderUploadContent = () => {
+    const { uploads } = this.state;
     return (
       <div className={styles.uploadSection}>
         <div className={styles.uploadArea}>
           <div className={styles.uploadIcon}>
-            <Icon.FileUpload />
+            <img src={iconFileUpload} alt="上传" width="48" height="48" />
           </div>
           <div className={styles.uploadText}>点击或拖拽文件到此处上传</div>
           <div className={styles.uploadHint}>支持 MP4、AVI、MOV 格式，最大 2GB</div>
         </div>
         <div className={styles.uploadList}>
-          {MOCK_UPLOADS.map((item) => (
+          {uploads.map((item) => (
             <div key={item.id} className={styles.uploadItem}>
               <div className={styles.uploadItemIcon}>
-                <Icon.Upload />
+                <img src={iconUpload} alt="文件" width="18" height="18" />
               </div>
               <div className={styles.uploadItemInfo}>
                 <div className={styles.uploadItemName}>{item.name}</div>
@@ -153,13 +151,14 @@ class HGPersonalCenterPage extends React.Component {
    * @returns {React.ReactNode} 课程内容节点。
    */
   renderCourseContent = () => {
+    const { courses } = this.state;
     return (
       <div className={styles.courseSection}>
         <div className={styles.courseHeader}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>我的课程</h3>
         </div>
         <div className={styles.courseGrid}>
-          {MOCK_COURSES.map((course) => (
+          {courses.map((course) => (
             <div key={course.id} className={styles.courseCard}>
               <div className={styles.courseCover}>
                 {course.cover ? (
@@ -191,19 +190,13 @@ class HGPersonalCenterPage extends React.Component {
    */
   renderContent = () => {
     const { activeMenu } = this.state;
-    const contentTitleMap = {
-      upload: "投稿功能",
-      course: "课程管理",
-      course_submit: "课程提交",
-    };
-    const contentTitle = contentTitleMap[activeMenu] || "投稿功能";
     return (
       <div className={styles.content}>
+        {this.renderBreadcrumb()}
         <div className={styles.contentCard}>
-          <h2 className={styles.contentTitle}>{contentTitle}</h2>
-          {activeMenu === "upload" && this.renderUploadContent()}
-          {activeMenu === "course" && this.renderCourseContent()}
-          {activeMenu === "course_submit" && <HGCourseManagementPage />}
+          {activeMenu === MENU_KEY.UPLOAD && this.renderUploadContent()}
+          {activeMenu === MENU_KEY.COURSE && this.renderCourseContent()}
+          {activeMenu === MENU_KEY.COURSE_SUBMIT && <HGCourseManagementPage />}
         </div>
       </div>
     );
@@ -219,4 +212,4 @@ class HGPersonalCenterPage extends React.Component {
   }
 }
 
-export default HGPersonalCenterPage;
+export default HGContentCenterPage;

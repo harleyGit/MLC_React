@@ -25,6 +25,7 @@
 - **组件目录**：新建组件统一放在 `src/components/` 下，每个组件单独建文件夹（如 `src/components/hg_button/`），内含 `hg_xxx_page.jsx`、`hg_xxx.module.css`。
 - **图标资源**：组件图标（SVG）放在 `src/manager_antd/components/hg_icon/svg/`。
 - **图片资源**：工程中图片放在 `src/assets/`。
+- **SVG 图标**：页面中使用的 SVG 图标必须提取为独立 `.svg` 文件，放在 `src/assets/icons/` 目录下，通过 `import` 方式引入使用，禁止在 JSX 中内联 SVG 代码。
 - 组件需提供与 antd 相近的 props 接口，便于页面迁移。
 
 ## 项目架构与分层

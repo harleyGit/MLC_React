@@ -1,4 +1,4 @@
-/* ===== 个人中心页面布局 ===== */
+/* ===== 内容中心页面布局 ===== */
 .container {
   display: flex;
   min-height: calc(100vh - 64px - 69px);
@@ -68,6 +68,11 @@
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+}
+
+/* ===== 面包屑 ===== */
+.breadcrumbWrap {
+  margin-bottom: 16px;
 }
 
 .contentCard {

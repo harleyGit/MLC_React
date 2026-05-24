@@ -1,0 +1,54 @@
+/* ===== 面包屑组件样式 ===== */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+/* ===== 面包屑项 ===== */
+.breadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #61666d;
+}
+
+.breadcrumbItem:last-child {
+  color: #18191c;
+  font-weight: 500;
+}
+
+/* ===== 可点击的面包屑链接 ===== */
+.breadcrumbLink {
+  color: #00a1d6;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.breadcrumbLink:hover {
+  color: #00b5e5;
+}
+
+/* ===== 分隔符 ===== */
+.breadcrumbSeparator {
+  color: #9499a0;
+  margin: 0 4px;
+  user-select: none;
+}
+
+/* ===== 自定义分隔符样式 ===== */
+.breadcrumbSeparator svg {
+  width: 12px;
+  height: 12px;
+}

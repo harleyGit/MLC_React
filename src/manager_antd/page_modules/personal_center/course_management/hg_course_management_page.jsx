@@ -2,9 +2,11 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-25
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-25
+ * @LastEditTime: 2026-05-25 01:58:48
  * @FilePath: /MLC_React/src/manager_antd/page_modules/personal_center/course_management/hg_course_management_page.jsx
  * @Description: 课程提交表单页面，包含课程信息的录入与提交功能
+ * 
+ * 维护课程基础商品信息，定义课程价格、服务时长、上下架状态，作为课程内容、订单购买的基础数据源。
  */
 import React from "react";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
