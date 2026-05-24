@@ -1,0 +1,165 @@
+/* ===== 弹窗组件样式 ===== */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.content {
+  background: #fff;
+  border-radius: 8px;
+  padding: 0;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.2s ease;
+}
+
+/* ===== 尺寸 ===== */
+.sizeSmall {
+  width: 400px;
+}
+
+.sizeDefault {
+  width: 500px;
+}
+
+.sizeLarge {
+  width: 600px;
+}
+
+.sizeXlarge {
+  width: 800px;
+}
+
+/* ===== 头部 ===== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #18191c;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: #9499a0;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.closeBtn:hover {
+  background: #f0f0f0;
+  color: #18191c;
+}
+
+.closeBtn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== 内容区 ===== */
+.body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ===== 底部 ===== */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #e8e8e8;
+  flex-shrink: 0;
+}
+
+/* ===== 按钮 ===== */
+.btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.btnPrimary {
+  background: #00a1d6;
+  color: #fff;
+  border-color: #00a1d6;
+}
+
+.btnPrimary:hover {
+  background: #00b5e5;
+}
+
+.btnDefault {
+  background: #fff;
+  color: #18191c;
+  border-color: #d9d9d9;
+}
+
+.btnDefault:hover {
+  border-color: #00a1d6;
+  color: #00a1d6;
+}
+
+.btnDanger {
+  background: #fff;
+  color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+.btnDanger:hover {
+  background: #fff1f0;
+}
+
+/* ===== 动画 ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
