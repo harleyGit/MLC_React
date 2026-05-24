@@ -12,6 +12,7 @@ import HGBreadcrumbPage from "../../../components/hg_breadcrumb/hg_breadcrumb_pa
 import HGCourseManagementPage from "./course_management/hg_course_management_page";
 import HGCourseDirectoryPage from "./course_directory/hg_course_directory_page";
 import HGCourseLessonPage from "./course_lesson/hg_course_lesson_page";
+import HGOrderManagementPage from "./order_management/hg_order_management_page";
 import HGContentCenterVM, { MENU_KEY } from "./hg_content_center_vm";
 import styles from "./hg_content_center.module.css";
 import iconUpload from "../../../assets/icons/icon_upload.svg";
@@ -19,6 +20,7 @@ import iconCourse from "../../../assets/icons/icon_course.svg";
 import iconFileUpload from "../../../assets/icons/icon_file_upload.svg";
 import iconDirectory from "../../../assets/icons/icon_directory.svg";
 import iconLesson from "../../../assets/icons/icon_lesson.svg";
+import iconOrder from "../../../assets/icons/icon_order.svg";
 
 /**
  * 菜单项配置（支持子菜单）。
@@ -34,6 +36,14 @@ const MENU_ITEMS = [
       { key: MENU_KEY.COURSE_SUBMIT, label: "课程提交", icon: <img src={iconCourse} alt="提交" width="18" height="18" /> },
       { key: MENU_KEY.COURSE_DIRECTORY, label: "课程目录", icon: <img src={iconDirectory} alt="目录" width="18" height="18" /> },
       { key: MENU_KEY.COURSE_LESSON, label: "课时管理", icon: <img src={iconLesson} alt="课时" width="18" height="18" /> },
+    ],
+  },
+  {
+    key: MENU_KEY.ORDER,
+    label: "订单管理",
+    icon: <img src={iconOrder} alt="订单" width="18" height="18" />,
+    children: [
+      { key: MENU_KEY.ORDER_LIST, label: "订单列表", icon: <img src={iconOrder} alt="列表" width="18" height="18" /> },
     ],
   },
 ];
@@ -223,6 +233,7 @@ class HGContentCenterPage extends React.Component {
           {activeMenu === MENU_KEY.COURSE_SUBMIT && <HGCourseManagementPage />}
           {activeMenu === MENU_KEY.COURSE_DIRECTORY && <HGCourseDirectoryPage />}
           {activeMenu === MENU_KEY.COURSE_LESSON && <HGCourseLessonPage />}
+          {activeMenu === MENU_KEY.ORDER_LIST && <HGOrderManagementPage />}
         </div>
       </div>
     );
