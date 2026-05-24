@@ -2,6 +2,137 @@ import React from "react";
 import styles from "./hg_video_player.module.css";
 
 /**
+ * SVG 图标组件。
+ * 职责：提供播放器所需的 SVG 图标，避免 emoji 变形问题。
+ */
+const Icon = {
+  /** 播放 */
+  Play: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 5.14v13.72a1 1 0 001.5.86l11.04-6.86a1 1 0 000-1.72L9.5 4.28A1 1 0 008 5.14z" fill="currentColor"/>
+    </svg>
+  ),
+  /** 暂停 */
+  Pause: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+      <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/>
+    </svg>
+  ),
+  /** 音量开 */
+  VolumeHigh: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/>
+      <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  /** 音量低 */
+  VolumeLow: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/>
+      <path d="M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  /** 静音 */
+  VolumeMute: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor"/>
+      <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  /** 全屏 */
+  Fullscreen: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  /** 退出全屏 */
+  FullscreenExit: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  /** 网页全屏 */
+  WebFullscreen: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="3" width="20" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <path d="M9 3v18M15 3v18M2 9h20M2 15h20" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
+    </svg>
+  ),
+  /** 退出网页全屏 */
+  WebFullscreenExit: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <path d="M2 5h2M20 5h2M2 19h2M20 19h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  /** 宽屏 */
+  Widescreen: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="6" width="22" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
+    </svg>
+  ),
+  /** 弹幕 */
+  Danmaku: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <path d="M6 9h8M6 13h12M6 17h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  /** 弹幕关 */
+  DanmakuOff: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <path d="M6 9h8M6 13h12M6 17h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <line x1="2" y1="20" x2="22" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  /** 设置 */
+  Settings: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" strokeWidth="2"/>
+    </svg>
+  ),
+  /** 清晰度 */
+  HD: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <text x="12" y="15" textAnchor="middle" fill="currentColor" fontSize="10" fontWeight="bold">HD</text>
+    </svg>
+  ),
+  /** 点赞 */
+  Like: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  /** 投币 */
+  Coin: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+      <path d="M12 6v12M8 8h8M8 16h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  /** 收藏 */
+  Star: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  /** 分享 */
+  Share: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="2"/>
+      <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+      <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="2"/>
+      <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+};
+
+/**
  * 格式化时长（秒 -> mm:ss）。
  * @param {number} seconds - 秒数。
  * @returns {string} 格式化后的时长字符串。
@@ -26,15 +157,38 @@ function formatCount(num) {
 }
 
 /**
+ * 清晰度选项。
+ */
+const QUALITY_OPTIONS = [
+  { key: "4k", label: "4K 超清", available: false },
+  { key: "1080p60", label: "1080P 60帧", available: false },
+  { key: "1080p", label: "1080P 高清", available: true },
+  { key: "720p", label: "720P 高清", available: true },
+  { key: "480p", label: "480P 清晰", available: true },
+  { key: "360p", label: "360P 流畅", available: true },
+];
+
+/**
+ * 播放模式枚举。
+ */
+const PLAY_MODE = {
+  NORMAL: "normal",       // 普通模式
+  WIDE: "wide",           // 宽屏模式
+  WEB_FULLSCREEN: "web",  // 网页全屏
+  FULLSCREEN: "full",     // 全屏
+};
+
+/**
  * 视频播放组件，模仿 B 站播放器风格。
  *
  * 功能：
  *   - 视频播放/暂停
  *   - 进度条拖拽
  *   - 音量控制
- *   - 全屏切换
+ *   - 播放模式（普通/宽屏/网页全屏/全屏）
  *   - 播放速度调节
- *   - 弹幕显示（模拟）
+ *   - 清晰度选择
+ *   - 弹幕显示
  *
  * 输入：video（视频信息）、relatedVideos（相关视频列表）、onVideoClick。
  */
@@ -43,39 +197,55 @@ class HGVideoPlayerPage extends React.Component {
     super(props);
     this.videoRef = React.createRef();
     this.progressBarRef = React.createRef();
+    this.playerRef = null;
     this.state = {
       isPlaying: false,
       currentTime: 0,
       duration: 0,
       volume: 0.8,
       isMuted: false,
-      isFullscreen: false,
+      playMode: PLAY_MODE.NORMAL,
       showControls: true,
       playbackRate: 1,
       showRateMenu: false,
       showDanmaku: true,
       danmakuList: [],
+      quality: "1080p",
+      showQualityMenu: false,
+      buffered: 0,
     };
     this.controlsTimer = null;
   }
 
   componentDidMount() {
     this.initDanmaku();
+    document.addEventListener("fullscreenchange", this.handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", this.handleFullscreenChange);
   }
 
   componentWillUnmount() {
     if (this.controlsTimer) {
       clearTimeout(this.controlsTimer);
     }
+    document.removeEventListener("fullscreenchange", this.handleFullscreenChange);
+    document.removeEventListener("webkitfullscreenchange", this.handleFullscreenChange);
   }
+
+  /**
+   * 监听全屏状态变化。
+   */
+  handleFullscreenChange = () => {
+    const isFullscreen = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement
+    );
+    this.setState({ playMode: isFullscreen ? PLAY_MODE.FULLSCREEN : PLAY_MODE.NORMAL });
+  };
 
   /**
    * 初始化弹幕数据（模拟）。
    */
   initDanmaku = () => {
-    const { video } = this.props;
-    if (!video) return;
-
     const mockDanmaku = [
       { id: 1, time: 2, text: "前排", color: "#fff" },
       { id: 2, time: 5, text: "来了来了", color: "#fe0302" },
@@ -99,7 +269,7 @@ class HGVideoPlayerPage extends React.Component {
     if (!videoEl) return;
 
     if (videoEl.paused) {
-      videoEl.play();
+      videoEl.play().catch(() => {});
       this.setState({ isPlaying: true });
     } else {
       videoEl.pause();
@@ -119,6 +289,17 @@ class HGVideoPlayerPage extends React.Component {
       currentTime: videoEl.currentTime,
       duration: videoEl.duration || 0,
     });
+  };
+
+  /**
+   * 处理缓冲进度更新。
+   */
+  handleProgress = () => {
+    const videoEl = this.videoRef.current;
+    if (!videoEl || !videoEl.buffered.length) return;
+
+    const buffered = videoEl.buffered.end(videoEl.buffered.length - 1);
+    this.setState({ buffered });
   };
 
   /**
@@ -159,20 +340,60 @@ class HGVideoPlayerPage extends React.Component {
   };
 
   /**
-   * 切换全屏。
+   * 切换播放模式。
+   * @param {string} mode - 目标播放模式。
    */
-  toggleFullscreen = () => {
-    const { isFullscreen } = this.state;
-    if (!isFullscreen) {
-      this.playerRef.requestFullscreen?.() ||
-        this.playerRef.webkitRequestFullscreen?.() ||
-        this.playerRef.msRequestFullscreen?.();
-    } else {
-      document.exitFullscreen?.() ||
-        document.webkitExitFullscreen?.() ||
-        document.msExitFullscreen?.();
+  setPlayMode = (mode) => {
+    const { playMode } = this.state;
+
+    // 如果点击的是当前模式，则恢复普通模式
+    const targetMode = mode === playMode ? PLAY_MODE.NORMAL : mode;
+
+    switch (targetMode) {
+      case PLAY_MODE.FULLSCREEN:
+        this.enterFullscreen();
+        break;
+      case PLAY_MODE.WEB_FULLSCREEN:
+        this.setState({ playMode: PLAY_MODE.WEB_FULLSCREEN });
+        break;
+      case PLAY_MODE.WIDE:
+        this.setState({ playMode: PLAY_MODE.WIDE });
+        break;
+      case PLAY_MODE.NORMAL:
+      default:
+        this.exitFullscreen();
+        this.setState({ playMode: PLAY_MODE.NORMAL });
+        break;
     }
-    this.setState({ isFullscreen: !isFullscreen });
+  };
+
+  /**
+   * 进入全屏。
+   */
+  enterFullscreen = () => {
+    const el = this.playerRef;
+    if (!el) return;
+
+    if (el.requestFullscreen) {
+      el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    } else if (el.msRequestFullscreen) {
+      el.msRequestFullscreen();
+    }
+  };
+
+  /**
+   * 退出全屏。
+   */
+  exitFullscreen = () => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    }
   };
 
   /**
@@ -184,6 +405,14 @@ class HGVideoPlayerPage extends React.Component {
       videoEl.playbackRate = rate;
     }
     this.setState({ playbackRate: rate, showRateMenu: false });
+  };
+
+  /**
+   * 设置清晰度。
+   */
+  setQuality = (quality) => {
+    this.setState({ quality, showQualityMenu: false });
+    // 实际项目中这里会切换视频源
   };
 
   /**
@@ -258,12 +487,20 @@ class HGVideoPlayerPage extends React.Component {
       showRateMenu,
       playbackRate,
       showDanmaku,
+      quality,
+      showQualityMenu,
+      buffered,
+      playMode,
     } = this.state;
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+    const bufferedProgress = duration > 0 ? (buffered / duration) * 100 : 0;
 
     return (
-      <div className={`${styles.controls} ${this.state.showControls ? styles.controlsVisible : ""}`}>
+      <div
+        className={`${styles.controls} ${this.state.showControls ? styles.controlsVisible : ""}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* 进度条 */}
         <div
           className={styles.progressBar}
@@ -271,6 +508,7 @@ class HGVideoPlayerPage extends React.Component {
           onClick={this.handleProgressClick}
         >
           <div className={styles.progressBg}>
+            <div className={styles.progressBuffered} style={{ width: `${bufferedProgress}%` }} />
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
             <div className={styles.progressThumb} style={{ left: `${progress}%` }} />
           </div>
@@ -280,8 +518,8 @@ class HGVideoPlayerPage extends React.Component {
         <div className={styles.controlsBottom}>
           <div className={styles.controlsLeft}>
             {/* 播放/暂停 */}
-            <button className={styles.controlBtn} onClick={this.togglePlay}>
-              {isPlaying ? "⏸" : "▶"}
+            <button className={styles.controlBtn} onClick={this.togglePlay} title={isPlaying ? "暂停" : "播放"}>
+              {isPlaying ? <Icon.Pause /> : <Icon.Play />}
             </button>
 
             {/* 时间显示 */}
@@ -295,27 +533,73 @@ class HGVideoPlayerPage extends React.Component {
             <button
               className={`${styles.controlBtn} ${showDanmaku ? styles.controlBtnActive : ""}`}
               onClick={this.toggleDanmaku}
+              title={showDanmaku ? "关闭弹幕" : "开启弹幕"}
             >
-              弹
+              {showDanmaku ? <Icon.Danmaku /> : <Icon.DanmakuOff />}
             </button>
 
-            {/* 播放速度 */}
-            <div className={styles.rateWrapper}>
+            {/* 清晰度 */}
+            <div className={styles.menuWrapper}>
               <button
                 className={styles.controlBtn}
-                onClick={() => this.setState({ showRateMenu: !showRateMenu })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  this.setState({ showQualityMenu: !showQualityMenu, showRateMenu: false });
+                }}
+                title="清晰度"
               >
-                {playbackRate}x
+                <span className={styles.qualityLabel}>
+                  {QUALITY_OPTIONS.find((q) => q.key === quality)?.label.split(" ")[0] || "HD"}
+                </span>
+              </button>
+              {showQualityMenu && (
+                <div className={styles.menuPopup} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.menuTitle}>清晰度</div>
+                  {QUALITY_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      className={`${styles.menuOption} ${quality === option.key ? styles.menuOptionActive : ""} ${!option.available ? styles.menuOptionDisabled : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (option.available) this.setQuality(option.key);
+                      }}
+                      disabled={!option.available}
+                    >
+                      <span>{option.label}</span>
+                      {quality === option.key && <span className={styles.checkIcon}>✓</span>}
+                      {!option.available && <span className={styles.badge}>敬请期待</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 播放速度 */}
+            <div className={styles.menuWrapper}>
+              <button
+                className={styles.controlBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  this.setState({ showRateMenu: !showRateMenu, showQualityMenu: false });
+                }}
+                title="播放速度"
+              >
+                <span className={styles.rateLabel}>{playbackRate}x</span>
               </button>
               {showRateMenu && (
-                <div className={styles.rateMenu}>
+                <div className={styles.menuPopup} onClick={(e) => e.stopPropagation()}>
+                  <div className={styles.menuTitle}>播放速度</div>
                   {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
                     <button
                       key={rate}
-                      className={`${styles.rateOption} ${playbackRate === rate ? styles.rateOptionActive : ""}`}
-                      onClick={() => this.setPlaybackRate(rate)}
+                      className={`${styles.menuOption} ${playbackRate === rate ? styles.menuOptionActive : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        this.setPlaybackRate(rate);
+                      }}
                     >
-                      {rate}x
+                      <span>{rate}x</span>
+                      {playbackRate === rate && <span className={styles.checkIcon}>✓</span>}
                     </button>
                   ))}
                 </div>
@@ -323,24 +607,57 @@ class HGVideoPlayerPage extends React.Component {
             </div>
 
             {/* 音量 */}
-            <div className={styles.volumeWrapper}>
-              <button className={styles.controlBtn} onClick={this.toggleMute}>
-                {isMuted || volume === 0 ? "🔇" : volume < 0.5 ? "🔉" : "🔊"}
+            <div className={styles.volumeWrapper} onClick={(e) => e.stopPropagation()}>
+              <button className={styles.controlBtn} onClick={this.toggleMute} title={isMuted ? "取消静音" : "静音"}>
+                {isMuted || volume === 0 ? <Icon.VolumeMute /> : volume < 0.5 ? <Icon.VolumeLow /> : <Icon.VolumeHigh />}
               </button>
-              <input
-                className={styles.volumeSlider}
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={isMuted ? 0 : volume}
-                onChange={this.handleVolumeChange}
-              />
+              <div className={styles.volumeSliderWrapper}>
+                <input
+                  className={styles.volumeSlider}
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={isMuted ? 0 : volume}
+                  onChange={this.handleVolumeChange}
+                />
+              </div>
             </div>
 
+            {/* 宽屏 */}
+            <button
+              className={`${styles.controlBtn} ${playMode === PLAY_MODE.WIDE ? styles.controlBtnActive : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                this.setPlayMode(PLAY_MODE.WIDE);
+              }}
+              title={playMode === PLAY_MODE.WIDE ? "退出宽屏" : "宽屏模式"}
+            >
+              <Icon.Widescreen />
+            </button>
+
+            {/* 网页全屏 */}
+            <button
+              className={`${styles.controlBtn} ${playMode === PLAY_MODE.WEB_FULLSCREEN ? styles.controlBtnActive : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN);
+              }}
+              title={playMode === PLAY_MODE.WEB_FULLSCREEN ? "退出网页全屏" : "网页全屏"}
+            >
+              {playMode === PLAY_MODE.WEB_FULLSCREEN ? <Icon.WebFullscreenExit /> : <Icon.WebFullscreen />}
+            </button>
+
             {/* 全屏 */}
-            <button className={styles.controlBtn} onClick={this.toggleFullscreen}>
-              ⛶
+            <button
+              className={`${styles.controlBtn} ${playMode === PLAY_MODE.FULLSCREEN ? styles.controlBtnActive : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                this.setPlayMode(PLAY_MODE.FULLSCREEN);
+              }}
+              title={playMode === PLAY_MODE.FULLSCREEN ? "退出全屏" : "全屏"}
+            >
+              {playMode === PLAY_MODE.FULLSCREEN ? <Icon.FullscreenExit /> : <Icon.Fullscreen />}
             </button>
           </div>
         </div>
@@ -365,19 +682,19 @@ class HGVideoPlayerPage extends React.Component {
         </div>
         <div className={styles.videoActions}>
           <button className={styles.actionBtn}>
-            <span className={styles.actionIcon}>👍</span>
+            <Icon.Like />
             <span>点赞</span>
           </button>
           <button className={styles.actionBtn}>
-            <span className={styles.actionIcon}>🪙</span>
+            <Icon.Coin />
             <span>投币</span>
           </button>
           <button className={styles.actionBtn}>
-            <span className={styles.actionIcon}>⭐</span>
+            <Icon.Star />
             <span>收藏</span>
           </button>
           <button className={styles.actionBtn}>
-            <span className={styles.actionIcon}>↗</span>
+            <Icon.Share />
             <span>分享</span>
           </button>
         </div>
@@ -443,12 +760,18 @@ class HGVideoPlayerPage extends React.Component {
 
   render() {
     const { video, className = "" } = this.props;
+    const { playMode } = this.state;
+
     if (!video) {
       return <div className={styles.emptyText}>请选择一个视频</div>;
     }
 
+    const playerClassName = `${styles.playerContainer} ${className} ${
+      playMode === PLAY_MODE.WIDE ? styles.wideMode : ""
+    } ${playMode === PLAY_MODE.WEB_FULLSCREEN ? styles.webFullscreenMode : ""}`;
+
     return (
-      <div className={`${styles.playerContainer} ${className}`}>
+      <div className={playerClassName}>
         {/* 播放器区域 */}
         <div
           className={styles.playerWrapper}
@@ -461,27 +784,36 @@ class HGVideoPlayerPage extends React.Component {
             className={styles.videoElement}
             src={video.url}
             onTimeUpdate={this.handleTimeUpdate}
+            onProgress={this.handleProgress}
             onEnded={() => this.setState({ isPlaying: false })}
+            onLoadedMetadata={() => {
+              const videoEl = this.videoRef.current;
+              if (videoEl) {
+                this.setState({ duration: videoEl.duration });
+              }
+            }}
           />
           {this.renderDanmaku()}
           {this.renderControls()}
 
           {/* 播放按钮覆盖层 */}
           {!this.state.isPlaying && (
-            <div className={styles.playOverlay}>
-              <div className={styles.playButton}>▶</div>
+            <div className={styles.playOverlay} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.playButton} onClick={this.togglePlay}>
+                <Icon.Play />
+              </div>
             </div>
           )}
         </div>
 
-        {/* 视频信息 */}
-        {this.renderVideoInfo()}
-
-        {/* 作者信息 */}
-        {this.renderAuthorInfo()}
-
-        {/* 相关推荐 */}
-        {this.renderRelatedVideos()}
+        {/* 视频信息（网页全屏时显示在右侧） */}
+        {playMode !== PLAY_MODE.WEB_FULLSCREEN && (
+          <>
+            {this.renderVideoInfo()}
+            {this.renderAuthorInfo()}
+            {this.renderRelatedVideos()}
+          </>
+        )}
       </div>
     );
   }
