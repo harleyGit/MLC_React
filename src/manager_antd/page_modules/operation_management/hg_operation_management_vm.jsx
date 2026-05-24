@@ -34,6 +34,7 @@ export const OPERATION_MENU_ITEMS = [
     label: "角色管理",
     children: [
       { key: "role_list", label: "角色列表" },
+      { key: "role_employee", label: "管理员工角色" },
       { key: "role_create", label: "创建角色" },
     ],
   },

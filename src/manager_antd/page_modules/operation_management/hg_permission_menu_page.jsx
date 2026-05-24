@@ -2,9 +2,11 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-24
+ * @LastEditTime: 2026-05-24 20:48:52
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_permission_menu_page.jsx
  * @Description: 菜单权限新增/编辑表单页面
+ * 
+ * 管控系统菜单、按钮操作权限，实现不同账号看不同菜单、操作不同功能，支撑 RBAC 权限体系，做页面访问与操作鉴权拦截
  */
 import {
   Button,
