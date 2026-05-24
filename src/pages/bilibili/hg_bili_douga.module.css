@@ -1,0 +1,175 @@
+.pageContainer {
+  min-height: 100vh;
+  background: #f4f5f7;
+}
+
+/* ===== 页面头部 ===== */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.headerContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.logoText {
+  font-size: 24px;
+  font-weight: 700;
+  color: #00a1d6;
+  font-style: italic;
+}
+
+.logoSub {
+  font-size: 16px;
+  font-weight: 600;
+  color: #18191c;
+}
+
+.headerNav {
+  display: flex;
+  gap: 24px;
+}
+
+.navItem {
+  font-size: 14px;
+  color: #61666d;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.navItem:hover {
+  color: #00a1d6;
+}
+
+/* ===== 列表容器 ===== */
+.listContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ===== 分区标题 ===== */
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.titleText {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #18191c;
+}
+
+.titleActions {
+  display: flex;
+  gap: 12px;
+}
+
+.refreshBtn {
+  padding: 6px 16px;
+  border: 1px solid #e3e5e7;
+  border-radius: 6px;
+  background: #fff;
+  color: #61666d;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refreshBtn:hover {
+  color: #00a1d6;
+  border-color: #00a1d6;
+}
+
+/* ===== 播放器容器 ===== */
+.playerContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  gap: 20px;
+}
+
+.playerContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  background: #fff;
+  border: 1px solid #e3e5e7;
+  border-radius: 6px;
+  color: #61666d;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.backBtn:hover {
+  color: #00a1d6;
+  border-color: #00a1d6;
+}
+
+/* ===== 侧边栏 ===== */
+.sidebar {
+  width: 320px;
+  min-width: 320px;
+}
+
+.sidebarTitle {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #18191c;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 1200px) {
+  .playerContainer {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: unset;
+  }
+}
+
+@media (max-width: 768px) {
+  .headerContent {
+    padding: 0 12px;
+  }
+
+  .listContainer {
+    padding: 12px;
+  }
+
+  .playerContainer {
+    padding: 12px;
+  }
+}
