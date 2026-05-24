@@ -55,6 +55,7 @@
 .virtualSpacer {
   position: relative;
   width: 100%;
+  overflow: hidden;
 }
 
 /* ===== 复用池行容器（absolute 定位） ===== */

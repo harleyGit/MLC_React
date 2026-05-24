@@ -1,3 +1,12 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_button/hg_button_page.jsx
+ * @Description: 自定义按钮组件，兼容 antd Button 主要 props
+ */
+
 import React from "react";
 import styles from "./hg_button.module.css";
 
@@ -72,6 +81,13 @@ class HGButtonPage extends React.PureComponent {
     }
   };
 
+  /**
+   * 渲染按钮 DOM 结构。
+   * 职责：组装 button 元素，包含 loading 图标和内容区域。
+   * 输入：htmlType、children、style 等 props。
+   * 输出：React 节点。
+   * 约束：loading 或 disabled 时点击事件被阻止。
+   */
   render() {
     const { htmlType = "button", children, style } = this.props;
 

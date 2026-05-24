@@ -1,3 +1,11 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_menu/hg_menu_page.jsx
+ * @Description: 自定义菜单组件，替代 antd Menu，支持 horizontal/inline 模式与多级子菜单
+ */
 import React from "react";
 import styles from "./hg_menu.module.css";
 
@@ -107,6 +115,10 @@ class HGMenuPage extends React.Component {
     );
   };
 
+  /**
+   * 渲染菜单组件。
+   * @returns {React.ReactNode} 菜单节点。
+   */
   render() {
     const { items = [], mode = "horizontal", theme = "light", className = "" } = this.props;
     const rootClass = [

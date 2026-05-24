@@ -1,3 +1,6 @@
+/* HgSwitch - 开关组件样式 */
+
+/* ===== 开关主体 ===== */
 .switchRoot {
   position: relative;
   display: inline-flex;
@@ -26,6 +29,7 @@
   cursor: not-allowed;
 }
 
+/* ===== 滑块手柄 ===== */
 .handle {
   position: absolute;
   top: 2px;
@@ -43,6 +47,7 @@
   transform: translateX(20px);
 }
 
+/* ===== 文字标签 ===== */
 .textOn,
 .textOff {
   position: relative;

@@ -1,3 +1,6 @@
+/* HgInputNumber - 数字输入框组件样式 */
+
+/* ===== 容器与状态 ===== */
 .wrapper {
   display: inline-flex;
   align-items: center;
@@ -25,6 +28,7 @@
   cursor: not-allowed;
 }
 
+/* ===== 输入框 ===== */
 .input {
   flex: 1;
   width: 100%;
@@ -46,6 +50,7 @@
   cursor: not-allowed;
 }
 
+/* ===== 步进按钮区域 ===== */
 .controls {
   display: flex;
   flex-direction: column;

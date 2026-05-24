@@ -1,3 +1,12 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_switch/hg_switch_page.jsx
+ * @Description: 自定义开关组件，兼容 antd Switch 主要 props
+ */
+
 import React from "react";
 import styles from "./hg_switch.module.css";
 

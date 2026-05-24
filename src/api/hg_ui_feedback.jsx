@@ -40,7 +40,11 @@ export function showSuccess(msg) {
 }
 
 
-// 注意：不要用 react-router 的 hook，因为这是 非 React 组件环境（Net / util 层）
+/**
+ * 跳转到登录页，清除本地登录态（token 和用户资料），并携带当前页面地址作为回跳参数。
+ * 注意：不要用 react-router 的 hook，因为这是非 React 组件环境（Net / util 层）。
+ * @returns {void}
+ */
 export function redirectToLogin() {
     // 清理本地登录态
     localStorage.removeItem("manager_token");

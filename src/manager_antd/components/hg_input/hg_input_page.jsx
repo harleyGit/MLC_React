@@ -1,3 +1,12 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_input/hg_input_page.jsx
+ * @Description: 输入框组件集，包含基础输入、密码输入、搜索输入、多行文本输入
+ */
+
 import React from "react";
 import styles from "./hg_input.module.css";
 
@@ -111,6 +120,13 @@ class HGInputPage extends React.PureComponent {
     );
   };
 
+  /**
+   * 渲染基础输入框 DOM 结构。
+   * 职责：组装 wrapper、prefix、input、清除按钮、字数统计。
+   * 输入：placeholder、disabled、className、style、prefix 等 props。
+   * 输出：React 节点。
+   * 约束：受控/非受控模式均支持；maxLength 限制输入长度。
+   */
   render() {
     const { placeholder, disabled, className = "", style, prefix } = this.props;
     const { focused } = this.state;
@@ -204,6 +220,13 @@ class HGInputPassword extends React.PureComponent {
     );
   };
 
+  /**
+   * 渲染密码输入框 DOM 结构。
+   * 职责：组装 wrapper、prefix、input（密码/明文切换）、可见性切换按钮。
+   * 输入：placeholder、disabled、prefix、className、style 等 props。
+   * 输出：React 节点。
+   * 约束：受控/非受控模式均支持；通过 visible 状态控制 input type。
+   */
   render() {
     const { placeholder, disabled, prefix, className = "", style } = this.props;
     const { visible, focused } = this.state;
@@ -322,6 +345,13 @@ class HGInputSearch extends React.PureComponent {
     );
   };
 
+  /**
+   * 渲染搜索输入框 DOM 结构。
+   * 职责：组装 wrapper、input、清除按钮、搜索按钮。
+   * 输入：placeholder、disabled、allowClear、className、style、enterButton 等 props。
+   * 输出：React 节点。
+   * 约束：回车触发 onSearch；allowClear 为 true 时显示清除按钮。
+   */
   render() {
     const { placeholder, disabled, allowClear, className = "", style, enterButton } = this.props;
     const { focused } = this.state;
@@ -416,6 +446,13 @@ class HGInputTextArea extends React.PureComponent {
     );
   };
 
+  /**
+   * 渲染多行文本输入框 DOM 结构。
+   * 职责：组装 wrapper、textarea、字数统计。
+   * 输入：placeholder、disabled、rows、className、style 等 props。
+   * 输出：React 节点。
+   * 约束：maxLength 限制输入长度；rows 控制默认行数。
+   */
   render() {
     const { placeholder, disabled, rows = 4, className = "", style } = this.props;
     const { focused } = this.state;

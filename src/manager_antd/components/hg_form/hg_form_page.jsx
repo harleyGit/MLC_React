@@ -1,3 +1,11 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_form/hg_form_page.jsx
+ * @Description: 自定义表单容器与表单项组件，替代 antd Form，支持校验、布局与受控字段管理
+ */
 import React, { createContext } from "react";
 import styles from "./hg_form.module.css";
 
@@ -227,6 +235,10 @@ class HGFormPage extends React.Component {
     };
   };
 
+  /**
+   * 渲染表单组件。
+   * @returns {React.ReactNode} 表单节点。
+   */
   render() {
     const { children, style } = this.props;
 
@@ -354,6 +366,10 @@ class HGFormItem extends React.Component {
     return React.cloneElement(children, childProps);
   };
 
+  /**
+   * 渲染表单项组件。
+   * @returns {React.ReactNode} 表单项节点。
+   */
   render() {
     const { label, extra, style } = this.props;
     const error = this.getError();

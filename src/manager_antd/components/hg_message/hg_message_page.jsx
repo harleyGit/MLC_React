@@ -1,3 +1,11 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_message/hg_message_page.jsx
+ * @Description: 命令式消息提示组件，替代 antd message，支持 success/error/warning/info 类型
+ */
 import React from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -79,6 +87,10 @@ class HGMessageHost extends React.PureComponent {
     );
   };
 
+  /**
+   * 渲染消息列表容器。
+   * @returns {React.ReactNode} 消息列表节点或 null。
+   */
   render() {
     const { messages } = this.state;
     if (messages.length === 0) {

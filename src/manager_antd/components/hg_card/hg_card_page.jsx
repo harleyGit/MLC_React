@@ -1,3 +1,11 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_card/hg_card_page.jsx
+ * @Description: 自定义卡片组件，替代 antd Card，支持 title、extra 等属性
+ */
 import React from "react";
 import styles from "./hg_card.module.css";
 
@@ -55,6 +63,10 @@ class HGCardPage extends React.PureComponent {
     return [styles.card, className].filter(Boolean).join(" ");
   };
 
+  /**
+   * 渲染卡片组件。
+   * @returns {React.ReactNode} 卡片节点。
+   */
   render() {
     const { style } = this.props;
 

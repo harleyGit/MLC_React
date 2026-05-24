@@ -1,8 +1,12 @@
+/* HgSpace - 间距组件样式 */
+
+/* ===== 容器 ===== */
 .space {
   display: flex;
   box-sizing: border-box;
 }
 
+/* ===== 布局方向 ===== */
 .horizontal {
   flex-direction: row;
   align-items: center;

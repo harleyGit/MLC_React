@@ -1,3 +1,6 @@
+/* HgCard - 卡片组件样式 */
+
+/* ===== 卡片容器 ===== */
 .card {
   background: #fff;
   border: 1px solid #e8e8e8;
@@ -7,6 +10,7 @@
   color: #333;
 }
 
+/* ===== 卡片头部 ===== */
 .cardHeader {
   display: flex;
   align-items: center;
@@ -17,6 +21,7 @@
   box-sizing: border-box;
 }
 
+/* ===== 标题与额外内容 ===== */
 .cardTitle {
   font-size: 16px;
   font-weight: 500;
@@ -33,6 +38,7 @@
   margin-left: 16px;
 }
 
+/* ===== 卡片内容 ===== */
 .cardBody {
   padding: 24px;
 }

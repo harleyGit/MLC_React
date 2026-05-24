@@ -22,7 +22,17 @@ import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";
 
 
+/**
+ * 用户资料列表页面
+ * 职责：展示用户列表，支持搜索和 cursor 分页查询。
+ * 输入：props - 包含 navigate 方法（由 WithNavigation 注入），用于页面跳转。
+ * 约束：使用 cursor 分页模式；搜索关键词自动去除首尾空格。
+ */
 class HGUserProfilePage extends React.Component {
+  /**
+   * 构造函数，初始化组件状态。
+   * @param {Object} props - 组件 props。
+   */
   constructor(props) {
     super(props);
 
@@ -183,6 +193,10 @@ class HGUserProfilePage extends React.Component {
     );
   }
 
+  /**
+   * 返回用户表格列配置数组。
+   * @returns {Array<Object>} 表格列配置，包含用户ID、用户名、手机号、邮箱等字段。
+   */
   userTableColumns = () => {
     return [
       {

@@ -21,6 +21,12 @@ import HGInputPage, { HGInputPassword } from "../../components/hg_input/hg_input
 import { hgMessage as message } from "../../components/hg_message/hg_message_page";
 import HGIconPage from "../../components/hg_icon/hg_icon_page";
 
+/**
+ * 用户登录页面
+ * 职责：提供用户登录表单，处理登录、注册跳转及忘记密码操作。
+ * 输入：props - 包含 location（获取来源页）、navigate 方法（由 WithNavigation 注入）。
+ * 约束：登录成功后跳转至来源页或首页；使用 HGLoginVM 进行登录请求。
+ */
 class HGLoginPage extends Component {
   formRef = React.createRef();
 
@@ -29,6 +35,11 @@ class HGLoginPage extends Component {
     userName: "",
   };
 
+  /**
+   * 提交登录表单，调用登录接口并获取用户资料，成功后跳转至来源页。
+   * @param {Object} values - 表单值，包含 username 和 password。
+   * @returns {void}
+   */
   handleSubmit = (values) => {
     console.log("🍎 values：", values);
     // return;
@@ -53,6 +64,10 @@ class HGLoginPage extends Component {
       });
   };
 
+  /**
+   * 跳转到注册页面，携带当前用户名和注册类型。
+   * @returns {void}
+   */
   handleRegister = () => {
     const { userName } = this.state;
     this.props.navigate?.(ROUTE_PATH.REGISTER, {
@@ -65,10 +80,19 @@ class HGLoginPage extends Component {
     });
   };
 
+  /**
+   * 跳转到忘记密码页面。
+   * @returns {void}
+   */
   handleForgetPassword = () => {
     this.props.navigate?.("/forget-password");
   };
 
+  /**
+   * 用户名输入框变化回调，实时更新 state 中的 userName。
+   * @param {Event} e - 输入框 change 事件对象。
+   * @returns {void}
+   */
   handleUserNameInputChange = (e) => {
     const value = e.target.value;
     // 此时 inputValue 是实时的输入值

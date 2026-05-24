@@ -11,12 +11,26 @@ import React from "react";
 import { logout } from "../../auth/hg_auth";
 import CSStyles from "./hg_home.module.css";
 
+/**
+ * 首页（已登录态）
+ * 职责：展示已登录用户的首页，提供退出登录和查看个人资料入口。
+ * 输入：props - 包含 navigate 方法（由 WithNavigation 注入），用于页面跳转。
+ * 约束：依赖 logout 清除登录态，跳转使用原生 window.location。
+ */
 class HGHomePage extends React.Component {
+  /**
+   * 退出登录，清除本地登录态并强制跳转到登录页。
+   * @returns {void}
+   */
   handleLogout = () => {
     logout();
     window.location.href = "/login"; // 强制浏览器跳转到登录页
   };
 
+  /**
+   * 跳转到个人资料页面。
+   * @returns {void}
+   */
   viewPersonalProfile = () => {
     this.props.navigate("/profile");
   };

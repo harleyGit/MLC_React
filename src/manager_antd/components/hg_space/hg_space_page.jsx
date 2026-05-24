@@ -1,3 +1,11 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_space/hg_space_page.jsx
+ * @Description: 自定义间距组件，替代 antd Space，支持 direction、size 与 flexbox 布局
+ */
 import React from "react";
 import styles from "./hg_space.module.css";
 
@@ -52,6 +60,10 @@ class HGSpacePage extends React.PureComponent {
     };
   };
 
+  /**
+   * 渲染间距组件。
+   * @returns {React.ReactNode} Space 节点。
+   */
   render() {
     const { children } = this.props;
 

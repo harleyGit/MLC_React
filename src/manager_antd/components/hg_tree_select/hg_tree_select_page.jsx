@@ -1,3 +1,11 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_tree_select/hg_tree_select_page.jsx
+ * @Description: 自定义树选择组件，替代 antd TreeSelect，支持多选、勾选框、展示策略和下拉树形结构
+ */
 import React from "react";
 import styles from "./hg_tree_select.module.css";
 

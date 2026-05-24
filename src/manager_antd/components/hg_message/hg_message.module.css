@@ -1,3 +1,6 @@
+/* HgMessage - 全局消息提示组件样式 */
+
+/* ===== 消息容器 ===== */
 .messageContainer {
   position: fixed;
   top: 24px;
@@ -11,6 +14,7 @@
   pointer-events: none;
 }
 
+/* ===== 消息项 ===== */
 .messageItem {
   display: inline-flex;
   align-items: center;
@@ -25,6 +29,7 @@
   background: #fff;
 }
 
+/* ===== 消息类型 ===== */
 .typeSuccess {
   border: 1px solid #b7eb8f;
   color: #52c41a;
@@ -45,6 +50,7 @@
   color: #1890ff;
 }
 
+/* ===== 图标与内容 ===== */
 .messageIcon {
   font-size: 16px;
   font-weight: bold;
@@ -55,6 +61,7 @@
   color: #333;
 }
 
+/* ===== 动画 ===== */
 @keyframes messageFadeIn {
   from {
     opacity: 0;

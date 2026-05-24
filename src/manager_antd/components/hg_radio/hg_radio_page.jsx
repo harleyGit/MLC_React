@@ -1,3 +1,12 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_radio/hg_radio_page.jsx
+ * @Description: 自定义单选按钮组组件，兼容 antd Radio.Group 主要 props
+ */
+
 import React from "react";
 import styles from "./hg_radio.module.css";
 

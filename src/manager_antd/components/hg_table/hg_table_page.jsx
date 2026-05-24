@@ -90,13 +90,24 @@ class HGTablePage extends React.Component {
    * 滚动事件处理。
    * 职责：计算行偏移量，触发 React 更新复用池中每行显示的数据。
    * 仅在 offset 变化时触发 setState，避免每帧重渲染。
+   * 约束：offset 不超出数据范围，防止无限滚动。
    */
   handleScroll = (e) => {
     const { scrollTop, scrollLeft } = e.target;
+    const { dataSource = [] } = this.props;
+    const totalCount = dataSource.length;
+    const bodyHeight = this.getBodyHeight();
+
+    // 同步表头横向滚动
     const headerEl = e.target.previousElementSibling;
     if (headerEl) headerEl.scrollLeft = scrollLeft;
 
-    const newOffset = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+    // 限制 offset 不超出数据范围
+    const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
+    const maxOffset = Math.max(0, totalCount - poolSize);
+    const rawOffset = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+    const newOffset = Math.min(rawOffset, maxOffset);
+
     if (newOffset !== this.state.offset) {
       this.setState({ offset: newOffset });
     }
@@ -302,13 +313,14 @@ class HGTablePage extends React.Component {
         <div className={styles.virtualSpacer} style={{ height: totalHeight }}>
           {Array.from({ length: poolSize }, (_, poolIdx) => {
             const dataIdx = offset + poolIdx;
-            const record = dataIdx >= 0 && dataIdx < totalCount ? dataSource[dataIdx] : null;
+            const inBounds = dataIdx >= 0 && dataIdx < totalCount;
+            const record = inBounds ? dataSource[dataIdx] : null;
             return (
               <div
                 key={poolIdx}
                 className={styles.poolRow}
                 style={{
-                  top: dataIdx >= 0 ? dataIdx * ROW_HEIGHT : -ROW_HEIGHT,
+                  top: inBounds ? dataIdx * ROW_HEIGHT : -ROW_HEIGHT,
                   height: ROW_HEIGHT,
                   visibility: record ? "visible" : "hidden",
                 }}

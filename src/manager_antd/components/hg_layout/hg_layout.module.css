@@ -1,3 +1,6 @@
+/* HgLayout - 页面布局组件样式 */
+
+/* ===== 布局容器 ===== */
 .layout {
   display: flex;
   flex-direction: column;
@@ -5,6 +8,7 @@
   width: 100%;
 }
 
+/* ===== 顶部导航 ===== */
 .header {
   position: sticky;
   top: 0;
@@ -18,6 +22,7 @@
   line-height: 64px;
 }
 
+/* ===== 内容区域 ===== */
 .content {
   flex: 1;
   padding: 24px;
@@ -25,6 +30,7 @@
   overflow: auto;
 }
 
+/* ===== 底部 ===== */
 .footer {
   padding: 24px 50px;
   color: rgba(0, 0, 0, 0.65);

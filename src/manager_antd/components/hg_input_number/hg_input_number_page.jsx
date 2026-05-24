@@ -1,3 +1,12 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/components/hg_input_number/hg_input_number_page.jsx
+ * @Description: 数字输入组件，兼容 antd InputNumber 主要 props
+ */
+
 import React from "react";
 import styles from "./hg_input_number.module.css";
 
@@ -142,6 +151,13 @@ class HGInputNumberPage extends React.PureComponent {
     );
   };
 
+  /**
+   * 渲染数字输入框 DOM 结构。
+   * 职责：组装 wrapper、input、步进按钮（增/减）。
+   * 输入：placeholder、disabled、style、className 等 props。
+   * 输出：React 节点。
+   * 约束：失焦时自动 clamp 到 min/max 范围；步进值由 step prop 控制。
+   */
   render() {
     const { placeholder, disabled, style, className = "" } = this.props;
     const { focused } = this.state;

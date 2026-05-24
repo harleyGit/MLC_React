@@ -21,6 +21,12 @@ import HGInputPage, { HGInputPassword } from "../../components/hg_input/hg_input
 import { hgMessage as message } from "../../components/hg_message/hg_message_page";
 import HGIconPage from "../../components/hg_icon/hg_icon_page";
 
+/**
+ * 用户注册页面
+ * 职责：提供用户注册表单，支持手机号/邮箱注册、验证码发送、密码设置及提交注册。
+ * 输入：props - 包含 location（获取注册类型和用户名）、navigate 方法（由 WithNavigation 注入）。
+ * 约束：注册类型由上游页面决定；验证码倒计时需在组件卸载时清除定时器。
+ */
 class HGRegisterPage extends Component {
   formRef = React.createRef();
   timer = null;
@@ -57,6 +63,10 @@ class HGRegisterPage extends Component {
     this.timer && clearInterval(this.timer);
   }
 
+  /**
+   * 发送验证码（V2 版本），根据注册类型从表单获取手机号或邮箱并调用发送接口。
+   * @returns {void}
+   */
   handleSendCodeV2 = () => {
     const formValues = this.formRef.current?.getFieldsValue();
     const isEmail = this.state.registerType == HGRegisterType.EMAIL;
@@ -72,6 +82,11 @@ class HGRegisterPage extends Component {
     // 调用发送验证码 API
     this.sendCodeAPI(target, isEmail ? "email" : "phone");
   };
+  /**
+   * 发送验证码（V3 版本），通过表单校验后根据指定类型获取目标联系方式并调用发送接口。
+   * @param {string} type - 注册类型（手机号或邮箱）。
+   * @returns {void}
+   */
   handleSendCodeV3 = (type) => {
     const form = formRef.current;
     form.validateFields().then((values) => {
@@ -153,7 +168,10 @@ class HGRegisterPage extends Component {
       });
   };
 
-  /** 启动倒计时 */
+  /**
+   * 启动 60 秒验证码倒计时，每秒递减，归零后自动清除定时器。
+   * @returns {void}
+   */
   startCountdown = () => {
     this.setState({ countdown: 60 });
 
@@ -168,10 +186,19 @@ class HGRegisterPage extends Component {
     }, 1000);
   };
 
+  /**
+   * 切换输入类型（邮箱/手机号）。
+   * @returns {void}
+   */
   toggleInputType = () => {
     this.setState((prev) => ({ useEmail: !prev.useEmail }));
   };
 
+  /**
+   * 联系方式输入框变化回调，实时更新 state 中的 contactWay。
+   * @param {Event} e - 输入框 change 事件对象。
+   * @returns {void}
+   */
   inputChange = (e) => {
     const value = e.target.value;
     this.setState(
