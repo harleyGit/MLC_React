@@ -10,19 +10,29 @@ import React from "react";
 import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
 import HGBreadcrumbPage from "../../../components/hg_breadcrumb/hg_breadcrumb_page";
 import HGCourseManagementPage from "./course_management/hg_course_management_page";
+import HGCourseDirectoryPage from "./course_directory/hg_course_directory_page";
 import HGContentCenterVM, { MENU_KEY } from "./hg_content_center_vm";
 import styles from "./hg_content_center.module.css";
 import iconUpload from "../../../assets/icons/icon_upload.svg";
 import iconCourse from "../../../assets/icons/icon_course.svg";
 import iconFileUpload from "../../../assets/icons/icon_file_upload.svg";
+import iconDirectory from "../../../assets/icons/icon_directory.svg";
 
 /**
- * 菜单项配置。
+ * 菜单项配置（支持子菜单）。
  */
 const MENU_ITEMS = [
   { key: MENU_KEY.UPLOAD, label: "投稿功能", icon: <img src={iconUpload} alt="投稿" width="18" height="18" /> },
-  { key: MENU_KEY.COURSE, label: "课程管理", icon: <img src={iconCourse} alt="课程" width="18" height="18" /> },
-  { key: MENU_KEY.COURSE_SUBMIT, label: "课程提交", icon: <img src={iconCourse} alt="课程提交" width="18" height="18" /> },
+  {
+    key: MENU_KEY.COURSE,
+    label: "课程管理",
+    icon: <img src={iconCourse} alt="课程" width="18" height="18" />,
+    children: [
+      { key: MENU_KEY.COURSE_LIST, label: "课程列表", icon: <img src={iconCourse} alt="列表" width="18" height="18" /> },
+      { key: MENU_KEY.COURSE_SUBMIT, label: "课程提交", icon: <img src={iconCourse} alt="提交" width="18" height="18" /> },
+      { key: MENU_KEY.COURSE_DIRECTORY, label: "课程目录", icon: <img src={iconDirectory} alt="目录" width="18" height="18" /> },
+    ],
+  },
 ];
 
 /**
@@ -195,8 +205,9 @@ class HGContentCenterPage extends React.Component {
         {this.renderBreadcrumb()}
         <div className={styles.contentCard}>
           {activeMenu === MENU_KEY.UPLOAD && this.renderUploadContent()}
-          {activeMenu === MENU_KEY.COURSE && this.renderCourseContent()}
+          {(activeMenu === MENU_KEY.COURSE || activeMenu === MENU_KEY.COURSE_LIST) && this.renderCourseContent()}
           {activeMenu === MENU_KEY.COURSE_SUBMIT && <HGCourseManagementPage />}
+          {activeMenu === MENU_KEY.COURSE_DIRECTORY && <HGCourseDirectoryPage />}
         </div>
       </div>
     );

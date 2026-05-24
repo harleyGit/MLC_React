@@ -42,7 +42,9 @@ const MOCK_COURSES = [
 export const MENU_KEY = {
   UPLOAD: "upload",
   COURSE: "course",
+  COURSE_LIST: "course_list",
   COURSE_SUBMIT: "course_submit",
+  COURSE_DIRECTORY: "course_directory",
 };
 
 /**
@@ -51,7 +53,21 @@ export const MENU_KEY = {
 export const MENU_TITLE_MAP = {
   [MENU_KEY.UPLOAD]: "投稿功能",
   [MENU_KEY.COURSE]: "课程管理",
+  [MENU_KEY.COURSE_LIST]: "课程列表",
   [MENU_KEY.COURSE_SUBMIT]: "课程提交",
+  [MENU_KEY.COURSE_DIRECTORY]: "课程目录",
+};
+
+/**
+ * 菜单层级配置（用于面包屑路径查找）。
+ * 格式：{ childKey: parentKey }
+ */
+export const MENU_PARENT_MAP = {
+  [MENU_KEY.UPLOAD]: null,
+  [MENU_KEY.COURSE]: null,
+  [MENU_KEY.COURSE_LIST]: MENU_KEY.COURSE,
+  [MENU_KEY.COURSE_SUBMIT]: MENU_KEY.COURSE,
+  [MENU_KEY.COURSE_DIRECTORY]: MENU_KEY.COURSE,
 };
 
 /**
@@ -126,12 +142,18 @@ class HGContentCenterVM {
       { label: "内容中心" },
     ];
 
-    const menuTitle = MENU_TITLE_MAP[activeMenu];
-    if (menuTitle) {
-      items.push({ label: menuTitle });
+    // 构建面包屑路径（从子菜单向上查找父菜单）
+    const path = [];
+    let currentKey = activeMenu;
+    while (currentKey) {
+      const title = MENU_TITLE_MAP[currentKey];
+      if (title) {
+        path.unshift({ label: title });
+      }
+      currentKey = MENU_PARENT_MAP[currentKey];
     }
 
-    return items;
+    return [...items, ...path];
   }
 }
 
