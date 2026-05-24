@@ -6,46 +6,53 @@
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_vm.jsx
  * @Description: 运维管理页面 ViewModel，管理菜单配置与页面切换逻辑
  */
+import React from "react";
+import HGIconPage from "../../components/hg_icon/hg_icon_page";
 
 /**
  * 运维管理菜单数据配置
- * 格式：[{key, label, children?}]
+ * 格式：[{key, label, icon?, children?}]
  * 约束：key 需全局唯一，叶子节点 key 用于路由映射
+ * icon：传入 HGIconPage 组件作为菜单项左侧图标
  */
 export const OPERATION_MENU_ITEMS = [
   {
     key: "admin",
     label: "管理员管理",
+    icon: <HGIconPage type="admin" />,
     children: [
-      { key: "admin_list", label: "管理员列表" },
-      { key: "admin_add", label: "添加管理员" },
+      { key: "admin_list", label: "管理员列表", icon: <HGIconPage type="table" /> },
+      { key: "admin_add", label: "添加管理员", icon: <HGIconPage type="add-user" /> },
     ],
   },
   {
     key: "user",
     label: "用户管理",
+    icon: <HGIconPage type="user-management" />,
     children: [
-      { key: "user_list", label: "用户列表" },
-      { key: "user_permission", label: "用户权限管理" },
+      { key: "user_list", label: "用户列表", icon: <HGIconPage type="table" /> },
+      { key: "user_permission", label: "用户权限管理", icon: <HGIconPage type="permission" /> },
     ],
   },
   {
     key: "role",
     label: "角色管理",
+    icon: <HGIconPage type="role" />,
     children: [
-      { key: "role_list", label: "角色列表" },
-      { key: "role_employee", label: "管理员工角色" },
-      { key: "role_create", label: "创建角色" },
+      { key: "role_list", label: "角色列表", icon: <HGIconPage type="table" /> },
+      { key: "role_employee", label: "管理员工角色", icon: <HGIconPage type="user" /> },
+      { key: "role_create", label: "创建角色", icon: <HGIconPage type="plus" /> },
     ],
   },
   {
     key: "permission",
     label: "权限管理",
+    icon: <HGIconPage type="permission" />,
     children: [
-      { key: "permission_list", label: "权限列表" },
-      { key: "permission_menu", label: "菜单权限" },
-      { key: "permission_role", label: "角色权限分配" },
-      { key: "permission_config", label: "权限配置" },
+      { key: "permission_list", label: "权限列表", icon: <HGIconPage type="table" /> },
+      { key: "permission_menu", label: "菜单权限", icon: <HGIconPage type="menu" /> },
+      { key: "permission_role", label: "角色权限分配", icon: <HGIconPage type="shield" /> },
+      { key: "permission_config", label: "权限配置", icon: <HGIconPage type="config" /> },
     ],
   },
 ];

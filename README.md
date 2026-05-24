@@ -2,15 +2,38 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-04-30 22:07:42
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-16 14:38:21
+ * @LastEditTime: 2026-05-24 22:45:19
  * @FilePath: /MLC_React/README01.md
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
-
+- [工程需要资源](#工程需要资源)
+  - [图片资源](#图片资源)
 - [工程运行](#工程运行)
 - [AI规则文件](#AI规则文件)
 	
 
+
+
+<br/><br/><br/>
+
+***
+<br/>
+
+> <h1 id="工程需要资源">工程需要资源</h1>
+
+- **iconPark**
+  - 图标：iconPark: https://iconpark.oceanengine.com/home
+  - 地址： /Users/ganghuang/HGFiles/GitHub/MLC_React/src/assets
+
+
+
+***
+<br/><br/><br/>
+<h2 id="图片资源">图片资源</h2>
+
+- **iconPark**
+  - [图标](https://iconpark.oceanengine.com/home): iconPark: https://iconpark.oceanengine.com/home 
+  - 地址： /Users/ganghuang/HGFiles/GitHub/MLC_React/src/assets
 
 
 
