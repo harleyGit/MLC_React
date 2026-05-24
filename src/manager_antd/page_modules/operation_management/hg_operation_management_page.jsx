@@ -12,6 +12,7 @@ import HGOperationManagementVM, { OPERATION_MENU_ITEMS } from "./hg_operation_ma
 import HGPermissionMenuPage from "./hg_permission_menu_page";
 import HGEmployeeRolePage from "./employee_role/hg_employee_role_page";
 import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
+import HGAdminRoleAssignPage from "./admin_role_assign/hg_admin_role_assign_page";
 import styles from "./hg_operation_management.module.css";
 
 /**
@@ -141,6 +142,7 @@ class PermissionConfigPage extends Component {
 const PAGE_MAP = {
   admin_list: AdminListPage,
   admin_add: AdminAddPage,
+  admin_role_assign: HGAdminRoleAssignPage,
   user_list: UserListPage,
   user_permission: UserPermissionPage,
   role_list: RoleListPage,

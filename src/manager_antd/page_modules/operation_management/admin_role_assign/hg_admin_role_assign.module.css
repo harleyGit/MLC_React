@@ -1,0 +1,29 @@
+/* 管理员角色分配表单页面样式 */
+.adminRoleAssignContainer {
+  max-width: 720px;
+}
+
+.formTitle {
+  margin: 0 0 24px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2c4a;
+}
+
+.formItem {
+  margin-bottom: 20px;
+}
+
+.inputField {
+  width: 100%;
+}
+
+.submitRow {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.submitBtn {
+  min-width: 100px;
+}

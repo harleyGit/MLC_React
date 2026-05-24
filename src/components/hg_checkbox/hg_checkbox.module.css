@@ -1,0 +1,65 @@
+/* 复选框组件样式 */
+.checkboxGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  gap: 8px;
+}
+
+.checkboxInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.checkboxInner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  background: #fff;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.checkbox:hover .checkboxInner {
+  border-color: #4096ff;
+}
+
+.checked .checkboxInner {
+  background: #1677ff;
+  border-color: #1677ff;
+}
+
+.checkIcon {
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.checkboxLabel {
+  font-size: 14px;
+  color: #333;
+}
+
+.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.disabled .checkboxInner {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+}

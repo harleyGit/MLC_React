@@ -23,6 +23,7 @@ export const OPERATION_MENU_ITEMS = [
     children: [
       { key: "admin_list", label: "管理员列表", icon: <HGIconPage type="table" /> },
       { key: "admin_add", label: "添加管理员", icon: <HGIconPage type="add-user" /> },
+      { key: "admin_role_assign", label: "管理员角色分配", icon: <HGIconPage type="role" /> },
     ],
   },
   {
