@@ -2,27 +2,31 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-24
+ * @LastEditTime: 2026-05-24 21:04:36
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/employee_role/hg_employee_role_page.jsx
  * @Description: 员工角色管理表单页面，支持新增/编辑员工并绑定角色
+ * 
+ * 管理员表 = 后台管理系统的 “员工账号表”
+存储后台运营、客服、运营主管、超级管理员的账号信息
+用来登录后台、鉴权、操作日志归属、个人信息管理
+和前台普通用户（user 表）完全分开，互不干扰
+配合权限表，控制不同管理员能看什么页面、能点什么按钮
+
+核心作用：
+后台登录认证
+账号启用 / 禁用
+记录谁操作了后台
+绑定角色（权限）
+支持手机号 / 密码 / 飞书登录
  */
-import {
-  Button,
-  Form,
-  Input,
-  Radio,
-  Switch,
-  TreeSelect,
-  message,
-} from "antd";
+import { Button, Form, Input, Radio, Switch, TreeSelect, message } from "antd";
 import React, { Component } from "react";
+import styles from "./hg_employee_role.module.css";
 import HGEmployeeRoleVM, {
-  ACCOUNT_STATUS,
   GENDER_OPTIONS,
   INITIAL_FORM_VALUES,
   MOCK_ROLE_TREE,
 } from "./hg_employee_role_vm";
-import styles from "./hg_employee_role.module.css";
 
 const { Password } = Input;
 
@@ -124,7 +128,11 @@ class HGEmployeeRolePage extends Component {
       rules={HGEmployeeRoleVM.getFormRules().phone}
       className={styles.formItem}
     >
-      <Input placeholder="请输入手机号" maxLength={11} className={styles.inputField} />
+      <Input
+        placeholder="请输入手机号"
+        maxLength={11}
+        className={styles.inputField}
+      />
     </Form.Item>
   );
 
@@ -142,7 +150,10 @@ class HGEmployeeRolePage extends Component {
         className={styles.formItem}
         extra={isEdit ? "编辑时可不填，留空表示不修改密码" : ""}
       >
-        <Password placeholder={isEdit ? "留空则不修改密码" : "请输入密码"} className={styles.inputField} />
+        <Password
+          placeholder={isEdit ? "留空则不修改密码" : "请输入密码"}
+          className={styles.inputField}
+        />
       </Form.Item>
     );
   };

@@ -44,6 +44,7 @@ export const OPERATION_MENU_ITEMS = [
     children: [
       { key: "permission_list", label: "权限列表" },
       { key: "permission_menu", label: "菜单权限" },
+      { key: "permission_role", label: "角色权限分配" },
       { key: "permission_config", label: "权限配置" },
     ],
   },
