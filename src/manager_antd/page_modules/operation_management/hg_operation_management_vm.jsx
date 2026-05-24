@@ -7,7 +7,7 @@
  * @Description: 运维管理页面 ViewModel，管理菜单配置与页面切换逻辑
  */
 import React from "react";
-import HGIconPage from "../../components/hg_icon/hg_icon_page";
+import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 
 /**
  * 运维管理菜单数据配置

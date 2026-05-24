@@ -8,18 +8,18 @@
  */
 import React, { Component } from "react";
 import { LogOut } from "../../../logger/hg_logger";
-import HGLoading from "../../components/hg_loading";
+import HGLoading from "../../../components/hg_loading";
 import { DEBUG_MAP } from "../../auth/hg_auth";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../../router/hg_router_path";
 import HGEditUserPageVM from "../user/edit_user_info/hg_edit_user_page_vm";
 import styles from "./hg_login.module.css";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
-import HGButtonPage from "../../components/hg_button/hg_button_page";
-import { HGFormPage as Form, HGFormItem as Item } from "../../components/hg_form/hg_form_page";
-import HGInputPage, { HGInputPassword } from "../../components/hg_input/hg_input_page";
-import { hgMessage as message } from "../../components/hg_message/hg_message_page";
-import HGIconPage from "../../components/hg_icon/hg_icon_page";
+import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
+import HGInputPage, { HGInputPassword } from "../../../components/hg_input/hg_input_page";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 
 /**
  * 用户登录页面

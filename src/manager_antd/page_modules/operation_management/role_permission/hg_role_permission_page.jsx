@@ -9,11 +9,11 @@
  * 存储角色与权限的绑定关系，实现一个角色批量分配多个菜单、按钮权限，是权限分配核心关联表，控制角色可访问的功能范围
  */
 import React, { Component } from "react";
-import HGButtonPage from "../../../components/hg_button/hg_button_page";
-import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
-import HGSelectPage from "../../../components/hg_select/hg_select_page";
-import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
-import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGButtonPage from "../../../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../../../components/hg_form/hg_form_page";
+import HGSelectPage from "../../../../components/hg_select/hg_select_page";
+import HGTreeSelectPage from "../../../../components/hg_tree_select/hg_tree_select_page";
+import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGRolePermissionVM, {
   INITIAL_FORM_VALUES,
   MOCK_PERMISSION_TREE,

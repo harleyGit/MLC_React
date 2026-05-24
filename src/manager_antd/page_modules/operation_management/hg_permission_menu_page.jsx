@@ -9,14 +9,14 @@
  * 管控系统菜单、按钮操作权限，实现不同账号看不同菜单、操作不同功能，支撑 RBAC 权限体系，做页面访问与操作鉴权拦截
  */
 import React, { Component } from "react";
-import HGButtonPage from "../../components/hg_button/hg_button_page";
-import { HGFormPage as Form, HGFormItem as Item } from "../../components/hg_form/hg_form_page";
-import HGInputPage, { HGInputTextArea } from "../../components/hg_input/hg_input_page";
-import HGInputNumberPage from "../../components/hg_input_number/hg_input_number_page";
-import HGRadioGroup from "../../components/hg_radio/hg_radio_page";
-import HGSwitchPage from "../../components/hg_switch/hg_switch_page";
-import HGTreeSelectPage from "../../components/hg_tree_select/hg_tree_select_page";
-import { hgMessage as message } from "../../components/hg_message/hg_message_page";
+import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
+import HGInputPage, { HGInputTextArea } from "../../../components/hg_input/hg_input_page";
+import HGInputNumberPage from "../../../components/hg_input_number/hg_input_number_page";
+import HGRadioGroup from "../../../components/hg_radio/hg_radio_page";
+import HGSwitchPage from "../../../components/hg_switch/hg_switch_page";
+import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGPermissionMenuVM, {
   INITIAL_FORM_VALUES,
   MOCK_PARENT_TREE,

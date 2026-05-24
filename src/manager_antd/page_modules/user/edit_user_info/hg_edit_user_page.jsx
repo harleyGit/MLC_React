@@ -1,7 +1,7 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
 import { LogOut } from "../../../../logger/hg_logger";
-import HGLoading from "../../../components/hg_loading";
+import HGLoading from "../../../../components/hg_loading";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_edit_user_page.module.css";
 import HGAccountSecurityPage from "./hg_account_security_page";

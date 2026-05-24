@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import HGToast from "./hg_toast";
 /*
 
-  import HGToastManager from "src/manager_antd/components/
+  import HGToastManager from "src/components/
   hg_toast_manager";
 
   HGToastManager.info("保存成功");

@@ -20,13 +20,13 @@
 支持手机号 / 密码 / 飞书登录
  */
 import React, { Component } from "react";
-import HGButtonPage from "../../../components/hg_button/hg_button_page";
-import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
-import HGInputPage, { HGInputPassword } from "../../../components/hg_input/hg_input_page";
-import HGRadioGroup from "../../../components/hg_radio/hg_radio_page";
-import HGSwitchPage from "../../../components/hg_switch/hg_switch_page";
-import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
-import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGButtonPage from "../../../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../../../components/hg_form/hg_form_page";
+import HGInputPage, { HGInputPassword } from "../../../../components/hg_input/hg_input_page";
+import HGRadioGroup from "../../../../components/hg_radio/hg_radio_page";
+import HGSwitchPage from "../../../../components/hg_switch/hg_switch_page";
+import HGTreeSelectPage from "../../../../components/hg_tree_select/hg_tree_select_page";
+import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import styles from "./hg_employee_role.module.css";
 import HGEmployeeRoleVM, {
   GENDER_OPTIONS,

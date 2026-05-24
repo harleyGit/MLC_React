@@ -1,7 +1,7 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
 import { LogOut } from "../../../../logger/hg_logger";
-import HGVerifyCodeInput from "../../../components/hg_verify_code_input";
+import HGVerifyCodeInput from "../../../../components/hg_verify_code_input";
 import styles from "./hg_account_security_page.module.css";
 import HGAccountSecurityPageVM from "./hg_account_security_page_vm";
 

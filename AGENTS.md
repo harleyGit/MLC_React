@@ -19,6 +19,14 @@
 - 不在仓库保留缓存、日志、构建产物、临时文件。
 - 非必要条件下，禁止使用三方组件，若是必须要，必须向开发者询问。
 
+## 命名与目录规范
+
+- **`hg_` 前缀**：所有新建的文件、文件夹、CSS 文件、JSX 文件、类组件必须以 `hg_` 开头。
+- **组件目录**：新建组件统一放在 `src/components/` 下，每个组件单独建文件夹（如 `src/components/hg_button/`），内含 `hg_xxx_page.jsx`、`hg_xxx.module.css`。
+- **图标资源**：组件图标（SVG）放在 `src/manager_antd/components/hg_icon/svg/`。
+- **图片资源**：工程中图片放在 `src/assets/`。
+- 组件需提供与 antd 相近的 props 接口，便于页面迁移。
+
 ## 任务优先级
 
 1. 用户当前要求
@@ -54,7 +62,7 @@
 - 类组件中复杂 JSX 必须拆为 `renderXxx()` 方法；方法需注明职责、输入与关键约束。
 - 组件文件与业务逻辑文件统一使用 `.jsx` 后缀。
 - 优先使用 React 原生 API 实现；仅在确有必要时引入第三方库。
-- **不使用 antd 等第三方 UI 库**，所有 UI 组件均在 `src/manager_antd/components/` 下自建。
+- **不使用 antd 等第三方 UI 库**，所有 UI 组件均在 `src/components/` 下自建。
   - 每个自建组件单独建文件夹（如 `components/hg_button/`），内含 `xxx_page.jsx`、`xxx.module.css`。
   - 组件需提供与 antd 相近的 props 接口，便于页面迁移。
 

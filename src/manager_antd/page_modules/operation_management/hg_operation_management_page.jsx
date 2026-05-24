@@ -7,7 +7,7 @@
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
 import React, { Component } from "react";
-import HGSideMenuPage from "../../components/menu_component/hg_side_menu_page";
+import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
 import HGOperationManagementVM, { OPERATION_MENU_ITEMS } from "./hg_operation_management_vm";
 import HGPermissionMenuPage from "./hg_permission_menu_page";
 import HGEmployeeRolePage from "./employee_role/hg_employee_role_page";

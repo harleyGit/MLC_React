@@ -8,15 +8,15 @@
 
  *   HGUserProfilePage → HGUpdateUserProfilePage 页面传参（class 组件）
 */
-import HGButtonPage from "../../components/hg_button/hg_button_page";
-import HGCardPage from "../../components/hg_card/hg_card_page";
-import { hgMessage as message } from "../../components/hg_message/hg_message_page";
-import HGSpacePage from "../../components/hg_space/hg_space_page";
-import HGTablePage from "../../components/hg_table/hg_table_page";
-import HGInputPage, { HGInputSearch } from "../../components/hg_input/hg_input_page";
+import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import HGCardPage from "../../../components/hg_card/hg_card_page";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGSpacePage from "../../../components/hg_space/hg_space_page";
+import HGTablePage from "../../../components/hg_table/hg_table_page";
+import HGInputPage, { HGInputSearch } from "../../../components/hg_input/hg_input_page";
 import React from "react";
 import { LogOut } from "../../../logger/hg_logger";
-import HGLoading from "../../components/hg_loading";
+import HGLoading from "../../../components/hg_loading";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";

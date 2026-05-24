@@ -15,11 +15,11 @@ import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../../router/hg_router_path";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
 import styles from "./hg_register.module.css";
-import HGButtonPage from "../../components/hg_button/hg_button_page";
-import { HGFormPage as Form, HGFormItem as Item } from "../../components/hg_form/hg_form_page";
-import HGInputPage, { HGInputPassword } from "../../components/hg_input/hg_input_page";
-import { hgMessage as message } from "../../components/hg_message/hg_message_page";
-import HGIconPage from "../../components/hg_icon/hg_icon_page";
+import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
+import HGInputPage, { HGInputPassword } from "../../../components/hg_input/hg_input_page";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 
 /**
  * 用户注册页面

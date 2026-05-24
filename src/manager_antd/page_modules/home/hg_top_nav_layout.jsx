@@ -7,8 +7,8 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 // src/components/HGTopNavLayout.jsx
-import { HGLayoutPage as Layout, HGLayoutHeader as Header, HGLayoutContent as Content, HGLayoutFooter as Footer } from "../../components/hg_layout/hg_layout_page";
-import HGMenuPage from "../../components/hg_menu/hg_menu_page";
+import { HGLayoutPage as Layout, HGLayoutHeader as Header, HGLayoutContent as Content, HGLayoutFooter as Footer } from "../../../components/hg_layout/hg_layout_page";
+import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
 import React, { Component } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { ROUTE_PATH } from "../../router/hg_router_path";
