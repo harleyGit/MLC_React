@@ -20,4 +20,5 @@ export const ROUTE_PATH = {
   REGISTER: "/register", //注册
   TABLE_DEMO: "/demo/table", //HGTable 自定义渲染演示
   BILI_DOUGA: "/bilibili/douga", //B站动画区页面
+  PERSONAL_CENTER: "/personal/center", //个人中心
 };
