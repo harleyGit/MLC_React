@@ -7,7 +7,8 @@
 /* ===== 宽屏模式 ===== */
 .playerContainer.wideMode {
   max-width: 100%;
-  padding: 0 40px;
+  padding: 0;
+  margin: 0;
 }
 
 /* ===== 网页全屏模式 ===== */
@@ -15,19 +16,20 @@
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 9999;
   max-width: 100%;
   margin: 0;
   padding: 0;
   background: #000;
+  overflow: hidden;
 }
 
 .playerContainer.webFullscreenMode .playerMain {
-  display: flex;
   width: 100%;
   height: 100%;
+  display: flex;
 }
 
 .playerContainer.webFullscreenMode .playerWrapper {
@@ -35,6 +37,45 @@
   height: 100%;
   padding-top: 0;
   border-radius: 0;
+}
+
+/* ===== 网页全屏侧边栏 ===== */
+.webFullscreenSidebar {
+  width: 360px;
+  height: 100%;
+  overflow-y: auto;
+  background: #fff;
+  padding: 16px;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.sidebarHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #18191c;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.sidebarCloseBtn {
+  background: none;
+  border: none;
+  color: #9499a0;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: 8px;
+}
+
+.sidebarCloseBtn:hover {
+  color: #18191c;
 }
 
 /* ===== 播放器主体 ===== */
@@ -127,43 +168,11 @@
   height: 20px;
 }
 
-/* ===== 网页全屏侧边栏 ===== */
-.webFullscreenSidebar {
-  width: 360px;
+/* ===== 网页全屏模式视频元素 ===== */
+.playerContainer.webFullscreenMode .videoElement {
+  width: 100%;
   height: 100%;
-  overflow-y: auto;
-  background: #fff;
-  padding: 16px;
-}
-
-.sidebarHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.sidebarHeader h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #18191c;
-  line-height: 1.4;
-  flex: 1;
-}
-
-.sidebarCloseBtn {
-  background: none;
-  border: none;
-  color: #9499a0;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px 8px;
-  margin-left: 8px;
-}
-
-.sidebarCloseBtn:hover {
-  color: #18191c;
+  object-fit: contain;
 }
 
 /* ===== 弹幕层 ===== */

@@ -245,8 +245,13 @@ class HGVideoPlayerPage extends React.Component {
    */
   handleKeyDown = (e) => {
     const { playMode } = this.state;
-    if (e.key === "Escape" && playMode === PLAY_MODE.WEB_FULLSCREEN) {
-      this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN);
+    if (e.key === "Escape") {
+      if (playMode === PLAY_MODE.WEB_FULLSCREEN) {
+        this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN);
+      } else if (playMode === PLAY_MODE.WIDE) {
+        this.setPlayMode(PLAY_MODE.WIDE);
+      }
+      return;
     }
     if (e.key === " " && e.target.tagName !== "INPUT") {
       e.preventDefault();
@@ -539,6 +544,7 @@ class HGVideoPlayerPage extends React.Component {
         this.setState({ playMode: PLAY_MODE.FULLSCREEN });
         break;
       case PLAY_MODE.WEB_FULLSCREEN:
+        document.body.style.overflow = "hidden";
         this.setState({ playMode: PLAY_MODE.WEB_FULLSCREEN });
         break;
       case PLAY_MODE.WIDE:
@@ -547,6 +553,7 @@ class HGVideoPlayerPage extends React.Component {
       case PLAY_MODE.NORMAL:
       default:
         if (playMode === PLAY_MODE.FULLSCREEN) this.exitFullscreen();
+        if (playMode === PLAY_MODE.WEB_FULLSCREEN) document.body.style.overflow = "";
         this.setState({ playMode: PLAY_MODE.NORMAL });
         break;
     }
