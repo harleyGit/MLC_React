@@ -2,9 +2,12 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-25
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-25
+ * @LastEditTime: 2026-05-25 03:00:06
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/sms_template/hg_sms_template_page.jsx
  * @Description: 短信模板管理页面，支持模板的增删改查
+ * 
+ * 配置验证码、通知类短信模板，对接第三方短信平台，统一管理短信文案、签名，实现业务场景一键发短信。
+页面提交字段
  */
 import React from "react";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
