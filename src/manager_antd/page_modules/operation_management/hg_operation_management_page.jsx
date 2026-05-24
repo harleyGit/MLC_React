@@ -9,6 +9,7 @@
 import React, { Component } from "react";
 import HGSideMenuPage from "../../components/menu_component/hg_side_menu_page";
 import HGOperationManagementVM, { OPERATION_MENU_ITEMS } from "./hg_operation_management_vm";
+import HGPermissionMenuPage from "./hg_permission_menu_page";
 import styles from "./hg_operation_management.module.css";
 
 /**
@@ -143,6 +144,7 @@ const PAGE_MAP = {
   role_list: RoleListPage,
   role_create: RoleCreatePage,
   permission_list: PermissionListPage,
+  permission_menu: HGPermissionMenuPage,
   permission_config: PermissionConfigPage,
 };
 

@@ -1,0 +1,40 @@
+/* 菜单权限表单页面样式 */
+.permissionMenuContainer {
+  max-width: 720px;
+}
+
+.formTitle {
+  margin: 0 0 24px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2c4a;
+}
+
+.formItem {
+  margin-bottom: 20px;
+}
+
+.formLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2b3550;
+}
+
+.inputField {
+  width: 100%;
+}
+
+.textAreaField {
+  width: 100%;
+  resize: vertical;
+}
+
+.submitRow {
+  display: flex;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.submitBtn {
+  min-width: 100px;
+}
