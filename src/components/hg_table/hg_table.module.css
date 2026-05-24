@@ -127,6 +127,26 @@
   border-top: 1px solid #f0f0f0;
 }
 
+/* ===== Sticky Section Header（吸顶） ===== */
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== Sticky Section Footer（吸底） ===== */
+.stickyFooter {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
 /* ===== 分页器 ===== */
 .pagination {
   display: flex;

@@ -41,10 +41,11 @@ const ROW_TYPE = {
  * 职责：将多 section 数据展平为 [{type, sectionIndex, rowIndex?, height, ...}]，
  *       同时计算每行的累计偏移量，用于虚拟滚动定位。
  * @param {Array} sections - section 数组。
- * @returns {{ items: Array, totalHeight: number }} 展平后的行列表与总高度。
+ * @returns {{ items: Array, totalHeight: number, sectionMetas: Array }} 展平后的行列表、总高度与 section 元数据。
  */
 function flattenSections(sections) {
   const items = [];
+  const sectionMetas = [];
   let cumulativeTop = 0;
 
   sections.forEach((section, sIdx) => {
@@ -53,14 +54,19 @@ function flattenSections(sections) {
     const showHeader = section.header !== undefined && section.header !== null && section.header !== false;
     const showFooter = section.footer !== undefined && section.footer !== null && section.footer !== false;
 
+    const sectionStart = cumulativeTop;
+    let sectionEnd = cumulativeTop;
+    let headerItem = null;
+
     if (showHeader) {
-      items.push({
+      headerItem = {
         type: ROW_TYPE.SECTION_HEADER,
         sectionIndex: sIdx,
         height: headerHeight,
         top: cumulativeTop,
         data: section,
-      });
+      };
+      items.push(headerItem);
       cumulativeTop += headerHeight;
     }
 
@@ -88,9 +94,21 @@ function flattenSections(sections) {
       });
       cumulativeTop += footerHeight;
     }
+
+    sectionEnd = cumulativeTop;
+    sectionMetas.push({
+      index: sIdx,
+      section,
+      start: sectionStart,
+      end: sectionEnd,
+      headerHeight: showHeader ? headerHeight : 0,
+      footerHeight: showFooter ? footerHeight : 0,
+      hasHeader: showHeader,
+      hasFooter: showFooter,
+    });
   });
 
-  return { items, totalHeight: cumulativeTop };
+  return { items, totalHeight: cumulativeTop, sectionMetas };
 }
 
 /**
@@ -190,6 +208,8 @@ class VirtualRow extends React.PureComponent {
  *   - header/footer 可为 string 或 (section, columns) => ReactNode
  *   - header/footer 可选显示，不传则不渲染
  *   - 多 section 时自动 flatten 为 sectionHeader/cell/footer 混合虚拟列表
+ *   - sectionHeader 吸顶：滚动时当前 section 的 header 固定在顶部
+ *   - sectionFooter 吸底：滚动时当前 section 的 footer 固定在底部
  *
  * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll。
  */
@@ -198,6 +218,7 @@ class HGTablePage extends React.Component {
     super(props);
     this.state = {
       offset: 0,
+      scrollTop: 0,
     };
     this.scrollRef = React.createRef();
   }
@@ -231,21 +252,27 @@ class HGTablePage extends React.Component {
 
   /**
    * 滚动事件处理（sections 模式）。
-   * 职责：计算虚拟行偏移量，触发 React 更新。
+   * 职责：计算虚拟行偏移量与滚动位置，触发 React 更新。
    */
   handleSectionScroll = (e) => {
     const { scrollTop, scrollLeft } = e.target;
     const { sections = [] } = this.props;
     const { items } = flattenSections(sections);
-    const bodyHeight = this.getBodyHeight();
 
     // 同步表头横向滚动
     const headerEl = e.target.previousElementSibling;
     if (headerEl) headerEl.scrollLeft = scrollLeft;
 
     const startIdx = findStartIndex(items, scrollTop - ROW_HEIGHT * BUFFER_ROWS);
+    const stateUpdate = {};
     if (startIdx !== this.state.offset) {
-      this.setState({ offset: startIdx });
+      stateUpdate.offset = startIdx;
+    }
+    if (scrollTop !== this.state.scrollTop) {
+      stateUpdate.scrollTop = scrollTop;
+    }
+    if (Object.keys(stateUpdate).length > 0) {
+      this.setState(stateUpdate);
     }
   };
 
@@ -435,19 +462,21 @@ class HGTablePage extends React.Component {
   };
 
   /**
-   * 渲染 sections 模式表体（虚拟滚动，变高行）。
+   * 渲染 sections 模式表体（虚拟滚动，变高行，支持吸顶/吸底）。
    *
    * 实现：
    *   - flattenSections 将多 section 展平为 [{type, top, height, ...}] 列表；
    *   - 二分查找 findStartIndex 定位可见区域起始行；
    *   - 按 poolSize 渲染复用池，每行 absolute 定位到对应 top；
-   *   - sectionHeader/footer 使用专用组件渲染，cell 使用 VirtualRow。
+   *   - sectionHeader/footer 使用专用组件渲染，cell 使用 VirtualRow；
+   *   - 吸顶：当 section header 滚出顶部时，sticky 固定在可视区域顶部；
+   *   - 吸底：当 section footer 滚出底部时，sticky 固定在可视区域底部。
    */
   renderSectionBody = () => {
     const { sections = [], columns = [] } = this.props;
-    const { offset } = this.state;
+    const { offset, scrollTop } = this.state;
     const bodyHeight = this.getBodyHeight();
-    const { items, totalHeight } = flattenSections(sections);
+    const { items, totalHeight, sectionMetas } = flattenSections(sections);
 
     if (items.length === 0) {
       return (
@@ -463,6 +492,38 @@ class HGTablePage extends React.Component {
       visibleItems.push(items[offset + i]);
     }
 
+    // 计算当前需要 sticky 的 header 和 footer
+    let stickyHeader = null;
+    let stickyFooter = null;
+
+    for (let i = 0; i < sectionMetas.length; i++) {
+      const meta = sectionMetas[i];
+      const sectionBottom = meta.end;
+      const sectionTop = meta.start;
+
+      // 吸顶逻辑：section header 已经滚出顶部，但 section 还在可视区域内
+      if (meta.hasHeader && scrollTop > sectionTop && scrollTop < sectionBottom - meta.footerHeight) {
+        stickyHeader = {
+          section: meta.section,
+          sectionIndex: meta.index,
+          height: meta.headerHeight,
+        };
+      }
+
+      // 吸底逻辑：section footer 已经滚出底部，但 section 还在可视区域内
+      if (meta.hasFooter) {
+        const footerTop = sectionBottom - meta.footerHeight;
+        const viewportBottom = scrollTop + bodyHeight;
+        if (footerTop > scrollTop && footerTop > viewportBottom - meta.footerHeight && sectionTop < viewportBottom) {
+          stickyFooter = {
+            section: meta.section,
+            sectionIndex: meta.index,
+            height: meta.footerHeight,
+          };
+        }
+      }
+    }
+
     return (
       <div
         className={styles.bodyWrap}
@@ -470,8 +531,28 @@ class HGTablePage extends React.Component {
         ref={this.scrollRef}
         onScroll={this.handleSectionScroll}
       >
+        {/* Sticky Section Header */}
+        {stickyHeader && (
+          <div
+            className={styles.stickyHeader}
+            style={{ height: stickyHeader.height }}
+          >
+            <VirtualSectionHeader section={stickyHeader.section} columns={columns} />
+          </div>
+        )}
+
+        {/* Sticky Section Footer */}
+        {stickyFooter && (
+          <div
+            className={styles.stickyFooter}
+            style={{ height: stickyFooter.height }}
+          >
+            <VirtualSectionFooter section={stickyFooter.section} columns={columns} />
+          </div>
+        )}
+
         <div className={styles.virtualSpacer} style={{ height: totalHeight }}>
-          {visibleItems.map((item, poolIdx) => {
+          {visibleItems.map((item) => {
             const key = `${item.type}-${item.sectionIndex}-${item.rowIndex ?? "s"}`;
 
             if (item.type === ROW_TYPE.SECTION_HEADER) {
