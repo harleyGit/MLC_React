@@ -81,6 +81,13 @@
   font-weight: 500;
 }
 
+.requiredMark {
+  color: #ff4d4f;
+  margin-right: 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+
 .control {
   display: flex;
   flex-direction: column;

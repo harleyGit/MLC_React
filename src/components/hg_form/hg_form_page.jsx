@@ -367,16 +367,46 @@ class HGFormItem extends React.Component {
   };
 
   /**
+   * 判断当前字段是否有 required 规则。
+   * @returns {boolean} 是否必填。
+   */
+  isRequired = () => {
+    const { rules } = this.props;
+    if (!rules || !Array.isArray(rules)) {
+      return false;
+    }
+    return rules.some((r) => r.required);
+  };
+
+  /**
+   * 渲染标签，required 字段前显示红色星号。
+   * @returns {React.ReactNode} 标签节点。
+   */
+  renderLabel = () => {
+    const { label } = this.props;
+    if (!label) {
+      return null;
+    }
+    const required = this.isRequired();
+    return (
+      <label className={styles.label}>
+        {required ? <span className={styles.requiredMark}>*</span> : null}
+        {label}
+      </label>
+    );
+  };
+
+  /**
    * 渲染表单项组件。
    * @returns {React.ReactNode} 表单项节点。
    */
   render() {
-    const { label, extra, style } = this.props;
+    const { extra, style } = this.props;
     const error = this.getError();
 
     return (
       <div className={styles.formItem} style={style}>
-        {label ? <label className={styles.label}>{label}</label> : null}
+        {this.renderLabel()}
         <div className={styles.control}>{this.renderControl()}</div>
         {error ? <div className={styles.errorMsg}>{error}</div> : null}
         {extra && !error ? <div className={styles.extra}>{extra}</div> : null}
