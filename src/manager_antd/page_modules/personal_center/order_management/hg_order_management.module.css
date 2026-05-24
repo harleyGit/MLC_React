@@ -487,6 +487,37 @@
   color: #00a1d6;
 }
 
+/* ===== 订单详情 ===== */
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailItemFull {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailLabel {
+  font-size: 13px;
+  color: #9499a0;
+}
+
+.detailValue {
+  font-size: 14px;
+  color: #18191c;
+  word-break: break-all;
+}
+
 /* ===== 加载状态 ===== */
 .loadingOverlay {
   position: fixed;

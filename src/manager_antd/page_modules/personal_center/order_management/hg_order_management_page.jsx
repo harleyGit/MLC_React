@@ -50,6 +50,8 @@ class HGOrderManagementPage extends React.Component {
         reason: "",
         refund_type: "full",
       },
+      showDetail: false,
+      detailOrder: null,
     };
   }
 
@@ -190,6 +192,21 @@ class HGOrderManagementPage extends React.Component {
    */
   handlePageChange = (page) => {
     this.setState({ pagination: { ...this.state.pagination, current: page } });
+  };
+
+  /**
+   * 打开订单详情。
+   * @param {Object} order 订单数据。
+   */
+  openDetail = (order) => {
+    this.setState({ showDetail: true, detailOrder: order });
+  };
+
+  /**
+   * 关闭订单详情。
+   */
+  closeDetail = () => {
+    this.setState({ showDetail: false, detailOrder: null });
   };
 
   /**
@@ -377,7 +394,11 @@ class HGOrderManagementPage extends React.Component {
             退款
           </button>
         )}
-        <button type="button" className={`${styles.actionBtn} ${styles.actionBtnDefault}`}>
+        <button
+          type="button"
+          className={`${styles.actionBtn} ${styles.actionBtnDefault}`}
+          onClick={() => this.openDetail(order)}
+        >
           详情
         </button>
       </div>
@@ -548,6 +569,92 @@ class HGOrderManagementPage extends React.Component {
     );
   };
 
+  /**
+   * 渲染订单详情弹窗。
+   * @returns {React.ReactNode} 详情弹窗节点。
+   */
+  renderDetailModal = () => {
+    const { showDetail, detailOrder } = this.state;
+    if (!showDetail || !detailOrder) return null;
+
+    return (
+      <div className={styles.modalOverlay} onClick={this.closeDetail}>
+        <div className={styles.modalContent} style={{ width: "600px" }} onClick={(e) => e.stopPropagation()}>
+          <h3 className={styles.modalTitle}>订单详情</h3>
+          <div className={styles.detailGrid}>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>订单编号</span>
+              <span className={styles.detailValue}>{detailOrder.order_no}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>下单用户</span>
+              <span className={styles.detailValue}>{HGOrderManagementVM.getUserName(detailOrder.user_id)}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>订单状态</span>
+              <span className={styles.detailValue}>{this.renderStatusTag(detailOrder.status)}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>下单来源</span>
+              <span className={styles.detailValue}>{this.renderSourceTag(detailOrder.order_source)}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>原价</span>
+              <span className={styles.detailValue}>{HGOrderManagementVM.formatAmount(detailOrder.original_price)}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>实付金额</span>
+              <span className={`${styles.detailValue} ${styles.amountHighlight}`}>{HGOrderManagementVM.formatAmount(detailOrder.paid_price)}</span>
+            </div>
+            {detailOrder.refund_price > 0 && (
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>退款金额</span>
+                <span className={styles.detailValue}>{HGOrderManagementVM.formatAmount(detailOrder.refund_price)}</span>
+              </div>
+            )}
+            {detailOrder.trade_no && (
+              <div className={styles.detailItem}>
+                <span className={styles.detailLabel}>第三方交易号</span>
+                <span className={styles.detailValue}>{detailOrder.trade_no}</span>
+              </div>
+            )}
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>下单时间</span>
+              <span className={styles.detailValue}>{HGOrderManagementVM.formatDate(detailOrder.created_at)}</span>
+            </div>
+            <div className={styles.detailItem}>
+              <span className={styles.detailLabel}>更新时间</span>
+              <span className={styles.detailValue}>{HGOrderManagementVM.formatDate(detailOrder.updated_at)}</span>
+            </div>
+            {detailOrder.user_remark && (
+              <div className={styles.detailItemFull}>
+                <span className={styles.detailLabel}>用户备注</span>
+                <span className={styles.detailValue}>{detailOrder.user_remark}</span>
+              </div>
+            )}
+            {detailOrder.cancel_reason && (
+              <div className={styles.detailItemFull}>
+                <span className={styles.detailLabel}>取消原因</span>
+                <span className={styles.detailValue}>{detailOrder.cancel_reason}</span>
+              </div>
+            )}
+            {detailOrder.refund_reason && (
+              <div className={styles.detailItemFull}>
+                <span className={styles.detailLabel}>退款原因</span>
+                <span className={styles.detailValue}>{detailOrder.refund_reason}</span>
+              </div>
+            )}
+          </div>
+          <div className={styles.modalActions}>
+            <button type="button" className={`${styles.btn} ${styles.btnDefault}`} onClick={this.closeDetail}>
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   render() {
     const { loading } = this.state;
 
@@ -562,6 +669,7 @@ class HGOrderManagementPage extends React.Component {
         {this.renderFilters()}
         {this.renderTable()}
         {this.renderModal()}
+        {this.renderDetailModal()}
       </div>
     );
   }

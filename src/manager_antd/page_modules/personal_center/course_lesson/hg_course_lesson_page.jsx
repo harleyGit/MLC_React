@@ -5,6 +5,8 @@
  * @LastEditTime: 2026-05-25
  * @FilePath: /MLC_React/src/manager_antd/page_modules/personal_center/course_lesson/hg_course_lesson_page.jsx
  * @Description: 课时管理页面，支持课时的增删改查
+ * 
+ * 存储最小教学单元课时，关联章节目录，存放视频、作业、详情内容，支持试听权限配置，供学员在线学习。
  */
 import React from "react";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
