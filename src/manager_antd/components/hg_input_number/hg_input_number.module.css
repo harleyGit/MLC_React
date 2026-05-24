@@ -1,0 +1,87 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: #fff;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.wrapper:hover:not(.disabled) {
+  border-color: #4096ff;
+}
+
+.focused {
+  border-color: #4096ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+}
+
+.disabled {
+  background: #f5f5f5;
+  color: rgba(0, 0, 0, 0.25);
+  cursor: not-allowed;
+}
+
+.input {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 4px 11px;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.88);
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  color: rgba(0, 0, 0, 0.25);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 100%;
+  border-left: 1px solid #d9d9d9;
+  flex-shrink: 0;
+}
+
+.stepBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 8px;
+  color: rgba(0, 0, 0, 0.45);
+  transition: color 0.2s;
+  padding: 0;
+  outline: none;
+}
+
+.stepBtn:hover:not(:disabled) {
+  color: #1677ff;
+}
+
+.stepBtn:disabled {
+  color: rgba(0, 0, 0, 0.15);
+  cursor: not-allowed;
+}
+
+.stepBtn:first-child {
+  border-bottom: 1px solid #d9d9d9;
+}

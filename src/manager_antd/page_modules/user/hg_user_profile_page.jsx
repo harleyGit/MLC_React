@@ -8,15 +8,19 @@
 
  *   HGUserProfilePage → HGUpdateUserProfilePage 页面传参（class 组件）
 */
-import { Button, Card, message, Space, Table } from "antd";
-import Input from "antd/es/input/Input";
+import HGButtonPage from "../../components/hg_button/hg_button_page";
+import HGCardPage from "../../components/hg_card/hg_card_page";
+import { hgMessage as message } from "../../components/hg_message/hg_message_page";
+import HGSpacePage from "../../components/hg_space/hg_space_page";
+import HGTablePage from "../../components/hg_table/hg_table_page";
+import HGInputPage, { HGInputSearch } from "../../components/hg_input/hg_input_page";
 import React from "react";
 import { LogOut } from "../../../logger/hg_logger";
 import HGLoading from "../../components/hg_loading";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";
-const { Search } = Input;
+
 
 class HGUserProfilePage extends React.Component {
   constructor(props) {
@@ -143,26 +147,26 @@ class HGUserProfilePage extends React.Component {
           text="正在加载用户列表..."
           visible={loading}
         />
-        <Card
+        <HGCardPage
           title="用户列表"
           extra={
-            <Space>
-              <Search
+            <HGSpacePage>
+              <HGInputSearch
                 placeholder="Search by name/email/phone"
                 allowClear
                 onSearch={this.handleSearch}
                 style={{ width: 250 }}
               />
-              <Button
+              <HGButtonPage
                 type="primary"
                 onClick={() => message.info("Add user clicked")}
               >
                 Add User
-              </Button>
-            </Space>
+              </HGButtonPage>
+            </HGSpacePage>
           }
         >
-          <Table
+          <HGTablePage
             rowKey={(record) => record.userID}
             columns={this.userTableColumns()}
             dataSource={data}
@@ -174,7 +178,7 @@ class HGUserProfilePage extends React.Component {
             }}
             onChange={this.handleTableChange}
           />
-        </Card>
+        </HGCardPage>
       </div>
     );
   }

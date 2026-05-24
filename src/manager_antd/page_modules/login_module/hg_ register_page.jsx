@@ -6,13 +6,6 @@
  * @FilePath: /MLC_React/src/manager_antd/login_module/hg_ register_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import {
-  LockOutlined,
-  MailOutlined,
-  MobileOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
-import { Button, Form, Input, message } from "antd";
 import React, { Component } from "react";
 // import { handleError } from "../../api/HttpManagerV1";
 import { handleError } from "../../../api/HttpManagerV1";
@@ -22,8 +15,11 @@ import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../../router/hg_router_path";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
 import styles from "./hg_register.module.css";
-
-const { Item } = Form;
+import HGButtonPage from "../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../components/hg_form/hg_form_page";
+import HGInputPage, { HGInputPassword } from "../../components/hg_input/hg_input_page";
+import { hgMessage as message } from "../../components/hg_message/hg_message_page";
+import HGIconPage from "../../components/hg_icon/hg_icon_page";
 
 class HGRegisterPage extends Component {
   formRef = React.createRef();
@@ -215,7 +211,7 @@ class HGRegisterPage extends Component {
               name="username"
               rules={[{ required: true, message: "请输入用户名" }]}
             >
-              <Input prefix={<UserOutlined />} placeholder="用户名" />
+              <HGInputPage prefix={<HGIconPage type="user" />} placeholder="用户名" />
             </Item>
 
             {isEmail ? (
@@ -226,8 +222,8 @@ class HGRegisterPage extends Component {
                   { type: "email", message: "邮箱格式不正确" }, // ⚠️ 注意：type 应该是 "email"，不是 "phone"
                 ]}
               >
-                <Input
-                  prefix={<MailOutlined />}
+                <HGInputPage
+                  prefix={<HGIconPage type="mail" />}
                   placeholder="邮箱"
                   onChange={this.inputChange}
                 />
@@ -243,8 +239,8 @@ class HGRegisterPage extends Component {
                   },
                 ]}
               >
-                <Input
-                  prefix={<MobileOutlined />} // 建议换图标
+                <HGInputPage
+                  prefix={<HGIconPage type="mobile" />} // 建议换图标
                   placeholder="手机号"
                   onChange={this.inputChange}
                 />
@@ -256,38 +252,38 @@ class HGRegisterPage extends Component {
                 rules={[{ required: true, message: "请输入验证码" }]}
                 style={{ flex: 1, marginBottom: 0 }} // ⭐ 核心 2
               >
-                <Input placeholder="验证码" />
+                <HGInputPage placeholder="验证码" />
               </Item>
-              <Button
+              <HGButtonPage
                 type="primary"
                 onClick={this.handleSendCode}
                 disabled={countdown > 0}
                 loading={codeLoading}
               >
                 {countdown > 0 ? `${countdown}s` : "发送验证码"}
-              </Button>
+              </HGButtonPage>
             </div>
             <Item
               name="password"
               rules={[{ required: true, message: "请输入密码" }]}
             >
-              <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+              <HGInputPassword prefix={<HGIconPage type="lock" />} placeholder="密码" />
             </Item>
 
             <Item
               name="confirmPassword"
               rules={[{ required: true, message: "请确认密码" }]}
             >
-              <Input.Password
-                prefix={<LockOutlined />}
+              <HGInputPassword
+                prefix={<HGIconPage type="lock" />}
                 placeholder="确认密码"
               />
             </Item>
 
             <Item>
-              <Button type="primary" htmlType="submit" loading={loading} block>
+              <HGButtonPage type="primary" htmlType="submit" loading={loading} block>
                 注册
-              </Button>
+              </HGButtonPage>
             </Item>
           </Form>
         </div>

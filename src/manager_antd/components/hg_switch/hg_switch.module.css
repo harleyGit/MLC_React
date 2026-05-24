@@ -1,0 +1,67 @@
+.switchRoot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  outline: none;
+  box-sizing: content-box;
+  transition: background 0.22s ease;
+}
+
+.switchChecked {
+  background: #1a73ff;
+}
+
+.switchUnchecked {
+  background: #d8ddeb;
+}
+
+.switchDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.handle {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  transition: transform 0.22s cubic-bezier(0.35, 0, 0.25, 1);
+  pointer-events: none;
+}
+
+.switchChecked .handle {
+  transform: translateX(20px);
+}
+
+.textOn,
+.textOff {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  transition: margin 0.22s ease;
+}
+
+.textOn {
+  color: #fff;
+  margin-left: 7px;
+  margin-right: auto;
+}
+
+.textOff {
+  color: #8a98b5;
+  margin-left: auto;
+  margin-right: 7px;
+}

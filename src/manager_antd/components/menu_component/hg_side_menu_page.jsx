@@ -6,7 +6,7 @@
  * @FilePath: /MLC_React/src/manager_antd/components/menu_component/hg_side_menu_page.jsx
  * @Description: 侧边栏多级菜单组件，支持无限层级展开/折叠（antd v6 items 模式）
  */
-import { Menu } from "antd";
+import HGMenuPage from "../hg_menu/hg_menu_page";
 import React, { Component } from "react";
 import HGSideMenuVM from "./hg_side_menu_vm";
 import styles from "./hg_side_menu.module.css";
@@ -75,7 +75,7 @@ class HGSideMenuPage extends Component {
 
     return (
       <div className={styles.sideMenuWrap}>
-        <Menu
+        <HGMenuPage
           mode="inline"
           selectedKeys={selectedKey ? [selectedKey] : []}
           openKeys={openKeys}

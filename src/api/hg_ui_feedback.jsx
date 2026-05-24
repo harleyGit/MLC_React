@@ -6,7 +6,7 @@
  * @FilePath: /MLC_React/src/api/hg_ui_feedback.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import { message } from 'antd';
+import { hgMessage as message } from '../manager_antd/components/hg_message/hg_message_page';
 import HGUserProfileStorage from '../manager_antd/storage/hg_user_profile_storage';
 
 /**

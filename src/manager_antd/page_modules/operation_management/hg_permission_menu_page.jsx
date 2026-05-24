@@ -8,25 +8,21 @@
  * 
  * 管控系统菜单、按钮操作权限，实现不同账号看不同菜单、操作不同功能，支撑 RBAC 权限体系，做页面访问与操作鉴权拦截
  */
-import {
-  Button,
-  Form,
-  Input,
-  InputNumber,
-  Radio,
-  Switch,
-  TreeSelect,
-  message,
-} from "antd";
 import React, { Component } from "react";
+import HGButtonPage from "../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../components/hg_form/hg_form_page";
+import HGInputPage, { HGInputTextArea } from "../../components/hg_input/hg_input_page";
+import HGInputNumberPage from "../../components/hg_input_number/hg_input_number_page";
+import HGRadioGroup from "../../components/hg_radio/hg_radio_page";
+import HGSwitchPage from "../../components/hg_switch/hg_switch_page";
+import HGTreeSelectPage from "../../components/hg_tree_select/hg_tree_select_page";
+import { hgMessage as message } from "../../components/hg_message/hg_message_page";
 import HGPermissionMenuVM, {
   INITIAL_FORM_VALUES,
   MOCK_PARENT_TREE,
   PERMISSION_TYPE_OPTIONS,
 } from "./hg_permission_menu_vm";
 import styles from "./hg_permission_menu.module.css";
-
-const { TextArea } = Input;
 
 /**
  * 菜单权限表单页面
@@ -90,14 +86,14 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} Input 输入框
    */
   renderCodeField = () => (
-    <Form.Item
+    <Item
       label="权限编码"
       name="code"
       rules={HGPermissionMenuVM.getFormRules().code}
       className={styles.formItem}
     >
-      <Input placeholder="请输入权限编码，如：system:user:list" className={styles.inputField} />
-    </Form.Item>
+      <HGInputPage placeholder="请输入权限编码，如：system:user:list" className={styles.inputField} />
+    </Item>
   );
 
   /**
@@ -105,14 +101,14 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} Radio 单选框
    */
   renderTypeField = () => (
-    <Form.Item
+    <Item
       label="权限类型"
       name="type"
       rules={HGPermissionMenuVM.getFormRules().type}
       className={styles.formItem}
     >
-      <Radio.Group options={PERMISSION_TYPE_OPTIONS} />
-    </Form.Item>
+      <HGRadioGroup options={PERMISSION_TYPE_OPTIONS} />
+    </Item>
   );
 
   /**
@@ -120,14 +116,14 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} Input 输入框
    */
   renderNameField = () => (
-    <Form.Item
+    <Item
       label="权限名称"
       name="name"
       rules={HGPermissionMenuVM.getFormRules().name}
       className={styles.formItem}
     >
-      <Input placeholder="请输入权限名称" className={styles.inputField} />
-    </Form.Item>
+      <HGInputPage placeholder="请输入权限名称" className={styles.inputField} />
+    </Item>
   );
 
   /**
@@ -135,14 +131,14 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} Input 输入框
    */
   renderPagePathField = () => (
-    <Form.Item
+    <Item
       label="页面路径"
       name="page_path"
       rules={HGPermissionMenuVM.getFormRules().page_path}
       className={styles.formItem}
     >
-      <Input placeholder="请输入页面路由路径，如：/system/user" className={styles.inputField} />
-    </Form.Item>
+      <HGInputPage placeholder="请输入页面路由路径，如：/system/user" className={styles.inputField} />
+    </Item>
   );
 
   /**
@@ -150,19 +146,19 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} TreeSelect 树形选择器
    */
   renderParentField = () => (
-    <Form.Item
+    <Item
       label="上级菜单"
       name="parent_id"
       className={styles.formItem}
     >
-      <TreeSelect
+      <HGTreeSelectPage
         treeData={MOCK_PARENT_TREE}
         placeholder="请选择上级菜单（可为空）"
         allowClear
         treeDefaultExpandAll
         className={styles.inputField}
       />
-    </Form.Item>
+    </Item>
   );
 
   /**
@@ -170,14 +166,14 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} Switch 开关
    */
   renderStatusField = () => (
-    <Form.Item
+    <Item
       label="启用状态"
       name="status"
       valuePropName="checked"
       className={styles.formItem}
     >
-      <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-    </Form.Item>
+      <HGSwitchPage checkedChildren="启用" unCheckedChildren="禁用" />
+    </Item>
   );
 
   /**
@@ -185,18 +181,18 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} InputNumber 数字输入框
    */
   renderSortField = () => (
-    <Form.Item
+    <Item
       label="排序值"
       name="sort"
       rules={HGPermissionMenuVM.getFormRules().sort}
       className={styles.formItem}
     >
-      <InputNumber
+      <HGInputNumberPage
         min={0}
         placeholder="数值越小排序越靠前"
         style={{ width: "100%" }}
       />
-    </Form.Item>
+    </Item>
   );
 
   /**
@@ -204,18 +200,18 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} TextArea 文本域
    */
   renderDescField = () => (
-    <Form.Item
+    <Item
       label="描述备注"
       name="desc"
       rules={HGPermissionMenuVM.getFormRules().desc}
       className={styles.formItem}
     >
-      <TextArea
+      <HGInputTextArea
         placeholder="请输入描述备注"
         rows={4}
         className={styles.textAreaField}
       />
-    </Form.Item>
+    </Item>
   );
 
   /**
@@ -226,17 +222,17 @@ class HGPermissionMenuPage extends Component {
     const { submitting } = this.state;
     return (
       <div className={styles.submitRow}>
-        <Button
+        <HGButtonPage
           type="primary"
           htmlType="submit"
           loading={submitting}
           className={styles.submitBtn}
         >
           提交
-        </Button>
-        <Button onClick={this.handleReset} className={styles.submitBtn}>
+        </HGButtonPage>
+        <HGButtonPage onClick={this.handleReset} className={styles.submitBtn}>
           重置
-        </Button>
+        </HGButtonPage>
       </div>
     );
   };

@@ -1,0 +1,67 @@
+.messageContainer {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.messageItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+  animation: messageFadeIn 0.3s ease-out;
+  background: #fff;
+}
+
+.typeSuccess {
+  border: 1px solid #b7eb8f;
+  color: #52c41a;
+}
+
+.typeError {
+  border: 1px solid #ffa39e;
+  color: #ff4d4f;
+}
+
+.typeWarning {
+  border: 1px solid #ffe58f;
+  color: #faad14;
+}
+
+.typeInfo {
+  border: 1px solid #91d5ff;
+  color: #1890ff;
+}
+
+.messageIcon {
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.messageContent {
+  color: #333;
+}
+
+@keyframes messageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

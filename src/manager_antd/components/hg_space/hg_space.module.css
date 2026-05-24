@@ -1,0 +1,15 @@
+.space {
+  display: flex;
+  box-sizing: border-box;
+}
+
+.horizontal {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.vertical {
+  flex-direction: column;
+  align-items: flex-start;
+}

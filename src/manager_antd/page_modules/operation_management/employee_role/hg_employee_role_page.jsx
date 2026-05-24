@@ -19,16 +19,20 @@
 绑定角色（权限）
 支持手机号 / 密码 / 飞书登录
  */
-import { Button, Form, Input, Radio, Switch, TreeSelect, message } from "antd";
 import React, { Component } from "react";
+import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
+import HGInputPage, { HGInputPassword } from "../../../components/hg_input/hg_input_page";
+import HGRadioGroup from "../../../components/hg_radio/hg_radio_page";
+import HGSwitchPage from "../../../components/hg_switch/hg_switch_page";
+import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import styles from "./hg_employee_role.module.css";
 import HGEmployeeRoleVM, {
   GENDER_OPTIONS,
   INITIAL_FORM_VALUES,
   MOCK_ROLE_TREE,
 } from "./hg_employee_role_vm";
-
-const { Password } = Input;
 
 /**
  * 员工角色管理表单页面
@@ -92,14 +96,14 @@ class HGEmployeeRolePage extends Component {
    * @returns {React.ReactNode} Input 输入框
    */
   renderNameField = () => (
-    <Form.Item
+    <Item
       label="姓名"
       name="name"
       rules={HGEmployeeRoleVM.getFormRules().name}
       className={styles.formItem}
     >
-      <Input placeholder="请输入姓名" className={styles.inputField} />
-    </Form.Item>
+      <HGInputPage placeholder="请输入姓名" className={styles.inputField} />
+    </Item>
   );
 
   /**
@@ -107,14 +111,14 @@ class HGEmployeeRolePage extends Component {
    * @returns {React.ReactNode} Input 输入框
    */
   renderNicknameField = () => (
-    <Form.Item
+    <Item
       label="昵称"
       name="nickname"
       rules={HGEmployeeRoleVM.getFormRules().nickname}
       className={styles.formItem}
     >
-      <Input placeholder="请输入昵称（选填）" className={styles.inputField} />
-    </Form.Item>
+      <HGInputPage placeholder="请输入昵称（选填）" className={styles.inputField} />
+    </Item>
   );
 
   /**
@@ -122,18 +126,18 @@ class HGEmployeeRolePage extends Component {
    * @returns {React.ReactNode} Input 输入框
    */
   renderPhoneField = () => (
-    <Form.Item
+    <Item
       label="手机号"
       name="phone"
       rules={HGEmployeeRoleVM.getFormRules().phone}
       className={styles.formItem}
     >
-      <Input
+      <HGInputPage
         placeholder="请输入手机号"
         maxLength={11}
         className={styles.inputField}
       />
-    </Form.Item>
+    </Item>
   );
 
   /**
@@ -143,18 +147,18 @@ class HGEmployeeRolePage extends Component {
   renderPasswordField = () => {
     const { isEdit } = this.props;
     return (
-      <Form.Item
+      <Item
         label="密码"
         name="password"
         rules={HGEmployeeRoleVM.getFormRules(isEdit).password}
         className={styles.formItem}
         extra={isEdit ? "编辑时可不填，留空表示不修改密码" : ""}
       >
-        <Password
+        <HGInputPassword
           placeholder={isEdit ? "留空则不修改密码" : "请输入密码"}
           className={styles.inputField}
         />
-      </Form.Item>
+      </Item>
     );
   };
 
@@ -163,14 +167,14 @@ class HGEmployeeRolePage extends Component {
    * @returns {React.ReactNode} Radio 单选框
    */
   renderGenderField = () => (
-    <Form.Item
+    <Item
       label="性别"
       name="gender"
       rules={HGEmployeeRoleVM.getFormRules().gender}
       className={styles.formItem}
     >
-      <Radio.Group options={GENDER_OPTIONS} />
-    </Form.Item>
+      <HGRadioGroup options={GENDER_OPTIONS} />
+    </Item>
   );
 
   /**
@@ -178,14 +182,14 @@ class HGEmployeeRolePage extends Component {
    * @returns {React.ReactNode} Switch 开关
    */
   renderStatusField = () => (
-    <Form.Item
+    <Item
       label="账号状态"
       name="status"
       valuePropName="checked"
       className={styles.formItem}
     >
-      <Switch checkedChildren="启用" unCheckedChildren="禁用" />
-    </Form.Item>
+      <HGSwitchPage checkedChildren="启用" unCheckedChildren="禁用" />
+    </Item>
   );
 
   /**
@@ -193,22 +197,22 @@ class HGEmployeeRolePage extends Component {
    * @returns {React.ReactNode} TreeSelect 树形选择器（多选）
    */
   renderRolesField = () => (
-    <Form.Item
+    <Item
       label="绑定角色"
       name="roles"
       rules={HGEmployeeRoleVM.getFormRules().roles}
       className={styles.formItem}
     >
-      <TreeSelect
+      <HGTreeSelectPage
         treeData={MOCK_ROLE_TREE}
         placeholder="请选择角色（可多选）"
         allowClear
         treeCheckable
         treeDefaultExpandAll
-        showCheckedStrategy={TreeSelect.SHOW_CHILD}
+        showCheckedStrategy="SHOW_CHILD"
         className={styles.inputField}
       />
-    </Form.Item>
+    </Item>
   );
 
   /**
@@ -219,17 +223,17 @@ class HGEmployeeRolePage extends Component {
     const { submitting } = this.state;
     return (
       <div className={styles.submitRow}>
-        <Button
+        <HGButtonPage
           type="primary"
           htmlType="submit"
           loading={submitting}
           className={styles.submitBtn}
         >
           提交
-        </Button>
-        <Button onClick={this.handleReset} className={styles.submitBtn}>
+        </HGButtonPage>
+        <HGButtonPage onClick={this.handleReset} className={styles.submitBtn}>
           重置
-        </Button>
+        </HGButtonPage>
       </div>
     );
   };

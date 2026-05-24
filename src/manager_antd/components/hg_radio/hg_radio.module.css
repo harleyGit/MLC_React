@@ -1,0 +1,126 @@
+.radioGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.radioItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: #1e2a46;
+  transition: color 0.18s ease;
+}
+
+.radioItem:hover {
+  color: #1a73ff;
+}
+
+.radioInput {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radioDot {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d8ddeb;
+  border-radius: 50%;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.radioItem:hover .radioDot {
+  border-color: #1a73ff;
+}
+
+.radioItemChecked .radioDot {
+  border-color: #1a73ff;
+  background: #1a73ff;
+}
+
+.radioItemChecked .radioDot::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%);
+}
+
+.radioLabel {
+  line-height: 1;
+}
+
+.radioItemDisabled {
+  color: #b0b8c9;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.radioItemDisabled .radioDot {
+  border-color: #d8ddeb;
+  background: #f0f2f7;
+}
+
+/* Button style radio */
+.btnGroup {
+  display: inline-flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #d8ddeb;
+}
+
+.btnItem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 16px;
+  border-right: 1px solid #d8ddeb;
+  background: #fff;
+  color: #1e2a46;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.btnItem:last-child {
+  border-right: none;
+}
+
+.btnItem:hover {
+  background: #eef5ff;
+  color: #1a73ff;
+}
+
+.btnItemChecked {
+  background: #1a73ff;
+  color: #fff;
+}
+
+.btnItemChecked:hover {
+  background: #1560d9;
+  color: #fff;
+}
+
+.btnItemDisabled {
+  color: #b0b8c9;
+  background: #f5f7fb;
+  cursor: not-allowed;
+  pointer-events: none;
+}

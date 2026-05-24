@@ -1,0 +1,148 @@
+.menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  font-size: 14px;
+  line-height: 46px;
+}
+
+/* ===== Horizontal 模式 ===== */
+.horizontal {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.horizontal .subMenu {
+  position: relative;
+}
+
+.horizontal .subMenuTitle {
+  cursor: pointer;
+  padding: 0 20px;
+  transition: color 0.2s;
+}
+
+.horizontal .subMenu:hover .popupMenu {
+  display: block;
+}
+
+.horizontal .popupMenu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 160px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 4px 0;
+  list-style: none;
+  margin: 0;
+  z-index: 1050;
+}
+
+.horizontal .popupMenu .menuItem {
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+/* ===== Inline 模式 ===== */
+.inline {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #f0f0f0;
+}
+
+.inline .subMenuList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #fafafa;
+}
+
+.inline .subMenuTitle {
+  cursor: pointer;
+  padding: 0 16px 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+/* ===== 通用菜单项 ===== */
+.menuItem {
+  cursor: pointer;
+  padding: 0 20px;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s;
+}
+
+.menuItem:hover {
+  color: #1890ff;
+}
+
+.menuItemSelected {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* ===== 展开箭头 ===== */
+.arrow {
+  font-size: 10px;
+  transition: transform 0.2s;
+  margin-left: 8px;
+}
+
+.arrowOpen {
+  transform: rotate(0deg);
+}
+
+/* ===== Dark 主题 ===== */
+.dark {
+  background: #001529;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark .menuItem:hover {
+  color: #fff;
+}
+
+.dark .menuItemSelected {
+  color: #fff;
+  background: #1890ff;
+}
+
+.dark .subMenuTitle:hover {
+  color: #fff;
+}
+
+.darkSub {
+  background: #000c17;
+}
+
+.dark.horizontal .popupMenu {
+  background: #001529;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.dark.horizontal .popupMenu .menuItem:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ===== Light 主题 ===== */
+.light {
+  background: #fff;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.light .subMenuTitle:hover {
+  color: #1890ff;
+}
+
+/* ===== Inline subMenu 展开状态 ===== */
+.subMenuOpen > span:first-child {
+  color: #1890ff;
+}

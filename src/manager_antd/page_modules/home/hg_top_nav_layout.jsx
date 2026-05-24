@@ -7,15 +7,14 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 // src/components/HGTopNavLayout.jsx
-import { Layout, Menu } from "antd";
+import { HGLayoutPage as Layout, HGLayoutHeader as Header, HGLayoutContent as Content, HGLayoutFooter as Footer } from "../../components/hg_layout/hg_layout_page";
+import HGMenuPage from "../../components/hg_menu/hg_menu_page";
 import React, { Component } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { ROUTE_PATH } from "../../router/hg_router_path";
 import { logout } from "../../auth/hg_auth";
 import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
 import styles from "./hg_top_nav_layout.module.css";
-
-const { Header, Content, Footer } = Layout;
 
 class HGTopNavLayout extends Component {
   /**
@@ -203,39 +202,20 @@ class HGTopNavLayout extends Component {
       <Layout className={styles.layout}>
         <Header className={styles.header}>
           <div className={styles.logo} />
-          <Menu
+          <HGMenuPage
             theme="dark"
             mode="horizontal"
             selectedKeys={[current]}
             onClick={this.handleClick}
             className={styles.topMenu}
-          >
-            <Menu.Item key="home">
-              <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>
-                首页
-              </Link>
-            </Menu.Item>
-            <Menu.Item key="products">
-              <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>
-                产品
-              </Link>
-            </Menu.Item>
-            <Menu.Item key="about">
-              <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>
-                我们
-              </Link>
-            </Menu.Item>
-            <Menu.Item key="operation">
-              <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>
-                运维管理
-              </Link>
-            </Menu.Item>
-            <Menu.Item key="profile">
-              <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>
-                我的信息
-              </Link>
-            </Menu.Item>
-          </Menu>
+            items={[
+              { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>首页</Link> },
+              { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>产品</Link> },
+              { key: "about", label: <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>我们</Link> },
+              { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
+              { key: "profile", label: <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>我的信息</Link> },
+            ]}
+          />
           <div className={styles.avatarWrap} ref={this.avatarMenuRef}>
             <button
               type="button"

@@ -8,8 +8,12 @@
  * 
  * 存储角色与权限的绑定关系，实现一个角色批量分配多个菜单、按钮权限，是权限分配核心关联表，控制角色可访问的功能范围
  */
-import { Button, Form, Select, TreeSelect, message } from "antd";
 import React, { Component } from "react";
+import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
+import HGSelectPage from "../../../components/hg_select/hg_select_page";
+import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGRolePermissionVM, {
   INITIAL_FORM_VALUES,
   MOCK_PERMISSION_TREE,
@@ -81,20 +85,20 @@ class HGRolePermissionPage extends Component {
    * @returns {React.ReactNode} Select 下拉选择器
    */
   renderRoleField = () => (
-    <Form.Item
+    <Item
       label="选择角色"
       name="role_id"
       rules={HGRolePermissionVM.getFormRules().role_id}
       className={styles.formItem}
     >
-      <Select
+      <HGSelectPage
         placeholder="请选择角色"
         options={MOCK_ROLE_LIST}
         allowClear
         className={styles.inputField}
         onChange={this.handleRoleChange}
       />
-    </Form.Item>
+    </Item>
   );
 
   /**
@@ -102,23 +106,23 @@ class HGRolePermissionPage extends Component {
    * @returns {React.ReactNode} TreeSelect 树形多选组件
    */
   renderPermissionField = () => (
-    <Form.Item
+    <Item
       label="权限勾选"
       name="permission_ids"
       rules={HGRolePermissionVM.getFormRules().permission_ids}
       className={styles.formItem}
     >
-      <TreeSelect
+      <HGTreeSelectPage
         treeData={MOCK_PERMISSION_TREE}
         placeholder="请勾选权限（可多选）"
         allowClear
         treeCheckable
         treeDefaultExpandAll
-        showCheckedStrategy={TreeSelect.SHOW_CHILD}
+        showCheckedStrategy="SHOW_CHILD"
         className={styles.inputField}
         dropdownClassName={styles.permissionTreeBox}
       />
-    </Form.Item>
+    </Item>
   );
 
   /**
@@ -129,17 +133,17 @@ class HGRolePermissionPage extends Component {
     const { submitting } = this.state;
     return (
       <div className={styles.submitRow}>
-        <Button
+        <HGButtonPage
           type="primary"
           htmlType="submit"
           loading={submitting}
           className={styles.submitBtn}
         >
           提交
-        </Button>
-        <Button onClick={this.handleReset} className={styles.submitBtn}>
+        </HGButtonPage>
+        <HGButtonPage onClick={this.handleReset} className={styles.submitBtn}>
           重置
-        </Button>
+        </HGButtonPage>
       </div>
     );
   };
