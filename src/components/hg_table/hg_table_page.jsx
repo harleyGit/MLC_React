@@ -7,6 +7,16 @@ import styles from "./hg_table.module.css";
 const ROW_HEIGHT = 48;
 
 /**
+ * sectionHeader 默认高度（px）。
+ */
+const SECTION_HEADER_HEIGHT = 40;
+
+/**
+ * sectionFooter 默认高度（px）。
+ */
+const SECTION_FOOTER_HEIGHT = 32;
+
+/**
  * 上下缓冲行数。
  */
 const BUFFER_ROWS = 5;
@@ -17,9 +27,129 @@ const BUFFER_ROWS = 5;
 const MAX_BODY_HEIGHT = 500;
 
 /**
+ * 虚拟行类型枚举。
+ * 职责：标识 flatten 后每行的渲染类型。
+ */
+const ROW_TYPE = {
+  SECTION_HEADER: "sectionHeader",
+  CELL: "cell",
+  SECTION_FOOTER: "sectionFooter",
+};
+
+/**
+ * 将 sections 数组 flatten 为虚拟行列表。
+ * 职责：将多 section 数据展平为 [{type, sectionIndex, rowIndex?, height, ...}]，
+ *       同时计算每行的累计偏移量，用于虚拟滚动定位。
+ * @param {Array} sections - section 数组。
+ * @returns {{ items: Array, totalHeight: number }} 展平后的行列表与总高度。
+ */
+function flattenSections(sections) {
+  const items = [];
+  let cumulativeTop = 0;
+
+  sections.forEach((section, sIdx) => {
+    const headerHeight = section.headerHeight || SECTION_HEADER_HEIGHT;
+    const footerHeight = section.footerHeight || SECTION_FOOTER_HEIGHT;
+    const showHeader = section.header !== undefined && section.header !== null && section.header !== false;
+    const showFooter = section.footer !== undefined && section.footer !== null && section.footer !== false;
+
+    if (showHeader) {
+      items.push({
+        type: ROW_TYPE.SECTION_HEADER,
+        sectionIndex: sIdx,
+        height: headerHeight,
+        top: cumulativeTop,
+        data: section,
+      });
+      cumulativeTop += headerHeight;
+    }
+
+    const rows = section.data || [];
+    rows.forEach((record, rIdx) => {
+      items.push({
+        type: ROW_TYPE.CELL,
+        sectionIndex: sIdx,
+        rowIndex: rIdx,
+        height: ROW_HEIGHT,
+        top: cumulativeTop,
+        record,
+        data: section,
+      });
+      cumulativeTop += ROW_HEIGHT;
+    });
+
+    if (showFooter) {
+      items.push({
+        type: ROW_TYPE.SECTION_FOOTER,
+        sectionIndex: sIdx,
+        height: footerHeight,
+        top: cumulativeTop,
+        data: section,
+      });
+      cumulativeTop += footerHeight;
+    }
+  });
+
+  return { items, totalHeight: cumulativeTop };
+}
+
+/**
+ * 二分查找：找到第一个 top + height > scrollTop 的 item 索引。
+ * @param {Array} items - flatten 后的行列表。
+ * @param {number} scrollTop - 当前滚动偏移。
+ * @returns {number} 可见区域起始索引。
+ */
+function findStartIndex(items, scrollTop) {
+  let lo = 0;
+  let hi = items.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (items[mid].top + items[mid].height <= scrollTop) {
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return Math.max(0, lo);
+}
+
+/**
+ * sectionHeader 行组件（PureComponent）。
+ * 职责：渲染 section 头部区域。
+ */
+class VirtualSectionHeader extends React.PureComponent {
+  render() {
+    const { section, columns } = this.props;
+    if (!section) return null;
+
+    const header = section.header;
+    if (typeof header === "function") {
+      return <div className={styles.sectionHeader}>{header(section, columns)}</div>;
+    }
+    return <div className={styles.sectionHeader}>{header}</div>;
+  }
+}
+
+/**
+ * sectionFooter 行组件（PureComponent）。
+ * 职责：渲染 section 尾部区域。
+ */
+class VirtualSectionFooter extends React.PureComponent {
+  render() {
+    const { section, columns } = this.props;
+    if (!section) return null;
+
+    const footer = section.footer;
+    if (typeof footer === "function") {
+      return <div className={styles.sectionFooter}>{footer(section, columns)}</div>;
+    }
+    return <div className={styles.sectionFooter}>{footer}</div>;
+  }
+}
+
+/**
  * 单行组件（PureComponent）。
  * 职责：渲染一行中所有单元格。以 poolIndex 为 key 实现 React 级 cell 复用。
- * 原理：poolIndex 不变 → React 复用组件实例和 DOM → 仅更新变化的 props。
  */
 class VirtualRow extends React.PureComponent {
   render() {
@@ -53,10 +183,15 @@ class VirtualRow extends React.PureComponent {
  *   1. 创建固定数量的 VirtualRow（复用池），以 poolIndex 为 key 常驻内存；
  *   2. 滚动时通过 offset 计算每行应显示哪条数据，仅更新 VirtualRow 的 props；
  *   3. 超出数据范围的行传入 record=null，隐藏但保留 DOM（复用池）；
- *   4. 池大小 = 可见行数 + 缓冲行数，DOM 节点数恒定不随数据量增长；
- *   5. 每个 VirtualRow 通过 poolIndex（identifier）标识，支持多种 cell 类型。
+ *   4. 池大小 = 可见行数 + 缓冲行数，DOM 节点数恒定不随数据量增长。
  *
- * 输入：columns, dataSource, rowKey, loading, pagination, onChange, scroll。
+ * Section 支持：
+ *   - sections prop：[{header?, footer?, data: [...], headerHeight?, footerHeight?}]
+ *   - header/footer 可为 string 或 (section, columns) => ReactNode
+ *   - header/footer 可选显示，不传则不渲染
+ *   - 多 section 时自动 flatten 为 sectionHeader/cell/footer 混合虚拟列表
+ *
+ * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll。
  */
 class HGTablePage extends React.Component {
   constructor(props) {
@@ -66,6 +201,14 @@ class HGTablePage extends React.Component {
     };
     this.scrollRef = React.createRef();
   }
+
+  /**
+   * 判断是否使用 sections 模式。
+   * @returns {boolean}
+   */
+  isSectionMode = () => {
+    return Array.isArray(this.props.sections);
+  };
 
   /**
    * 获取行唯一 key。
@@ -87,10 +230,28 @@ class HGTablePage extends React.Component {
   };
 
   /**
-   * 滚动事件处理。
+   * 滚动事件处理（sections 模式）。
+   * 职责：计算虚拟行偏移量，触发 React 更新。
+   */
+  handleSectionScroll = (e) => {
+    const { scrollTop, scrollLeft } = e.target;
+    const { sections = [] } = this.props;
+    const { items } = flattenSections(sections);
+    const bodyHeight = this.getBodyHeight();
+
+    // 同步表头横向滚动
+    const headerEl = e.target.previousElementSibling;
+    if (headerEl) headerEl.scrollLeft = scrollLeft;
+
+    const startIdx = findStartIndex(items, scrollTop - ROW_HEIGHT * BUFFER_ROWS);
+    if (startIdx !== this.state.offset) {
+      this.setState({ offset: startIdx });
+    }
+  };
+
+  /**
+   * 滚动事件处理（dataSource 模式）。
    * 职责：计算行偏移量，触发 React 更新复用池中每行显示的数据。
-   * 仅在 offset 变化时触发 setState，避免每帧重渲染。
-   * 约束：offset 不超出数据范围，防止无限滚动。
    */
   handleScroll = (e) => {
     const { scrollTop, scrollLeft } = e.target;
@@ -102,7 +263,6 @@ class HGTablePage extends React.Component {
     const headerEl = e.target.previousElementSibling;
     if (headerEl) headerEl.scrollLeft = scrollLeft;
 
-    // 限制 offset 不超出数据范围
     const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
     const maxOffset = Math.max(0, totalCount - poolSize);
     const rawOffset = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
@@ -115,7 +275,6 @@ class HGTablePage extends React.Component {
 
   /**
    * 触发外部分页变更回调。
-   * 格式对齐 antd Table：onChange({ current, pageSize, total })。
    */
   emitChange = (page, size) => {
     const { pagination, onChange } = this.props;
@@ -255,7 +414,6 @@ class HGTablePage extends React.Component {
 
   /**
    * 渲染表头。
-   * 使用 flex 布局，与表体列宽对齐。
    */
   renderHeader = () => {
     const { columns = [] } = this.props;
@@ -277,15 +435,91 @@ class HGTablePage extends React.Component {
   };
 
   /**
-   * 渲染 cell 复用表体。
+   * 渲染 sections 模式表体（虚拟滚动，变高行）。
    *
-   * 复用池实现（类 iOS UITableView）：
-   *   - 创建 POOL_SIZE 个 VirtualRow，以 poolIndex（identifier）为 key；
-   *   - poolIndex 不变 → React 复用组件实例 → DOM 节点常驻内存；
-   *   - offset 变化 → 每个 VirtualRow 的 record 和 rowIndex 更新；
-   *   - record=null 的行渲染空 div，但保留 DOM（放入缓存池的效果）；
-   *   - 新数据进入可视区时，React 通过 poolIndex 找到缓存的 VirtualRow，
-   *     仅更新 props（类似 iOS dequeueReusableCellWithIdentifier）。
+   * 实现：
+   *   - flattenSections 将多 section 展平为 [{type, top, height, ...}] 列表；
+   *   - 二分查找 findStartIndex 定位可见区域起始行；
+   *   - 按 poolSize 渲染复用池，每行 absolute 定位到对应 top；
+   *   - sectionHeader/footer 使用专用组件渲染，cell 使用 VirtualRow。
+   */
+  renderSectionBody = () => {
+    const { sections = [], columns = [] } = this.props;
+    const { offset } = this.state;
+    const bodyHeight = this.getBodyHeight();
+    const { items, totalHeight } = flattenSections(sections);
+
+    if (items.length === 0) {
+      return (
+        <div className={styles.bodyWrap} style={{ height: bodyHeight }}>
+          <div className={styles.emptyCell}>暂无数据</div>
+        </div>
+      );
+    }
+
+    const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
+    const visibleItems = [];
+    for (let i = 0; i < poolSize && offset + i < items.length; i++) {
+      visibleItems.push(items[offset + i]);
+    }
+
+    return (
+      <div
+        className={styles.bodyWrap}
+        style={{ height: bodyHeight }}
+        ref={this.scrollRef}
+        onScroll={this.handleSectionScroll}
+      >
+        <div className={styles.virtualSpacer} style={{ height: totalHeight }}>
+          {visibleItems.map((item, poolIdx) => {
+            const key = `${item.type}-${item.sectionIndex}-${item.rowIndex ?? "s"}`;
+
+            if (item.type === ROW_TYPE.SECTION_HEADER) {
+              return (
+                <div
+                  key={key}
+                  className={styles.poolRow}
+                  style={{ top: item.top, height: item.height }}
+                >
+                  <VirtualSectionHeader section={item.data} columns={columns} />
+                </div>
+              );
+            }
+
+            if (item.type === ROW_TYPE.SECTION_FOOTER) {
+              return (
+                <div
+                  key={key}
+                  className={styles.poolRow}
+                  style={{ top: item.top, height: item.height }}
+                >
+                  <VirtualSectionFooter section={item.data} columns={columns} />
+                </div>
+              );
+            }
+
+            // cell
+            return (
+              <div
+                key={key}
+                className={styles.poolRow}
+                style={{ top: item.top, height: item.height }}
+              >
+                <VirtualRow
+                  columns={columns}
+                  record={item.record}
+                  rowIndex={item.rowIndex}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * 渲染 dataSource 模式表体（原有虚拟滚动，固定行高）。
    */
   renderBody = () => {
     const { columns = [], dataSource = [] } = this.props;
@@ -340,11 +574,13 @@ class HGTablePage extends React.Component {
 
   render() {
     const { className = "" } = this.props;
+    const useSections = this.isSectionMode();
+
     return (
       <div className={`${styles.tableContainer} ${className}`}>
         {this.renderLoading()}
-        {this.renderHeader()}
-        {this.renderBody()}
+        {!useSections && this.renderHeader()}
+        {useSections ? this.renderSectionBody() : this.renderBody()}
         {this.renderPagination()}
       </div>
     );

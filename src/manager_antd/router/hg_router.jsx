@@ -19,6 +19,7 @@ import HGVideoUploadEditPage from "../page_modules/hg_video_upload/hg_video_uplo
 import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile_page";
 import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
 import HGOperationManagementPage from "../page_modules/operation_management/hg_operation_management_page";
+import HGTableDemoPage from "../../components/hg_table/hg_table_demo_page";
 import { WithNavigation } from "./hg_naviagion_hook";
 import { ROUTE_PATH } from "./hg_router_path";
 import React from "react";
@@ -72,6 +73,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.OPERATION_MANAGEMENT,
         element: <HGOperationManagementPage />,
+      },
+      {
+        path: ROUTE_PATH.TABLE_DEMO,
+        element: <HGTableDemoPage />,
       },
     ],
   },

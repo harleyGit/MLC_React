@@ -18,4 +18,5 @@ export const ROUTE_PATH = {
   OPERATION_MANAGEMENT: "/operation", //运维管理
   LOGIN: "/login", //登录
   REGISTER: "/register", //注册
+  TABLE_DEMO: "/demo/table", //HGTable 自定义渲染演示
 };
