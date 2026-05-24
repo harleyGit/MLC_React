@@ -27,6 +27,65 @@
 - **图片资源**：工程中图片放在 `src/assets/`。
 - 组件需提供与 antd 相近的 props 接口，便于页面迁移。
 
+## 项目架构与分层
+
+### 页面模块（业务页面）
+
+- 位置：`src/manager_antd/page_modules/`
+- 每个功能模块单独建文件夹（如 `operation_management/`），内含：
+  - `hg_xxx_page.jsx` — 视图层（类组件，负责 UI 渲染与用户交互）
+  - `hg_xxx_vm.jsx` — 视图模型层（负责网络请求、数据处理、状态管理）
+  - `hg_xxx.module.css` — 样式文件
+
+### 网络请求层
+
+调用链路：`页面 VM → hg_net_manager_vm → HttpManagerV1`
+
+1. **接口常量**：`src/manager_antd/api/hg_api_constants.jsx`
+   - 统一定义所有 API 路径常量（`HGMANAGER_API` 对象）
+2. **网络管理 ViewModel**：`src/manager_antd/net_handle/hg_net_manager_vm.jsx`
+   - 继承 `HttpManagerV1`，封装具体业务接口方法（如 `getUserProfile`、`postUserLogin`）
+   - 单例导出 `HGNet`，页面 VM 直接调用
+3. **底层请求库**：`src/api/HttpManagerV1.js`
+   - 基于 `fetch` 封装，支持签名、鉴权、Token 刷新、错误处理
+   - 统一处理 HTTP 状态码与业务码映射
+
+### 路由
+
+- 位置：`src/manager_antd/router/`
+  - `hg_router.jsx` — 路由配置与页面映射
+  - `hg_router_path.jsx` — 路由路径常量
+  - `hg_naviagion_hook.jsx` — 导航 Hook
+
+### 本地存储
+
+- 位置：`src/manager_antd/storage/`
+  - `hg_storage.jsx` — 通用本地存储封装
+  - `hg_user_profile_storage.jsx` — 用户资料存储
+
+### 工具类
+
+- 位置：`src/utils/`
+  - `HGAssetUtils.jsx` — 资源工具（图片、视频等）
+  - `HGEnvLogger.jsx` — 环境日志
+  - `SystemInfoUtil.js` — 系统信息工具
+  - `TimeUtils.js` — 时间工具
+  - `toast/` — Toast 工具
+  - `VideoPlayUtil.jsx` — 视频播放工具
+  - `WithRouter.jsx` — 路由 HOC
+
+### 日志
+
+- 位置：`src/logger/hg_logger.jsx`
+- 导出 `LogOut`（调试日志）和 `LogError`（错误日志）
+- 开发环境全量输出，预发布环境 INFO 及以上，生产环境仅 ERROR
+
+### 环境配置
+
+- `.env.debug` — 开发环境配置
+- `.env.pre` — 预发布环境配置
+- `.env.release` — 生产环境配置
+
 ## 任务优先级
 
 1. 用户当前要求
