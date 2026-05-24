@@ -190,3 +190,9 @@
 .subMenuTitleOpen {
   color: #1890ff;
 }
+
+/* ===== Inline subMenu 选中态（后代节点被选中时父级高亮） ===== */
+.subMenuTitleSelected {
+  color: #1890ff;
+  font-weight: 500;
+}

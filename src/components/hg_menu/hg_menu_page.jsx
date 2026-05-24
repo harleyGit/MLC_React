@@ -49,6 +49,22 @@ class HGMenuPage extends React.Component {
   };
 
   /**
+   * 递归判断某个子菜单下是否有被选中的后代节点。
+   * 职责：用于给父级 subMenu 标题添加选中态样式。
+   * @param {Array} children - 子菜单数据数组。
+   * @returns {boolean} 是否包含选中的后代。
+   */
+  hasSelectedDescendant = (children) => {
+    if (!children || children.length === 0) return false;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (this.isSelected(child.key)) return true;
+      if (child.children && this.hasSelectedDescendant(child.children)) return true;
+    }
+    return false;
+  };
+
+  /**
    * 判断子菜单是否展开。
    * @param {string} key - 子菜单 key。
    * @returns {boolean} 是否展开。
@@ -102,11 +118,12 @@ class HGMenuPage extends React.Component {
 
     if (hasChildren) {
       const open = this.isOpen(item.key);
+      const descendantSelected = this.hasSelectedDescendant(item.children);
       return (
         <li key={item.key} className={styles.subMenu}>
           {/* 子菜单标题行：图标 + 标签 + 展开箭头 */}
           <div
-            className={`${styles.subMenuTitle} ${open ? styles.subMenuTitleOpen : ""}`}
+            className={`${styles.subMenuTitle} ${open ? styles.subMenuTitleOpen : ""} ${descendantSelected ? styles.subMenuTitleSelected : ""}`}
             style={isInline ? { paddingLeft: 16 + indentPx } : undefined}
             onClick={(e) => this.handleSubMenuClick(item.key, e)}
           >

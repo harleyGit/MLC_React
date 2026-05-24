@@ -8,6 +8,7 @@
  */
 import React, { Component } from "react";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
+import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
 import HGOperationManagementVM, { OPERATION_MENU_ITEMS } from "./hg_operation_management_vm";
 import HGPermissionMenuPage from "./hg_permission_menu_page";
 import HGEmployeeRolePage from "./employee_role/hg_employee_role_page";
@@ -136,6 +137,104 @@ class PermissionConfigPage extends Component {
 }
 
 /**
+ * 站点信息占位页面
+ */
+class SystemBasicSitePage extends Component {
+  render() {
+    return (
+      <div>
+        <h2>站点信息</h2>
+        <p className={styles.placeholderText}>站点信息配置页面内容</p>
+      </div>
+    );
+  }
+}
+
+/**
+ * 邮件配置占位页面
+ */
+class SystemBasicEmailPage extends Component {
+  render() {
+    return (
+      <div>
+        <h2>邮件配置</h2>
+        <p className={styles.placeholderText}>邮件配置页面内容</p>
+      </div>
+    );
+  }
+}
+
+/**
+ * 存储配置占位页面
+ */
+class SystemBasicStoragePage extends Component {
+  render() {
+    return (
+      <div>
+        <h2>存储配置</h2>
+        <p className={styles.placeholderText}>存储配置页面内容</p>
+      </div>
+    );
+  }
+}
+
+/**
+ * 登录策略占位页面
+ */
+class SystemSecurityLoginPage extends Component {
+  render() {
+    return (
+      <div>
+        <h2>登录策略</h2>
+        <p className={styles.placeholderText}>登录策略配置页面内容</p>
+      </div>
+    );
+  }
+}
+
+/**
+ * 密码策略占位页面
+ */
+class SystemSecurityPasswordPage extends Component {
+  render() {
+    return (
+      <div>
+        <h2>密码策略</h2>
+        <p className={styles.placeholderText}>密码策略配置页面内容</p>
+      </div>
+    );
+  }
+}
+
+/**
+ * 通知模板占位页面
+ */
+class SystemNotifyTemplatePage extends Component {
+  render() {
+    return (
+      <div>
+        <h2>通知模板</h2>
+        <p className={styles.placeholderText}>通知模板配置页面内容</p>
+      </div>
+    );
+  }
+}
+
+/**
+ * 通知渠道占位页面
+ */
+class SystemNotifyChannelPage extends Component {
+  render() {
+    return (
+      <div>
+        <h2>通知渠道</h2>
+        <p className={styles.placeholderText}>通知渠道配置页面内容</p>
+      </div>
+    );
+  }
+}
+
+/**
  * 菜单 key 到页面组件的映射表
  * 约束：key 需与 OPERATION_MENU_ITEMS 中的叶子节点 key 一致
  */
@@ -152,6 +251,13 @@ const PAGE_MAP = {
   permission_menu: HGPermissionMenuPage,
   permission_role: HGRolePermissionPage,
   permission_config: PermissionConfigPage,
+  system_basic_site: SystemBasicSitePage,
+  system_basic_email: SystemBasicEmailPage,
+  system_basic_storage: SystemBasicStoragePage,
+  system_security_login: SystemSecurityLoginPage,
+  system_security_password: SystemSecurityPasswordPage,
+  system_notify_template: SystemNotifyTemplatePage,
+  system_notify_channel: SystemNotifyChannelPage,
 };
 
 /**
@@ -173,6 +279,34 @@ class HGOperationManagementPage extends Component {
    */
   handleMenuSelect = (key) => {
     this.setState({ selectedKey: key });
+  };
+
+  /**
+   * 渲染面包屑导航：根据 selectedKey 显示完整路径（A > B > C）
+   * @returns {React.ReactNode} 面包屑节点
+   */
+  renderBreadcrumb = () => {
+    const { selectedKey } = this.state;
+    const path = HGSideMenuVM.findPathToKey(OPERATION_MENU_ITEMS, selectedKey);
+    if (!path || path.length === 0) return null;
+
+    return (
+      <div className={styles.breadcrumb}>
+        {path.map((node, index) => {
+          const isLast = index === path.length - 1;
+          return (
+            <span key={node.key} className={styles.breadcrumbItem}>
+              {!isLast ? (
+                <span className={styles.breadcrumbLink}>{node.label}</span>
+              ) : (
+                <span className={styles.breadcrumbCurrent}>{node.label}</span>
+              )}
+              {!isLast && <span className={styles.breadcrumbSeparator}>{'>'}</span>}
+            </span>
+          );
+        })}
+      </div>
+    );
   };
 
   /**
@@ -199,6 +333,7 @@ class HGOperationManagementPage extends Component {
           onSelect={this.handleMenuSelect}
         />
         <div className={styles.operationContent}>
+          {this.renderBreadcrumb()}
           {this.renderContent()}
         </div>
       </div>

@@ -56,6 +56,41 @@ export const OPERATION_MENU_ITEMS = [
       { key: "permission_config", label: "权限配置", icon: <HGIconPage type="config" /> },
     ],
   },
+  {
+    key: "system",
+    label: "系统设置",
+    icon: <HGIconPage type="config" />,
+    children: [
+      {
+        key: "system_basic",
+        label: "基础配置",
+        icon: <HGIconPage type="config" />,
+        children: [
+          { key: "system_basic_site", label: "站点信息", icon: <HGIconPage type="config" /> },
+          { key: "system_basic_email", label: "邮件配置", icon: <HGIconPage type="config" /> },
+          { key: "system_basic_storage", label: "存储配置", icon: <HGIconPage type="config" /> },
+        ],
+      },
+      {
+        key: "system_security",
+        label: "安全设置",
+        icon: <HGIconPage type="shield" />,
+        children: [
+          { key: "system_security_login", label: "登录策略", icon: <HGIconPage type="shield" /> },
+          { key: "system_security_password", label: "密码策略", icon: <HGIconPage type="shield" /> },
+        ],
+      },
+      {
+        key: "system_notify",
+        label: "通知管理",
+        icon: <HGIconPage type="config" />,
+        children: [
+          { key: "system_notify_template", label: "通知模板", icon: <HGIconPage type="config" /> },
+          { key: "system_notify_channel", label: "通知渠道", icon: <HGIconPage type="config" /> },
+        ],
+      },
+    ],
+  },
 ];
 
 /**

@@ -80,4 +80,27 @@ export default class HGSideMenuVM {
     walk(menuItems);
     return keys;
   };
+
+  /**
+   * 根据叶子节点 key 查找从根到该节点的完整路径。
+   * 职责：递归搜索菜单树，返回路径数组 [{key, label}]。
+   * @param {Array} menuItems - 菜单数据数组。
+   * @param {string} targetKey - 目标叶子节点 key。
+   * @returns {Array} 路径节点数组，未找到返回空数组。
+   */
+  static findPathToKey = (menuItems, targetKey) => {
+    for (let i = 0; i < menuItems.length; i++) {
+      const item = menuItems[i];
+      if (item.key === targetKey) {
+        return [{ key: item.key, label: item.label }];
+      }
+      if (item.children && item.children.length > 0) {
+        const childPath = HGSideMenuVM.findPathToKey(item.children, targetKey);
+        if (childPath.length > 0) {
+          return [{ key: item.key, label: item.label }, ...childPath];
+        }
+      }
+    }
+    return [];
+  };
 }

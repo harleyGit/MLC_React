@@ -27,3 +27,37 @@
   color: #7a859f;
   font-size: 14px;
 }
+
+/* 面包屑导航 */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.breadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumbLink {
+  color: #7a859f;
+  cursor: pointer;
+}
+
+.breadcrumbLink:hover {
+  color: #1890ff;
+}
+
+.breadcrumbCurrent {
+  color: #1f2c4a;
+  font-weight: 500;
+}
+
+.breadcrumbSeparator {
+  margin: 0 8px;
+  color: #bfbfbf;
+  font-size: 12px;
+}

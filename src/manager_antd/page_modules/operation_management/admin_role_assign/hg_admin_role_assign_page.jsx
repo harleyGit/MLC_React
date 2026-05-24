@@ -6,11 +6,14 @@
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/admin_role_assign/hg_admin_role_assign_page.jsx
  * @Description: 管理员角色分配表单页面，支持选择管理员并批量分配角色
  *
- * 管理员角色分配：将一个管理员与多个角色关联，实现 RBAC 权限绑定
- * 核心作用：
- * 选择指定管理员
- * 勾选需要分配的角色（支持多选）
- * 提交分配结果
+ * 1.管理员角色分配：将一个管理员与多个角色关联，实现 RBAC 权限绑定
+ *  核心作用：
+ *    选择指定管理员
+ *    勾选需要分配的角色（支持多选）
+ *    提交分配结果
+ * 
+ * 2. admin_user_role 管理员角色关联表
+ * 作用：绑定管理员账号与所属角色，一个管理员可兼任多角色，依托角色间接获取对应权限，区分后台人员操作权限层级。
  */
 import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
