@@ -87,6 +87,7 @@ export const OPERATION_MENU_ITEMS = [
         children: [
           { key: "system_notify_template", label: "通知模板", icon: <HGIconPage type="config" /> },
           { key: "system_notify_channel", label: "通知渠道", icon: <HGIconPage type="config" /> },
+          { key: "system_notify_sms", label: "短信模板", icon: <HGIconPage type="config" /> },
         ],
       },
     ],
