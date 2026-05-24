@@ -1,8 +1,9 @@
 import React from "react";
 import styles from "./hg_video_player.module.css";
+import HGTooltipPage from "../hg_tooltip/hg_tooltip_page";
 
 /**
- * SVG 图标组件。
+ * SVG 图标组件（双状态：正常/激活）。
  */
 const Icon = {
   Play: () => (
@@ -35,40 +36,54 @@ const Icon = {
       <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   ),
+  /** 全屏（正常状态） */
   Fullscreen: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+  /** 退出全屏（激活状态） */
   FullscreenExit: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+  /** 网页全屏（正常状态） */
   WebFullscreen: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path d="M2 4h20v16H2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+      <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
       <path d="M2 8h20" stroke="currentColor" strokeWidth="2"/>
     </svg>
   ),
+  /** 退出网页全屏（激活状态） */
   WebFullscreenExit: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path d="M2 4h20v16H2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+      <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
       <path d="M2 8h20" stroke="currentColor" strokeWidth="2"/>
       <path d="M9 4v4M15 4v4M9 16v4M15 16v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   ),
+  /** 宽屏（正常状态） */
   Widescreen: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <rect x="1" y="6" width="22" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <rect x="1" y="7" width="22" height="10" rx="2" stroke="currentColor" strokeWidth="2"/>
     </svg>
   ),
+  /** 宽屏（激活状态 - 更宽） */
+  WidescreenActive: () => (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <rect x="1" y="8" width="22" height="8" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <path d="M1 12h22" stroke="currentColor" strokeWidth="1" opacity="0.3"/>
+    </svg>
+  ),
+  /** 弹幕（正常状态） */
   Danmaku: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
       <path d="M6 9h8M6 13h12M6 17h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   ),
+  /** 弹幕关闭（激活状态） */
   DanmakuOff: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
@@ -215,15 +230,9 @@ class HGVideoPlayerPage extends React.Component {
   }
 
   componentWillUnmount() {
-    if (this.controlsTimer) {
-      clearTimeout(this.controlsTimer);
-    }
-    if (this.clickTimer) {
-      clearTimeout(this.clickTimer);
-    }
-    if (this.longPressTimer) {
-      clearTimeout(this.longPressTimer);
-    }
+    if (this.controlsTimer) clearTimeout(this.controlsTimer);
+    if (this.clickTimer) clearTimeout(this.clickTimer);
+    if (this.longPressTimer) clearTimeout(this.longPressTimer);
     document.removeEventListener("fullscreenchange", this.handleFullscreenChange);
     document.removeEventListener("webkitfullscreenchange", this.handleFullscreenChange);
     document.removeEventListener("keydown", this.handleKeyDown);
@@ -239,40 +248,22 @@ class HGVideoPlayerPage extends React.Component {
     if (e.key === "Escape" && playMode === PLAY_MODE.WEB_FULLSCREEN) {
       this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN);
     }
-    // 空格键播放/暂停
     if (e.key === " " && e.target.tagName !== "INPUT") {
       e.preventDefault();
       this.togglePlay();
     }
-    // 左右方向键快进/快退
-    if (e.key === "ArrowLeft") {
-      this.skipTime(-5);
-    }
-    if (e.key === "ArrowRight") {
-      this.skipTime(5);
-    }
-    // 上下方向键调整音量
-    if (e.key === "ArrowUp") {
-      this.adjustVolume(0.1);
-    }
-    if (e.key === "ArrowDown") {
-      this.adjustVolume(-0.1);
-    }
-    // F 键全屏
-    if (e.key === "f" || e.key === "F") {
-      this.setPlayMode(PLAY_MODE.FULLSCREEN);
-    }
-    // M 键静音
-    if (e.key === "m" || e.key === "M") {
-      this.toggleMute();
-    }
+    if (e.key === "ArrowLeft") this.skipTime(-5);
+    if (e.key === "ArrowRight") this.skipTime(5);
+    if (e.key === "ArrowUp") this.adjustVolume(0.1);
+    if (e.key === "ArrowDown") this.adjustVolume(-0.1);
+    if (e.key === "f" || e.key === "F") this.setPlayMode(PLAY_MODE.FULLSCREEN);
+    if (e.key === "m" || e.key === "M") this.toggleMute();
   };
 
   /**
    * 监听键盘松开事件。
    */
   handleKeyUp = (e) => {
-    // 松开 Shift 键恢复原速
     if (e.key === "Shift" && this.state.isLongPressSpeed) {
       this.endLongPressSpeed();
     }
@@ -303,10 +294,7 @@ class HGVideoPlayerPage extends React.Component {
    * 监听全屏状态变化。
    */
   handleFullscreenChange = () => {
-    const isFullscreen = !!(
-      document.fullscreenElement ||
-      document.webkitFullscreenElement
-    );
+    const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
     if (!isFullscreen && this.state.playMode === PLAY_MODE.FULLSCREEN) {
       this.setState({ playMode: PLAY_MODE.NORMAL });
     }
@@ -337,7 +325,6 @@ class HGVideoPlayerPage extends React.Component {
   togglePlay = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
-
     if (videoEl.paused) {
       videoEl.play().catch(() => {});
       this.setState({ isPlaying: true });
@@ -355,8 +342,6 @@ class HGVideoPlayerPage extends React.Component {
     const now = Date.now();
     const timeSinceLastClick = now - this.lastClickTime;
     this.lastClickTime = now;
-
-    // 双击（300ms 内两次点击）
     if (timeSinceLastClick < 300) {
       if (this.clickTimer) {
         clearTimeout(this.clickTimer);
@@ -365,8 +350,6 @@ class HGVideoPlayerPage extends React.Component {
       this.handleDoubleClick(e);
       return;
     }
-
-    // 单击（延迟执行，等待可能的双击）
     this.clickTimer = setTimeout(() => {
       this.togglePlay();
       this.clickTimer = null;
@@ -386,9 +369,7 @@ class HGVideoPlayerPage extends React.Component {
    * 处理鼠标按下（开始长按倍速）。
    */
   handleMouseDown = (e) => {
-    // 只处理左键
     if (e.button !== 0) return;
-
     this.longPressTimer = setTimeout(() => {
       this.startLongPressSpeed();
     }, 500);
@@ -413,7 +394,6 @@ class HGVideoPlayerPage extends React.Component {
   startLongPressSpeed = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
-
     this.isLongPressing = true;
     videoEl.playbackRate = LONG_PRESS_RATE;
     this.setState({ isLongPressSpeed: true });
@@ -425,7 +405,6 @@ class HGVideoPlayerPage extends React.Component {
   endLongPressSpeed = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
-
     this.isLongPressing = false;
     videoEl.playbackRate = this.state.playbackRate;
     this.setState({ isLongPressSpeed: false });
@@ -437,7 +416,6 @@ class HGVideoPlayerPage extends React.Component {
   togglePiP = async () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
-
     try {
       if (document.pictureInPictureElement) {
         await document.exitPictureInPicture();
@@ -470,17 +448,13 @@ class HGVideoPlayerPage extends React.Component {
   takeScreenshot = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
-
     const canvas = document.createElement("canvas");
     canvas.width = videoEl.videoWidth;
     canvas.height = videoEl.videoHeight;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-
     const dataUrl = canvas.toDataURL("image/png");
     this.setState({ screenshotUrl: dataUrl, showScreenshot: true });
-
-    // 3秒后自动隐藏截图提示
     setTimeout(() => {
       this.setState({ showScreenshot: false });
     }, 3000);
@@ -492,7 +466,6 @@ class HGVideoPlayerPage extends React.Component {
   downloadScreenshot = () => {
     const { screenshotUrl } = this.state;
     if (!screenshotUrl) return;
-
     const link = document.createElement("a");
     link.download = `screenshot_${Date.now()}.png`;
     link.href = screenshotUrl;
@@ -505,7 +478,6 @@ class HGVideoPlayerPage extends React.Component {
   handleTimeUpdate = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
-
     this.setState({
       currentTime: videoEl.currentTime,
       duration: videoEl.duration || 0,
@@ -518,7 +490,6 @@ class HGVideoPlayerPage extends React.Component {
   handleProgress = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl || !videoEl.buffered.length) return;
-
     const buffered = videoEl.buffered.end(videoEl.buffered.length - 1);
     this.setState({ buffered });
   };
@@ -530,7 +501,6 @@ class HGVideoPlayerPage extends React.Component {
     const progressBar = this.progressBarRef.current;
     const videoEl = this.videoRef.current;
     if (!progressBar || !videoEl) return;
-
     const rect = progressBar.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
     videoEl.currentTime = pos * videoEl.duration;
@@ -542,9 +512,7 @@ class HGVideoPlayerPage extends React.Component {
   handleVolumeChange = (e) => {
     const volume = parseFloat(e.target.value);
     const videoEl = this.videoRef.current;
-    if (videoEl) {
-      videoEl.volume = volume;
-    }
+    if (videoEl) videoEl.volume = volume;
     this.setState({ volume, isMuted: volume === 0 });
   };
 
@@ -554,7 +522,6 @@ class HGVideoPlayerPage extends React.Component {
   toggleMute = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
-
     const newMuted = !this.state.isMuted;
     videoEl.muted = newMuted;
     this.setState({ isMuted: newMuted });
@@ -566,7 +533,6 @@ class HGVideoPlayerPage extends React.Component {
   setPlayMode = (mode) => {
     const { playMode } = this.state;
     const targetMode = mode === playMode ? PLAY_MODE.NORMAL : mode;
-
     switch (targetMode) {
       case PLAY_MODE.FULLSCREEN:
         this.enterFullscreen();
@@ -580,9 +546,7 @@ class HGVideoPlayerPage extends React.Component {
         break;
       case PLAY_MODE.NORMAL:
       default:
-        if (playMode === PLAY_MODE.FULLSCREEN) {
-          this.exitFullscreen();
-        }
+        if (playMode === PLAY_MODE.FULLSCREEN) this.exitFullscreen();
         this.setState({ playMode: PLAY_MODE.NORMAL });
         break;
     }
@@ -594,27 +558,18 @@ class HGVideoPlayerPage extends React.Component {
   enterFullscreen = () => {
     const el = this.playerContainerRef.current;
     if (!el) return;
-
-    if (el.requestFullscreen) {
-      el.requestFullscreen();
-    } else if (el.webkitRequestFullscreen) {
-      el.webkitRequestFullscreen();
-    } else if (el.msRequestFullscreen) {
-      el.msRequestFullscreen();
-    }
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    else if (el.msRequestFullscreen) el.msRequestFullscreen();
   };
 
   /**
    * 退出全屏。
    */
   exitFullscreen = () => {
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if (document.webkitExitFullscreen) {
-      document.webkitExitFullscreen();
-    } else if (document.msExitFullscreen) {
-      document.msExitFullscreen();
-    }
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    else if (document.msExitFullscreen) document.msExitFullscreen();
   };
 
   /**
@@ -622,9 +577,7 @@ class HGVideoPlayerPage extends React.Component {
    */
   setPlaybackRate = (rate) => {
     const videoEl = this.videoRef.current;
-    if (videoEl) {
-      videoEl.playbackRate = rate;
-    }
+    if (videoEl) videoEl.playbackRate = rate;
     this.setState({ playbackRate: rate, showRateMenu: false });
   };
 
@@ -646,14 +599,10 @@ class HGVideoPlayerPage extends React.Component {
    * 重置控件显示计时器。
    */
   resetControlsTimer = () => {
-    if (this.controlsTimer) {
-      clearTimeout(this.controlsTimer);
-    }
+    if (this.controlsTimer) clearTimeout(this.controlsTimer);
     this.setState({ showControls: true });
     this.controlsTimer = setTimeout(() => {
-      if (this.state.isPlaying) {
-        this.setState({ showControls: false });
-      }
+      if (this.state.isPlaying) this.setState({ showControls: false });
     }, 3000);
   };
 
@@ -670,22 +619,14 @@ class HGVideoPlayerPage extends React.Component {
   renderDanmaku = () => {
     const { showDanmaku, danmakuList, currentTime } = this.state;
     if (!showDanmaku) return null;
-
-    const visibleDanmaku = danmakuList.filter(
-      (d) => Math.abs(d.time - currentTime) < 3
-    );
-
+    const visibleDanmaku = danmakuList.filter((d) => Math.abs(d.time - currentTime) < 3);
     return (
       <div className={styles.danmakuLayer}>
         {visibleDanmaku.map((danmaku, idx) => (
           <div
             key={danmaku.id}
             className={styles.danmakuItem}
-            style={{
-              color: danmaku.color,
-              top: `${(idx * 30) % 200}px`,
-              animationDelay: `${idx * 0.5}s`,
-            }}
+            style={{ color: danmaku.color, top: `${(idx * 30) % 200}px`, animationDelay: `${idx * 0.5}s` }}
           >
             {danmaku.text}
           </div>
@@ -699,23 +640,13 @@ class HGVideoPlayerPage extends React.Component {
    */
   renderControls = () => {
     const {
-      isPlaying,
-      currentTime,
-      duration,
-      volume,
-      isMuted,
-      showRateMenu,
-      playbackRate,
-      showDanmaku,
-      quality,
-      showQualityMenu,
-      buffered,
-      playMode,
-      isLongPressSpeed,
+      isPlaying, currentTime, duration, volume, isMuted, showRateMenu, playbackRate,
+      showDanmaku, quality, showQualityMenu, buffered, playMode, isLongPressSpeed,
     } = this.state;
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
     const bufferedProgress = duration > 0 ? (buffered / duration) * 100 : 0;
+    const isActive = (mode) => playMode === mode;
 
     return (
       <div
@@ -723,11 +654,7 @@ class HGVideoPlayerPage extends React.Component {
         onClick={(e) => e.stopPropagation()}
       >
         {/* 进度条 */}
-        <div
-          className={styles.progressBar}
-          ref={this.progressBarRef}
-          onClick={this.handleProgressClick}
-        >
+        <div className={styles.progressBar} ref={this.progressBarRef} onClick={this.handleProgressClick}>
           <div className={styles.progressBg}>
             <div className={styles.progressBuffered} style={{ width: `${bufferedProgress}%` }} />
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
@@ -738,67 +665,53 @@ class HGVideoPlayerPage extends React.Component {
         {/* 底部控件 */}
         <div className={styles.controlsBottom}>
           <div className={styles.controlsLeft}>
-            <button className={styles.controlBtn} onClick={this.togglePlay} title={isPlaying ? "暂停 (空格)" : "播放 (空格)"}>
-              {isPlaying ? <Icon.Pause /> : <Icon.Play />}
-            </button>
-            <span className={styles.timeDisplay}>
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
+            <HGTooltipPage content={isPlaying ? "暂停" : "播放"} placement="top">
+              <button className={styles.controlBtn} onClick={this.togglePlay}>
+                {isPlaying ? <Icon.Pause /> : <Icon.Play />}
+              </button>
+            </HGTooltipPage>
+            <span className={styles.timeDisplay}>{formatTime(currentTime)} / {formatTime(duration)}</span>
           </div>
 
           <div className={styles.controlsRight}>
-            {/* 长按倍速提示 */}
-            {isLongPressSpeed && (
-              <span className={styles.speedIndicator}>{LONG_PRESS_RATE}x</span>
-            )}
+            {isLongPressSpeed && <span className={styles.speedIndicator}>{LONG_PRESS_RATE}x</span>}
 
-            {/* 截图 */}
-            <button
-              className={styles.controlBtn}
-              onClick={(e) => {
-                e.stopPropagation();
-                this.takeScreenshot();
-              }}
-              title="截图"
-            >
-              <Icon.Screenshot />
-            </button>
+            <HGTooltipPage content="截图" placement="top">
+              <button className={styles.controlBtn} onClick={(e) => { e.stopPropagation(); this.takeScreenshot(); }}>
+                <Icon.Screenshot />
+              </button>
+            </HGTooltipPage>
 
-            {/* 画中画 */}
-            <button
-              className={`${styles.controlBtn} ${this.state.isPiP ? styles.controlBtnActive : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                this.togglePiP();
-              }}
-              title="画中画"
-            >
-              <Icon.PictureInPicture />
-            </button>
+            <HGTooltipPage content="画中画" placement="top">
+              <button
+                className={`${styles.controlBtn} ${this.state.isPiP ? styles.controlBtnActive : ""}`}
+                onClick={(e) => { e.stopPropagation(); this.togglePiP(); }}
+              >
+                <Icon.PictureInPicture />
+              </button>
+            </HGTooltipPage>
 
-            {/* 弹幕开关 */}
-            <button
-              className={`${styles.controlBtn} ${showDanmaku ? styles.controlBtnActive : ""}`}
-              onClick={this.toggleDanmaku}
-              title={showDanmaku ? "关闭弹幕" : "开启弹幕"}
-            >
-              {showDanmaku ? <Icon.Danmaku /> : <Icon.DanmakuOff />}
-            </button>
+            <HGTooltipPage content={showDanmaku ? "关闭弹幕" : "开启弹幕"} placement="top">
+              <button
+                className={`${styles.controlBtn} ${showDanmaku ? styles.controlBtnActive : ""}`}
+                onClick={this.toggleDanmaku}
+              >
+                {showDanmaku ? <Icon.Danmaku /> : <Icon.DanmakuOff />}
+              </button>
+            </HGTooltipPage>
 
             {/* 清晰度 */}
             <div className={styles.menuWrapper}>
-              <button
-                className={styles.controlBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  this.setState({ showQualityMenu: !showQualityMenu, showRateMenu: false });
-                }}
-                title="清晰度"
-              >
-                <span className={styles.qualityLabel}>
-                  {QUALITY_OPTIONS.find((q) => q.key === quality)?.label.split(" ")[0] || "HD"}
-                </span>
-              </button>
+              <HGTooltipPage content="清晰度" placement="top">
+                <button
+                  className={styles.controlBtn}
+                  onClick={(e) => { e.stopPropagation(); this.setState({ showQualityMenu: !showQualityMenu, showRateMenu: false }); }}
+                >
+                  <span className={styles.qualityLabel}>
+                    {QUALITY_OPTIONS.find((q) => q.key === quality)?.label.split(" ")[0] || "HD"}
+                  </span>
+                </button>
+              </HGTooltipPage>
               {showQualityMenu && (
                 <div className={styles.menuPopup} onClick={(e) => e.stopPropagation()}>
                   <div className={styles.menuTitle}>清晰度</div>
@@ -806,10 +719,7 @@ class HGVideoPlayerPage extends React.Component {
                     <button
                       key={option.key}
                       className={`${styles.menuOption} ${quality === option.key ? styles.menuOptionActive : ""} ${!option.available ? styles.menuOptionDisabled : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (option.available) this.setQuality(option.key);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); if (option.available) this.setQuality(option.key); }}
                       disabled={!option.available}
                     >
                       <span>{option.label}</span>
@@ -823,16 +733,14 @@ class HGVideoPlayerPage extends React.Component {
 
             {/* 播放速度 */}
             <div className={styles.menuWrapper}>
-              <button
-                className={styles.controlBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  this.setState({ showRateMenu: !showRateMenu, showQualityMenu: false });
-                }}
-                title="播放速度 (长按视频3倍速)"
-              >
-                <span className={styles.rateLabel}>{playbackRate}x</span>
-              </button>
+              <HGTooltipPage content="播放速度" placement="top">
+                <button
+                  className={styles.controlBtn}
+                  onClick={(e) => { e.stopPropagation(); this.setState({ showRateMenu: !showRateMenu, showQualityMenu: false }); }}
+                >
+                  <span className={styles.rateLabel}>{playbackRate}x</span>
+                </button>
+              </HGTooltipPage>
               {showRateMenu && (
                 <div className={styles.menuPopup} onClick={(e) => e.stopPropagation()}>
                   <div className={styles.menuTitle}>播放速度</div>
@@ -840,10 +748,7 @@ class HGVideoPlayerPage extends React.Component {
                     <button
                       key={rate}
                       className={`${styles.menuOption} ${playbackRate === rate ? styles.menuOptionActive : ""}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        this.setPlaybackRate(rate);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); this.setPlaybackRate(rate); }}
                     >
                       <span>{rate}x</span>
                       {playbackRate === rate && <span className={styles.checkIcon}>✓</span>}
@@ -855,9 +760,11 @@ class HGVideoPlayerPage extends React.Component {
 
             {/* 音量 */}
             <div className={styles.volumeWrapper} onClick={(e) => e.stopPropagation()}>
-              <button className={styles.controlBtn} onClick={this.toggleMute} title={isMuted ? "取消静音 (M)" : "静音 (M)"}>
-                {isMuted || volume === 0 ? <Icon.VolumeMute /> : volume < 0.5 ? <Icon.VolumeLow /> : <Icon.VolumeHigh />}
-              </button>
+              <HGTooltipPage content={isMuted ? "取消静音" : "静音"} placement="top">
+                <button className={styles.controlBtn} onClick={this.toggleMute}>
+                  {isMuted || volume === 0 ? <Icon.VolumeMute /> : volume < 0.5 ? <Icon.VolumeLow /> : <Icon.VolumeHigh />}
+                </button>
+              </HGTooltipPage>
               <div className={styles.volumeSliderWrapper}>
                 <input
                   className={styles.volumeSlider}
@@ -872,40 +779,34 @@ class HGVideoPlayerPage extends React.Component {
             </div>
 
             {/* 宽屏 */}
-            <button
-              className={`${styles.controlBtn} ${playMode === PLAY_MODE.WIDE ? styles.controlBtnActive : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                this.setPlayMode(PLAY_MODE.WIDE);
-              }}
-              title={playMode === PLAY_MODE.WIDE ? "退出宽屏" : "宽屏模式"}
-            >
-              <Icon.Widescreen />
-            </button>
+            <HGTooltipPage content={isActive(PLAY_MODE.WIDE) ? "退出宽屏" : "宽屏"} placement="top">
+              <button
+                className={`${styles.controlBtn} ${isActive(PLAY_MODE.WIDE) ? styles.controlBtnActive : ""}`}
+                onClick={(e) => { e.stopPropagation(); this.setPlayMode(PLAY_MODE.WIDE); }}
+              >
+                {isActive(PLAY_MODE.WIDE) ? <Icon.WidescreenActive /> : <Icon.Widescreen />}
+              </button>
+            </HGTooltipPage>
 
             {/* 网页全屏 */}
-            <button
-              className={`${styles.controlBtn} ${playMode === PLAY_MODE.WEB_FULLSCREEN ? styles.controlBtnActive : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN);
-              }}
-              title={playMode === PLAY_MODE.WEB_FULLSCREEN ? "退出网页全屏" : "网页全屏"}
-            >
-              {playMode === PLAY_MODE.WEB_FULLSCREEN ? <Icon.WebFullscreenExit /> : <Icon.WebFullscreen />}
-            </button>
+            <HGTooltipPage content={isActive(PLAY_MODE.WEB_FULLSCREEN) ? "退出网页全屏" : "网页全屏"} placement="top">
+              <button
+                className={`${styles.controlBtn} ${isActive(PLAY_MODE.WEB_FULLSCREEN) ? styles.controlBtnActive : ""}`}
+                onClick={(e) => { e.stopPropagation(); this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN); }}
+              >
+                {isActive(PLAY_MODE.WEB_FULLSCREEN) ? <Icon.WebFullscreenExit /> : <Icon.WebFullscreen />}
+              </button>
+            </HGTooltipPage>
 
             {/* 全屏 */}
-            <button
-              className={`${styles.controlBtn} ${playMode === PLAY_MODE.FULLSCREEN ? styles.controlBtnActive : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                this.setPlayMode(PLAY_MODE.FULLSCREEN);
-              }}
-              title={playMode === PLAY_MODE.FULLSCREEN ? "退出全屏 (F)" : "全屏 (F)"}
-            >
-              {playMode === PLAY_MODE.FULLSCREEN ? <Icon.FullscreenExit /> : <Icon.Fullscreen />}
-            </button>
+            <HGTooltipPage content={isActive(PLAY_MODE.FULLSCREEN) ? "退出全屏" : "全屏"} placement="top">
+              <button
+                className={`${styles.controlBtn} ${isActive(PLAY_MODE.FULLSCREEN) ? styles.controlBtnActive : ""}`}
+                onClick={(e) => { e.stopPropagation(); this.setPlayMode(PLAY_MODE.FULLSCREEN); }}
+              >
+                {isActive(PLAY_MODE.FULLSCREEN) ? <Icon.FullscreenExit /> : <Icon.Fullscreen />}
+              </button>
+            </HGTooltipPage>
           </div>
         </div>
       </div>
@@ -918,13 +819,10 @@ class HGVideoPlayerPage extends React.Component {
   renderScreenshotToast = () => {
     const { showScreenshot, screenshotUrl } = this.state;
     if (!showScreenshot || !screenshotUrl) return null;
-
     return (
       <div className={styles.screenshotToast}>
         <img src={screenshotUrl} alt="截图" className={styles.screenshotPreview} />
-        <button className={styles.screenshotDownloadBtn} onClick={this.downloadScreenshot}>
-          保存截图
-        </button>
+        <button className={styles.screenshotDownloadBtn} onClick={this.downloadScreenshot}>保存截图</button>
       </div>
     );
   };
@@ -935,7 +833,6 @@ class HGVideoPlayerPage extends React.Component {
   renderVideoInfo = () => {
     const { video } = this.props;
     if (!video) return null;
-
     return (
       <div className={styles.videoInfo}>
         <h1 className={styles.videoTitle}>{video.title}</h1>
@@ -960,7 +857,6 @@ class HGVideoPlayerPage extends React.Component {
   renderAuthorInfo = () => {
     const { video } = this.props;
     if (!video) return null;
-
     return (
       <div className={styles.authorInfo}>
         <div className={styles.authorAvatar}>
@@ -981,17 +877,12 @@ class HGVideoPlayerPage extends React.Component {
   renderRelatedVideos = () => {
     const { relatedVideos = [], onVideoClick } = this.props;
     if (relatedVideos.length === 0) return null;
-
     return (
       <div className={styles.relatedSection}>
         <h3 className={styles.relatedTitle}>相关推荐</h3>
         <div className={styles.relatedList}>
           {relatedVideos.map((video) => (
-            <div
-              key={video.id}
-              className={styles.relatedItem}
-              onClick={() => onVideoClick && onVideoClick(video)}
-            >
+            <div key={video.id} className={styles.relatedItem} onClick={() => onVideoClick && onVideoClick(video)}>
               <div className={styles.relatedCover}>
                 <img src={video.cover} alt={video.title} />
                 <span className={styles.relatedDuration}>{formatTime(video.duration)}</span>
@@ -1026,7 +917,6 @@ class HGVideoPlayerPage extends React.Component {
 
     return (
       <div className={containerClass} ref={this.playerContainerRef}>
-        {/* 播放器区域 */}
         <div className={styles.playerMain}>
           <div
             className={styles.playerWrapper}
@@ -1045,9 +935,7 @@ class HGVideoPlayerPage extends React.Component {
               onEnded={() => this.setState({ isPlaying: false })}
               onLoadedMetadata={() => {
                 const videoEl = this.videoRef.current;
-                if (videoEl) {
-                  this.setState({ duration: videoEl.duration });
-                }
+                if (videoEl) this.setState({ duration: videoEl.duration });
               }}
               onEnterPictureInPicture={() => this.setState({ isPiP: true })}
               onLeavePictureInPicture={() => this.setState({ isPiP: false })}
@@ -1056,7 +944,6 @@ class HGVideoPlayerPage extends React.Component {
             {this.renderControls()}
             {this.renderScreenshotToast()}
 
-            {/* 播放按钮覆盖层 */}
             {!this.state.isPlaying && (
               <div className={styles.playOverlay} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.playButton} onClick={this.togglePlay}>
@@ -1065,32 +952,23 @@ class HGVideoPlayerPage extends React.Component {
               </div>
             )}
 
-            {/* 网页全屏时的退出按钮 */}
             {playMode === PLAY_MODE.WEB_FULLSCREEN && (
-              <button
-                className={styles.webFullscreenCloseBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN);
-                }}
-                title="退出网页全屏 (Esc)"
-              >
-                <Icon.Close />
-              </button>
+              <HGTooltipPage content="退出网页全屏" placement="bottom">
+                <button
+                  className={styles.webFullscreenCloseBtn}
+                  onClick={(e) => { e.stopPropagation(); this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN); }}
+                >
+                  <Icon.Close />
+                </button>
+              </HGTooltipPage>
             )}
           </div>
 
-          {/* 网页全屏时显示侧边栏 */}
           {playMode === PLAY_MODE.WEB_FULLSCREEN && (
             <div className={styles.webFullscreenSidebar}>
               <div className={styles.sidebarHeader}>
                 <h3>{video.title}</h3>
-                <button
-                  className={styles.sidebarCloseBtn}
-                  onClick={() => this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN)}
-                >
-                  ✕
-                </button>
+                <button className={styles.sidebarCloseBtn} onClick={() => this.setPlayMode(PLAY_MODE.WEB_FULLSCREEN)}>✕</button>
               </div>
               {this.renderVideoInfo()}
               {this.renderRelatedVideos()}
@@ -1098,7 +976,6 @@ class HGVideoPlayerPage extends React.Component {
           )}
         </div>
 
-        {/* 视频信息（网页全屏时不显示） */}
         {playMode === PLAY_MODE.NORMAL || playMode === PLAY_MODE.WIDE ? (
           <>
             {this.renderVideoInfo()}
