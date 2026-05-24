@@ -175,6 +175,15 @@ class HGTopNavLayout extends Component {
   };
 
   /**
+   * 跳转到内容管理页面（投稿、课程管理）。
+   * 约束：先关闭浮层，再执行路由跳转。
+   */
+  gotoPersonalCenter = () => {
+    this.setState({ showUserDropdown: false });
+    this.props.navigate(ROUTE_PATH.PERSONAL_CENTER);
+  };
+
+  /**
    * 退出登录：清除登录态并跳转到登录页。
    * 约束：先关闭浮层，调用 logout 清除 token，再跳转到登录页。
    */
@@ -216,7 +225,6 @@ class HGTopNavLayout extends Component {
               { key: "about", label: <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>我们</Link> },
               { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
               { key: "bili_douga", label: <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>B站动画</Link> },
-              { key: "personal_center", label: <Link to={ROUTE_PATH.PERSONAL_CENTER} className={styles.menuLink}>个人中心</Link> },
               { key: "profile", label: <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>我的信息</Link> },
             ]}
           />
@@ -264,6 +272,13 @@ class HGTopNavLayout extends Component {
                   onClick={this.gotoUserProfile}
                 >
                   个人中心
+                </button>
+                <button
+                  type="button"
+                  className={styles.dropdownItem}
+                  onClick={this.gotoPersonalCenter}
+                >
+                  内容管理
                 </button>
                 <button
                   type="button"
