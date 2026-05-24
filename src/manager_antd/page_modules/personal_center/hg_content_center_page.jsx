@@ -11,12 +11,14 @@ import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
 import HGBreadcrumbPage from "../../../components/hg_breadcrumb/hg_breadcrumb_page";
 import HGCourseManagementPage from "./course_management/hg_course_management_page";
 import HGCourseDirectoryPage from "./course_directory/hg_course_directory_page";
+import HGCourseLessonPage from "./course_lesson/hg_course_lesson_page";
 import HGContentCenterVM, { MENU_KEY } from "./hg_content_center_vm";
 import styles from "./hg_content_center.module.css";
 import iconUpload from "../../../assets/icons/icon_upload.svg";
 import iconCourse from "../../../assets/icons/icon_course.svg";
 import iconFileUpload from "../../../assets/icons/icon_file_upload.svg";
 import iconDirectory from "../../../assets/icons/icon_directory.svg";
+import iconLesson from "../../../assets/icons/icon_lesson.svg";
 
 /**
  * 菜单项配置（支持子菜单）。
@@ -31,6 +33,7 @@ const MENU_ITEMS = [
       { key: MENU_KEY.COURSE_LIST, label: "课程列表", icon: <img src={iconCourse} alt="列表" width="18" height="18" /> },
       { key: MENU_KEY.COURSE_SUBMIT, label: "课程提交", icon: <img src={iconCourse} alt="提交" width="18" height="18" /> },
       { key: MENU_KEY.COURSE_DIRECTORY, label: "课程目录", icon: <img src={iconDirectory} alt="目录" width="18" height="18" /> },
+      { key: MENU_KEY.COURSE_LESSON, label: "课时管理", icon: <img src={iconLesson} alt="课时" width="18" height="18" /> },
     ],
   },
 ];
@@ -45,6 +48,7 @@ class HGContentCenterPage extends React.Component {
     super(props);
     this.state = {
       activeMenu: MENU_KEY.UPLOAD,
+      openKeys: [MENU_KEY.COURSE],
       uploads: [],
       courses: [],
       loading: false,
@@ -88,11 +92,19 @@ class HGContentCenterPage extends React.Component {
   };
 
   /**
+   * 处理子菜单展开/折叠。
+   * @param {Array} keys 当前展开的菜单 key 数组。
+   */
+  handleOpenChange = (keys) => {
+    this.setState({ openKeys: keys });
+  };
+
+  /**
    * 渲染左侧菜单。
    * @returns {React.ReactNode} 菜单节点。
    */
   renderSider = () => {
-    const { activeMenu } = this.state;
+    const { activeMenu, openKeys } = this.state;
     return (
       <div className={styles.sider}>
         <div className={styles.siderTitle}>内容中心</div>
@@ -100,7 +112,9 @@ class HGContentCenterPage extends React.Component {
           mode="inline"
           theme="light"
           selectedKeys={[activeMenu]}
+          openKeys={openKeys}
           onClick={this.handleMenuClick}
+          onOpenChange={this.handleOpenChange}
           items={MENU_ITEMS}
         />
       </div>
@@ -208,6 +222,7 @@ class HGContentCenterPage extends React.Component {
           {(activeMenu === MENU_KEY.COURSE || activeMenu === MENU_KEY.COURSE_LIST) && this.renderCourseContent()}
           {activeMenu === MENU_KEY.COURSE_SUBMIT && <HGCourseManagementPage />}
           {activeMenu === MENU_KEY.COURSE_DIRECTORY && <HGCourseDirectoryPage />}
+          {activeMenu === MENU_KEY.COURSE_LESSON && <HGCourseLessonPage />}
         </div>
       </div>
     );

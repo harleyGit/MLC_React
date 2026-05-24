@@ -45,6 +45,7 @@ export const MENU_KEY = {
   COURSE_LIST: "course_list",
   COURSE_SUBMIT: "course_submit",
   COURSE_DIRECTORY: "course_directory",
+  COURSE_LESSON: "course_lesson",
 };
 
 /**
@@ -56,6 +57,7 @@ export const MENU_TITLE_MAP = {
   [MENU_KEY.COURSE_LIST]: "课程列表",
   [MENU_KEY.COURSE_SUBMIT]: "课程提交",
   [MENU_KEY.COURSE_DIRECTORY]: "课程目录",
+  [MENU_KEY.COURSE_LESSON]: "课时管理",
 };
 
 /**
@@ -68,6 +70,7 @@ export const MENU_PARENT_MAP = {
   [MENU_KEY.COURSE_LIST]: MENU_KEY.COURSE,
   [MENU_KEY.COURSE_SUBMIT]: MENU_KEY.COURSE,
   [MENU_KEY.COURSE_DIRECTORY]: MENU_KEY.COURSE,
+  [MENU_KEY.COURSE_LESSON]: MENU_KEY.COURSE,
 };
 
 /**
