@@ -7,7 +7,7 @@
  * @Description: 个人中心页面，左侧菜单 + 右侧内容区布局
  */
 import React from "react";
-import { WithNavigation } from "../../router/hg_naviagion_hook";
+import HGCourseManagementPage from "./course_management/hg_course_management_page";
 import styles from "./hg_personal_center.module.css";
 
 /**
@@ -43,6 +43,7 @@ const Icon = {
 const MENU_ITEMS = [
   { key: "upload", label: "投稿功能", icon: Icon.Upload },
   { key: "course", label: "课程管理", icon: Icon.Course },
+  { key: "course_submit", label: "课程提交", icon: Icon.Course },
 ];
 
 /**
@@ -190,12 +191,19 @@ class HGPersonalCenterPage extends React.Component {
    */
   renderContent = () => {
     const { activeMenu } = this.state;
-    const contentTitle = activeMenu === "upload" ? "投稿功能" : "课程管理";
+    const contentTitleMap = {
+      upload: "投稿功能",
+      course: "课程管理",
+      course_submit: "课程提交",
+    };
+    const contentTitle = contentTitleMap[activeMenu] || "投稿功能";
     return (
       <div className={styles.content}>
         <div className={styles.contentCard}>
           <h2 className={styles.contentTitle}>{contentTitle}</h2>
-          {activeMenu === "upload" ? this.renderUploadContent() : this.renderCourseContent()}
+          {activeMenu === "upload" && this.renderUploadContent()}
+          {activeMenu === "course" && this.renderCourseContent()}
+          {activeMenu === "course_submit" && <HGCourseManagementPage />}
         </div>
       </div>
     );
