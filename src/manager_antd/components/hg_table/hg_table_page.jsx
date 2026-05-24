@@ -2,32 +2,118 @@ import React from "react";
 import styles from "./hg_table.module.css";
 
 /**
+ * 默认行高（px）。
+ */
+const ROW_HEIGHT = 48;
+
+/**
+ * 上下缓冲行数。
+ */
+const BUFFER_ROWS = 5;
+
+/**
+ * 默认表体最大高度（px）。
+ */
+const MAX_BODY_HEIGHT = 500;
+
+/**
+ * 单行组件（PureComponent）。
+ * 职责：渲染一行中所有单元格。以 poolIndex 为 key 实现 React 级 cell 复用。
+ * 原理：poolIndex 不变 → React 复用组件实例和 DOM → 仅更新变化的 props。
+ */
+class VirtualRow extends React.PureComponent {
+  render() {
+    const { columns, record, rowIndex } = this.props;
+    if (!record) return <div className={styles.row} />;
+
+    return (
+      <div className={styles.row}>
+        {columns.map((col) => {
+          const value = record[col.dataIndex];
+          const rendered = col.render ? col.render(value, record, rowIndex) : value;
+          return (
+            <div
+              key={col.dataIndex || col.title}
+              className={styles.cell}
+              style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
+            >
+              {rendered}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+}
+
+/**
  * 自定义表格组件，替代 antd Table。
- * 职责：根据 columns 和 dataSource 渲染可交互表格，支持自定义渲染、分页、loading。
- * 输入：columns, dataSource, rowKey, loading, pagination, onChange。
- * 约束：columns 格式为 [{title, dataIndex, width?, render?}]，dataSource 为对象数组。
+ *
+ * iOS UITableView cell 复用原理实现：
+ *   1. 创建固定数量的 VirtualRow（复用池），以 poolIndex 为 key 常驻内存；
+ *   2. 滚动时通过 offset 计算每行应显示哪条数据，仅更新 VirtualRow 的 props；
+ *   3. 超出数据范围的行传入 record=null，隐藏但保留 DOM（复用池）；
+ *   4. 池大小 = 可见行数 + 缓冲行数，DOM 节点数恒定不随数据量增长；
+ *   5. 每个 VirtualRow 通过 poolIndex（identifier）标识，支持多种 cell 类型。
+ *
+ * 输入：columns, dataSource, rowKey, loading, pagination, onChange, scroll。
  */
 class HGTablePage extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      offset: 0,
+    };
+    this.scrollRef = React.createRef();
+  }
+
   /**
    * 获取行唯一 key。
-   * @param {object} record - 行数据。
-   * @param {number} index - 行索引。
-   * @returns {string} 行唯一标识。
    */
   getRowKey = (record, index) => {
     const { rowKey } = this.props;
-    if (typeof rowKey === "function") {
-      return rowKey(record);
-    }
-    if (typeof rowKey === "string" && record[rowKey] !== undefined) {
+    if (typeof rowKey === "function") return rowKey(record);
+    if (typeof rowKey === "string" && record[rowKey] !== undefined)
       return String(record[rowKey]);
-    }
     return String(index);
   };
 
   /**
+   * 获取表体可视区域高度。
+   */
+  getBodyHeight = () => {
+    const { scroll } = this.props;
+    return scroll && scroll.y ? scroll.y : MAX_BODY_HEIGHT;
+  };
+
+  /**
+   * 滚动事件处理。
+   * 职责：计算行偏移量，触发 React 更新复用池中每行显示的数据。
+   * 仅在 offset 变化时触发 setState，避免每帧重渲染。
+   */
+  handleScroll = (e) => {
+    const { scrollTop, scrollLeft } = e.target;
+    const headerEl = e.target.previousElementSibling;
+    if (headerEl) headerEl.scrollLeft = scrollLeft;
+
+    const newOffset = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
+    if (newOffset !== this.state.offset) {
+      this.setState({ offset: newOffset });
+    }
+  };
+
+  /**
+   * 触发外部分页变更回调。
+   * 格式对齐 antd Table：onChange({ current, pageSize, total })。
+   */
+  emitChange = (page, size) => {
+    const { pagination, onChange } = this.props;
+    const total = pagination ? pagination.total || 0 : 0;
+    if (onChange) onChange({ current: page, pageSize: size, total });
+  };
+
+  /**
    * 渲染 loading 遮罩层。
-   * @returns {React.ReactNode} loading 节点或 null。
    */
   renderLoading = () => {
     const { loading } = this.props;
@@ -41,12 +127,10 @@ class HGTablePage extends React.Component {
 
   /**
    * 渲染分页器。
-   * @returns {React.ReactNode} 分页节点或 null。
    */
   renderPagination = () => {
     const { pagination } = this.props;
-    if (pagination === false) return null;
-    if (!pagination) return null;
+    if (pagination === false || !pagination) return null;
 
     const {
       current = 1,
@@ -54,39 +138,19 @@ class HGTablePage extends React.Component {
       total = 0,
       showSizeChanger = false,
       showQuickJumper = false,
-      onChange,
-      onShowSizeChange,
     } = pagination;
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    /**
-     * 触发页码变更。
-     * @param {number} page - 目标页码。
-     */
     const handleChangePage = (page) => {
       if (page < 1 || page > totalPages || page === current) return;
-      if (onChange) {
-        onChange(page, pageSize);
-      }
+      this.emitChange(page, pageSize);
     };
 
-    /**
-     * 触发每页条数变更。
-     * @param {number} size - 新的每页条数。
-     */
     const handleSizeChange = (size) => {
-      if (onShowSizeChange) {
-        onShowSizeChange(current, size);
-      } else if (onChange) {
-        onChange(1, size);
-      }
+      this.emitChange(1, size);
     };
 
-    /**
-     * 生成页码按钮列表（最多 7 个，含省略号）。
-     * @returns {Array<number|string>} 页码数组。
-     */
     const getPageNumbers = () => {
       const pages = [];
       if (totalPages <= 7) {
@@ -103,7 +167,7 @@ class HGTablePage extends React.Component {
       return pages;
     };
 
-    const startItem = (current - 1) * pageSize + 1;
+    const startItem = total > 0 ? (current - 1) * pageSize + 1 : 0;
     const endItem = Math.min(current * pageSize, total);
 
     return (
@@ -179,72 +243,96 @@ class HGTablePage extends React.Component {
   };
 
   /**
-   * 渲染表格主体。
-   * @returns {React.ReactNode} table 元素。
+   * 渲染表头。
+   * 使用 flex 布局，与表体列宽对齐。
    */
-  renderTable = () => {
+  renderHeader = () => {
+    const { columns = [] } = this.props;
+    return (
+      <div className={styles.headerWrap}>
+        <div className={styles.row}>
+          {columns.map((col) => (
+            <div
+              key={col.dataIndex || col.title}
+              className={styles.headerCell}
+              style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
+            >
+              {col.title}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * 渲染 cell 复用表体。
+   *
+   * 复用池实现（类 iOS UITableView）：
+   *   - 创建 POOL_SIZE 个 VirtualRow，以 poolIndex（identifier）为 key；
+   *   - poolIndex 不变 → React 复用组件实例 → DOM 节点常驻内存；
+   *   - offset 变化 → 每个 VirtualRow 的 record 和 rowIndex 更新；
+   *   - record=null 的行渲染空 div，但保留 DOM（放入缓存池的效果）；
+   *   - 新数据进入可视区时，React 通过 poolIndex 找到缓存的 VirtualRow，
+   *     仅更新 props（类似 iOS dequeueReusableCellWithIdentifier）。
+   */
+  renderBody = () => {
     const { columns = [], dataSource = [] } = this.props;
+    const { offset } = this.state;
+    const bodyHeight = this.getBodyHeight();
+    const totalCount = dataSource.length;
+    const totalHeight = totalCount * ROW_HEIGHT;
+    const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
+
+    if (totalCount === 0) {
+      return (
+        <div className={styles.bodyWrap} style={{ height: bodyHeight }}>
+          <div className={styles.emptyCell}>暂无数据</div>
+        </div>
+      );
+    }
 
     return (
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead className={styles.thead}>
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.dataIndex || col.title}
-                  className={styles.th}
-                  style={col.width ? { width: col.width } : undefined}
-                >
-                  {col.title}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className={styles.tbody}>
-            {dataSource.length === 0 ? (
-              <tr>
-                <td className={styles.emptyCell} colSpan={columns.length}>
-                  暂无数据
-                </td>
-              </tr>
-            ) : (
-              dataSource.map((record, rowIndex) => {
-                const key = this.getRowKey(record, rowIndex);
-                return (
-                  <tr key={key} className={styles.tr}>
-                    {columns.map((col) => {
-                      const value = record[col.dataIndex];
-                      const rendered = col.render
-                        ? col.render(value, record, rowIndex)
-                        : value;
-                      return (
-                        <td
-                          key={col.dataIndex || col.title}
-                          className={styles.td}
-                          style={col.width ? { width: col.width } : undefined}
-                        >
-                          {rendered}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+      <div
+        className={styles.bodyWrap}
+        style={{ height: bodyHeight }}
+        ref={this.scrollRef}
+        onScroll={this.handleScroll}
+      >
+        <div className={styles.virtualSpacer} style={{ height: totalHeight }}>
+          {Array.from({ length: poolSize }, (_, poolIdx) => {
+            const dataIdx = offset + poolIdx;
+            const record = dataIdx >= 0 && dataIdx < totalCount ? dataSource[dataIdx] : null;
+            return (
+              <div
+                key={poolIdx}
+                className={styles.poolRow}
+                style={{
+                  top: dataIdx >= 0 ? dataIdx * ROW_HEIGHT : -ROW_HEIGHT,
+                  height: ROW_HEIGHT,
+                  visibility: record ? "visible" : "hidden",
+                }}
+              >
+                <VirtualRow
+                  columns={columns}
+                  record={record}
+                  rowIndex={dataIdx}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
 
   render() {
     const { className = "" } = this.props;
-
     return (
       <div className={`${styles.tableContainer} ${className}`}>
         {this.renderLoading()}
-        {this.renderTable()}
+        {this.renderHeader()}
+        {this.renderBody()}
         {this.renderPagination()}
       </div>
     );
