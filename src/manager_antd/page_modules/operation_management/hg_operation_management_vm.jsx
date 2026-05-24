@@ -1,0 +1,67 @@
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-05-24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-05-24
+ * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_vm.jsx
+ * @Description: 运维管理页面 ViewModel，管理菜单配置与页面切换逻辑
+ */
+
+/**
+ * 运维管理菜单数据配置
+ * 格式：[{key, label, children?}]
+ * 约束：key 需全局唯一，叶子节点 key 用于路由映射
+ */
+export const OPERATION_MENU_ITEMS = [
+  {
+    key: "admin",
+    label: "管理员管理",
+    children: [
+      { key: "admin_list", label: "管理员列表" },
+      { key: "admin_add", label: "添加管理员" },
+    ],
+  },
+  {
+    key: "user",
+    label: "用户管理",
+    children: [
+      { key: "user_list", label: "用户列表" },
+      { key: "user_permission", label: "用户权限管理" },
+    ],
+  },
+  {
+    key: "role",
+    label: "角色管理",
+    children: [
+      { key: "role_list", label: "角色列表" },
+      { key: "role_create", label: "创建角色" },
+    ],
+  },
+  {
+    key: "permission",
+    label: "权限管理",
+    children: [
+      { key: "permission_list", label: "权限列表" },
+      { key: "permission_config", label: "权限配置" },
+    ],
+  },
+];
+
+/**
+ * 运维管理 ViewModel 类
+ * 职责：管理菜单选中状态与右侧内容区映射
+ * 约束：默认选中第一个叶子节点
+ */
+export default class HGOperationManagementVM {
+  /**
+   * 获取默认选中的菜单 key（第一个叶子节点）
+   * @returns {string} 默认选中 key
+   */
+  static getDefaultSelectedKey = () => {
+    const firstGroup = OPERATION_MENU_ITEMS[0];
+    if (firstGroup && firstGroup.children && firstGroup.children.length > 0) {
+      return firstGroup.children[0].key;
+    }
+    return firstGroup ? firstGroup.key : "";
+  };
+}

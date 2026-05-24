@@ -68,6 +68,7 @@ class HGTopNavLayout extends Component {
     if (path === ROUTE_PATH.ABOUT) return "about";
     if (path === ROUTE_PATH.USER_PROFILE) return "profile";
     if (path === ROUTE_PATH.EDIT_USER_INFO) return "avatar";
+    if (path === ROUTE_PATH.OPERATION_MANAGEMENT) return "operation";
     return "home";
   };
 
@@ -222,6 +223,11 @@ class HGTopNavLayout extends Component {
             <Menu.Item key="about">
               <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>
                 我们
+              </Link>
+            </Menu.Item>
+            <Menu.Item key="operation">
+              <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>
+                运维管理
               </Link>
             </Menu.Item>
             <Menu.Item key="profile">

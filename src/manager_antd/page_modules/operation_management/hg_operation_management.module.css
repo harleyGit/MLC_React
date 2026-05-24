@@ -1,0 +1,29 @@
+/* 运维管理页面样式 */
+.operationContainer {
+  display: flex;
+  min-height: calc(100vh - 64px - 69px);
+  background: #f5f7fa;
+}
+
+.operationContent {
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #fff;
+  margin: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.operationContent h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2c4a;
+}
+
+.placeholderText {
+  color: #7a859f;
+  font-size: 14px;
+}

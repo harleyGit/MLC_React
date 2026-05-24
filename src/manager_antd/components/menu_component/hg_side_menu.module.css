@@ -1,0 +1,25 @@
+/* 侧边栏菜单组件样式 */
+.sideMenuWrap {
+  width: 220px;
+  min-height: 100%;
+  background: #fff;
+  border-right: 1px solid #f0f0f0;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.sideMenu {
+  border-right: none;
+}
+
+.sideMenu :global(.ant-menu-sub) {
+  background: #fafbfc;
+}
+
+.sideMenu :global(.ant-menu-item-selected) {
+  background: #e6f4ff !important;
+}
+
+.sideMenuItem {
+  font-size: 14px;
+}

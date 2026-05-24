@@ -15,6 +15,7 @@ export const ROUTE_PATH = {
   UPDATE_USER_PROIFE: "/profile/edit", //更新用户信息
   EDIT_USER_INFO: "/account/setting", //账号设置(编辑用户信息页)
   VIDEO_UPLOAD_EDIT: "/platform/upload/video/frame", //视频投稿上传后编辑页
+  OPERATION_MANAGEMENT: "/operation", //运维管理
   LOGIN: "/login", //登录
   REGISTER: "/register", //注册
 };
