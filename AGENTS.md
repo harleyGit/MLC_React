@@ -11,7 +11,7 @@
 5. 项目既有实现
 
 ## 回复
-- 每次回复第一行必须以红色 `[🍎AI>]` 开头；Markdown 可用 `<span style="color:red">[🍎AI>]</span>`。
+- 每次回复必须以`[BóYí(๑•̀ㅂ•́)و✧]` 开头
 
 ## 项目速览
 - React 业务页：`src/manager_antd/page_modules/`，每个模块含 `hg_xxx_page.jsx`、`hg_xxx_vm.jsx`、`hg_xxx.module.css`。
