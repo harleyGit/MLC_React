@@ -1,0 +1,18 @@
+{
+    // VS Code 调试配置文件
+    // 点击运行按钮时，会先启动开发服务器（通过 preLaunchTask），然后在 Chrome 中打开指定 URL
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "针对 localhost 启动 Chrome",
+            // 开发服务器地址（Vite 默认端口，已在 vite.config.js 中固定为 5174）
+            "url": "http://localhost:5174",
+            // 工作区根目录，用于解析源文件路径
+            "webRoot": "${workspaceFolder}",
+            // 启动前执行的任务，即运行 npm run dev
+            "preLaunchTask": "npm: dev"
+        }
+    ]
+}

@@ -16,6 +16,8 @@ export default defineConfig({
   base: "./",
   plugins: [react()],
   server: {
+    port: 5174,
+    strictPort: true,
     proxy: {
       // 代理阿里 DNS,为了nslookup
       "/dns.alidns": {

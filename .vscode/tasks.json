@@ -1,0 +1,36 @@
+{
+    // VS Code 任务配置文件
+    // 定义可在 launch.json 中引用的任务，如 preLaunchTask
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "npm",
+            "script": "dev",
+            "group": "build",
+            "label": "npm: dev",
+            "detail": "运行开发服务器",
+            // 设置为后台任务，不会阻塞后续操作
+            "isBackground": true,
+            // 问题匹配器，用于检测服务器何时就绪
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".",
+                            "file": 1,
+                            "location": 2,
+                            "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        // 当检测到 Vite 输出时开始
+                        "beginsPattern": "VITE",
+                        // 当检测到 "ready in" 时认为服务器就绪
+                        "endsPattern": "ready in"
+                    }
+                }
+            ]
+        }
+    ]
+}
