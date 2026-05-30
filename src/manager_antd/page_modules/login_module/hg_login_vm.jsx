@@ -73,7 +73,7 @@ export default class HGLoginVM {
   static requestSendVerifyCode = ({ phone }) => {
     return HGNet.sendCode({ phone }).then((res) => {
       LogOut(res);
-      return res?.code;
+      return res?.verifyCode;
     });
   };
 
@@ -83,7 +83,7 @@ export default class HGLoginVM {
   static requestSendEmailVerifyCode = ({ email }) => {
     return HGNet.sendEmailCode({ email }).then((res) => {
       LogOut(res);
-      return res?.code;
+      return res?.verifyCode;
     });
   };
 
