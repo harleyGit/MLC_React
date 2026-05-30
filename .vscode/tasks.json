@@ -1,25 +1,26 @@
 {
     // VS Code 任务配置文件
-    // 定义可在 launch.json 中引用的任务，如 preLaunchTask
+    // 定义可手动执行的 VS Code 任务。
+    // 当前 launch.json 已直接通过 node-terminal 启动/复用 Vite，不再引用 preLaunchTask。
+    // 保留 vite: dev 任务，方便在命令面板里单独运行开发服务器。
     "version": "2.0.0",
     "tasks": [
         {
-            "type": "npm",
-            "script": "dev",
+            "type": "shell",
+            "command": "npm run dev",
             "group": "build",
-            "label": "npm: dev",
+            "label": "vite: dev",
             "detail": "运行开发服务器",
-            // 设置为后台任务，不会阻塞后续操作
+            // Vite 是长期运行的开发服务器，所以必须声明为后台任务。
             "isBackground": true,
-            // 问题匹配器，用于检测服务器何时就绪
+            // problemMatcher 告诉 VS Code：看到 Vite 输出 ready in 后，认为后台任务已就绪。
+            // 如果没有这个配置，VS Code 会提示“任务尚未退出，并且未定义 problemMatcher”。
             "problemMatcher": [
                 {
                     "pattern": [
                         {
-                            "regexp": ".",
-                            "file": 1,
-                            "location": 2,
-                            "message": 3
+                            "regexp": "^(.*)$",
+                            "message": 1
                         }
                     ],
                     "background": {
