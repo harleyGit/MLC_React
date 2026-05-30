@@ -3,6 +3,7 @@ import withRouter from "../../utils/WithRouter";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
 import HGVideoPlayerPage from "../../components/hg_video_player/hg_video_player_page";
 import { DOUGA_TAGS, generateMockVideos, HOT_VIDEOS } from "./hg_mock_data";
+import { getVideoList } from "./hg_bili_api";
 import styles from "./hg_bili_douga.module.css";
 
 /**
@@ -29,6 +30,41 @@ class BiliDougaPage extends React.Component {
       currentVideo: null,
       relatedVideos: [],
     };
+  }
+
+  /**
+   * 组件挂载后加载视频列表。
+   */
+  componentDidMount() {
+    this.fetchVideoList();
+  }
+
+  /**
+   * 从后端获取视频列表。
+   */
+  fetchVideoList = async () => {
+    this.setState({ loading: true });
+    try {
+      const response = await getVideoList(1, 20);
+      if (response && response.videos) {
+        const videos = response.videos.map((item) => ({
+          id: item.videoId || item.submissionId,
+          title: item.title,
+          cover: item.coverUrl || "",
+          author: item.userId,
+          play: Math.floor(Math.random() * 100000),
+          danmaku: Math.floor(Math.random() * 10000),
+          duration: "00:00",
+          category: item.category,
+          description: item.description,
+          filePath: item.filePath,
+        }));
+        this.setState({ videos, loading: false });
+      }
+    } catch (error) {
+      console.error("获取视频列表失败，使用本地数据:", error);
+      this.setState({ loading: false });
+    }
   }
 
   /**
