@@ -18,6 +18,8 @@ export const HGMANAGER_API = {
   LOGIN: "/api/v1/auth/login", // 登录
   REGISTER_NEW_USER: "/api/v1/auth/register", // 注册新用户
   SEND_CODE: "/api/v1/auth/send_code", // 验证码
+  SEND_EMAIL_CODE: "/api/v1/auth/send_email_code", // 邮箱验证码
+  REGISTER_WITH_EMAIL: "/api/v1/auth/register_with_email", // 邮箱注册
   REFRESH_TOKEN: "/api/v1/auth/refresh", // 刷新 Token
   SEND_RESET_PASSWORD_CODE: "/api/v1/auth/send_reset_code", // 发送忘记密码验证码
   RESET_PASSWORD: "/api/v1/auth/reset_password", // 重置密码

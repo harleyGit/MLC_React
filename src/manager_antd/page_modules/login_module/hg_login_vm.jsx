@@ -46,11 +46,42 @@ export default class HGLoginVM {
       });
   };
 
+  /* 邮箱注册：
+    curl -X POST http://localhost:8080/api/v1/auth/register_with_email \
+        -H "Content-Type: application/json" \
+        -d '{"userName":"test","email":"test@example.com","code":"123456","password":"123456"}'
+  */
+  static requestRegisterUserWithEmail = ({ userName, email, code, password }) => {
+    return HGNet.registerNewUserWithEmail({
+      userName,
+      email,
+      code,
+      password,
+    })
+      .then((res) => {
+        LogOut("邮箱注册响应：", res);
+        return res;
+      })
+      .catch((err) => {
+        throw err;
+      });
+  };
+
   /*发送验证码
     curl -X GET "http://localhost:8080/api/v1/auth/send_code?phone=13800000000"
   */
   static requestSendVerifyCode = ({ phone }) => {
     return HGNet.sendCode({ phone }).then((res) => {
+      LogOut(res);
+      return res?.code;
+    });
+  };
+
+  /*发送邮箱验证码
+    curl -X GET "http://localhost:8080/api/v1/auth/send_email_code?email=test@example.com"
+  */
+  static requestSendEmailVerifyCode = ({ email }) => {
+    return HGNet.sendEmailCode({ email }).then((res) => {
       LogOut(res);
       return res?.code;
     });

@@ -40,7 +40,7 @@ class HGRegisterPage extends Component {
       loading: false,
       codeLoading: false,
       countdown: 0,
-      registerType: location.state.registeType || HGRegisterType.PHONE, // true=邮箱，false=手机号
+      registerType: location.state.registerType || HGRegisterType.PHONE, // true=邮箱，false=手机号
       contactWay: "",
       userName: location.state?.userName || "",
       verifyCode: "", //验证码
@@ -113,25 +113,24 @@ class HGRegisterPage extends Component {
     );
 
     if (!contactWay) {
-      message.warning("请先输入邮箱");
+      message.warning(this.state.registerType === HGRegisterType.EMAIL ? "请先输入邮箱" : "请先输入手机号");
       return;
     }
     this.setState({ codeLoading: true });
     showSuccess("验证码发送成功");
     this.startCountdown();
 
-    HGLoginVM.requestSendVerifyCode({
-      phone: contactWay,
-    })
+    const isEmail = this.state.registerType === HGRegisterType.EMAIL;
+    const requestPromise = isEmail 
+      ? HGLoginVM.requestSendEmailVerifyCode({ email: contactWay })
+      : HGLoginVM.requestSendVerifyCode({ phone: contactWay });
+
+    requestPromise
       .then((verifyCode) => {
         if (this.formRef.current) {
           this.formRef.current.setFieldsValue({ code: verifyCode });
         }
-        // ✅ 关键：主动设置表单字段值
-        // this.formRef.current?.setFieldsValue({
-        //   code: code,
-        // });
-        this.setState({ verifyCode: code });
+        this.setState({ verifyCode: verifyCode });
       })
       .catch(handleError)
       .finally(() => {
@@ -148,12 +147,22 @@ class HGRegisterPage extends Component {
     LogOut("表单值：", values);
     this.setState({ loading: true });
 
-    HGLoginVM.requestRegisterUser({
-      userName: values.username,
-      phone: values.phone,
-      code: values.code,
-      password: values.password,
-    })
+    const isEmail = this.state.registerType === HGRegisterType.EMAIL;
+    const registerPromise = isEmail 
+      ? HGLoginVM.requestRegisterUserWithEmail({
+          userName: values.username,
+          email: values.email,
+          code: values.code,
+          password: values.password,
+        })
+      : HGLoginVM.requestRegisterUser({
+          userName: values.username,
+          phone: values.phone,
+          code: values.code,
+          password: values.password,
+        });
+
+    registerPromise
       .then((res) => {
         message.success("注册成功，请登录");
         this.props.navigate(ROUTE_PATH.LOGIN);

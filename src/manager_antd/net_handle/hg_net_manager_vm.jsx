@@ -47,11 +47,28 @@ class HGNetManagerVM extends HGNetManager {
     });
   }
 
+  // 发送邮箱验证码
+  sendEmailCode({ email }) {
+    return this.get(HGMANAGER_API.SEND_EMAIL_CODE, {
+      email,
+    });
+  }
+
   // 注册新用户
   registerNewUser({ userName, phone, code, password }) {
     return this.post(HGMANAGER_API.REGISTER_NEW_USER, {
       userName,
       phone,
+      code,
+      password,
+    });
+  }
+
+  // 邮箱注册新用户
+  registerNewUserWithEmail({ userName, email, code, password }) {
+    return this.post(HGMANAGER_API.REGISTER_WITH_EMAIL, {
+      userName,
+      email,
       code,
       password,
     });
