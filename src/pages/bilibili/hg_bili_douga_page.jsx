@@ -51,6 +51,7 @@ class BiliDougaPage extends React.Component {
           id: item.videoId || item.submissionId,
           title: item.title,
           cover: item.coverUrl || "",
+          url: item.filePath || "",
           author: item.userId,
           play: Math.floor(Math.random() * 100000),
           danmaku: Math.floor(Math.random() * 10000),

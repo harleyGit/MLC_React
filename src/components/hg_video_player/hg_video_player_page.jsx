@@ -936,7 +936,7 @@ class HGVideoPlayerPage extends React.Component {
             <video
               ref={this.videoRef}
               className={styles.videoElement}
-              src={video.url}
+              src={video.url || video.filePath}
               onTimeUpdate={this.handleTimeUpdate}
               onProgress={this.handleProgress}
               onEnded={() => this.setState({ isPlaying: false })}
