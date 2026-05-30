@@ -2,6 +2,7 @@ import React from "react";
 import styles from "./hg_video_config_form.module.css";
 import HGTagSelector from "./hg_tag_selector";
 import HGDropdownSelector from "./hg_dropdown_selector";
+import HGNetManager from "../../../../api/hg_net_manager";
 
 /** 推荐标签列表 */
 const RECOMMEND_TAGS = [
@@ -27,13 +28,102 @@ const CATEGORY_OPTIONS = [
   { value: "舞蹈", label: "舞蹈" },
 ];
 
+/** 视频帧提取数量 */
+const FRAME_COUNT = 6;
+
 /**
  * 视频配置表单组件：每个视频对应的封面、标题、类型、分区、标签等配置。
  * @param {Object} props
  * @param {Object} props.config 当前视频配置对象。
  * @param {Function} props.onConfigChange 配置变更回调。
+ * @param {string} props.videoUrl 视频地址（本地预览 URL 或服务端 URL），用于提取封面帧。
  */
 class HGVideoConfigForm extends React.Component {
+  constructor(props) {
+    super(props);
+    this.videoRef = React.createRef();
+    this.canvasRef = React.createRef();
+    this.state = {
+      frames: [],
+      extracting: false,
+      uploadingCover: false,
+      selectedFrameIdx: -1,
+    };
+  }
+
+  componentDidMount() {
+    this.extractFrames();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.videoUrl !== this.props.videoUrl) {
+      this.setState({ selectedFrameIdx: -1 });
+      this.extractFrames();
+    }
+  }
+
+  /**
+   * 从视频中提取 6 帧画面。
+   * 通过隐藏 video + canvas 实现：加载视频后跳转到指定时间点，逐帧截图。
+   */
+  extractFrames = () => {
+    const { videoUrl } = this.props;
+    if (!videoUrl) return;
+
+    this.setState({ extracting: true, frames: [] });
+
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.preload = "auto";
+
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      if (!duration || duration === Infinity || isNaN(duration)) {
+        this.setState({ extracting: false });
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      const frames = [];
+      const timestamps = [];
+
+      for (let i = 1; i <= FRAME_COUNT; i++) {
+        timestamps.push((duration / (FRAME_COUNT + 1)) * i);
+      }
+
+      let index = 0;
+
+      const captureFrame = () => {
+        if (index >= timestamps.length) {
+          this.setState({ frames, extracting: false });
+          video.remove();
+          return;
+        }
+
+        video.currentTime = timestamps[index];
+      };
+
+      video.onseeked = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        frames.push(canvas.toDataURL("image/jpeg", 0.7));
+        index++;
+        captureFrame();
+      };
+
+      captureFrame();
+    };
+
+    video.onerror = () => {
+      this.setState({ extracting: false });
+    };
+
+    video.src = videoUrl;
+  };
+
   /**
    * 更新配置字段。
    * @param {string} fieldName 字段名。
@@ -50,21 +140,77 @@ class HGVideoConfigForm extends React.Component {
   };
 
   /**
+   * 选择视频帧作为封面：先上传到服务端获取 URL，再写入配置。
+   * @param {string} frameDataUrl 帧的 data URL。
+   * @param {number} idx 帧索引。
+   */
+  handleSelectFrame = async (frameDataUrl, idx) => {
+    this.setState({ uploadingCover: true, selectedFrameIdx: idx });
+    try {
+      const HGNet = new HGNetManager();
+      const resp = await HGNet.post("/api/v1/video_upload/cover", {
+        image: frameDataUrl,
+      });
+      const coverUrl = resp?.url || "";
+      this.handleFieldChange("coverUrl", coverUrl);
+    } catch (err) {
+      console.error("封面上传失败:", err);
+      this.setState({ selectedFrameIdx: -1 });
+    } finally {
+      this.setState({ uploadingCover: false });
+    }
+  };
+
+  /**
    * 渲染封面选择区域：从视频帧中选择封面。
    * @returns {React.ReactNode} 封面选择 JSX。
    */
   renderCoverSection = () => {
     const { config } = this.props;
+    const { frames, extracting, uploadingCover, selectedFrameIdx } = this.state;
+
     return (
       <div className={styles.formItem}>
-        <span className={styles.formLabel}>封面 <span className={styles.required}>*</span></span>
+        <span className={styles.formLabel}>
+          封面 <span className={styles.required}>*</span>
+        </span>
+
+        {/* 当前封面预览 */}
         <div className={styles.coverArea}>
           {config.coverUrl ? (
             <img src={config.coverUrl} alt="封面预览" className={styles.coverPreview} />
           ) : (
-            <div className={styles.coverEmpty}>从视频帧中选择封面</div>
+            <div className={styles.coverEmpty}>
+              {extracting ? "正在提取视频帧..." : uploadingCover ? "封面上传中..." : "从下方选择封面帧"}
+            </div>
           )}
         </div>
+
+        {/* 视频帧选择网格 */}
+        {frames.length > 0 && (
+          <div className={styles.frameGrid}>
+            {frames.map((frame, idx) => (
+              <div
+                key={idx}
+                className={`${styles.frameItem} ${selectedFrameIdx === idx ? styles.frameItemSelected : ""} ${uploadingCover ? styles.frameItemDisabled : ""}`}
+                onClick={() => !uploadingCover && this.handleSelectFrame(frame, idx)}
+              >
+                <img src={frame} alt={`帧 ${idx + 1}`} className={styles.frameImage} />
+                <span className={styles.frameLabel}>{idx + 1}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {extracting && (
+          <div className={styles.frameGrid}>
+            {Array.from({ length: FRAME_COUNT }).map((_, idx) => (
+              <div key={idx} className={`${styles.frameItem} ${styles.frameItemLoading}`}>
+                <div className={styles.frameSkeleton} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };

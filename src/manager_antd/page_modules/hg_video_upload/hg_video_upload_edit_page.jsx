@@ -299,6 +299,9 @@ class HGVideoUploadEditPage extends React.Component {
       label: v.name.length > 12 ? `${v.name.slice(0, 12)}...` : v.name,
     }));
 
+    const activeVideo = videos.find((v) => v.id === activeVideoId);
+    const videoUrl = activeVideo?.previewUrl || activeVideo?.fileUrl || activeVideo?.filePath || "";
+
     return (
       <div className={styles.rightPanel}>
         <HGTabSelector
@@ -310,6 +313,7 @@ class HGVideoUploadEditPage extends React.Component {
         <HGVideoConfigForm
           config={activeConfig}
           onConfigChange={this.handleConfigChange}
+          videoUrl={videoUrl}
         />
       </div>
     );
