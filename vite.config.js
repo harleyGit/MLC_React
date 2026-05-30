@@ -33,6 +33,12 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/ipai/, ""),
       },
 
+      // 后端上传文件静态资源
+      "/uploads": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+
       // 后端新版 API 路径
       "/api/v1": {
         target: "http://localhost:8080",

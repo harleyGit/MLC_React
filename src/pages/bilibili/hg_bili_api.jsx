@@ -3,15 +3,15 @@ import HGNetManager from "../../api/hg_net_manager";
 const HGNet = new HGNetManager();
 
 /**
- * 获取视频列表
- * @param {number} page - 页码，从 1 开始
+ * 获取视频列表（游标分页）
+ * @param {string} cursor - 翻页游标，首次调用传空，后续使用响应中的 nextCursor
  * @param {number} pageSize - 每页数量，默认 20
  * @returns {Promise} 视频列表响应
  */
-export const getVideoList = async (page = 1, pageSize = 20) => {
+export const getVideoList = async (cursor = "", pageSize = 20) => {
   try {
     const response = await HGNet.get("/api/v1/video_upload/list", {
-      page,
+      cursor,
       pageSize,
     });
     return response;
