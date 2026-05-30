@@ -1,37 +1,41 @@
 {
     // VS Code 任务配置文件
-    // 定义可手动执行的 VS Code 任务。
-    // 当前 launch.json 已直接通过 node-terminal 启动/复用 Vite，不再引用 preLaunchTask。
-    // 保留 vite: dev 任务，方便在命令面板里单独运行开发服务器。
+    // 可通过命令面板（Cmd+Shift+P）-> 「Tasks: Run Task」手动执行
+    // 当前 launch.json 已直接使用 command 运行，此文件保留供手动使用
     "version": "2.0.0",
     "tasks": [
         {
+            // 任务类型：shell 表示在终端中执行 shell 命令
             "type": "shell",
+            // 要执行的命令：启动 Vite 开发服务器
             "command": "npm run dev",
+            // 任务分组：build 表示构建类任务，可通过 Ctrl+Shift+B 快速执行
             "group": "build",
+            // 任务标签：显示在任务列表和终端标签中
             "label": "vite: dev",
+            // 任务详情：显示在任务列表中的描述
             "detail": "运行开发服务器",
-            // Vite 是长期运行的开发服务器，所以必须声明为后台任务。
+            // 是否为后台任务：true 表示任务会持续运行
+            // Vite 是长期运行的开发服务器，必须设置为 true
             "isBackground": true,
-            // problemMatcher 告诉 VS Code：看到 Vite 输出 ready in 后，认为后台任务已就绪。
-            // 如果没有这个配置，VS Code 会提示“任务尚未退出，并且未定义 problemMatcher”。
-            "problemMatcher": [
-                {
-                    "pattern": [
-                        {
-                            "regexp": "^(.*)$",
-                            "message": 1
-                        }
-                    ],
-                    "background": {
-                        "activeOnStart": true,
-                        // 当检测到 Vite 输出时开始
-                        "beginsPattern": "VITE",
-                        // 当检测到 "ready in" 时认为服务器就绪
-                        "endsPattern": "ready in"
-                    }
+            // 问题匹配器：告诉 VS Code 如何解析终端输出
+            // 对于后台任务，需要配置 background 来检测任务何时就绪
+            "problemMatcher": {
+                // pattern：定义如何提取错误/警告
+                // 空正则表示不需要解析错误，只需要检测服务器就绪
+                "pattern": {
+                    "regexp": ""
+                },
+                // background：定义后台任务就绪检测规则
+                "background": {
+                    // 任务启动时就开始监控
+                    "activeOnStart": true,
+                    // 当终端输出包含 "VITE" 时开始监控
+                    "beginsPattern": "VITE",
+                    // 当终端输出包含 "ready in" 时认为服务器已就绪
+                    "endsPattern": "ready in"
                 }
-            ]
+            }
         }
     ]
 }

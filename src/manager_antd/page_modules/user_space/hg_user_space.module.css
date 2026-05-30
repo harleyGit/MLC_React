@@ -1,0 +1,72 @@
+.spaceContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #fff;
+  min-height: 100vh;
+}
+
+/* 封面区域 */
+.coverSection {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 用户卡片包裹区 */
+.userCardWrapper {
+  padding: 0 20px;
+  margin-top: -30px;
+  position: relative;
+  z-index: 10;
+}
+
+/* 内容区 */
+.contentSection {
+  padding: 20px;
+  min-height: 400px;
+}
+
+/* 视频网格 */
+.videoGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+/* 空状态 */
+.emptyState {
+  text-align: center;
+  padding: 80px 20px;
+  color: #999;
+  font-size: 14px;
+}
+
+/* 加载状态 */
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 16px;
+  color: #666;
+}
+
+/* 响应式 */
+@media (max-width: 900px) {
+  .videoGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .videoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
