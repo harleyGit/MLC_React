@@ -42,6 +42,78 @@ const UPLOAD_LIMITS = {
 };
 
 /**
+ * 文件信息模拟数据源
+ * 职责：在未接入真实 API 前，保存文件管理提交后形成的列表数据，供上传页与文件列表页共享
+ */
+let mockFileList = [
+  {
+    id: 1,
+    scene: "user_avatar",
+    file_key: "user_avatar_1716633600000_abc123.jpg",
+    user_id: "1001",
+    user_type: "admin",
+    file_type: "image",
+    file_size: 102400,
+    file_name: "头像.jpg",
+    file_url: "https://picsum.photos/400/300",
+    upload_time: "2026-05-24 10:00:00",
+    ip: "192.168.1.100",
+  },
+  {
+    id: 2,
+    scene: "product_image",
+    file_key: "product_image_1716633700000_def456.png",
+    user_id: "1002",
+    user_type: "user",
+    file_type: "image",
+    file_size: 204800,
+    file_name: "产品图.png",
+    file_url: "https://picsum.photos/400/300?random=1",
+    upload_time: "2026-05-24 11:00:00",
+    ip: "192.168.1.101",
+  },
+  {
+    id: 3,
+    scene: "document",
+    file_key: "document_1716633800000_ghi789.pdf",
+    user_id: "1003",
+    user_type: "admin",
+    file_type: "document",
+    file_size: 1048576,
+    file_name: "需求文档.pdf",
+    file_url: "",
+    upload_time: "2026-05-24 12:00:00",
+    ip: "192.168.1.102",
+  },
+  {
+    id: 4,
+    scene: "video",
+    file_key: "video_1716633900000_jkl012.mp4",
+    user_id: "1001",
+    user_type: "admin",
+    file_type: "video",
+    file_size: 52428800,
+    file_name: "产品演示.mp4",
+    file_url: "",
+    upload_time: "2026-05-25 09:00:00",
+    ip: "192.168.1.100",
+  },
+  {
+    id: 5,
+    scene: "banner",
+    file_key: "banner_1716634000000_mno345.jpg",
+    user_id: "1004",
+    user_type: "user",
+    file_type: "image",
+    file_size: 512000,
+    file_name: "首页轮播图.jpg",
+    file_url: "https://picsum.photos/800/400?random=2",
+    upload_time: "2026-05-25 10:30:00",
+    ip: "192.168.1.103",
+  },
+];
+
+/**
  * 文件管理 ViewModel 类
  * 职责：管理文件数据、处理上传逻辑、提供表单校验规则
  */
@@ -189,7 +261,12 @@ export default class HGFileManagementVM {
   static submitFileList = (fileList) => {
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve({ code: 0, message: "提交成功", data: fileList });
+        const normalizedList = fileList.map((file, index) => ({
+          ...file,
+          id: Date.now() + index,
+        }));
+        mockFileList = [...normalizedList, ...mockFileList];
+        resolve({ code: 0, message: "提交成功", data: normalizedList });
       }, 500);
     });
   };
@@ -205,73 +282,7 @@ export default class HGFileManagementVM {
         resolve({
           code: 0,
           message: "获取成功",
-          data: [
-            {
-              id: 1,
-              scene: "user_avatar",
-              file_key: "user_avatar_1716633600000_abc123.jpg",
-              user_id: "1001",
-              user_type: "admin",
-              file_type: "image",
-              file_size: 102400,
-              file_name: "头像.jpg",
-              file_url: "https://picsum.photos/400/300",
-              upload_time: "2026-05-24 10:00:00",
-              ip: "192.168.1.100",
-            },
-            {
-              id: 2,
-              scene: "product_image",
-              file_key: "product_image_1716633700000_def456.png",
-              user_id: "1002",
-              user_type: "user",
-              file_type: "image",
-              file_size: 204800,
-              file_name: "产品图.png",
-              file_url: "https://picsum.photos/400/300?random=1",
-              upload_time: "2026-05-24 11:00:00",
-              ip: "192.168.1.101",
-            },
-            {
-              id: 3,
-              scene: "document",
-              file_key: "document_1716633800000_ghi789.pdf",
-              user_id: "1003",
-              user_type: "admin",
-              file_type: "document",
-              file_size: 1048576,
-              file_name: "需求文档.pdf",
-              file_url: "",
-              upload_time: "2026-05-24 12:00:00",
-              ip: "192.168.1.102",
-            },
-            {
-              id: 4,
-              scene: "video",
-              file_key: "video_1716633900000_jkl012.mp4",
-              user_id: "1001",
-              user_type: "admin",
-              file_type: "video",
-              file_size: 52428800,
-              file_name: "产品演示.mp4",
-              file_url: "",
-              upload_time: "2026-05-25 09:00:00",
-              ip: "192.168.1.100",
-            },
-            {
-              id: 5,
-              scene: "banner",
-              file_key: "banner_1716634000000_mno345.jpg",
-              user_id: "1004",
-              user_type: "user",
-              file_type: "image",
-              file_size: 512000,
-              file_name: "首页轮播图.jpg",
-              file_url: "https://picsum.photos/800/400?random=2",
-              upload_time: "2026-05-25 10:30:00",
-              ip: "192.168.1.103",
-            },
-          ],
+          data: [...mockFileList],
         });
       }, 300);
     });
@@ -286,6 +297,7 @@ export default class HGFileManagementVM {
   static deleteFile = (fileId) => {
     return new Promise((resolve) => {
       setTimeout(() => {
+        mockFileList = mockFileList.filter((file) => file.id !== fileId);
         resolve({ code: 0, message: "删除成功" });
       }, 300);
     });

@@ -66,14 +66,15 @@ class HGLoginPage extends Component {
 
   /**
    * 跳转到注册页面，携带当前用户名和注册类型。
+   * @param {string} registerType - 注册类型（手机号或邮箱）。
    * @returns {void}
    */
-  handleRegister = () => {
+  handleRegister = (registerType = HGRegisterType.PHONE) => {
     const { userName } = this.state;
     this.props.navigate?.(ROUTE_PATH.REGISTER, {
       state: {
         userName: userName,
-        registerType: HGRegisterType.PHONE,
+        registerType: registerType,
         testEmail: "harleysor@qq.com",
         testCode: 123456,
       },
@@ -153,8 +154,11 @@ class HGLoginPage extends Component {
           </Form>
 
           <div className={styles.actions}>
-            <span className={styles.link} onClick={this.handleRegister}>
-              注册账号
+            <span className={styles.link} onClick={() => this.handleRegister(HGRegisterType.PHONE)}>
+              手机注册
+            </span>
+            <span className={styles.link} onClick={() => this.handleRegister(HGRegisterType.EMAIL)}>
+              邮箱注册
             </span>
             <span className={styles.link} onClick={this.handleForgetPassword}>
               忘记密码？

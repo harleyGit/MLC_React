@@ -62,6 +62,7 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="file" />,
     children: [
       { key: "resource_file", label: "文件管理", icon: <HGIconPage type="file" /> },
+      { key: "resource_file_list", label: "文件列表", icon: <HGIconPage type="table" /> },
     ],
   },
   {

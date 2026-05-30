@@ -16,6 +16,7 @@ import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
 import HGAdminRoleAssignPage from "./admin_role_assign/hg_admin_role_assign_page";
 import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
 import HGFileManagementPage from "./file_management/hg_file_management_page";
+import HGFileListPage from "./file_management/file_list/hg_file_list_page";
 import styles from "./hg_operation_management.module.css";
 
 /**
@@ -262,6 +263,7 @@ const PAGE_MAP = {
   system_notify_channel: SystemNotifyChannelPage,
   system_notify_sms: HGSmsTemplatePage,
   resource_file: HGFileManagementPage,
+  resource_file_list: HGFileListPage,
 };
 
 /**

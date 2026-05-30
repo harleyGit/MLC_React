@@ -1,0 +1,219 @@
+.fileListContainer {
+  max-width: 1200px;
+  padding: 20px;
+}
+
+.pageTitle {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.pageDesc {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: #777;
+}
+
+.filterBar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filterInput {
+  width: 260px;
+}
+
+.filterSelect {
+  width: 160px;
+}
+
+.tableContainer {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.fileTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableHeaderRow {
+  background: #fafafa;
+}
+
+.thCell {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.thCellCenter {
+  padding: 12px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.trRow {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s;
+}
+
+.trRow:hover {
+  background: #f9f9f9;
+}
+
+.tdCell {
+  padding: 12px;
+  font-size: 13px;
+  color: #333;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdCellCenter {
+  padding: 12px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.previewButton {
+  background: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.previewButton:hover {
+  background: #40a9ff;
+}
+
+.deleteButton {
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.deleteButton:hover {
+  background: #ff7875;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 14px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 0;
+}
+
+.paginationInfo {
+  font-size: 13px;
+  color: #666;
+  margin-right: 8px;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 8px;
+  max-width: 80vw;
+  max-height: 85vh;
+  overflow: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.modalClose {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.modalClose:hover {
+  color: #333;
+}
+
+.modalBody {
+  padding: 20px;
+  min-width: 400px;
+  min-height: 200px;
+}
+
+.previewImage,
+.previewVideo {
+  max-width: 100%;
+  max-height: 70vh;
+  display: block;
+  margin: 0 auto;
+}
+
+.unsupportedPreview {
+  text-align: center;
+  padding: 40px;
+}
