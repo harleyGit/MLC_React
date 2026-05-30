@@ -1,5 +1,4 @@
 import React from "react";
-import { ROUTE_PATH } from "../../router/hg_router_path";
 import styles from "./hg_video_upload_edit_page.module.css";
 import HGVideoUploadEditPageVM from "./hg_video_upload_edit_page_vm";
 import HGVideoUploadList from "./components/hg_video_upload_list";
@@ -35,6 +34,7 @@ class HGVideoUploadEditPage extends React.Component {
     });
     this.state = HGVideoUploadEditPageVM.createInitialState(videos);
     this.previewUrls = {};
+    this.fileInputRef = React.createRef();
   }
 
   /**
@@ -203,11 +203,51 @@ class HGVideoUploadEditPage extends React.Component {
   };
 
   /**
-   * 返回投稿上传入口。
-   * 约束：仅路由返回，不清理外部状态。
+   * 重新上传：清除所有已上传视频，释放预览 URL，打开文件选择器。
    */
   handleBackUpload = () => {
-    this.props.navigate?.(ROUTE_PATH.EDIT_USER_INFO);
+    Object.values(this.previewUrls).forEach((url) => URL.revokeObjectURL(url));
+    this.previewUrls = {};
+    this.setState(
+      HGVideoUploadEditPageVM.createInitialState([]),
+      () => this.fileInputRef.current?.click()
+    );
+  };
+
+  /**
+   * 处理重新选择的视频文件。
+   * @param {Event} event 文件选择事件。
+   */
+  handleReSelectFiles = (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const videoFiles = Array.from(files);
+    const videos = videoFiles.map((file) => {
+      const id = `video_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      return {
+        id,
+        file,
+        name: file.name,
+        size: file.size,
+        progress: 0,
+        status: "uploading",
+        previewUrl: "",
+      };
+    });
+
+    this.setState(HGVideoUploadEditPageVM.createInitialState(videos), () => {
+      this.setState((prevState) => {
+        const updatedVideos = prevState.videos.map((v) => {
+          const previewUrl = URL.createObjectURL(v.file);
+          this.previewUrls[v.id] = previewUrl;
+          return { ...v, previewUrl };
+        });
+        return { videos: updatedVideos };
+      }, this.startUploadQueue);
+    });
+
+    event.target.value = "";
   };
 
   /**
@@ -338,6 +378,14 @@ class HGVideoUploadEditPage extends React.Component {
 
     return (
       <div className={styles.page}>
+        <input
+          ref={this.fileInputRef}
+          type="file"
+          accept="video/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={this.handleReSelectFiles}
+        />
         <div className={styles.topBar}>
           <div>
             <h2 className={styles.pageTitle}>视频投稿</h2>
