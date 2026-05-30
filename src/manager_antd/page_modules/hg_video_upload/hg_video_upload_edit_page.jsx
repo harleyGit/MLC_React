@@ -3,7 +3,7 @@ import styles from "./hg_video_upload_edit_page.module.css";
 import HGVideoUploadEditPageVM from "./hg_video_upload_edit_page_vm";
 import HGVideoUploadList from "./components/hg_video_upload_list";
 import HGVideoConfigForm from "./components/hg_video_config_form";
-import HGTabSelector from "./components/hg_tab_selector";
+import HGTabSelector from "../../../components/hg_tab_selector/hg_tab_selector";
 import HGSchedulePublish from "./components/hg_schedule_publish";
 import HGSecondaryCreation from "./components/hg_secondary_creation";
 import HGMoreSettings from "./components/hg_more_settings";

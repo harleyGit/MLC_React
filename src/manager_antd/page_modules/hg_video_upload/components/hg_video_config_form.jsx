@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./hg_video_config_form.module.css";
-import HGTagSelector from "./hg_tag_selector";
-import HGDropdownSelector from "./hg_dropdown_selector";
+import HGTagSelector from "../../../../components/hg_tag_selector/hg_tag_selector";
+import HGDropdownSelector from "../../../../components/hg_dropdown_selector/hg_dropdown_selector";
 import HGNetManager from "../../../../api/hg_net_manager";
 
 /** 推荐标签列表 */

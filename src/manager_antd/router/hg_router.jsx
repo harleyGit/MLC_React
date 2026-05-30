@@ -13,6 +13,7 @@ import HGHomePage from "../page_modules/home/hg_home_page";
 import HGTopNavLayout from "../page_modules/home/hg_top_nav_layout";
 import HGRegisterPage from "../page_modules/login_module/hg_ register_page";
 import HGLoginPage from "../page_modules/login_module/hg_login_page";
+import HGForgetPasswordPage from "../page_modules/login_module/hg_forget_password_page";
 import HGProducts from "../page_modules/product/hg_ products_page";
 import HGEditUserPage from "../page_modules/user/edit_user_info/hg_edit_user_page";
 import HGVideoUploadEditPage from "../page_modules/hg_video_upload/hg_video_upload_edit_page";
@@ -130,6 +131,10 @@ const HGRouter = createBrowserRouter([
   {
     path: ROUTE_PATH.REGISTER,
     element: <HGRegisterPage />,
+  },
+  {
+    path: ROUTE_PATH.FORGET_PASSWORD,
+    element: <HGForgetPasswordPage />,
   },
 ]);
 

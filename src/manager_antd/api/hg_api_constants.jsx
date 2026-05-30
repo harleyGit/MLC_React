@@ -19,6 +19,8 @@ export const HGMANAGER_API = {
   REGISTER_NEW_USER: "/api/v1/auth/register", // 注册新用户
   SEND_CODE: "/api/v1/auth/send_code", // 验证码
   REFRESH_TOKEN: "/api/v1/auth/refresh", // 刷新 Token
+  SEND_RESET_PASSWORD_CODE: "/api/v1/auth/send_reset_code", // 发送忘记密码验证码
+  RESET_PASSWORD: "/api/v1/auth/reset_password", // 重置密码
   UserList: "/api/v1/profile/list", // 用户列表（对齐 Go UserMiddlewareGroup 的 /list 路由）
   PROFILE: "/api/v1/profile/info", // 获取用户信息
   PROFILE_UPDATE: "/api/v1/profile/update", // 更新用户资料

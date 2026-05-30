@@ -85,7 +85,7 @@ class HGLoginPage extends Component {
    * @returns {void}
    */
   handleForgetPassword = () => {
-    this.props.navigate?.("/forget-password");
+    this.props.navigate?.(ROUTE_PATH.FORGET_PASSWORD);
   };
 
   /**

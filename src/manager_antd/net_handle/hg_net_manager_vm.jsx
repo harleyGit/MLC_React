@@ -114,6 +114,22 @@ class HGNetManagerVM extends HGNetManager {
   submitVideo(body) {
     return this.post(HGMANAGER_API.VIDEO_UPLOAD_SUBMIT, body);
   }
+
+  // 发送忘记密码验证码
+  sendResetPasswordCode({ phone }) {
+    return this.get(HGMANAGER_API.SEND_RESET_PASSWORD_CODE, {
+      phone,
+    });
+  }
+
+  // 重置密码
+  resetPassword({ phone, code, new_password }) {
+    return this.post(HGMANAGER_API.RESET_PASSWORD, {
+      phone,
+      code,
+      new_password,
+    });
+  }
 }
 
 // 创建一个默认实例
