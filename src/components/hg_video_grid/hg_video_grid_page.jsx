@@ -54,9 +54,24 @@ function formatPubDate(dateStr) {
  * 职责：渲染单个视频卡片，包含封面、标题、播放量、作者等信息。
  */
 class VideoCard extends React.PureComponent {
+  /**
+   * 处理整个卡片点击。
+   */
   handleClick = () => {
     const { video, onClick } = this.props;
     if (onClick) onClick(video);
+  };
+
+  /**
+   * 处理作者名称点击，跳转到用户空间页面。
+   * @param {Event} e - 点击事件对象
+   */
+  handleAuthorClick = (e) => {
+    e.stopPropagation(); // 阻止事件冒泡，避免触发卡片点击
+    const { video, onAuthorClick } = this.props;
+    if (onAuthorClick && video) {
+      onAuthorClick(video);
+    }
   };
 
   render() {
@@ -97,7 +112,15 @@ class VideoCard extends React.PureComponent {
           </h3>
           {/* 底部信息 */}
           <div className={styles.metaInfo}>
-            <span className={styles.author}>{video.author}</span>
+            {/* 作者名称，点击可进入用户空间 */}
+            <span
+              className={styles.author}
+              onClick={this.handleAuthorClick}
+              style={{ cursor: "pointer" }}
+              title={`查看 ${video.author} 的空间`}
+            >
+              {video.author}
+            </span>
             <span className={styles.pubDate}>{formatPubDate(video.pubDate)}</span>
           </div>
         </div>
@@ -143,6 +166,18 @@ class HGVideoGridPage extends React.Component {
   };
 
   /**
+   * 处理作者点击，跳转到用户空间页面。
+   * @param {Object} video - 视频对象，包含作者信息
+   */
+  handleAuthorClick = (video) => {
+    // 如果视频有 uid，使用 uid 跳转；否则使用作者名称作为标识
+    const uid = video.uid || video.authorId || video.author;
+    // 使用 window.location.href 进行页面跳转
+    // 这种方式适用于类组件，避免使用 hooks
+    window.location.href = `/space/${encodeURIComponent(uid)}`;
+  };
+
+  /**
    * 渲染标签栏。
    */
   renderTags = () => {
@@ -184,6 +219,7 @@ class HGVideoGridPage extends React.Component {
             video={video}
             layout={layout}
             onClick={this.handleVideoClick}
+            onAuthorClick={this.handleAuthorClick}
           />
         ))}
       </div>

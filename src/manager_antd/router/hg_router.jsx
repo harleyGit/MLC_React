@@ -23,6 +23,7 @@ import HGOperationManagementPage from "../page_modules/operation_management/hg_o
 import HGTableDemoPage from "../../components/hg_table/hg_table_demo_page";
 import BiliDougaPage from "../../pages/bilibili/hg_bili_douga_page";
 import HGContentCenterPage from "../page_modules/personal_center/hg_content_center_page";
+import HGUserSpacePage from "../page_modules/user_space/hg_user_space_page";
 import { WithNavigation } from "./hg_naviagion_hook";
 import { ROUTE_PATH } from "./hg_router_path";
 import React from "react";
@@ -88,6 +89,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.PERSONAL_CENTER,
         element: <HGContentCenterPage />,
+      },
+      {
+        path: ROUTE_PATH.USER_SPACE,
+        element: <HGUserSpacePage />,
       },
     ],
   },
