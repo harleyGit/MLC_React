@@ -23,6 +23,8 @@ export const HGMANAGER_API = {
   REFRESH_TOKEN: "/api/v1/auth/refresh", // 刷新 Token
   SEND_RESET_PASSWORD_CODE: "/api/v1/auth/send_reset_code", // 发送忘记密码验证码
   RESET_PASSWORD: "/api/v1/auth/reset_password", // 重置密码
+  CLICK_CAPTCHA: "/api/v1/auth/click_captcha", // 获取点选验证码
+  VERIFY_CLICK_CAPTCHA: "/api/v1/auth/verify_click_captcha", // 验证点选验证码
   UserList: "/api/v1/profile/list", // 用户列表（对齐 Go UserMiddlewareGroup 的 /list 路由）
   PROFILE: "/api/v1/profile/info", // 获取用户信息
   PROFILE_UPDATE: "/api/v1/profile/update", // 更新用户资料

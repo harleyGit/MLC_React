@@ -40,18 +40,28 @@ class HGNetManagerVM extends HGNetManager {
     return this.post(HGMANAGER_API.LOGIN, { phone, password });
   };
 
-  // 发送验证码
-  sendCode({ phone }) {
-    return this.get(HGMANAGER_API.SEND_CODE, {
-      phone,
-    });
+  // 发送手机验证码。
+  // verifyToken 来自点选验证码 /verify_click_captcha 的返回值。
+  // 后端 send_code 会校验该 token，并在校验通过后一次性删除 token，防止绕过点选验证码重复刷短信。
+  sendCode({ phone, verifyToken }) {
+    const params = { phone };
+    // 兼容调用方：只有走点选验证码流程时才携带 verifyToken。
+    // 不把 undefined 放进 URL query，避免请求变成 verifyToken=undefined 并被后端当作无效 token。
+    if (verifyToken) {
+      params.verifyToken = verifyToken;
+    }
+    return this.get(HGMANAGER_API.SEND_CODE, params);
   }
 
-  // 发送邮箱验证码
-  sendEmailCode({ email }) {
-    return this.get(HGMANAGER_API.SEND_EMAIL_CODE, {
-      email,
-    });
+  // 发送邮箱验证码。
+  // 与手机验证码一致，verifyToken 是点选验证码通过后的前置安全凭证。
+  sendEmailCode({ email, verifyToken }) {
+    const params = { email };
+    // 仅在真实存在 token 时追加 query 参数，保持 URL 干净，也避免后端误判。
+    if (verifyToken) {
+      params.verifyToken = verifyToken;
+    }
+    return this.get(HGMANAGER_API.SEND_EMAIL_CODE, params);
   }
 
   // 注册新用户
@@ -145,6 +155,19 @@ class HGNetManagerVM extends HGNetManager {
       phone,
       code,
       new_password,
+    });
+  }
+
+  // 获取点选验证码
+  getClickCaptcha() {
+    return this.get(HGMANAGER_API.CLICK_CAPTCHA);
+  }
+
+  // 验证点选验证码
+  verifyClickCaptcha({ captchaId, points }) {
+    return this.post(HGMANAGER_API.VERIFY_CLICK_CAPTCHA, {
+      captchaId,
+      points,
     });
   }
 }

@@ -20,6 +20,7 @@ import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_f
 import HGInputPage, { HGInputPassword } from "../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGIconPage from "../../../components/hg_icon/hg_icon_page";
+import HGClickCaptchaPage from "../../../components/hg_click_captcha/hg_click_captcha_page";
 
 /**
  * 用户注册页面
@@ -44,6 +45,7 @@ class HGRegisterPage extends Component {
       contactWay: "",
       userName: location.state?.userName || "",
       verifyCode: "", //验证码
+      captchaVisible: false, // 点选验证码弹窗是否可见
     };
   }
 
@@ -116,14 +118,30 @@ class HGRegisterPage extends Component {
       message.warning(this.state.registerType === HGRegisterType.EMAIL ? "请先输入邮箱" : "请先输入手机号");
       return;
     }
+
+    // 显示点选验证码弹窗
+    this.setState({ captchaVisible: true });
+  };
+
+  /**
+   * 点选验证码验证成功回调。
+   * @param {string} verifyToken - 验证通过后的 token。
+   */
+  handleCaptchaSuccess = (verifyToken) => {
+    this.setState({ captchaVisible: false });
+
+    const contactWay = this.formRef.current?.getFieldValue(
+      this.state.registerType
+    );
+
     this.setState({ codeLoading: true });
     showSuccess("验证码发送成功");
     this.startCountdown();
 
     const isEmail = this.state.registerType === HGRegisterType.EMAIL;
-    const requestPromise = isEmail 
-      ? HGLoginVM.requestSendEmailVerifyCode({ email: contactWay })
-      : HGLoginVM.requestSendVerifyCode({ phone: contactWay });
+    const requestPromise = isEmail
+      ? HGLoginVM.requestSendEmailVerifyCode({ email: contactWay, verifyToken })
+      : HGLoginVM.requestSendVerifyCode({ phone: contactWay, verifyToken });
 
     requestPromise
       .then((verifyCode) => {
@@ -136,6 +154,20 @@ class HGRegisterPage extends Component {
       .finally(() => {
         this.setState({ codeLoading: false });
       });
+  };
+
+  /**
+   * 点选验证码验证失败回调。
+   */
+  handleCaptchaError = (errorMsg) => {
+    message.error(errorMsg || "验证码验证失败");
+  };
+
+  /**
+   * 关闭点选验证码弹窗。
+   */
+  handleCaptchaClose = () => {
+    this.setState({ captchaVisible: false });
   };
 
   /** 提交注册 */
@@ -227,6 +259,7 @@ class HGRegisterPage extends Component {
       userName,
       registerType,
       verifyCode,
+      captchaVisible,
     } = this.state;
     const isEmail = registerType == HGRegisterType.EMAIL;
 
@@ -323,6 +356,14 @@ class HGRegisterPage extends Component {
             </Item>
           </Form>
         </div>
+
+        {/* 点选验证码弹窗 */}
+        <HGClickCaptchaPage
+          visible={captchaVisible}
+          onClose={this.handleCaptchaClose}
+          onSuccess={this.handleCaptchaSuccess}
+          onError={this.handleCaptchaError}
+        />
       </div>
     );
   }

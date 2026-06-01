@@ -67,21 +67,30 @@ export default class HGLoginVM {
       });
   };
 
-  /*发送验证码
-    curl -X GET "http://localhost:8080/api/v1/auth/send_code?phone=13800000000"
+  /*发送手机验证码
+    curl -X GET "http://localhost:8080/api/v1/auth/send_code?phone=13800000000&verifyToken=xxx"
+
+    verifyToken 是点选验证码验证通过后返回的一次性凭证：
+    1. 前端先调用 /click_captcha 获取图片和字符。
+    2. 用户按顺序点击完成后调用 /verify_click_captcha。
+    3. 后端返回 verifyToken。
+    4. 这里把 verifyToken 继续透传给 send_code，后端校验通过后才真正发送短信验证码。
   */
-  static requestSendVerifyCode = ({ phone }) => {
-    return HGNet.sendCode({ phone }).then((res) => {
+  static requestSendVerifyCode = ({ phone, verifyToken }) => {
+    return HGNet.sendCode({ phone, verifyToken }).then((res) => {
       LogOut(res);
       return res?.verifyCode;
     });
   };
 
   /*发送邮箱验证码
-    curl -X GET "http://localhost:8080/api/v1/auth/send_email_code?email=test@example.com"
+    curl -X GET "http://localhost:8080/api/v1/auth/send_email_code?email=test@example.com&verifyToken=xxx"
+
+    邮箱验证码和手机验证码共用同一套点选验证码前置校验。
+    这里不消费 verifyToken，只负责透传；真正的一次性消费在 Go 后端 ValidateVerifyToken 中完成。
   */
-  static requestSendEmailVerifyCode = ({ email }) => {
-    return HGNet.sendEmailCode({ email }).then((res) => {
+  static requestSendEmailVerifyCode = ({ email, verifyToken }) => {
+    return HGNet.sendEmailCode({ email, verifyToken }).then((res) => {
       LogOut(res);
       return res?.verifyCode;
     });

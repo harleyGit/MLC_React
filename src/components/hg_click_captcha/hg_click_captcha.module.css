@@ -1,0 +1,236 @@
+/* 点选验证码弹窗组件样式 */
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.content {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 340px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #999;
+  transition: color 0.2s;
+}
+
+.closeBtn:hover {
+  color: #666;
+}
+
+.closeBtn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.captchaContainer {
+  position: relative;
+  margin-bottom: 16px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.captchaImage {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.clickIndicator {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(24, 144, 255, 0.3);
+  border: 2px solid #1890ff;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.clickIndicator::after {
+  content: attr(data-index);
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1890ff;
+  color: #fff;
+  font-size: 12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.hint {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.charList {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.charItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  background: #fafafa;
+}
+
+.charItem.active {
+  border-color: #1890ff;
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.charItem.correct {
+  border-color: #52c41a;
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.charItem.wrong {
+  border-color: #ff4d4f;
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.btnDefault {
+  background: #fff;
+  border-color: #d9d9d9;
+  color: #333;
+}
+
+.btnDefault:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.btnPrimary {
+  background: #1890ff;
+  border-color: #1890ff;
+  color: #fff;
+}
+
+.btnPrimary:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+}
+
+.btnPrimary:disabled {
+  background: #d9d9d9;
+  border-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+.refreshBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #1890ff;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+
+.refreshBtn:hover {
+  color: #40a9ff;
+}
+
+.refreshBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100px;
+  color: #999;
+  font-size: 14px;
+}
+
+.error {
+  color: #ff4d4f;
+  font-size: 13px;
+  margin-bottom: 12px;
+  text-align: center;
+}
