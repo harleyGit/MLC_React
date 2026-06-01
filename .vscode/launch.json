@@ -9,7 +9,7 @@
             // 请求：launch 表示启动新的终端会话
             "request": "launch",
             // 配置名称：显示在调试面板下拉菜单中
-            "name": "🧪[Debug]启动MLC",
+            "name": "🧪Launch MLC Debug",
             // 执行启动脚本：
             // 1. 检查 5174 端口是否已有服务
             // 2. 如果没有，后台启动 npm run dev 并等待端口就绪
