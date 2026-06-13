@@ -18,12 +18,11 @@
 import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import { HGFormPage as Form, HGFormItem as Item } from "../../../../components/hg_form/hg_form_page";
+import { HGInputSearch } from "../../../../components/hg_input/hg_input_page";
 import HGSelectPage from "../../../../components/hg_select/hg_select_page";
 import { HGCheckboxGroup } from "../../../../components/hg_checkbox/hg_checkbox_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGAdminRoleAssignVM, {
-  MOCK_ADMIN_LIST,
-  MOCK_ROLE_OPTIONS,
   INITIAL_FORM_VALUES,
 } from "./hg_admin_role_assign_vm";
 import styles from "./hg_admin_role_assign.module.css";
@@ -39,8 +38,90 @@ class HGAdminRoleAssignPage extends Component {
     this.formRef = React.createRef();
     this.state = {
       submitting: false,
+      loadingRoles: false,
+      searchingAdmins: false,
+      selectedAdmin: null,
+      adminOptions: [],
+      roleOptions: [],
     };
   }
+
+  componentDidMount() {
+    this.loadRoleOptions();
+  }
+
+  loadRoleOptions = () => {
+    this.setState({ loadingRoles: true });
+    // 角色列表后端采用 cursor 分页；页面不直接关心分页细节，由 VM 聚合有限数量的角色选项。
+    // 如果角色数量超过前端安全上限，保留已加载部分并提示用户，避免一次渲染过多复选框导致页面卡顿。
+    HGAdminRoleAssignVM.fetchAllRoleList()
+      .then((res) => {
+        const roleOptions = HGAdminRoleAssignVM.toRoleOptions(res?.list || []);
+        this.setState({ roleOptions });
+        if (roleOptions.length === 0) {
+          message.warning("暂无可分配角色，请先创建角色");
+        } else if (res?.truncated) {
+          message.warning("角色数量较多，当前仅加载前 500 个角色，请通过角色管理精简可分配范围");
+        }
+      })
+      .catch(() => {
+        message.error("角色列表获取失败，请刷新后重试");
+      })
+      .finally(() => {
+        this.setState({ loadingRoles: false });
+      });
+  };
+
+  handleAdminSearch = (keyword) => {
+    const searchText = String(keyword || "").trim();
+    if (!searchText) {
+      this.setState({ adminOptions: [], selectedAdmin: null });
+      if (this.formRef.current) {
+        this.formRef.current.setFieldsValue({ admin_user_id: undefined, role_ids: [] });
+      }
+      return;
+    }
+
+    this.setState({ searchingAdmins: true });
+    HGAdminRoleAssignVM.searchAdminUsers(searchText)
+      .then((res) => {
+        const admins = res?.list || [];
+        const adminOptions = HGAdminRoleAssignVM.toAdminOptions(admins);
+        this.setState({ adminOptions, selectedAdmin: null });
+        if (adminOptions.length === 0) {
+          message.warning("未搜索到匹配管理员");
+        }
+      })
+      .catch(() => {
+        message.error("管理员搜索失败，请稍后重试");
+      })
+      .finally(() => {
+        this.setState({ searchingAdmins: false });
+      });
+  };
+
+  handleAdminChange = (adminUserId) => {
+    const { adminOptions } = this.state;
+    const selectedAdminOption = adminOptions.find((item) => item.value === String(adminUserId));
+    this.setState({ selectedAdmin: selectedAdminOption?.raw || null });
+    if (!adminUserId) {
+      if (this.formRef.current) {
+        this.formRef.current.setFieldsValue({ role_ids: [] });
+      }
+      return;
+    }
+
+    HGAdminRoleAssignVM.fetchUserRoles(adminUserId)
+      .then((res) => {
+        const roleIds = (res?.roles || []).map((role) => String(role.id));
+        if (this.formRef.current) {
+          this.formRef.current.setFieldsValue({ role_ids: roleIds });
+        }
+      })
+      .catch(() => {
+        message.error("已分配角色获取失败，请手动选择角色");
+      });
+  };
 
   /**
    * 表单提交处理：校验通过后调用 VM 层提交逻辑
@@ -51,11 +132,7 @@ class HGAdminRoleAssignPage extends Component {
     const submitData = HGAdminRoleAssignVM.transformSubmitData(values);
     HGAdminRoleAssignVM.submitAdminRole(submitData)
       .then((res) => {
-        if (res.code === 0) {
-          message.success(res.message || "提交成功");
-        } else {
-          message.error(res.message || "提交失败");
-        }
+        message.success(res?.message || "角色分配成功");
       })
       .catch(() => {
         message.error("网络异常，请稍后重试");
@@ -72,6 +149,44 @@ class HGAdminRoleAssignPage extends Component {
     if (this.formRef.current) {
       this.formRef.current.resetFields();
     }
+    this.setState({ selectedAdmin: null, adminOptions: [] });
+  };
+
+  renderSearchField = () => {
+    const { searchingAdmins } = this.state;
+    return (
+      <div className={styles.searchBlock}>
+        <label className={styles.searchLabel}>搜索管理员</label>
+        <HGInputSearch
+          allowClear
+          enterButton={searchingAdmins ? "搜索中..." : "搜索"}
+          disabled={searchingAdmins}
+          placeholder="输入管理员ID、用户名、邮箱或手机号，可输入全部或一部分"
+          onSearch={this.handleAdminSearch}
+          className={styles.searchInput}
+        />
+        <p className={styles.searchTip}>
+          大数据表搜索使用 ID 精确匹配，或用户名、昵称、邮箱、手机号前缀匹配；最多返回 10 条候选，避免后台搜索拖慢千万级管理员表。
+        </p>
+      </div>
+    );
+  };
+
+  renderSelectedAdmin = () => {
+    const { selectedAdmin } = this.state;
+    if (!selectedAdmin) return null;
+    return (
+      <div className={styles.selectedAdminCard}>
+        <div className={styles.selectedAdminTitle}>当前选择管理员</div>
+        <div className={styles.selectedAdminGrid}>
+          <span>ID：{selectedAdmin.id || "-"}</span>
+          <span>姓名：{selectedAdmin.name || "-"}</span>
+          <span>昵称：{selectedAdmin.nickName || "-"}</span>
+          <span>邮箱：{selectedAdmin.email || "-"}</span>
+          <span>手机号：{selectedAdmin.mobile || "-"}</span>
+        </div>
+      </div>
+    );
   };
 
   /**
@@ -86,10 +201,11 @@ class HGAdminRoleAssignPage extends Component {
       className={styles.formItem}
     >
       <HGSelectPage
-        options={MOCK_ADMIN_LIST}
-        placeholder="请选择管理员"
+        options={this.state.adminOptions}
+        placeholder="请先搜索并选择管理员"
         allowClear
         className={styles.inputField}
+        onChange={this.handleAdminChange}
       />
     </Item>
   );
@@ -105,7 +221,7 @@ class HGAdminRoleAssignPage extends Component {
       rules={HGAdminRoleAssignVM.getFormRules().role_ids}
       className={styles.formItem}
     >
-      <HGCheckboxGroup options={MOCK_ROLE_OPTIONS} />
+      <HGCheckboxGroup options={this.state.roleOptions} />
     </Item>
   );
 
@@ -114,13 +230,13 @@ class HGAdminRoleAssignPage extends Component {
    * @returns {React.ReactNode} 按钮组
    */
   renderActions = () => {
-    const { submitting } = this.state;
+    const { submitting, loadingRoles } = this.state;
     return (
       <div className={styles.submitRow}>
         <HGButtonPage
           type="primary"
           htmlType="submit"
-          loading={submitting}
+          loading={submitting || loadingRoles}
           className={styles.submitBtn}
         >
           提交
@@ -142,7 +258,9 @@ class HGAdminRoleAssignPage extends Component {
           initialValues={INITIAL_FORM_VALUES}
           onFinish={this.handleFinish}
         >
+          {this.renderSearchField()}
           {this.renderAdminField()}
+          {this.renderSelectedAdmin()}
           {this.renderRolesField()}
           {this.renderActions()}
         </Form>

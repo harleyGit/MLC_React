@@ -18,7 +18,7 @@ const FormContext = createContext(null);
  * @returns {string|null} 错误信息，通过返回 null。
  */
 function validateRule(value, rule) {
-  const isEmpty = value === undefined || value === null || value === "";
+  const isEmpty = value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
 
   if (rule.required && isEmpty) {
     return rule.message || "此字段为必填项";
@@ -34,6 +34,10 @@ function validateRule(value, rule) {
 
   if (rule.min !== undefined && typeof value === "string" && value.length < rule.min) {
     return rule.message || `最少输入 ${rule.min} 个字符`;
+  }
+
+  if (rule.min !== undefined && Array.isArray(value) && value.length < rule.min) {
+    return rule.message || `最少选择 ${rule.min} 项`;
   }
 
   if (rule.max !== undefined && typeof value === "string" && value.length > rule.max) {

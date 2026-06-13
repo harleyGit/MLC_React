@@ -6,6 +6,8 @@
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/admin_role_assign/hg_admin_role_assign_vm.jsx
  * @Description: 管理员角色分配 ViewModel，管理管理员列表、角色列表、表单校验与提交逻辑
  */
+import HGNet from "../../../net_handle/hg_net_manager_vm";
+import { HGMANAGER_API } from "../../../api/hg_api_constants";
 
 /**
  * 模拟管理员列表数据
@@ -78,17 +80,64 @@ export default class HGAdminRoleAssignVM {
     };
   };
 
-  /**
-   * 模拟提交接口
-   * @param {Object} data 提交数据
-   * @returns {Promise} 模拟接口返回
-   * 约束：实际项目替换为真实接口调用
-   */
+  static toRoleOptions = (roles = []) => {
+    return roles.map((role) => ({
+      label: role.name || `角色 ${role.id}`,
+      value: String(role.id),
+    }));
+  };
+
+  static toAdminOptions = (admins = []) => {
+    return admins.map((admin) => ({
+      label: `${admin.name || admin.nickName || "未命名"} (ID:${admin.id}${admin.mobile ? ` / ${admin.mobile}` : ""})`,
+      value: String(admin.id),
+      raw: admin,
+    }));
+  };
+
+  static fetchRoleList = ({ cursor = 0, pageSize = 100 } = {}) => {
+    // 后端 /roles/list 已改为 cursor 分页：cursor=0 表示首页，后续页使用响应里的 nextCursor。
+    // 不再传 page，避免前端继续表达 OFFSET 分页语义，和 Go 侧大表优化策略保持一致。
+    return HGNet.get(HGMANAGER_API.OPS_ROLE_LIST, { cursor, pageSize });
+  };
+
+  static fetchAllRoleList = async () => {
+    // 角色分配页需要一次性渲染复选框，因此这里按 cursor 分页聚合一批可分配角色。
+    // 为避免角色表很大时前端无界拉取和渲染，最多加载 maxRoleCount 个角色；超出时由页面给出提示。
+    const pageSize = 100;
+    const maxRoleCount = 500;
+    let cursor = 0;
+    let hasMore = true;
+    const roles = [];
+
+    while (hasMore && roles.length < maxRoleCount) {
+      const res = await HGAdminRoleAssignVM.fetchRoleList({ cursor, pageSize });
+      const list = res?.list || [];
+      roles.push(...list);
+      // hasMore 和 nextCursor 都存在时才继续翻页，防止后端异常返回导致死循环。
+      hasMore = Boolean(res?.hasMore) && Boolean(res?.nextCursor);
+      cursor = res?.nextCursor || 0;
+      if (list.length === 0) break;
+    }
+
+    return {
+      list: roles.slice(0, maxRoleCount),
+      truncated: hasMore,
+    };
+  };
+
+  static searchAdminUsers = (keyword) => {
+    return HGNet.get(HGMANAGER_API.OPS_ADMIN_SEARCH, { keyword, limit: 10 });
+  };
+
+  static fetchUserRoles = (userId) => {
+    return HGNet.get(HGMANAGER_API.OPS_USER_ROLE_LIST, { userId });
+  };
+
   static submitAdminRole = (data) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ code: 0, message: "角色分配成功", data });
-      }, 500);
+    return HGNet.post(HGMANAGER_API.OPS_USER_ROLES, {
+      userId: data.admin_user_id,
+      roleIds: data.role_ids || [],
     });
   };
 }
