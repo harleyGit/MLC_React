@@ -2,12 +2,12 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-24
+ * @LastEditTime: 2026-06-13 20:07:14
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/admin_role_assign/hg_admin_role_assign_vm.jsx
  * @Description: 管理员角色分配 ViewModel，管理管理员列表、角色列表、表单校验与提交逻辑
  */
-import HGNet from "../../../net_handle/hg_net_manager_vm";
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
+import HGNet from "../../../net_handle/hg_net_manager_vm";
 
 /**
  * 模拟管理员列表数据
@@ -58,9 +58,7 @@ export default class HGAdminRoleAssignVM {
    */
   static getFormRules = () => {
     return {
-      admin_user_id: [
-        { required: true, message: "请选择管理员" },
-      ],
+      admin_user_id: [{ required: true, message: "请选择管理员" }],
       role_ids: [
         { required: true, message: "请至少选择一个角色" },
         { type: "array", min: 1, message: "请至少选择一个角色" },
@@ -89,7 +87,9 @@ export default class HGAdminRoleAssignVM {
 
   static toAdminOptions = (admins = []) => {
     return admins.map((admin) => ({
-      label: `${admin.name || admin.nickName || "未命名"} (ID:${admin.id}${admin.mobile ? ` / ${admin.mobile}` : ""})`,
+      label: `${admin.name || admin.nickName || "未命名"} (ID:${admin.id}${
+        admin.mobile ? ` / ${admin.mobile}` : ""
+      })`,
       value: String(admin.id),
       raw: admin,
     }));

@@ -9,6 +9,8 @@
 import React, { Component } from "react";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
+import HGAdminAddPage from "./admin_add/hg_admin_add_page";
+import HGAdminListPage from "./admin_list/hg_admin_list_page";
 import HGAdminRoleAssignPage from "./admin_role_assign/hg_admin_role_assign_page";
 import HGEmployeeRolePage from "./employee_role/hg_employee_role_page";
 import HGFileListPage from "./file_management/file_list/hg_file_list_page";
@@ -23,36 +25,6 @@ import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
 // 用户资料/用户列表真实页面：运维管理菜单中的 user_list 会复用该页面展示用户数据。
 import HGUserProfilePage from "../user/hg_user_profile_page";
 import styles from "./hg_operation_management.module.css";
-
-/**
- * 管理员列表占位页面
- * 职责：展示管理员列表内容（占位）
- */
-class AdminListPage extends Component {
-  render() {
-    return (
-      <div>
-        <h2>管理员列表</h2>
-        <p className={styles.placeholderText}>管理员列表页面内容</p>
-      </div>
-    );
-  }
-}
-
-/**
- * 添加管理员占位页面
- * 职责：展示添加管理员表单（占位）
- */
-class AdminAddPage extends Component {
-  render() {
-    return (
-      <div>
-        <h2>添加管理员</h2>
-        <p className={styles.placeholderText}>添加管理员页面内容</p>
-      </div>
-    );
-  }
-}
 
 /**
  * 用户列表占位页面
@@ -244,9 +216,9 @@ class SystemNotifyChannelPage extends Component {
  * - user_list 当前对应真实的 HGUserProfilePage，用于替代原先的 UserListPage 占位页面。
  */
 const PAGE_MAP = {
-  // 管理员管理：当前仍使用本文件内定义的占位页面。
-  admin_list: AdminListPage,
-  admin_add: AdminAddPage,
+  // 管理员管理：admin_list 对应独立管理员列表业务页面。
+  admin_list: HGAdminListPage,
+  admin_add: HGAdminAddPage,
   admin_role_assign: HGAdminRoleAssignPage,
   // 用户管理：user_list 菜单必须展示真实用户资料/用户列表页。
   // user_list 对应“用户列表”菜单，需要渲染真实用户资料列表页，而不是上方的占位组件。

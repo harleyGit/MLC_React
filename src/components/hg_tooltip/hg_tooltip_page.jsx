@@ -10,7 +10,7 @@ import styles from "./hg_tooltip.module.css";
  *   - 支持自定义延迟显示/隐藏
  *   - 支持自定义样式
  *
- * 输入：content, placement, delay, children, className, style。
+ * 输入：content, placement, delay, children, className, style, tooltipClassName, contentClassName。
  */
 class HGTooltipPage extends React.Component {
   constructor(props) {
@@ -116,7 +116,14 @@ class HGTooltipPage extends React.Component {
   };
 
   render() {
-    const { content, children, className = "", style = {} } = this.props;
+    const {
+      content,
+      children,
+      className = "",
+      style = {},
+      tooltipClassName = "",
+      contentClassName = "",
+    } = this.props;
     const { visible } = this.state;
 
     if (!content) {
@@ -135,10 +142,10 @@ class HGTooltipPage extends React.Component {
         {visible && (
           <div
             ref={this.tooltipRef}
-            className={`${styles.tooltip} ${styles[`tooltip-${this.props.placement || "top"}`]}`}
+            className={`${styles.tooltip} ${styles[`tooltip-${this.props.placement || "top"}`]} ${tooltipClassName}`}
             style={this.getTooltipStyle()}
           >
-            <div className={styles.tooltipContent}>{content}</div>
+            <div className={`${styles.tooltipContent} ${contentClassName}`}>{content}</div>
             <div className={`${styles.arrow} ${this.getArrowClass()}`} />
           </div>
         )}
