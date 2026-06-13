@@ -32,6 +32,7 @@ export const HGMANAGER_API = {
   VIDEO_UPLOAD_FILE: "/api/v1/video_upload/upload", // 上传视频文件
   VIDEO_UPLOAD_DRAFT: "/api/v1/video_upload/draft", // 保存视频稿件草稿
   VIDEO_UPLOAD_SUBMIT: "/api/v1/video_upload/submit", // 提交视频稿件审核
+  OPS_ROLE_CREATE: "/api/v1/ops/roles", // 创建运维角色
   OPS_ROLE_LIST: "/api/v1/ops/roles/list", // 运维角色列表
   OPS_ADMIN_SEARCH: "/api/v1/ops/users/search", // 运维管理员搜索
   OPS_USER_ROLES: "/api/v1/ops/users/roles", // 分配管理员角色

@@ -2,21 +2,24 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-24
+ * @LastEditTime: 2026-06-13 20:08:33
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
 import React, { Component } from "react";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
-import HGOperationManagementVM, { OPERATION_MENU_ITEMS } from "./hg_operation_management_vm";
-import HGPermissionMenuPage from "./hg_permission_menu_page";
-import HGEmployeeRolePage from "./employee_role/hg_employee_role_page";
-import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
 import HGAdminRoleAssignPage from "./admin_role_assign/hg_admin_role_assign_page";
-import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
-import HGFileManagementPage from "./file_management/hg_file_management_page";
+import HGEmployeeRolePage from "./employee_role/hg_employee_role_page";
 import HGFileListPage from "./file_management/file_list/hg_file_list_page";
+import HGFileManagementPage from "./file_management/hg_file_management_page";
+import HGOperationManagementVM, {
+  OPERATION_MENU_ITEMS,
+} from "./hg_operation_management_vm";
+import HGPermissionMenuPage from "./hg_permission_menu_page";
+import HGRoleCreatePage from "./role_create/hg_role_create_page";
+import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
+import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
 // 用户资料/用户列表真实页面：运维管理菜单中的 user_list 会复用该页面展示用户数据。
 import HGUserProfilePage from "../user/hg_user_profile_page";
 import styles from "./hg_operation_management.module.css";
@@ -91,21 +94,6 @@ class RoleListPage extends Component {
       <div>
         <h2>角色列表</h2>
         <p className={styles.placeholderText}>角色列表页面内容</p>
-      </div>
-    );
-  }
-}
-
-/**
- * 创建角色占位页面
- * 职责：展示创建角色表单（占位）
- */
-class RoleCreatePage extends Component {
-  render() {
-    return (
-      <div>
-        <h2>创建角色</h2>
-        <p className={styles.placeholderText}>创建角色页面内容</p>
       </div>
     );
   }
@@ -268,7 +256,7 @@ const PAGE_MAP = {
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
   role_list: RoleListPage,
   role_employee: HGEmployeeRolePage,
-  role_create: RoleCreatePage,
+  role_create: HGRoleCreatePage,
   permission_list: PermissionListPage,
   permission_menu: HGPermissionMenuPage,
   permission_role: HGRolePermissionPage,
@@ -328,7 +316,9 @@ class HGOperationManagementPage extends Component {
               ) : (
                 <span className={styles.breadcrumbCurrent}>{node.label}</span>
               )}
-              {!isLast && <span className={styles.breadcrumbSeparator}>{'>'}</span>}
+              {!isLast && (
+                <span className={styles.breadcrumbSeparator}>{">"}</span>
+              )}
             </span>
           );
         })}

@@ -1,0 +1,18 @@
+.roleCreateContainer {
+  max-width: 640px;
+}
+
+.roleCreateInput,
+.roleCreateTextArea {
+  width: 100%;
+}
+
+.roleCreateActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.roleCreateButton {
+  min-width: 96px;
+}
