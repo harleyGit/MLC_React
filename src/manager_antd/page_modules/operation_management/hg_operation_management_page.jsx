@@ -17,6 +17,8 @@ import HGAdminRoleAssignPage from "./admin_role_assign/hg_admin_role_assign_page
 import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
 import HGFileManagementPage from "./file_management/hg_file_management_page";
 import HGFileListPage from "./file_management/file_list/hg_file_list_page";
+// 用户资料/用户列表真实页面：运维管理菜单中的 user_list 会复用该页面展示用户数据。
+import HGUserProfilePage from "../user/hg_user_profile_page";
 import styles from "./hg_operation_management.module.css";
 
 /**
@@ -240,13 +242,30 @@ class SystemNotifyChannelPage extends Component {
 /**
  * 菜单 key 到页面组件的映射表
  * 约束：key 需与 OPERATION_MENU_ITEMS 中的叶子节点 key 一致
+ *
+ * 工作机制：
+ * 1. 左侧菜单点击后，HGSideMenuPage 通过 onSelect 回调把菜单 key 传给 handleMenuSelect。
+ * 2. handleMenuSelect 将 key 写入 selectedKey。
+ * 3. renderContent 读取 PAGE_MAP[selectedKey]，拿到对应页面组件。
+ * 4. 如果找到组件，就渲染 <PageComponent />；如果没找到，则显示“请选择菜单项”。
+ *
+ * 维护注意：
+ * - PAGE_MAP 的 key 必须和 hg_operation_management_vm.jsx 中 OPERATION_MENU_ITEMS 的叶子节点 key 完全一致。
+ * - 这里保存的是组件类型本身，不是 JSX 实例；因此写 HGUserProfilePage，而不是 <HGUserProfilePage />。
+ * - 新增菜单页面时，只需要新增页面组件 import，并在这里增加 key -> Component 的映射。
+ * - user_list 当前对应真实的 HGUserProfilePage，用于替代原先的 UserListPage 占位页面。
  */
 const PAGE_MAP = {
+  // 管理员管理：当前仍使用本文件内定义的占位页面。
   admin_list: AdminListPage,
   admin_add: AdminAddPage,
   admin_role_assign: HGAdminRoleAssignPage,
-  user_list: UserListPage,
+  // 用户管理：user_list 菜单必须展示真实用户资料/用户列表页。
+  // user_list 对应“用户列表”菜单，需要渲染真实用户资料列表页，而不是上方的占位组件。
+  user_list: HGUserProfilePage,
+  // 用户权限管理：当前仍使用本文件内定义的占位页面。
   user_permission: UserPermissionPage,
+  // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
   role_list: RoleListPage,
   role_employee: HGEmployeeRolePage,
   role_create: RoleCreatePage,
@@ -254,6 +273,7 @@ const PAGE_MAP = {
   permission_menu: HGPermissionMenuPage,
   permission_role: HGRolePermissionPage,
   permission_config: PermissionConfigPage,
+  // 系统配置：基础配置、安全配置、通知配置对应的占位/业务页面。
   system_basic_site: SystemBasicSitePage,
   system_basic_email: SystemBasicEmailPage,
   system_basic_storage: SystemBasicStoragePage,
@@ -262,6 +282,7 @@ const PAGE_MAP = {
   system_notify_template: SystemNotifyTemplatePage,
   system_notify_channel: SystemNotifyChannelPage,
   system_notify_sms: HGSmsTemplatePage,
+  // 资源管理：文件管理入口和文件列表页面。
   resource_file: HGFileManagementPage,
   resource_file_list: HGFileListPage,
 };
