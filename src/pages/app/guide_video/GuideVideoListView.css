@@ -4,7 +4,7 @@
   min-height: 100vh;
   background-color: #f5f5f5;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  overflow-x: hidden;/* 水平超出容器宽度的内容直接裁剪隐藏，不出现横向滚动条。 */
+  overflow-x: hidden; /* 水平超出容器宽度的内容直接裁剪隐藏，不出现横向滚动条。 */
   background-color: white;
 }
 
@@ -146,7 +146,7 @@
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
 }
 
-/* 视频列表 */
+/* 视频列表- 正常排版，这个文件中有2处，相当于CSS合并叠加样式，可以写在一处 */
 .video-list {
   display: flex;
   flex-direction: column;
@@ -288,8 +288,15 @@
 .player-page-background {
   /* 底部列表作为被遮住的背景；广告占位不挂载，避免原生广告留白。 */
   min-height: 100vh;
-  /* 模糊只作用在底部列表，避免 Android WebView 把覆盖层滤镜错误应用到 video 图层。 */
+  /* 模糊只作用在底部列表，避免 Android WebView 把覆盖层滤镜错误应用到 video 图层。
+  filter: blur(18px)
+    给整个元素添加 18px 半径的高斯模糊滤镜，让层内的视频列表内容变成虚化的毛玻璃效果，只作为背景衬托，不会抢视频画面的视觉焦点。
+ */
   filter: blur(18px);
+  /* transform: scale(1.03)
+    将元素整体放大到原尺寸的 1.03 倍。
+    这是配合模糊的常用技巧：元素加 blur 模糊后，四周边缘会因为模糊出现半透明的虚边；稍微放大一点，就能把虚边推出屏幕可视区域外，让背景四周看起来完整自然，没有发虚的边缘。 
+  */
   transform: scale(1.03);
 }
 
@@ -442,7 +449,13 @@
   background-color: #f0f0f0;
 }
 
-/* 响应式设计 */
+/* 响应式设计 
+@media是CSS媒体查询（Media Query），作用：
+  根据设备 / 系统不同条件，单独写一套专属样式，满足条件才生效，不满足就忽略。
+  简单说：条件判断样式，类似前端的 if。
+
+这里的max-width指的是窗口宽度小于 768px 时字体变小
+*/
 @media (max-width: 768px) {
   .main-content {
     padding: 12px;
@@ -492,7 +505,18 @@
   }
 }
 
-/* 滚动优化 */
+/* 滚动优化
+will-change: transform
+  提前告诉浏览器：这个容器以后会做位移、滚动、动画变换
+  浏览器会提前分配硬件加速资源，滚动、滑动时更流畅，减少卡顿、掉帧。
+
+contain: layout style paint 性能隔离（重点）
+  让浏览器把 .video-list 当成一个独立渲染区域，限制渲染范围：
+  layout：内部元素布局变化，不会影响页面其他地方布局
+  style：内部样式修改不污染外部元素
+  paint：浏览器重绘时，只重绘这个盒子内部，不刷新整个页面
+  适用场景：长视频列表、无限滚动列表，大幅减少页面渲染开销，滑动更丝滑。
+*/
 .video-list {
   will-change: transform;
   contain: layout style paint;
@@ -526,7 +550,17 @@
   }
 }
 
-/* 暗色模式支持 */
+/* 暗色模式支持
+@media 是 CSS 媒体查询（Media Query），作用：
+  根据设备 / 系统不同条件，单独写一套专属样式，满足条件才生效，不满足就忽略。
+  简单说：条件判断样式，类似前端的 if。
+
+prefers-color-scheme
+  媒体特性，读取操作系统 / 浏览器的主题设置，有两个取值：
+  light：系统默认浅色模式（白底黑字）
+  dark：系统开启深色 / 夜间模式（黑底白字）
+作用：根据用户系统主题，自动切换网页样式，避免强制白底黑字导致夜间使用刺眼。
+*/
 @media (prefers-color-scheme: dark) {
   .guide-container {
     background-color: #1a1a1a;
