@@ -1,13 +1,28 @@
 /*
- * @Author: huanggang huanggang@imilab.com
+ * @Author: huanggang
  * @Date: 2025-05-08 20:31:43
  * @LastEditors: huanggang huanggang@imilab.com
- * @LastEditTime: 2025-05-12 15:49:12
+ * @LastEditTime: 2026-06-25 18:21:26
  * @FilePath: /app-web/imi-diagnosis/src/utils/SystemInfoUtil.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 
 let cachedInfo = null;
+
+export class SystemInfoUtil {
+  static postNativeMessage(handlerName, data) {
+    const iosHandler = window.webkit?.messageHandlers?.[handlerName];
+    if (iosHandler?.postMessage) {
+      iosHandler.postMessage(data);
+    }
+
+    const androidHandler = window.imiycc?.[handlerName];
+    if (androidHandler) {
+      androidHandler.call(window.imiycc, JSON.stringify(data));
+    }
+  }
+}
+
 export async function getSystemInfo() {
   // 如果已经缓存了，就直接返回
   if (cachedInfo) return cachedInfo;
