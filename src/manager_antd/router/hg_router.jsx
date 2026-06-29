@@ -20,6 +20,7 @@ import HGVideoUploadEditPage from "../page_modules/hg_video_upload/hg_video_uplo
 import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile_page";
 import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
 import HGOperationManagementPage from "../page_modules/operation_management/hg_operation_management_page";
+import HGTestModulePage from "../page_modules/test_module/hg_test_module_page";
 import HGTableDemoPage from "../../components/hg_table/hg_table_demo_page";
 import BiliDougaPage from "../../pages/bilibili/hg_bili_douga_page";
 import HGContentCenterPage from "../page_modules/personal_center/hg_content_center_page";
@@ -77,6 +78,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.OPERATION_MANAGEMENT,
         element: <HGOperationManagementPage />,
+      },
+      {
+        path: ROUTE_PATH.TEST_MODULE,
+        element: <HGTestModulePage />,
       },
       {
         path: ROUTE_PATH.TABLE_DEMO,

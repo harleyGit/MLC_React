@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { act } from "react";
-import guideVideoItem from "../../assets/guide_video_item.png";
+import guideVideoItem from "../../../assets/5.1_7.jpg";
 import GuideVideoListView from "./GuideVideoListView";
 
 const defaultUserAgent = window.navigator.userAgent;

@@ -68,6 +68,7 @@ class HGTopNavLayout extends Component {
     if (path === ROUTE_PATH.USER_PROFILE) return "profile";
     if (path === ROUTE_PATH.EDIT_USER_INFO) return "avatar";
     if (path === ROUTE_PATH.OPERATION_MANAGEMENT) return "operation";
+    if (path === ROUTE_PATH.TEST_MODULE) return "test_module";
     if (path === ROUTE_PATH.BILI_DOUGA) return "bili_douga";
     if (path === ROUTE_PATH.PERSONAL_CENTER) return "personal_center";
     return "home";
@@ -224,6 +225,7 @@ class HGTopNavLayout extends Component {
               { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>产品</Link> },
               { key: "about", label: <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>我们</Link> },
               { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
+              { key: "test_module", label: <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>测试模块</Link> },
               { key: "bili_douga", label: <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>B站动画</Link> },
               { key: "profile", label: <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>我的信息</Link> },
             ]}

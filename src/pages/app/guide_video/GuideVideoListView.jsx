@@ -1,6 +1,6 @@
 import React, { Component } from "react";
-import guideVideoItem from "../../assets/guide_video_item.png";
-import { SystemInfoUtil } from "../../utils/SystemInfoUtil";
+import guideVideoItem from "../../../assets/5.1_7.jpg";
+import { SystemInfoUtil } from "../../../utils/SystemInfoUtil";
 import "./GuideVideoListView.css";
 import { GuideVideoListVM } from "./GuideVideoListVM";
 

@@ -16,6 +16,7 @@ export const ROUTE_PATH = {
   EDIT_USER_INFO: "/account/setting", //账号设置(编辑用户信息页)
   VIDEO_UPLOAD_EDIT: "/platform/upload/video/frame", //视频投稿上传后编辑页
   OPERATION_MANAGEMENT: "/operation", //运维管理
+  TEST_MODULE: "/test", //测试模块
   LOGIN: "/login", //登录
   REGISTER: "/register", //注册
   FORGET_PASSWORD: "/forget-password", //忘记密码

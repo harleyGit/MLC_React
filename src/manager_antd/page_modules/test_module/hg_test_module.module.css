@@ -1,0 +1,64 @@
+.testModuleContainer {
+  display: flex;
+  min-height: calc(100vh - 64px - 69px);
+  background: #f5f7fa;
+}
+
+.testModuleContent {
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
+  box-sizing: border-box;
+  background: #fff;
+  margin: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.breadcrumbItem {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumbLink {
+  color: #7a859f;
+}
+
+.breadcrumbCurrent {
+  color: #1f2c4a;
+  font-weight: 500;
+}
+
+.breadcrumbSeparator {
+  margin: 0 8px;
+  color: #bfbfbf;
+  font-size: 12px;
+}
+
+.videoPageWrap {
+  width: 100%;
+  min-height: 640px;
+  background: #fff;
+}
+
+.videoPlayerWrap {
+  width: 100%;
+  min-height: 640px;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.placeholderText {
+  color: #7a859f;
+  font-size: 14px;
+}
