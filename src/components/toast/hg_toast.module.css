@@ -47,12 +47,19 @@
   box-shadow: 0 10px 28px rgba(20, 35, 80, 0.14);
   pointer-events: auto;
   box-sizing: border-box;
+  backdrop-filter: blur(4px);
 }
 
 .toastInfo {
   color: #1659cf;
   border-color: #b8d2ff;
   background: #eef4ff;
+}
+
+.toastSuccess {
+  color: #0e8a4e;
+  border-color: #a9dfbf;
+  background: #f0fbf5;
 }
 
 .toastWarning {

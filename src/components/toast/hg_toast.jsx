@@ -3,39 +3,54 @@ import styles from "./hg_toast.module.css";
 
 const TOAST_TYPE_CLASS_MAP = {
   error: "toastError",
-  warning: "toastWarning",
   info: "toastInfo",
+  success: "toastSuccess",
+  warning: "toastWarning",
 };
 
 const TOAST_ICON_MAP = {
   error: "×",
-  warning: "!",
   info: "i",
+  success: "✓",
+  warning: "!",
 };
 
 const TOAST_POSITION_CLASS_MAP = {
-  top: "positionTop",
-  center: "positionCenter",
   bottom: "positionBottom",
+  center: "positionCenter",
+  top: "positionTop",
 };
 
 /**
- * 通用 Toast 组件：支持 error、warning、info 三种提示类型。
+ * 归一化 Toast 类型，兼容旧工具类的 warn/warm 写法。
+ * @param {string} type 输入类型。
+ * @returns {"info"|"success"|"warning"|"error"} 标准类型。
+ */
+export function normalizeToastType(type) {
+  const lowerType = String(type ?? "info").toLowerCase();
+  if (lowerType === "warn" || lowerType === "warm") {
+    return "warning";
+  }
+  if (lowerType === "success" || lowerType === "warning" || lowerType === "error") {
+    return lowerType;
+  }
+  return "info";
+}
+
+/**
+ * 通用 Toast 展示组件：只负责渲染和自动关闭，不持有全局状态。
  */
 class HGToast extends React.PureComponent {
   /**
    * 构造函数：初始化自动关闭定时器引用。
    * @param {Object} props 组件属性。
-   * 约束：Toast 可受控显示，定时器只在 visible=true 时创建。
    */
   constructor(props) {
     super(props);
     this.closeTimer = null;
   }
 
-  /**
-   * 生命周期挂载：首次显示时启动自动关闭计时。
-   */
+  /** 生命周期挂载：首次显示时启动自动关闭计时。 */
   componentDidMount() {
     this.syncAutoCloseTimer();
   }
@@ -53,43 +68,30 @@ class HGToast extends React.PureComponent {
     }
   }
 
-  /**
-   * 生命周期卸载：清理自动关闭定时器，避免回调泄漏。
-   */
+  /** 生命周期卸载：清理自动关闭定时器，避免回调泄漏。 */
   componentWillUnmount() {
     this.clearCloseTimer();
   }
 
-  /**
-   * 清理自动关闭定时器。
-   * 约束：每次重新计时前必须调用，避免重复 onClose。
-   */
+  /** 清理自动关闭定时器。 */
   clearCloseTimer = () => {
     if (this.closeTimer) {
-      clearTimeout(this.closeTimer);
+      window.clearTimeout(this.closeTimer);
       this.closeTimer = null;
     }
   };
 
-  /**
-   * 同步自动关闭定时器。
-   * 约束：duration<=0 时不自动关闭，适合全受控场景。
-   */
+  /** 同步自动关闭定时器；duration<=0 时不自动关闭。 */
   syncAutoCloseTimer = () => {
     const { duration = 2400, visible = false } = this.props;
     this.clearCloseTimer();
     if (!visible || duration <= 0) {
       return;
     }
-    this.closeTimer = setTimeout(() => {
-      this.handleClose();
-    }, duration);
+    this.closeTimer = window.setTimeout(this.handleClose, duration);
   };
 
-  /**
-   * 触发关闭回调。
-   * 约束：组件不自行维护 visible，由父组件负责隐藏状态。
-   */
+  /** 触发关闭回调，visible 状态由上层宿主管理。 */
   handleClose = () => {
     this.clearCloseTimer();
     this.props.onClose?.();
@@ -116,10 +118,10 @@ class HGToast extends React.PureComponent {
    * @returns {string} 内容容器 className。
    */
   getContentClassName = () => {
-    const { type = "info" } = this.props;
+    const normalizedType = normalizeToastType(this.props.type);
     return [
       styles.toastContent,
-      styles[TOAST_TYPE_CLASS_MAP[type] ?? TOAST_TYPE_CLASS_MAP.info],
+      styles[TOAST_TYPE_CLASS_MAP[normalizedType] ?? TOAST_TYPE_CLASS_MAP.info],
     ].join(" ");
   };
 
@@ -128,12 +130,8 @@ class HGToast extends React.PureComponent {
    * @returns {React.ReactNode} Toast 节点；未传内容时不渲染。
    */
   render() {
-    const {
-      closable = false,
-      message,
-      type = "info",
-      visible = false,
-    } = this.props;
+    const { closable = false, message, visible = false } = this.props;
+    const type = normalizeToastType(this.props.type);
     if (!message) {
       return null;
     }

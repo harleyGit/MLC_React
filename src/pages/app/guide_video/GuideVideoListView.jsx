@@ -365,17 +365,6 @@ class GuideVideoListView extends Component {
   };
   /* ===== 进度拖动结束 ===== */
 
-  handleTimeUpdate = () => {
-    if (this.state.isDragging) return;
-
-    const video = this.videoRef.current;
-    if (!video) return;
-
-    this.setState({
-      currentTime: video.currentTime,
-    });
-  };
-
   render() {
     const { language, currentVideoUrl, showVideoList } = this.state;
     const t = translations[language];
