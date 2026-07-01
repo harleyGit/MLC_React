@@ -118,13 +118,18 @@ class NetAPI {
   // request 统一合并 token、公共 header 和业务 header，并根据请求体生成签名后发起请求。
   // 这里会避免给 GET / HEAD 塞 body，防止浏览器或服务端对请求语义判断出错。
   async request({ url, method = "GET", headers = {}, body, timeout = 5000, _hasRetried = false }) {
+    // 浏览器原生 API，专门用来手动中断异步请求（fetch、DOM 事件监听、流式读取等），搭配 fetch 的 signal 属性使用。
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     const upperMethod = method.toUpperCase();
     const authHeaders = this.getAuthHeaders();
     const commonHeaders = this.getCommonHeaders(headers);
-    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
-    const isBinaryData = body instanceof Uint8Array || body instanceof ArrayBuffer || body instanceof Blob;
+    const isFormData =
+      typeof FormData !== "undefined" && body instanceof FormData;
+    const isBinaryData =
+      body instanceof Uint8Array ||
+      body instanceof ArrayBuffer ||
+      body instanceof Blob;
 
     // 根据请求体类型设置默认 Content-Type
     let defaultContentType = "application/json";

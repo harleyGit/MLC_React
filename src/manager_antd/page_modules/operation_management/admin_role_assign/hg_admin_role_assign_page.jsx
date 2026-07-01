@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-24
+ * @LastEditTime: 2026-06-29 21:21:57
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/admin_role_assign/hg_admin_role_assign_page.jsx
  * @Description: 管理员角色分配表单页面，支持选择管理员并批量分配角色
  *
@@ -73,6 +73,7 @@ class HGAdminRoleAssignPage extends Component {
   };
 
   handleAdminSearch = (keyword) => {
+    // .trim() 去除首尾空白字符，删除字符串开头、结尾所有空格、制表符、换行符，中间空格保留。
     const searchText = String(keyword || "").trim();
     if (!searchText) {
       this.setState({ adminOptions: [], selectedAdmin: null });

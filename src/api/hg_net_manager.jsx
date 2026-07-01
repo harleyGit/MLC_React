@@ -2,7 +2,9 @@ import { LogOut } from "../logger/hg_logger";
 import NetManager from "./HttpManagerV1";
 
 const env = import.meta.env;
-const defaultBaseURL = env.DEV ? "" : env.VITE_API_URL || "http://localhost:8080";
+const defaultBaseURL = env.DEV
+  ? ""
+  : env.VITE_API_URL || "http://localhost:8080";
 
 class HGNetManager {
   constructor(baseURL = defaultBaseURL) {
@@ -24,7 +26,6 @@ class HGNetManager {
   getFullURLV2(path) {
     return `${defaultBaseURL}${path}`;
   }
-  
 
   /**
    * GET 请求
@@ -39,11 +40,21 @@ class HGNetManager {
     }).toString();
   
     query结果为： "phone=17681317668&code=1234"
+
+    也可以把对应的key【键值对中的键】省略，如参省略键值对中的键，如：
+    const searchText = String(keyword || "").trim();
+    HGNet.get(HGMANAGER_API.OPS_ADMIN_SEARCH, { keyword: searchText, limit: 10 });
+    假设 searchText = "华为"：
+      params = {keyword:"华为", limit:10}
+      query = keyword=华为&limit=10
     */
+
+    // 1. 把参数对象转为 url 查询字符串（?后面的参数），多个参数用 & 分隔
     const query = new URLSearchParams(params).toString();
+    // 2. 判断有没有参数，拼接完整请求地址
     const url = query
-      ? `${this.getFullURL(path)}?${query}`
-      : this.getFullURL(path);
+      ? `${this.getFullURL(path)}?${query}` // 有参数：域名/路径?参数
+      : this.getFullURL(path); // 无参数：只保留域名/路径
     LogOut("params:", params, "query:", query, "url:", url);
     return NetManager.getWithURL(url);
   }
