@@ -1,26 +1,25 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-30 21:08:37
- * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-04-18 00:33:56
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-07-05 10:40:53
  * @FilePath: /MLC_React/src/manager_antd/user/hg_user_profile_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
  *   HGUserProfilePage → HGUpdateUserProfilePage 页面传参（class 组件）
 */
+import React from "react";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../components/hg_card/hg_card_page";
+import { HGInputSearch } from "../../../components/hg_input/hg_input_page";
+import HGLoading from "../../../components/hg_loading";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGSpacePage from "../../../components/hg_space/hg_space_page";
 import HGTablePage from "../../../components/hg_table/hg_table_page";
-import HGInputPage, { HGInputSearch } from "../../../components/hg_input/hg_input_page";
-import React from "react";
 import { LogOut } from "../../../logger/hg_logger";
-import HGLoading from "../../../components/hg_loading";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";
-
 
 /**
  * 用户资料列表页面
@@ -152,11 +151,7 @@ class HGUserProfilePage extends React.Component {
     LogOut("🍎 用户列表数据：", data);
     return (
       <div className={styles.container}>
-        <HGLoading
-          fullscreen
-          text="正在加载用户列表..."
-          visible={loading}
-        />
+        <HGLoading fullscreen text="正在加载用户列表..." visible={loading} />
         <HGCardPage
           title="用户列表"
           extra={
@@ -226,14 +221,10 @@ class HGUserProfilePage extends React.Component {
       {
         title: "📮邮箱",
         dataIndex: "email",
-        width: 80,
+        width: 150,
         render: (text) => {
           return <span>{text ?? "-.-"}</span>;
         },
-      },
-      {
-        title: "手机号",
-        dataIndex: "phone",
       },
       {
         title: "Password签名值✍️",

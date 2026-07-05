@@ -20,6 +20,7 @@ import HGOperationManagementVM, {
 } from "./hg_operation_management_vm";
 import HGPermissionMenuPage from "./hg_permission_menu_page";
 import HGRoleCreatePage from "./role_create/hg_role_create_page";
+import HGRoleListPage from "./role_list/hg_role_list_page";
 import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
 import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
 // 用户资料/用户列表真实页面：运维管理菜单中的 user_list 会复用该页面展示用户数据。
@@ -51,21 +52,6 @@ class UserPermissionPage extends Component {
       <div>
         <h2>用户权限管理</h2>
         <p className={styles.placeholderText}>用户权限管理页面内容</p>
-      </div>
-    );
-  }
-}
-
-/**
- * 角色列表占位页面
- * 职责：展示角色列表内容（占位）
- */
-class RoleListPage extends Component {
-  render() {
-    return (
-      <div>
-        <h2>角色列表</h2>
-        <p className={styles.placeholderText}>角色列表页面内容</p>
       </div>
     );
   }
@@ -222,11 +208,11 @@ const PAGE_MAP = {
   admin_role_assign: HGAdminRoleAssignPage,
   // 用户管理：user_list 菜单必须展示真实用户资料/用户列表页。
   // user_list 对应“用户列表”菜单，需要渲染真实用户资料列表页，而不是上方的占位组件。
-  user_list: HGUserProfilePage,
+  user_list: HGUserProfilePage,//用户列表
   // 用户权限管理：当前仍使用本文件内定义的占位页面。
   user_permission: UserPermissionPage,
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
-  role_list: RoleListPage,
+  role_list: HGRoleListPage,
   role_employee: HGEmployeeRolePage,
   role_create: HGRoleCreatePage,
   permission_list: PermissionListPage,

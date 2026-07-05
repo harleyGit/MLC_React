@@ -251,6 +251,20 @@ class HGTablePage extends React.Component {
   };
 
   /**
+   * 计算列总宽度（含单元格 padding）。
+   * 无显式 width 的列按默认 120px 估算。
+   */
+  getTotalColumnsWidth = () => {
+    const { columns = [] } = this.props;
+    const CELL_PADDING = 32; // 12px padding * 2
+    const DEFAULT_COL_WIDTH = 120;
+    return columns.reduce((sum, col) => {
+      const w = col.width ? Number(col.width) : DEFAULT_COL_WIDTH;
+      return sum + w + CELL_PADDING;
+    }, 0);
+  };
+
+  /**
    * 滚动事件处理（sections 模式）。
    * 职责：计算虚拟行偏移量与滚动位置，触发 React 更新。
    */
@@ -444,8 +458,9 @@ class HGTablePage extends React.Component {
    */
   renderHeader = () => {
     const { columns = [] } = this.props;
+    const totalWidth = this.getTotalColumnsWidth();
     return (
-      <div className={styles.headerWrap}>
+      <div className={styles.headerWrap} style={{ minWidth: totalWidth }}>
         <div className={styles.row}>
           {columns.map((col) => (
             <div
@@ -477,6 +492,7 @@ class HGTablePage extends React.Component {
     const { offset, scrollTop } = this.state;
     const bodyHeight = this.getBodyHeight();
     const { items, totalHeight, sectionMetas } = flattenSections(sections);
+    const totalWidth = this.getTotalColumnsWidth();
 
     if (items.length === 0) {
       return (
@@ -535,7 +551,7 @@ class HGTablePage extends React.Component {
         {stickyHeader && (
           <div
             className={styles.stickyHeader}
-            style={{ height: stickyHeader.height }}
+            style={{ height: stickyHeader.height, minWidth: totalWidth }}
           >
             <VirtualSectionHeader section={stickyHeader.section} columns={columns} />
           </div>
@@ -545,13 +561,13 @@ class HGTablePage extends React.Component {
         {stickyFooter && (
           <div
             className={styles.stickyFooter}
-            style={{ height: stickyFooter.height }}
+            style={{ height: stickyFooter.height, minWidth: totalWidth }}
           >
             <VirtualSectionFooter section={stickyFooter.section} columns={columns} />
           </div>
         )}
 
-        <div className={styles.virtualSpacer} style={{ height: totalHeight }}>
+        <div className={styles.virtualSpacer} style={{ height: totalHeight, minWidth: totalWidth }}>
           {visibleItems.map((item) => {
             const key = `${item.type}-${item.sectionIndex}-${item.rowIndex ?? "s"}`;
 
@@ -560,7 +576,7 @@ class HGTablePage extends React.Component {
                 <div
                   key={key}
                   className={styles.poolRow}
-                  style={{ top: item.top, height: item.height }}
+                  style={{ top: item.top, height: item.height, minWidth: totalWidth }}
                 >
                   <VirtualSectionHeader section={item.data} columns={columns} />
                 </div>
@@ -572,7 +588,7 @@ class HGTablePage extends React.Component {
                 <div
                   key={key}
                   className={styles.poolRow}
-                  style={{ top: item.top, height: item.height }}
+                  style={{ top: item.top, height: item.height, minWidth: totalWidth }}
                 >
                   <VirtualSectionFooter section={item.data} columns={columns} />
                 </div>
@@ -584,7 +600,7 @@ class HGTablePage extends React.Component {
               <div
                 key={key}
                 className={styles.poolRow}
-                style={{ top: item.top, height: item.height }}
+                style={{ top: item.top, height: item.height, minWidth: totalWidth }}
               >
                 <VirtualRow
                   columns={columns}
@@ -609,6 +625,7 @@ class HGTablePage extends React.Component {
     const totalCount = dataSource.length;
     const totalHeight = totalCount * ROW_HEIGHT;
     const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
+    const totalWidth = this.getTotalColumnsWidth();
 
     if (totalCount === 0) {
       return (
@@ -625,7 +642,7 @@ class HGTablePage extends React.Component {
         ref={this.scrollRef}
         onScroll={this.handleScroll}
       >
-        <div className={styles.virtualSpacer} style={{ height: totalHeight }}>
+        <div className={styles.virtualSpacer} style={{ height: totalHeight, minWidth: totalWidth }}>
           {Array.from({ length: poolSize }, (_, poolIdx) => {
             const dataIdx = offset + poolIdx;
             const inBounds = dataIdx >= 0 && dataIdx < totalCount;
@@ -637,6 +654,7 @@ class HGTablePage extends React.Component {
                 style={{
                   top: inBounds ? dataIdx * ROW_HEIGHT : -ROW_HEIGHT,
                   height: ROW_HEIGHT,
+                  minWidth: totalWidth,
                   visibility: record ? "visible" : "hidden",
                 }}
               >
