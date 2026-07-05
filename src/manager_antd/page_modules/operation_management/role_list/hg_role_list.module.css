@@ -1,0 +1,17 @@
+.roleListContainer {
+  min-width: 0;
+}
+
+.tipText {
+  margin: 0 0 14px;
+  color: #7a859f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.cellText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
