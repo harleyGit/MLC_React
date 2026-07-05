@@ -1,10 +1,10 @@
 import React from "react";
-import withRouter from "../../utils/WithRouter";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
 import HGVideoPlayerPage from "../../components/hg_video_player/hg_video_player_page";
-import { DOUGA_TAGS, generateMockVideos, HOT_VIDEOS } from "./hg_mock_data";
+import withRouter from "../../utils/WithRouter";
 import { getVideoList } from "./hg_bili_api";
 import styles from "./hg_bili_douga.module.css";
+import { DOUGA_TAGS, generateMockVideos, HOT_VIDEOS } from "./hg_mock_data";
 
 /**
  * B 站动画区页面。
@@ -36,16 +36,17 @@ class BiliDougaPage extends React.Component {
    * 组件挂载后加载视频列表。
    */
   componentDidMount() {
-    this.fetchVideoList();
+    this.fetchVideoList(this.state.activeTag);
   }
 
   /**
    * 从后端获取视频列表。
+   * @param {string} tag - 分区标签，用于过滤视频。
    */
-  fetchVideoList = async () => {
+  fetchVideoList = async (tag = "推荐") => {
     this.setState({ loading: true });
     try {
-      const response = await getVideoList(1, 20);
+      const response = await getVideoList("", 20);
       if (response && response.videos) {
         const videos = response.videos.map((item) => ({
           id: item.videoId || item.submissionId,
@@ -60,13 +61,27 @@ class BiliDougaPage extends React.Component {
           description: item.description,
           filePath: item.filePath,
         }));
-        this.setState({ videos, loading: false });
+
+        // 按标签过滤视频（如果后端不支持标签过滤，则在客户端过滤）
+        const filteredVideos = videos.filter((video) => {
+          // 如果视频有 category 字段，则按 category 过滤
+          if (video.category) {
+            return video.category === tag;
+          }
+          // 如果没有 category 字段，则返回所有视频（或根据其他逻辑过滤）
+          return true;
+        });
+
+        this.setState({
+          videos: filteredVideos.length > 0 ? filteredVideos : videos,
+          loading: false,
+        });
       }
     } catch (error) {
       console.error("获取视频列表失败，使用本地数据:", error);
       this.setState({ loading: false });
     }
-  }
+  };
 
   /**
    * 处理标签切换。
@@ -75,10 +90,12 @@ class BiliDougaPage extends React.Component {
     this.setState({ activeTag: tag, loading: true, page: 1 });
 
     // 模拟接口请求
-    setTimeout(() => {
+    /* setTimeout(() => {
       const videos = generateMockVideos(tag, 20);
       this.setState({ videos, loading: false });
-    }, 500);
+    }, 500); */
+    // 使用 fetchVideoList 请求接口数据
+    this.fetchVideoList(tag);
   };
 
   /**
@@ -156,7 +173,10 @@ class BiliDougaPage extends React.Component {
       <div className={styles.sectionTitle}>
         <h2 className={styles.titleText}>{activeTag}</h2>
         <div className={styles.titleActions}>
-          <button className={styles.refreshBtn} onClick={() => this.handleTagChange(activeTag)}>
+          <button
+            className={styles.refreshBtn}
+            onClick={() => this.handleTagChange(activeTag)}
+          >
             ↻ 换一换
           </button>
         </div>
