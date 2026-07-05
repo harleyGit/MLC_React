@@ -10,6 +10,7 @@ import React, { Component } from "react";
 import HGCardPage from "../../../../components/hg_card/hg_card_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
+import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGRoleListVM, { ROLE_LIST_PAGE_SIZE } from "./hg_role_list_vm";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import styles from "./hg_role_list.module.css";
@@ -43,6 +44,16 @@ class HGRoleListPage extends Component {
         pageSize: ROLE_LIST_PAGE_SIZE,
         total: 0,
       },
+      /** @type {boolean} 编辑弹窗可见性 */
+      editModalVisible: false,
+      /** @type {Object} 编辑表单数据 */
+      editFormData: { id: "", name: "", description: "" },
+      /** @type {boolean} 编辑提交加载状态 */
+      editLoading: false,
+      /** @type {boolean} 删除确认弹窗可见性 */
+      deleteModalVisible: false,
+      /** @type {Object} 待删除的角色记录 */
+      deleteRecord: null,
     };
   }
 
@@ -126,6 +137,96 @@ class HGRoleListPage extends Component {
   };
 
   /**
+   * 编辑角色处理。
+   * @param {Object} record 角色记录。
+   */
+  handleEdit = (record) => {
+    this.setState({
+      editModalVisible: true,
+      editFormData: { id: record.id, name: record.name, description: record.description || "" },
+    });
+  };
+
+  /**
+   * 关闭编辑弹窗。
+   */
+  handleEditModalClose = () => {
+    this.setState({ editModalVisible: false, editFormData: { id: "", name: "", description: "" } });
+  };
+
+  /**
+   * 编辑表单字段变化处理。
+   * @param {string} field 字段名。
+   * @param {string} value 字段值。
+   */
+  handleEditFormChange = (field, value) => {
+    this.setState((prevState) => ({
+      editFormData: { ...prevState.editFormData, [field]: value },
+    }));
+  };
+
+  /**
+   * 确认编辑角色。
+   */
+  handleEditConfirm = () => {
+    const { editFormData } = this.state;
+    if (!editFormData.name.trim()) {
+      message.error("角色名称不能为空");
+      return;
+    }
+    this.setState({ editLoading: true });
+    HGRoleListVM.updateRole(editFormData)
+      .then(() => {
+        message.success("角色更新成功");
+        this.handleEditModalClose();
+        // 刷新当前页
+        const { pagination } = this.state;
+        this.fetchRoleList(pagination.current, pagination.pageSize);
+      })
+      .catch(() => {
+        message.error("角色更新失败，请稍后重试");
+      })
+      .finally(() => {
+        this.setState({ editLoading: false });
+      });
+  };
+
+  /**
+   * 删除角色处理。
+   * @param {Object} record 角色记录。
+   */
+  handleDelete = (record) => {
+    this.setState({ deleteModalVisible: true, deleteRecord: record });
+  };
+
+  /**
+   * 关闭删除确认弹窗。
+   */
+  handleDeleteModalClose = () => {
+    this.setState({ deleteModalVisible: false, deleteRecord: null });
+  };
+
+  /**
+   * 确认删除角色。
+   */
+  handleDeleteConfirm = () => {
+    const { deleteRecord } = this.state;
+    if (!deleteRecord) return;
+
+    HGRoleListVM.deleteRole({ id: deleteRecord.id })
+      .then(() => {
+        message.success("角色删除成功");
+        this.handleDeleteModalClose();
+        // 刷新当前页
+        const { pagination } = this.state;
+        this.fetchRoleList(pagination.current, pagination.pageSize);
+      })
+      .catch(() => {
+        message.error("角色删除失败，请稍后重试");
+      });
+  };
+
+  /**
    * 角色表格列配置。
    * 字段来源：role 表的 role_id, name, description, create_at。
    * @returns {Array<Object>} 表格列定义。
@@ -155,6 +256,18 @@ class HGRoleListPage extends Component {
       width: 200,
       render: (text) => <span className={styles.cellText}>{text || "-"}</span>,
     },
+    {
+      title: "操作",
+      dataIndex: "action",
+      width: 200,
+      render: (_, record) => (
+        <span>
+          <a onClick={() => this.handleEdit(record)}>编辑</a>
+          <span style={{ margin: "0 8px", color: "#e8e8e8" }}>|</span>
+          <a onClick={() => this.handleDelete(record)}>删除</a>
+        </span>
+      ),
+    },
   ];
 
   /**
@@ -170,8 +283,67 @@ class HGRoleListPage extends Component {
     );
   };
 
+  /**
+   * 渲染编辑弹窗表单内容。
+   * @returns {React.ReactNode} 表单节点。
+   */
+  renderEditForm = () => {
+    const { editFormData } = this.state;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div>
+          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>角色ID</label>
+          <input
+            type="text"
+            value={editFormData.id}
+            disabled
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              border: "1px solid #d9d9d9",
+              borderRadius: "4px",
+              backgroundColor: "#f5f5f5",
+              color: "#666",
+            }}
+          />
+        </div>
+        <div>
+          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>角色名称 <span style={{ color: "#ff4d4f" }}>*</span></label>
+          <input
+            type="text"
+            value={editFormData.name}
+            onChange={(e) => this.handleEditFormChange("name", e.target.value)}
+            placeholder="请输入角色名称"
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              border: "1px solid #d9d9d9",
+              borderRadius: "4px",
+            }}
+          />
+        </div>
+        <div>
+          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>角色描述</label>
+          <textarea
+            value={editFormData.description}
+            onChange={(e) => this.handleEditFormChange("description", e.target.value)}
+            placeholder="请输入角色描述"
+            rows={4}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              border: "1px solid #d9d9d9",
+              borderRadius: "4px",
+              resize: "vertical",
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
   render() {
-    const { data, loading, pagination } = this.state;
+    const { data, loading, pagination, editModalVisible, editLoading, deleteModalVisible, deleteRecord } = this.state;
     return (
       <div className={styles.roleListContainer}>
         <HGCardPage
@@ -200,6 +372,34 @@ class HGRoleListPage extends Component {
             scroll={{ y: 420 }}
           />
         </HGCardPage>
+
+        {/* 编辑角色弹窗 */}
+        <HGModalPage
+          visible={editModalVisible}
+          title="编辑角色"
+          onClose={this.handleEditModalClose}
+          onOk={this.handleEditConfirm}
+          onCancel={this.handleEditModalClose}
+          okText={editLoading ? "提交中..." : "确认"}
+          cancelText="取消"
+          okType="primary"
+        >
+          {this.renderEditForm()}
+        </HGModalPage>
+
+        {/* 删除确认弹窗 */}
+        <HGModalPage
+          visible={deleteModalVisible}
+          title="确认删除"
+          onClose={this.handleDeleteModalClose}
+          onOk={this.handleDeleteConfirm}
+          onCancel={this.handleDeleteModalClose}
+          okText="确认删除"
+          cancelText="取消"
+          okType="danger"
+        >
+          <p>确定要删除角色 "{deleteRecord?.name}" 吗？删除后将无法恢复。</p>
+        </HGModalPage>
       </div>
     );
   }

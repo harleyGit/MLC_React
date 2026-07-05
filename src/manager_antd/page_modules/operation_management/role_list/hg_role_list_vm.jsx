@@ -39,6 +39,32 @@ export default class HGRoleListVM {
   };
 
   /**
+   * 更新角色。
+   * 接口：POST /api/v1/ops/roles/update
+   *
+   * @param {Object} params 请求参数。
+   * @param {string} params.id 角色ID。
+   * @param {string} params.name 角色名称。
+   * @param {string} params.description 角色描述。
+   * @returns {Promise<Object>} 更新后的角色信息。
+   */
+  static updateRole = ({ id, name, description } = {}) => {
+    return HGNet.post(HGMANAGER_API.OPS_ROLE_UPDATE, { id, name, description });
+  };
+
+  /**
+   * 删除角色。
+   * 接口：POST /api/v1/ops/roles/delete
+   *
+   * @param {Object} params 请求参数。
+   * @param {string} params.id 角色ID。
+   * @returns {Promise<Object>} 删除结果。
+   */
+  static deleteRole = ({ id } = {}) => {
+    return HGNet.post(HGMANAGER_API.OPS_ROLE_DELETE, { id });
+  };
+
+  /**
    * 标准化角色列表行，避免页面直接依赖后端空值细节。
    * @param {Array} roles 后端角色数组。
    * @returns {Array} 表格行数据。
