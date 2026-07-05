@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-07-05 11:28:17
+ * @LastEditTime: 2026-07-05 23:05:10
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
@@ -20,6 +20,7 @@ import HGOperationManagementVM, {
 } from "./hg_operation_management_vm";
 import HGPermissionMenuPage from "./hg_permission_menu_page";
 import HGRoleCreatePage from "./role_create/hg_role_create_page";
+import HGUserPermissionPage from "./user_permission/hg_user_permission_page";
 import HGRoleListPage from "./role_list/hg_role_list_page";
 import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
 import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
@@ -37,21 +38,6 @@ class UserListPage extends Component {
       <div>
         <h2>用户列表</h2>
         <p className={styles.placeholderText}>用户列表页面内容</p>
-      </div>
-    );
-  }
-}
-
-/**
- * 用户权限管理占位页面
- * 职责：展示用户权限管理内容（占位）
- */
-class UserPermissionPage extends Component {
-  render() {
-    return (
-      <div>
-        <h2>用户权限管理</h2>
-        <p className={styles.placeholderText}>用户权限管理页面内容</p>
       </div>
     );
   }
@@ -209,8 +195,8 @@ const PAGE_MAP = {
   // 用户管理：user_list 菜单必须展示真实用户资料/用户列表页。
   // user_list 对应“用户列表”菜单，需要渲染真实用户资料列表页，而不是上方的占位组件。
   user_list: HGUserProfilePage,//用户列表
-  // 用户权限管理：当前仍使用本文件内定义的占位页面。
-  user_permission: UserPermissionPage,
+  // 用户权限管理Page：已拆分为独立业务页面。
+  user_permission: HGUserPermissionPage,
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
   role_list: HGRoleListPage,//角色列表
   role_employee: HGEmployeeRolePage,
