@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-06-13 20:08:33
+ * @LastEditTime: 2026-07-05 11:28:17
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
@@ -212,7 +212,7 @@ const PAGE_MAP = {
   // 用户权限管理：当前仍使用本文件内定义的占位页面。
   user_permission: UserPermissionPage,
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
-  role_list: HGRoleListPage,
+  role_list: HGRoleListPage,//角色列表
   role_employee: HGEmployeeRolePage,
   role_create: HGRoleCreatePage,
   permission_list: PermissionListPage,

@@ -34,12 +34,19 @@
 
 /* ===== 表头 ===== */
 .headerWrap {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: #fafafa;
   border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
   width: fit-content;
   min-width: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.headerWrap::-webkit-scrollbar {
+  display: none;
 }
 
 .headerCell {
