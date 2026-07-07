@@ -175,6 +175,7 @@ class VirtualRow extends React.PureComponent {
     if (!record) return <div className={styles.row} />;
 
     return (
+      // autoRowHeight 开启时，行不再依赖固定 48px 高度，由单元格内容自然撑开。
       <div className={`${styles.row} ${autoRowHeight ? styles.autoHeightRow : ""}`}>
         {columns.map((col) => {
           const value = record[col.dataIndex];
@@ -182,6 +183,7 @@ class VirtualRow extends React.PureComponent {
           return (
             <div
               key={col.dataIndex || col.title}
+              // autoHeightCell 负责取消省略号和单行限制，让长字段按列宽换行完整展示。
               className={`${styles.cell} ${autoRowHeight ? styles.autoHeightCell : ""}`}
               style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
             >
@@ -221,6 +223,7 @@ class HGTablePage extends React.Component {
       scrollTop: 0,
     };
     this.scrollRef = React.createRef();
+    // 表头独立于表体滚动容器，必须持有 ref 才能在表体横向滚动时精确同步 scrollLeft。
     this.headerRef = React.createRef();
   }
 
@@ -318,6 +321,7 @@ class HGTablePage extends React.Component {
   handleAutoRowHeightScroll = (e) => {
     const { scrollLeft } = e.target;
 
+    // 自然行高模式只需要同步横向位置；纵向高度交给浏览器文档流自然计算。
     this.syncHeaderScrollLeft(scrollLeft);
   };
 
@@ -327,6 +331,7 @@ class HGTablePage extends React.Component {
    */
   syncHeaderScrollLeft = (scrollLeft) => {
     if (this.headerRef.current) {
+      // 这里直接写入表头滚动容器的 scrollLeft，保证拖动表体时 title 行同步左右移动。
       this.headerRef.current.scrollLeft = scrollLeft;
     }
   };
@@ -478,6 +483,10 @@ class HGTablePage extends React.Component {
     const totalWidth = this.getTotalColumnsWidth();
     return (
       <div className={styles.headerWrap} ref={this.headerRef}>
+        {/*
+          表头必须采用“外层 100% 可视宽度 + 内层 totalWidth 总列宽”的结构。
+          这样 headerWrap 才会拥有真实横向滚动空间，表体滚动时设置 scrollLeft 才能移动 title 行。
+        */}
         <div className={styles.row} style={{ minWidth: totalWidth }}>
           {columns.map((col) => (
             <div
@@ -695,6 +704,7 @@ class HGTablePage extends React.Component {
   renderAutoRowHeightBody = () => {
     const { columns = [], dataSource = [] } = this.props;
     const bodyHeight = this.getBodyHeight();
+    // 表体内层宽度必须和表头内层宽度一致，否则横向滚动距离与 title 列无法对齐。
     const totalWidth = this.getTotalColumnsWidth();
 
     if (dataSource.length === 0) {
@@ -717,6 +727,10 @@ class HGTablePage extends React.Component {
         ref={this.scrollRef}
         onScroll={this.handleAutoRowHeightScroll}
       >
+        {/*
+          autoHeightBodyInner 是实际被横向滚动的内容层。
+          minWidth 使用列总宽度撑开表体，width:max-content 由 CSS 保证内容宽度不会被外层压缩。
+        */}
         <div className={styles.autoHeightBodyInner} style={{ minWidth: totalWidth }}>
           {dataSource.map((record, rowIndex) => (
             <VirtualRow
@@ -733,6 +747,7 @@ class HGTablePage extends React.Component {
   };
 
   render() {
+    // 默认开启自然行高：表格字段超出列宽时换行展示，避免固定行高虚拟列表裁切长内容。
     const { className = "", autoRowHeight = true } = this.props;
     const useSections = this.isSectionMode();
     const tableClassName = `${styles.tableContainer} ${autoRowHeight ? styles.autoHeightTableContainer : ""} ${className}`;
