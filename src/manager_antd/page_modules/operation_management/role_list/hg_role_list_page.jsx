@@ -370,6 +370,7 @@ class HGRoleListPage extends Component {
             }}
             onChange={this.handleTableChange}
             scroll={{ y: 420 }}
+            autoRowHeight
           />
         </HGCardPage>
 

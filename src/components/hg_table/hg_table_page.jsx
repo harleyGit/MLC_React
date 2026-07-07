@@ -171,18 +171,18 @@ class VirtualSectionFooter extends React.PureComponent {
  */
 class VirtualRow extends React.PureComponent {
   render() {
-    const { columns, record, rowIndex } = this.props;
+    const { columns, record, rowIndex, autoRowHeight } = this.props;
     if (!record) return <div className={styles.row} />;
 
     return (
-      <div className={styles.row}>
+      <div className={`${styles.row} ${autoRowHeight ? styles.autoHeightRow : ""}`}>
         {columns.map((col) => {
           const value = record[col.dataIndex];
           const rendered = col.render ? col.render(value, record, rowIndex) : value;
           return (
             <div
               key={col.dataIndex || col.title}
-              className={styles.cell}
+              className={`${styles.cell} ${autoRowHeight ? styles.autoHeightCell : ""}`}
               style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
             >
               {rendered}
@@ -221,6 +221,7 @@ class HGTablePage extends React.Component {
       scrollTop: 0,
     };
     this.scrollRef = React.createRef();
+    this.headerRef = React.createRef();
   }
 
   /**
@@ -273,9 +274,7 @@ class HGTablePage extends React.Component {
     const { sections = [] } = this.props;
     const { items } = flattenSections(sections);
 
-    // 同步表头横向滚动
-    const headerEl = e.target.previousElementSibling;
-    if (headerEl) headerEl.scrollLeft = scrollLeft;
+    this.syncHeaderScrollLeft(scrollLeft);
 
     const startIdx = findStartIndex(items, scrollTop - ROW_HEIGHT * BUFFER_ROWS);
     const stateUpdate = {};
@@ -300,9 +299,7 @@ class HGTablePage extends React.Component {
     const totalCount = dataSource.length;
     const bodyHeight = this.getBodyHeight();
 
-    // 同步表头横向滚动
-    const headerEl = e.target.previousElementSibling;
-    if (headerEl) headerEl.scrollLeft = scrollLeft;
+    this.syncHeaderScrollLeft(scrollLeft);
 
     const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
     const maxOffset = Math.max(0, totalCount - poolSize);
@@ -311,6 +308,26 @@ class HGTablePage extends React.Component {
 
     if (newOffset !== this.state.offset) {
       this.setState({ offset: newOffset });
+    }
+  };
+
+  /**
+   * 横向滚动同步处理（自然行高模式）。
+   * 职责：只同步表头与表体的横向位置，不触发固定行高虚拟滚动计算。
+   */
+  handleAutoRowHeightScroll = (e) => {
+    const { scrollLeft } = e.target;
+
+    this.syncHeaderScrollLeft(scrollLeft);
+  };
+
+  /**
+   * 同步表头横向滚动位置。
+   * 职责：统一处理不同表体渲染模式的表头联动，避免依赖 DOM 兄弟关系失效。
+   */
+  syncHeaderScrollLeft = (scrollLeft) => {
+    if (this.headerRef.current) {
+      this.headerRef.current.scrollLeft = scrollLeft;
     }
   };
 
@@ -460,8 +477,8 @@ class HGTablePage extends React.Component {
     const { columns = [] } = this.props;
     const totalWidth = this.getTotalColumnsWidth();
     return (
-      <div className={styles.headerWrap} style={{ minWidth: totalWidth }}>
-        <div className={styles.row}>
+      <div className={styles.headerWrap} ref={this.headerRef}>
+        <div className={styles.row} style={{ minWidth: totalWidth }}>
           {columns.map((col) => (
             <div
               key={col.dataIndex || col.title}
@@ -671,15 +688,64 @@ class HGTablePage extends React.Component {
     );
   };
 
-  render() {
-    const { className = "" } = this.props;
-    const useSections = this.isSectionMode();
+  /**
+   * 渲染自然行高表体。
+   * 职责：用于少量分页数据需要完整换行展示的场景，避免固定行高虚拟列表裁切内容。
+   */
+  renderAutoRowHeightBody = () => {
+    const { columns = [], dataSource = [] } = this.props;
+    const bodyHeight = this.getBodyHeight();
+    const totalWidth = this.getTotalColumnsWidth();
+
+    if (dataSource.length === 0) {
+      return (
+        <div
+          className={`${styles.bodyWrap} ${styles.autoHeightBodyWrap}`}
+          style={{ maxHeight: bodyHeight }}
+          ref={this.scrollRef}
+          onScroll={this.handleAutoRowHeightScroll}
+        >
+          <div className={styles.emptyCell}>暂无数据</div>
+        </div>
+      );
+    }
 
     return (
-      <div className={`${styles.tableContainer} ${className}`}>
+      <div
+        className={`${styles.bodyWrap} ${styles.autoHeightBodyWrap}`}
+        style={{ maxHeight: bodyHeight }}
+        ref={this.scrollRef}
+        onScroll={this.handleAutoRowHeightScroll}
+      >
+        <div className={styles.autoHeightBodyInner} style={{ minWidth: totalWidth }}>
+          {dataSource.map((record, rowIndex) => (
+            <VirtualRow
+              key={this.getRowKey(record, rowIndex)}
+              columns={columns}
+              record={record}
+              rowIndex={rowIndex}
+              autoRowHeight
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  render() {
+    const { className = "", autoRowHeight = true } = this.props;
+    const useSections = this.isSectionMode();
+    const tableClassName = `${styles.tableContainer} ${autoRowHeight ? styles.autoHeightTableContainer : ""} ${className}`;
+
+    return (
+      <div className={tableClassName}>
         {this.renderLoading()}
         {!useSections && this.renderHeader()}
-        {useSections ? this.renderSectionBody() : this.renderBody()}
+        {useSections
+          ? this.renderSectionBody()
+          : autoRowHeight
+            ? this.renderAutoRowHeightBody()
+            : this.renderBody()}
         {this.renderPagination()}
       </div>
     );

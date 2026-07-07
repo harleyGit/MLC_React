@@ -8,6 +8,10 @@
   flex-direction: column;
 }
 
+.autoHeightTableContainer {
+  overflow-x: hidden;
+}
+
 /* ===== Loading 遮罩 ===== */
 .loadingOverlay {
   position: absolute;
@@ -39,7 +43,7 @@
   background: #fafafa;
   border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
-  width: fit-content;
+  width: 100%;
   min-width: 100%;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -65,6 +69,21 @@
   position: relative;
   flex: 1;
   min-width: 0;
+  width: 100%;
+}
+
+.autoHeightBodyWrap {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.autoHeightBodyWrap::-webkit-scrollbar {
+  display: none;
+}
+
+.autoHeightBodyInner {
+  overflow: hidden;
+  width: max-content;
 }
 
 .virtualSpacer {
@@ -101,6 +120,21 @@
   white-space: nowrap;
   display: flex;
   align-items: center;
+}
+
+.autoHeightRow {
+  align-items: stretch;
+  min-height: 48px;
+}
+
+.autoHeightCell {
+  align-items: flex-start;
+  min-height: 48px;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* ===== 空数据 ===== */
