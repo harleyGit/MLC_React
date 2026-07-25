@@ -64,8 +64,8 @@ class HGBiliContentPageVM {
       ...BILI_CHANNEL_NAV.secondary,
     ];
     return channels.find((item) => item.key === channelKey) || {
-      key: "popular",
-      label: "热门",
+      key: channelKey,
+      label: channelKey,
     };
   }
 

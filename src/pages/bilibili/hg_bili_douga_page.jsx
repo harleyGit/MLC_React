@@ -22,8 +22,8 @@ class BiliDougaPage extends React.Component {
     this.state = {
       // “推荐”是系统保留项，对应后端 tagName 为空的无过滤视频列表。
       activeTag: "推荐",
-      // 接口加载前只展示“推荐”，远端启用标签加载成功后追加到该数组。
-      tags: ["推荐"],
+      // 顶部频道优先使用远端启用标签；接口返回前或无数据时使用 VM 默认频道。
+      tags: [],
       videos: HOT_VIDEOS,
       loading: false,
       hasMore: true,
@@ -41,14 +41,14 @@ class BiliDougaPage extends React.Component {
   }
 
   /**
-   * 加载启用标签，再按系统保留的“推荐”加载首屏视频。
-   * 标签接口失败时保留“推荐”入口，视频列表仍可独立加载，避免两个请求相互阻断。
+   * 加载顶部频道标签，再按系统保留的“推荐”加载首屏视频。
+   * 标签接口失败时顶部频道使用默认配置，视频列表仍可独立加载，避免两个请求相互阻断。
    */
   loadInitialData = async () => {
     try {
       const response = await getDougaTags();
       const remoteTags = (response?.list || []).map((item) => item.name).filter(Boolean);
-      this.setState({ tags: ["推荐", ...remoteTags.filter((tag) => tag !== "推荐")] });
+      this.setState({ tags: remoteTags.filter((tag) => tag !== "推荐") });
     } catch (error) {
       console.error("动画标签加载失败:", error);
     }
@@ -136,6 +136,15 @@ class BiliDougaPage extends React.Component {
    * 渲染页面头部（B 站风格）。
    */
   renderHeader = () => {
+    const { tags } = this.state;
+    const defaultPrimaryChannels = HGBiliContentPageVM.CHANNEL_NAV.primary;
+    const primaryChannels = tags?.length
+      ? tags.map((tag) => {
+          const defaultChannel = defaultPrimaryChannels.find((item) => item.label === tag);
+          return defaultChannel || { key: tag, label: tag };
+        })
+      : defaultPrimaryChannels;
+
     return (
       <nav className={styles.channelNav} aria-label="哔哩哔哩频道导航">
         <div className={styles.channelNavContent}>
@@ -154,7 +163,7 @@ class BiliDougaPage extends React.Component {
           </div>
 
           <div className={styles.primaryNav}>
-            {HGBiliContentPageVM.CHANNEL_NAV.primary.map((item) => (
+            {primaryChannels.map((item) => (
               <button
                 type="button"
                 key={item.key}
@@ -209,7 +218,7 @@ class BiliDougaPage extends React.Component {
    * 渲染列表视图。
    */
   renderListView = () => {
-    const { videos, loading, hasMore, activeTag, tags } = this.state;
+    const { videos, loading, hasMore } = this.state;
 
     return (
       <div className={styles.listContainer}>
@@ -219,9 +228,6 @@ class BiliDougaPage extends React.Component {
         {/* 视频网格 */}
         <HGVideoGridPage
           videos={videos}
-          tags={tags}
-          activeTag={activeTag}
-          onTagChange={this.handleTagChange}
           onVideoClick={this.handleVideoClick}
           loading={loading}
           hasMore={hasMore}
