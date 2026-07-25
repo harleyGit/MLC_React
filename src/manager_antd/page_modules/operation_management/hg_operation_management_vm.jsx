@@ -66,6 +66,14 @@ export const OPERATION_MENU_ITEMS = [
     ],
   },
   {
+    key: "bilibili",
+    label: "BiliBili",
+    icon: <HGIconPage type="config" />,
+    children: [
+      { key: "bilibili_douga_tags", label: "动画标签", icon: <HGIconPage type="table" /> },
+    ],
+  },
+  {
     key: "system",
     label: "系统设置",
     icon: <HGIconPage type="config" />,

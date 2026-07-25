@@ -148,6 +148,13 @@ class HGVideoGridPage extends React.Component {
     };
   }
 
+  /** 同步父组件异步加载后的受控 activeTag，避免标签高亮与标题不一致。 */
+  componentDidUpdate(prevProps) {
+    if (this.props.activeTag !== prevProps.activeTag && this.props.activeTag !== this.state.activeTag) {
+      this.setState({ activeTag: this.props.activeTag });
+    }
+  }
+
   /**
    * 处理标签切换。
    */

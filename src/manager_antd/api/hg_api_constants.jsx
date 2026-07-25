@@ -42,4 +42,8 @@ export const HGMANAGER_API = {
   OPS_ADMIN_SEARCH: "/api/v1/ops/users/search", // 运维管理员搜索
   OPS_USER_ROLES: "/api/v1/ops/users/roles", // 分配管理员角色
   OPS_USER_ROLE_LIST: "/api/v1/ops/users/roles/list", // 获取管理员已分配角色
+  OPS_BILIBILI_TAG_CREATE: "/api/v1/ops/bilibili/tags", // 创建 Bilibili 动画标签
+  OPS_BILIBILI_TAG_LIST: "/api/v1/ops/bilibili/tags/list", // 获取 Bilibili 动画标签
+  OPS_BILIBILI_TAG_UPDATE: "/api/v1/ops/bilibili/tags/update", // 更新 Bilibili 动画标签
+  OPS_BILIBILI_TAG_DELETE: "/api/v1/ops/bilibili/tags/delete", // 删除 Bilibili 动画标签
 };

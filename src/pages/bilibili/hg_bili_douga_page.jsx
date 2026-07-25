@@ -1,10 +1,10 @@
 import React from "react";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
-import HGVideoPlayerPage from "../../components/hg_video_player/hg_video_player_page";
 import withRouter from "../../utils/WithRouter";
-import { getVideoList } from "./hg_bili_api";
+import { getDougaTags, getVideoList } from "./hg_bili_api";
 import styles from "./hg_bili_douga.module.css";
-import { DOUGA_TAGS, generateMockVideos, HOT_VIDEOS } from "./hg_mock_data";
+import { HOT_VIDEOS } from "./hg_mock_data";
+import HGBiliContentPageVM from "./hg_bili_content_page_vm";
 
 /**
  * B 站动画区页面。
@@ -20,15 +20,16 @@ class BiliDougaPage extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
+      // “推荐”是系统保留项，对应后端 tagName 为空的无过滤视频列表。
       activeTag: "推荐",
+      // 接口加载前只展示“推荐”，远端启用标签加载成功后追加到该数组。
+      tags: ["推荐"],
       videos: HOT_VIDEOS,
       loading: false,
       hasMore: true,
       page: 1,
-      // 播放页状态
-      showPlayer: false,
-      currentVideo: null,
-      relatedVideos: [],
+      // 后端复合游标，格式由后端定义，前端只透传，不解析或转成数字。
+      nextCursor: "",
     };
   }
 
@@ -36,17 +37,34 @@ class BiliDougaPage extends React.Component {
    * 组件挂载后加载视频列表。
    */
   componentDidMount() {
-    this.fetchVideoList(this.state.activeTag);
+    this.loadInitialData();
   }
 
   /**
-   * 从后端获取视频列表。
-   * @param {string} tag - 分区标签，用于过滤视频。
+   * 加载启用标签，再按系统保留的“推荐”加载首屏视频。
+   * 标签接口失败时保留“推荐”入口，视频列表仍可独立加载，避免两个请求相互阻断。
    */
-  fetchVideoList = async (tag = "推荐") => {
+  loadInitialData = async () => {
+    try {
+      const response = await getDougaTags();
+      const remoteTags = (response?.list || []).map((item) => item.name).filter(Boolean);
+      this.setState({ tags: ["推荐", ...remoteTags.filter((tag) => tag !== "推荐")] });
+    } catch (error) {
+      console.error("动画标签加载失败:", error);
+    }
+    this.fetchVideoList("推荐");
+  };
+
+  /**
+   * 从后端获取视频列表。
+   * @param {string} tag - 视频标签；“推荐”会转换为空 tagName。
+   * @param {string} cursor - 后端 nextCursor，空字符串表示首页。
+   * @param {boolean} append - 是否追加到当前列表；false 时替换当前标签的数据。
+   */
+  fetchVideoList = async (tag = "推荐", cursor = "", append = false) => {
     this.setState({ loading: true });
     try {
-      const response = await getVideoList("", 20);
+      const response = await getVideoList(cursor, 20, tag === "推荐" ? "" : tag);
       if (response && response.videos) {
         const videos = response.videos.map((item) => ({
           id: item.videoId || item.submissionId,
@@ -56,26 +74,20 @@ class BiliDougaPage extends React.Component {
           author: item.userId,
           play: Math.floor(Math.random() * 100000),
           danmaku: Math.floor(Math.random() * 10000),
-          duration: "00:00",
+          duration: Number(item.duration) || 0,
           category: item.category,
           description: item.description,
           filePath: item.filePath,
+          pubDate: item.createdAt || new Date().toISOString(),
         }));
 
-        // 按标签过滤视频（如果后端不支持标签过滤，则在客户端过滤）
-        const filteredVideos = videos.filter((video) => {
-          // 如果视频有 category 字段，则按 category 过滤
-          if (video.category) {
-            return video.category === tag;
-          }
-          // 如果没有 category 字段，则返回所有视频（或根据其他逻辑过滤）
-          return true;
-        });
-
-        this.setState({
-          videos: filteredVideos.length > 0 ? filteredVideos : videos,
+        this.setState((state) => ({
+          videos: append ? [...state.videos, ...videos] : videos,
           loading: false,
-        });
+          hasMore: Boolean(response.hasMore),
+          nextCursor: response.nextCursor || "",
+          page: append ? state.page + 1 : 1,
+        }));
       }
     } catch (error) {
       console.error("获取视频列表失败，使用本地数据:", error);
@@ -84,62 +96,40 @@ class BiliDougaPage extends React.Component {
   };
 
   /**
-   * 处理标签切换。
+   * 处理标签切换：重置 cursor 和页码，并从新标签首页开始加载。
    */
   handleTagChange = (tag) => {
-    this.setState({ activeTag: tag, loading: true, page: 1 });
+    this.setState({ activeTag: tag, loading: true, page: 1, nextCursor: "" });
 
-    // 模拟接口请求
-    /* setTimeout(() => {
-      const videos = generateMockVideos(tag, 20);
-      this.setState({ videos, loading: false });
-    }, 500); */
-    // 使用 fetchVideoList 请求接口数据
     this.fetchVideoList(tag);
   };
 
   /**
-   * 处理视频点击（进入播放页）。
+   * 处理视频点击，进入独立播放页。
+   * @param {Object} video 被点击的视频。
    */
   handleVideoClick = (video) => {
-    const { activeTag } = this.state;
-    const relatedVideos = generateMockVideos(activeTag, 8).filter(
-      (v) => v.id !== video.id
-    );
-
-    this.setState({
-      showPlayer: true,
-      currentVideo: video,
-      relatedVideos,
+    this.props.navigate(`/bilibili/content/video/${encodeURIComponent(video.id)}`, {
+      state: { video },
     });
-
-    // 滚动到顶部
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   /**
-   * 返回列表页。
+   * 进入指定频道页面。
+   * @param {string} channelKey 频道标识。
    */
-  handleBackToList = () => {
-    this.setState({ showPlayer: false, currentVideo: null });
+  handleChannelClick = (channelKey) => {
+    this.props.navigate(`/bilibili/content/channel/${encodeURIComponent(channelKey)}`);
   };
 
   /**
-   * 处理加载更多。
+   * 处理加载更多；只在未加载、仍有下一页且后端返回有效 cursor 时发起请求。
    */
   handleLoadMore = () => {
-    const { page, videos, activeTag } = this.state;
-    this.setState({ loading: true });
-
-    // 模拟接口请求
-    setTimeout(() => {
-      const newVideos = generateMockVideos(activeTag, 12);
-      this.setState({
-        videos: [...videos, ...newVideos],
-        loading: false,
-        page: page + 1,
-      });
-    }, 800);
+    const { activeTag, nextCursor, loading, hasMore } = this.state;
+    if (loading || !hasMore || !nextCursor) return;
+    this.fetchVideoList(activeTag, nextCursor, true);
   };
 
   /**
@@ -147,19 +137,50 @@ class BiliDougaPage extends React.Component {
    */
   renderHeader = () => {
     return (
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <div className={styles.logo} onClick={this.handleBackToList}>
-            <span className={styles.logoText}>bilibili</span>
-            <span className={styles.logoSub}>动画</span>
+      <nav className={styles.channelNav} aria-label="哔哩哔哩频道导航">
+        <div className={styles.channelNavContent}>
+          <div className={styles.featuredNav}>
+            {HGBiliContentPageVM.CHANNEL_NAV.featured.map((item) => (
+              <button
+                type="button"
+                key={item.key}
+                className={styles.featuredItem}
+                onClick={() => this.handleChannelClick(item.key)}
+              >
+                <img src={item.image} alt="" className={styles.featuredImage} />
+                <span>{item.label}</span>
+              </button>
+            ))}
           </div>
-          <div className={styles.headerNav}>
-            <span className={styles.navItem}>首页</span>
-            <span className={styles.navItem}>排行榜</span>
-            <span className={styles.navItem}>番剧列表</span>
+
+          <div className={styles.primaryNav}>
+            {HGBiliContentPageVM.CHANNEL_NAV.primary.map((item) => (
+              <button
+                type="button"
+                key={item.key}
+                className={styles.primaryItem}
+                onClick={() => this.handleChannelClick(item.key)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className={styles.secondaryNav}>
+            {HGBiliContentPageVM.CHANNEL_NAV.secondary.map((item) => (
+              <button
+                type="button"
+                key={item.key}
+                className={styles.secondaryItem}
+                onClick={() => this.handleChannelClick(item.key)}
+              >
+                <span className={styles.secondaryIcon}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
+      </nav>
     );
   };
 
@@ -188,7 +209,7 @@ class BiliDougaPage extends React.Component {
    * 渲染列表视图。
    */
   renderListView = () => {
-    const { videos, loading, hasMore, activeTag } = this.state;
+    const { videos, loading, hasMore, activeTag, tags } = this.state;
 
     return (
       <div className={styles.listContainer}>
@@ -198,7 +219,7 @@ class BiliDougaPage extends React.Component {
         {/* 视频网格 */}
         <HGVideoGridPage
           videos={videos}
-          tags={DOUGA_TAGS}
+          tags={tags}
           activeTag={activeTag}
           onTagChange={this.handleTagChange}
           onVideoClick={this.handleVideoClick}
@@ -211,48 +232,11 @@ class BiliDougaPage extends React.Component {
     );
   };
 
-  /**
-   * 渲染播放视图。
-   */
-  renderPlayerView = () => {
-    const { currentVideo, relatedVideos } = this.state;
-
-    return (
-      <div className={styles.playerContainer}>
-        <div className={styles.playerContent}>
-          {/* 返回按钮 */}
-          <button className={styles.backBtn} onClick={this.handleBackToList}>
-            ← 返回列表
-          </button>
-
-          {/* 播放器 */}
-          <HGVideoPlayerPage
-            video={currentVideo}
-            relatedVideos={relatedVideos}
-            onVideoClick={this.handleVideoClick}
-          />
-        </div>
-
-        {/* 侧边栏推荐 */}
-        <div className={styles.sidebar}>
-          <h3 className={styles.sidebarTitle}>推荐视频</h3>
-          <HGVideoGridPage
-            videos={relatedVideos}
-            layout="horizontal"
-            onVideoClick={this.handleVideoClick}
-          />
-        </div>
-      </div>
-    );
-  };
-
   render() {
-    const { showPlayer } = this.state;
-
     return (
       <div className={styles.pageContainer}>
         {this.renderHeader()}
-        {showPlayer ? this.renderPlayerView() : this.renderListView()}
+        {this.renderListView()}
       </div>
     );
   }

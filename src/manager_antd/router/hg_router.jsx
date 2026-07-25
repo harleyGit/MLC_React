@@ -23,6 +23,7 @@ import HGOperationManagementPage from "../page_modules/operation_management/hg_o
 import HGTestModulePage from "../page_modules/test_module/hg_test_module_page";
 import HGTableDemoPage from "../../components/hg_table/hg_table_demo_page";
 import BiliDougaPage from "../../pages/bilibili/hg_bili_douga_page";
+import HGBiliContentPage from "../../pages/bilibili/hg_bili_content_page";
 import HGContentCenterPage from "../page_modules/personal_center/hg_content_center_page";
 import HGUserSpacePage from "../page_modules/user_space/hg_user_space_page";
 import { WithNavigation } from "./hg_naviagion_hook";
@@ -90,6 +91,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.BILI_DOUGA,
         element: <BiliDougaPage />,
+      },
+      {
+        path: ROUTE_PATH.BILI_CONTENT,
+        element: <HGBiliContentPage />,
       },
       {
         path: ROUTE_PATH.PERSONAL_CENTER,

@@ -22,6 +22,7 @@ export const ROUTE_PATH = {
   FORGET_PASSWORD: "/forget-password", //忘记密码
   TABLE_DEMO: "/demo/table", //HGTable 自定义渲染演示
   BILI_DOUGA: "/bilibili/douga", //B站动画区页面
+  BILI_CONTENT: "/bilibili/content/:contentType/:contentKey", //B站频道和视频内容页
   PERSONAL_CENTER: "/personal/center", //内容中心
   USER_SPACE: "/space/:uid", //用户空间页面（B站风格）
 };

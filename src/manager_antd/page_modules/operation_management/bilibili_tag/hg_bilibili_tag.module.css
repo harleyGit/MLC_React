@@ -1,0 +1,57 @@
+.container {
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+}
+
+.tip {
+  margin: 0 0 14px;
+  color: #7a859f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.statusActive {
+  color: #18a058;
+  font-weight: 600;
+}
+
+.statusDisabled {
+  color: #9aa3b8;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.field label {
+  display: block;
+  margin-bottom: 7px;
+  color: #283047;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 1px solid #d8deea;
+  border-radius: 6px;
+  background: #fff;
+  color: #20263a;
+}
+
+.action {
+  color: #1677ff;
+  cursor: pointer;
+}
+
+.dangerAction {
+  color: #d9363e;
+  cursor: pointer;
+}

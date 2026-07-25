@@ -69,7 +69,7 @@ class HGTopNavLayout extends Component {
     if (path === ROUTE_PATH.EDIT_USER_INFO) return "avatar";
     if (path === ROUTE_PATH.OPERATION_MANAGEMENT) return "operation";
     if (path === ROUTE_PATH.TEST_MODULE) return "test_module";
-    if (path === ROUTE_PATH.BILI_DOUGA) return "bili_douga";
+    if (path.startsWith("/bilibili/")) return "bili_douga";
     if (path === ROUTE_PATH.PERSONAL_CENTER) return "personal_center";
     return "home";
   };
