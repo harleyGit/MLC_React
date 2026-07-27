@@ -1,6 +1,8 @@
 import React from "react";
+import { generatePath } from "react-router-dom";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
 import HGVideoPlayerPage from "../../components/hg_video_player/hg_video_player_page";
+import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
 import withRouter from "../../utils/WithRouter";
 import styles from "./hg_bili_content_page.module.css";
 import HGBiliContentPageVM from "./hg_bili_content_page_vm";
@@ -27,15 +29,20 @@ class HGBiliContentPage extends React.Component {
    * @param {Object} video 被点击的视频。
    */
   handleVideoClick = (video) => {
-    this.props.navigate(`/bilibili/content/video/${encodeURIComponent(video.id)}`, {
-      state: { video },
-    });
+    this.props.navigate(
+      generatePath(ROUTE_PATH.BILI_VIDEO_CONTENT, {
+        contentKey: encodeURIComponent(video.id),
+      }),
+      {
+        state: { video },
+      },
+    );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   /** 返回动画推荐首页。 */
   handleBackHome = () => {
-    this.props.navigate("/bilibili/douga");
+    this.props.navigate(ROUTE_PATH.BILI_DOUGA);
   };
 
   /** 返回上一个历史页面，无历史时由浏览器保持当前页。 */

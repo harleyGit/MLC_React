@@ -1,5 +1,7 @@
 import React from "react";
+import { generatePath } from "react-router-dom";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
+import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
 import withRouter from "../../utils/WithRouter";
 import { getDougaTags, getVideoList } from "./hg_bili_api";
 import styles from "./hg_bili_douga.module.css";
@@ -109,9 +111,14 @@ class BiliDougaPage extends React.Component {
    * @param {Object} video 被点击的视频。
    */
   handleVideoClick = (video) => {
-    this.props.navigate(`/bilibili/content/video/${encodeURIComponent(video.id)}`, {
-      state: { video },
-    });
+    this.props.navigate(
+      generatePath(ROUTE_PATH.BILI_VIDEO_CONTENT, {
+        contentKey: encodeURIComponent(video.id),
+      }),
+      {
+        state: { video },
+      },
+    );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -120,7 +127,11 @@ class BiliDougaPage extends React.Component {
    * @param {string} channelKey 频道标识。
    */
   handleChannelClick = (channelKey) => {
-    this.props.navigate(`/bilibili/content/channel/${encodeURIComponent(channelKey)}`);
+    this.props.navigate(
+      generatePath(ROUTE_PATH.BILI_CHANNEL_CONTENT, {
+        contentKey: encodeURIComponent(channelKey),
+      }),
+    );
   };
 
   /**
