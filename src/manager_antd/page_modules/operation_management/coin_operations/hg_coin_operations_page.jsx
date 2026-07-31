@@ -5,6 +5,7 @@ import HGInputPage, { HGInputSearch, HGInputTextArea } from "../../../../compone
 import HGInputNumberPage from "../../../../components/hg_input_number/hg_input_number_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
+import HGSelectPage from "../../../../components/hg_select/hg_select_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_coin_operations.module.css";
@@ -13,15 +14,24 @@ import {
   canApproveCorrection,
   getCurrentOperatorId,
   normalizeAssetPermissions,
+  normalizeCoinUserSearchResponse,
 } from "./hg_coin_operations_helpers.js";
 import HGCoinOperationsVM, { HG_COIN_CORRECTION_PAGE_SIZE, HG_COIN_TRANSACTION_PAGE_SIZE } from "./hg_coin_operations_vm";
 
 const EMPTY_ACCOUNT = { userId: "", balance: "0", authority: "mysql" };
+const USER_SEARCH_FIELDS = [
+  { value: "userId", label: "用户 ID" },
+  { value: "phone", label: "手机号" },
+  { value: "email", label: "邮箱" },
+];
 
 /** 权威硬币资产、Interaction 重投影与 Kafka lag 的统一运维页面。 */
 class HGCoinOperationsPage extends Component {
   state = {
     userIdInput: "",
+    userSearchField: "userId",
+    userSearchLoading: false,
+    selectedUser: null,
     permissions: [],
     permissionsLoading: true,
     permissionsError: "",
@@ -48,6 +58,13 @@ class HGCoinOperationsPage extends Component {
 
   componentDidMount() {
     this.fetchAssetPermissions();
+  }
+
+  componentWillUnmount() {
+    // 请求层暂不接收外部 AbortSignal，用递增序列号让已发出的 Promise 回调在卸载后自动失效。
+    this.userSearchSequence = (this.userSearchSequence || 0) + 1;
+    this.accountRequestSequence = (this.accountRequestSequence || 0) + 1;
+    this.transactionRequestSequence = (this.transactionRequestSequence || 0) + 1;
   }
 
   /** 权限加载完成前不发起受保护的资产数据请求；后端仍执行最终鉴权。 */
@@ -86,13 +103,59 @@ class HGCoinOperationsPage extends Component {
       .finally(() => this.setState({ pipelineLoading: false }));
   };
 
-  /** 查询权威余额后从流水第一页重建 cursor 链。 */
+  /** 使用明确身份类型精确定位用户，避免亿级 users 表模糊扫描和跨字段误选。 */
+  searchTargetUser = (rawKeyword) => {
+    const { userSearchField } = this.state;
+    const keyword = String(rawKeyword || "").trim();
+    if (!keyword) {
+      this.setState({ account: null, selectedUser: null, transactions: [], cursorByPage: { 1: "" } });
+      return;
+    }
+    const sequence = (this.userSearchSequence || 0) + 1;
+    this.userSearchSequence = sequence;
+    this.setState({ userSearchLoading: true, userIdInput: keyword, selectedUser: null });
+    HGCoinOperationsVM.searchUser(userSearchField, keyword)
+      .then((response) => {
+        if (sequence !== this.userSearchSequence) return;
+        const selectedUser = normalizeCoinUserSearchResponse(response);
+        if (!selectedUser) {
+          this.setState({ account: null, selectedUser: null, transactions: [], cursorByPage: { 1: "" } });
+          message.warning("未找到匹配用户，请确认搜索类型和完整内容");
+          return;
+        }
+        this.setState({ selectedUser, userIdInput: selectedUser.userId }, () => this.searchAccount(selectedUser.userId));
+      })
+      .catch((error) => {
+        if (sequence === this.userSearchSequence) message.error(error?.message || "用户搜索失败");
+      })
+      .finally(() => {
+        if (sequence === this.userSearchSequence) this.setState({ userSearchLoading: false });
+      });
+  };
+
+  handleUserSearchFieldChange = (userSearchField) => {
+    this.userSearchSequence = (this.userSearchSequence || 0) + 1;
+    this.setState({ userSearchField, userIdInput: "", selectedUser: null, account: null, transactions: [], cursorByPage: { 1: "" } });
+  };
+
+  handleUserSearchInputChange = (event) => {
+    // 输入与已确认 userId 不再一致时立即失效旧请求和账户，防止对上一个用户执行资产操作。
+    this.userSearchSequence = (this.userSearchSequence || 0) + 1;
+    this.accountRequestSequence = (this.accountRequestSequence || 0) + 1;
+    this.transactionRequestSequence = (this.transactionRequestSequence || 0) + 1;
+    this.setState({ userIdInput: event.target.value, selectedUser: null, account: null, transactions: [], cursorByPage: { 1: "" } });
+  };
+
+  /** 查询权威余额后从流水第一页重建 cursor 链，并忽略快速切换用户产生的陈旧响应。 */
   searchAccount = (rawUserId) => {
     const userId = String(rawUserId || "").trim();
     if (!userId) {
       this.setState({ account: null, transactions: [], cursorByPage: { 1: "" } });
       return;
     }
+    const sequence = (this.accountRequestSequence || 0) + 1;
+    this.accountRequestSequence = sequence;
+    this.transactionRequestSequence = (this.transactionRequestSequence || 0) + 1;
     this.setState({ accountLoading: true, userIdInput: userId });
     if (!this.hasPermission(HG_ASSET_PERMISSIONS.BALANCE_READ)) {
       this.setState({ account: { ...EMPTY_ACCOUNT, userId }, cursorByPage: { 1: "" }, accountLoading: false }, () => {
@@ -101,11 +164,18 @@ class HGCoinOperationsPage extends Component {
       return;
     }
     HGCoinOperationsVM.fetchAccount(userId)
-      .then((account) => this.setState({ account: account || { ...EMPTY_ACCOUNT, userId }, cursorByPage: { 1: "" } }, () => {
-        if (this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ)) this.fetchTransactions(1, HG_COIN_TRANSACTION_PAGE_SIZE);
-      }))
-      .catch((error) => message.error(error?.message || "权威余额查询失败"))
-      .finally(() => this.setState({ accountLoading: false }));
+      .then((account) => {
+        if (sequence !== this.accountRequestSequence) return;
+        this.setState({ account: account || { ...EMPTY_ACCOUNT, userId }, cursorByPage: { 1: "" } }, () => {
+          if (this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ)) this.fetchTransactions(1, HG_COIN_TRANSACTION_PAGE_SIZE);
+        });
+      })
+      .catch((error) => {
+        if (sequence === this.accountRequestSequence) message.error(error?.message || "权威余额查询失败");
+      })
+      .finally(() => {
+        if (sequence === this.accountRequestSequence) this.setState({ accountLoading: false });
+      });
   };
 
   /** 使用后端不透明 cursor 翻页，前端不推导数据库主键或时间边界。 */
@@ -114,9 +184,12 @@ class HGCoinOperationsPage extends Component {
     const userId = this.state.account?.userId;
     if (!userId) return;
     const cursor = this.state.cursorByPage[pageNum] || "";
+    const sequence = (this.transactionRequestSequence || 0) + 1;
+    this.transactionRequestSequence = sequence;
     this.setState({ transactionLoading: true });
     HGCoinOperationsVM.fetchTransactions({ userId, cursor, pageSize })
       .then((result) => {
+        if (sequence !== this.transactionRequestSequence || this.state.account?.userId !== userId) return;
         const rows = HGCoinOperationsVM.toTransactionRows(result?.list || []);
         this.setState((state) => {
           const cursorByPage = { ...state.cursorByPage };
@@ -132,8 +205,12 @@ class HGCoinOperationsPage extends Component {
           };
         });
       })
-      .catch((error) => message.error(error?.message || "资产流水查询失败"))
-      .finally(() => this.setState({ transactionLoading: false }));
+      .catch((error) => {
+        if (sequence === this.transactionRequestSequence) message.error(error?.message || "资产流水查询失败");
+      })
+      .finally(() => {
+        if (sequence === this.transactionRequestSequence) this.setState({ transactionLoading: false });
+      });
   };
 
   handleTableChange = (pagination) => {
@@ -179,7 +256,7 @@ class HGCoinOperationsPage extends Component {
   };
 
   /** 打开写操作弹窗时生成一次 requestId，失败重试继续复用。 */
-  openMutation = (operation, record = null) => {
+  openMutation = (operation, record = null, initialDelta = 1) => {
     const requiredPermission = {
       grant: HG_ASSET_PERMISSIONS.GRANT,
       refund: HG_ASSET_PERMISSIONS.REFUND,
@@ -197,7 +274,7 @@ class HGCoinOperationsPage extends Component {
         userId,
         requestId: HGCoinOperationsVM.createRequestId(operation),
         amount: 1,
-        delta: 1,
+        delta: initialDelta,
         reason: "",
         businessKey: "",
         ticketId: "",
@@ -302,14 +379,18 @@ class HGCoinOperationsPage extends Component {
   ];
 
   renderAccountCard = () => {
-    const { account, accountLoading, userIdInput } = this.state;
+    const { account, accountLoading, userIdInput, userSearchField, userSearchLoading, selectedUser } = this.state;
     const canReadBalance = this.hasPermission(HG_ASSET_PERMISSIONS.BALANCE_READ);
     return (
       <HGCardPage title={canReadBalance ? "权威资产查询" : "目标用户选择"} extra={<HGButtonPage disabled={!account} onClick={() => account && this.searchAccount(account.userId)}>刷新数据</HGButtonPage>}>
         <div className={styles.searchRow}>
-          <HGInputSearch value={userIdInput} allowClear enterButton={accountLoading ? "查询中..." : "查询"} disabled={accountLoading} placeholder="输入业务 userId" onChange={(event) => this.setState({ userIdInput: event.target.value })} onSearch={this.searchAccount} />
-          <p>{canReadBalance ? "余额直接读取 MySQL `user_coin_wallets`，Redis 不作为资产权威。" : "用于限定流水或写操作的目标用户；当前权限不读取余额。"}</p>
+          <div className={styles.userSearchControl}>
+            <HGSelectPage value={userSearchField} options={USER_SEARCH_FIELDS} disabled={userSearchLoading || accountLoading} onChange={this.handleUserSearchFieldChange} />
+            <HGInputSearch value={userIdInput} allowClear enterButton={userSearchLoading || accountLoading ? "查询中..." : "精确查询"} disabled={userSearchLoading || accountLoading} placeholder={`输入完整${USER_SEARCH_FIELDS.find((item) => item.value === userSearchField)?.label || "用户信息"}`} onChange={this.handleUserSearchInputChange} onSearch={this.searchTargetUser} />
+          </div>
+          <p>按所选字段唯一索引精确查询，不支持模糊匹配。{canReadBalance ? "余额以 MySQL 为权威，Redis 不作为资产权威。" : "当前权限不读取余额。"}</p>
         </div>
+        {selectedUser && <div className={styles.identityNotice}><span>已确认目标</span><strong>{selectedUser.userId}</strong><span>{[selectedUser.userName, selectedUser.nickName].filter(Boolean).join(" / ") || "未设置名称"}</span><span>{[selectedUser.maskedPhone, selectedUser.maskedEmail].filter(Boolean).join(" · ") || "未设置联系方式"}</span></div>}
         {account ? (
           <div className={styles.accountSummary}>
             <div><span>用户</span><strong>{account.userId}</strong></div>
@@ -317,10 +398,11 @@ class HGCoinOperationsPage extends Component {
             {canReadBalance && <div><span>数据源</span><strong>{String(account.authority || "mysql").toUpperCase()}</strong></div>}
             <div className={styles.operationButtons}>
               {this.hasPermission(HG_ASSET_PERMISSIONS.GRANT) && <HGButtonPage type="primary" onClick={() => this.openMutation("grant")}>赠币</HGButtonPage>}
-              {this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST) && <HGButtonPage danger onClick={() => this.openMutation("correct")}>申请资产修正</HGButtonPage>}
+              {this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST) && <HGButtonPage danger onClick={() => this.openMutation("correct", null, -1)}>减少币（需复核）</HGButtonPage>}
+              {this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST) && <HGButtonPage onClick={() => this.openMutation("correct")}>其他资产修正</HGButtonPage>}
             </div>
           </div>
-        ) : <div className={styles.empty}>输入用户 ID 后加载当前权限允许的资产数据与操作</div>}
+        ) : <div className={styles.empty}>选择搜索类型并输入完整用户 ID、手机号或邮箱，确认目标后加载资产数据与操作</div>}
       </HGCardPage>
     );
   };

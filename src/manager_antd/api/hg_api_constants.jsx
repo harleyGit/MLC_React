@@ -46,6 +46,7 @@ export const HGMANAGER_API = {
   OPS_BILIBILI_TAG_LIST: "/api/v1/ops/bilibili/tags/list", // 获取 Bilibili 动画标签
   OPS_BILIBILI_TAG_UPDATE: "/api/v1/ops/bilibili/tags/update", // 更新 Bilibili 动画标签
   OPS_BILIBILI_TAG_DELETE: "/api/v1/ops/bilibili/tags/delete", // 删除 Bilibili 动画标签
+  OPS_COIN_USER_SEARCH: "/api/v1/ops/coin/users/search", // 按用户 ID、手机号或邮箱精确搜索资产目标
   OPS_COIN_ACCOUNT_DETAIL: "/api/v1/ops/coin/accounts/detail", // 查询 MySQL 权威硬币余额
   OPS_COIN_TRANSACTION_LIST: "/api/v1/ops/coin/transactions/list", // 查询硬币不可变流水
   OPS_COIN_GRANT: "/api/v1/ops/coin/grant", // 人工赠币

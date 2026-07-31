@@ -1,6 +1,6 @@
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
-import { buildCorrectionListParams, buildCorrectionRequest } from "./hg_coin_operations_helpers.js";
+import { buildCoinUserSearchParams, buildCorrectionListParams, buildCorrectionRequest } from "./hg_coin_operations_helpers.js";
 
 export const HG_COIN_TRANSACTION_PAGE_SIZE = 20;
 export const HG_COIN_CORRECTION_PAGE_SIZE = 20;
@@ -9,6 +9,9 @@ export const HG_COIN_MAX_MUTATION_AMOUNT = 1000;
 /** 硬币资产运维 ViewModel，集中处理接口调用、游标分页、校验和低基数状态转换。 */
 export default class HGCoinOperationsVM {
   static fetchAssetPermissions = () => HGNet.get(HGMANAGER_API.OPS_ASSET_PERMISSIONS_CURRENT);
+
+  static searchUser = (field, keyword) =>
+    HGNet.get(HGMANAGER_API.OPS_COIN_USER_SEARCH, buildCoinUserSearchParams(field, keyword));
 
   static fetchAccount = (userId) =>
     HGNet.get(HGMANAGER_API.OPS_COIN_ACCOUNT_DETAIL, { userId: String(userId || "").trim() });

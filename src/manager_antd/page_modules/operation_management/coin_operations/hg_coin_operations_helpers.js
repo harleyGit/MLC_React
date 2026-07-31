@@ -51,3 +51,43 @@ export function canApproveCorrection(permissions, correction, operatorId = "") {
 export function getCurrentOperatorId(profile) {
   return String(profile?.id ?? profile?.user_id ?? "").trim();
 }
+
+/** 构造单一唯一索引精确查询参数，禁止把任意字段名传给后端。 */
+export function buildCoinUserSearchParams(field, keyword) {
+  const normalizedField = ["userId", "phone", "email"].includes(field) ? field : "";
+  return { field: normalizedField, keyword: String(keyword || "").trim() };
+}
+
+/** 收敛硬币目标用户响应；内部自增 id 不得替代业务 userId。 */
+export function normalizeCoinUserSearchResponse(response) {
+  const user = response?.user;
+  const userId = String(user?.userId ?? user?.user_id ?? "").trim();
+  if (!userId) return null;
+  return {
+    userId,
+    userName: String(user?.userName ?? user?.user_name ?? "").trim(),
+    nickName: String(user?.nickName ?? user?.nickname ?? "").trim(),
+    maskedEmail: String(user?.maskedEmail ?? "").trim(),
+    maskedPhone: String(user?.maskedPhone ?? "").trim(),
+    matchedBy: String(user?.matchedBy ?? "").trim(),
+  };
+}
+
+/** 对手机号做保守脱敏；异常短值也不会原样返回。 */
+export function maskCoinUserPhone(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length >= 7) return `${text.slice(0, 3)}****${text.slice(-4)}`;
+  if (text.length <= 2) return `${text.slice(0, 1)}***`;
+  return `${text.slice(0, text.length < 4 ? 1 : 2)}***${text.slice(text.length < 4 ? -1 : -2)}`;
+}
+
+/** 对邮箱做保守脱敏；格式异常时退化为首尾隐藏而不是回显原值。 */
+export function maskCoinUserEmail(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const at = text.lastIndexOf("@");
+  if (at > 0 && at < text.length - 1) return `${text.slice(0, Math.min(2, at))}***${text.slice(at)}`;
+  if (text.length <= 2) return `${text.slice(0, 1)}***`;
+  return `${text.slice(0, text.length < 4 ? 1 : 2)}***${text.slice(text.length < 4 ? -1 : -2)}`;
+}

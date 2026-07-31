@@ -5,8 +5,10 @@
 .hero p { margin: 0; color: #b9c9db; }
 .heroMark { align-self: center; color: rgba(255,255,255,0.12); font: 800 31px/0.85 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: right; letter-spacing: -0.08em; }
 .searchRow { display: flex; align-items: center; gap: 18px; }
-.searchRow > div { width: min(520px, 100%); }
+.userSearchControl { display: grid; grid-template-columns: 132px minmax(260px, 1fr); gap: 10px; width: min(650px, 100%); }
 .searchRow p { margin: 0; color: #748097; font-size: 13px; }
+.identityNotice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 14px; padding: 11px 14px; border-left: 3px solid #0b8f83; border-radius: 6px; background: #eefaf8; color: #526176; font-size: 12px; }
+.identityNotice strong { color: #123e46; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .accountSummary { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr auto; align-items: center; gap: 16px; margin-top: 18px; padding: 18px; border: 1px solid #dce5ef; border-radius: 10px; background: #f8fbfd; }
 .accountSummary div:not(.operationButtons) { display: grid; gap: 6px; }
 .accountSummary span { color: #7a869b; font-size: 12px; }
@@ -51,4 +53,4 @@
 .formGrid label { display: grid; gap: 7px; color: #344056; font-size: 13px; font-weight: 600; }
 .fullField { grid-column: 1 / -1; }
 @media (max-width: 1200px) { .statusGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .accountSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .hero { padding: 22px; } .heroMark { display: none; } .searchRow, .operationButtons, .permissionError, .pendingNotice { align-items: stretch; flex-direction: column; } .statusGrid, .streamGrid, .accountSummary, .formGrid { grid-template-columns: 1fr; } .fullField { grid-column: auto; } }
+@media (max-width: 720px) { .hero { padding: 22px; } .heroMark { display: none; } .searchRow, .operationButtons, .permissionError, .pendingNotice { align-items: stretch; flex-direction: column; } .userSearchControl, .statusGrid, .streamGrid, .accountSummary, .formGrid { grid-template-columns: 1fr; } .fullField { grid-column: auto; } }
