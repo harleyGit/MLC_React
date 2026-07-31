@@ -129,6 +129,112 @@
   margin-bottom: 16px;
 }
 
+.videoInfo {
+  padding: 16px 0;
+  border-bottom: 1px solid #e3e5e7;
+}
+
+.videoTitle {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.videoMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: #9499a0;
+  font-size: 13px;
+}
+
+.videoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  color: #61666d;
+  background: #f6f7f8;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.actionButton:hover {
+  color: #18191c;
+  background: #e3e5e7;
+}
+
+.actionButton svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.authorInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e3e5e7;
+}
+
+.authorAvatar {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.authorDetail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.authorName {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.authorFans {
+  color: #9499a0;
+  font-size: 12px;
+}
+
+.followButton {
+  flex: 0 0 auto;
+  padding: 6px 16px;
+  color: #fff;
+  background: #00a1d6;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.followButton:hover {
+  background: #00b5e5;
+}
+
 .playerSidebar {
   min-width: 0;
   padding-top: 51px;
