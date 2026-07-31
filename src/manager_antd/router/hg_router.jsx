@@ -8,30 +8,36 @@
  */
 import { createBrowserRouter } from "react-router-dom";
 import HGAuthGuard from "../auth/hg_auth_guard";
-import HGAboutPage from "../page_modules/about/hg_about_page";
 import HGHomePage from "../page_modules/home/hg_home_page";
 import HGTopNavLayout from "../page_modules/home/hg_top_nav_layout";
-import HGRegisterPage from "../page_modules/login_module/hg_ register_page";
-import HGLoginPage from "../page_modules/login_module/hg_login_page";
-import HGForgetPasswordPage from "../page_modules/login_module/hg_forget_password_page";
-import HGProducts from "../page_modules/product/hg_ products_page";
-import HGEditUserPage from "../page_modules/user/edit_user_info/hg_edit_user_page";
-import HGVideoUploadEditPage from "../page_modules/hg_video_upload/hg_video_upload_edit_page";
-import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile_page";
-import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
-import HGTestModulePage from "../page_modules/test_module/hg_test_module_page";
-import HGTableDemoPage from "../../components/hg_table/hg_table_demo_page";
-import BiliDougaPage from "../../pages/bilibili/hg_bili_douga_page";
-import HGBiliContentPage from "../../pages/bilibili/hg_bili_content_page";
-import HGContentCenterPage from "../page_modules/personal_center/hg_content_center_page";
-import HGUserSpacePage from "../page_modules/user_space/hg_user_space_page";
 import { WithNavigation } from "./hg_naviagion_hook";
 import { ROUTE_PATH } from "./hg_router_path";
 import React, { lazy, Suspense } from "react";
 import HGLoading from "../../components/hg_loading";
 
+// Keep the authenticated shell and home page eager; defer non-home route trees so their forms, tables, and media code stay out of the initial bundle.
+const HGAboutPage = lazy(() => import("../page_modules/about/hg_about_page"));
+const HGRegisterPage = lazy(() => import("../page_modules/login_module/hg_ register_page"));
+const HGLoginPage = lazy(() => import("../page_modules/login_module/hg_login_page"));
+const HGForgetPasswordPage = lazy(() => import("../page_modules/login_module/hg_forget_password_page"));
+const HGProducts = lazy(() => import("../page_modules/product/hg_ products_page"));
+const HGEditUserPage = lazy(() => import("../page_modules/user/edit_user_info/hg_edit_user_page"));
+const HGVideoUploadEditPage = lazy(() => import("../page_modules/hg_video_upload/hg_video_upload_edit_page"));
+const HGUpdateUserProfilePage = lazy(() => import("../page_modules/user/hg_update_user_profile_page"));
+const HGUserProfilePage = lazy(() => import("../page_modules/user/hg_user_profile_page"));
+const HGTestModulePage = lazy(() => import("../page_modules/test_module/hg_test_module_page"));
+const HGTableDemoPage = lazy(() => import("../../components/hg_table/hg_table_demo_page"));
+const BiliDougaPage = lazy(() => import("../../pages/bilibili/hg_bili_douga_page"));
+const HGBiliContentPage = lazy(() => import("../../pages/bilibili/hg_bili_content_page"));
+const HGContentCenterPage = lazy(() => import("../page_modules/personal_center/hg_content_center_page"));
+const HGUserSpacePage = lazy(() => import("../page_modules/user_space/hg_user_space_page"));
 const HGOperationManagementPage = lazy(() =>
   import("../page_modules/operation_management/hg_operation_management_page")
+);
+
+// Route definitions are static, so creating the Suspense element here does not trigger a dynamic import until the route renders.
+const hgLazyElement = (element, text = "正在加载页面...") => (
+  <Suspense fallback={<HGLoading text={text} />}>{element}</Suspense>
 );
 
 // 包装布局组件以支持类组件访问路由方法
@@ -50,11 +56,11 @@ const HGRouter = createBrowserRouter([
     children: [
       {
         path: ROUTE_PATH.PRODUCTS,
-        element: <HGProducts />,
+        element: hgLazyElement(<HGProducts />),
       },
       {
         path: ROUTE_PATH.ABOUT,
-        element: <HGAboutPage />,
+        element: hgLazyElement(<HGAboutPage />),
       },
       {
         path: ROUTE_PATH.DEFAULT,
@@ -66,51 +72,47 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.UPDATE_USER_PROIFE,
-        element: <HGUpdateUserProfilePage />,
+        element: hgLazyElement(<HGUpdateUserProfilePage />),
       },
       {
         path: ROUTE_PATH.USER_PROFILE,
-        element: <HGUserProfilePage />,
+        element: hgLazyElement(<HGUserProfilePage />),
       },
       {
         path: ROUTE_PATH.EDIT_USER_INFO,
-        element: <WrappedHGEditUserPage />,
+        element: hgLazyElement(<WrappedHGEditUserPage />),
       },
       {
         path: ROUTE_PATH.VIDEO_UPLOAD_EDIT,
-        element: <WrappedHGVideoUploadEditPage />,
+        element: hgLazyElement(<WrappedHGVideoUploadEditPage />),
       },
       {
         path: ROUTE_PATH.OPERATION_MANAGEMENT,
-        element: (
-          <Suspense fallback={<HGLoading text="正在加载运维管理..." />}>
-            <HGOperationManagementPage />
-          </Suspense>
-        ),
+        element: hgLazyElement(<HGOperationManagementPage />, "正在加载运维管理..."),
       },
       {
         path: ROUTE_PATH.TEST_MODULE,
-        element: <HGTestModulePage />,
+        element: hgLazyElement(<HGTestModulePage />),
       },
       {
         path: ROUTE_PATH.TABLE_DEMO,
-        element: <HGTableDemoPage />,
+        element: hgLazyElement(<HGTableDemoPage />),
       },
       {
         path: ROUTE_PATH.BILI_DOUGA,
-        element: <BiliDougaPage />,
+        element: hgLazyElement(<BiliDougaPage />),
       },
       {
         path: ROUTE_PATH.BILI_CONTENT,
-        element: <HGBiliContentPage />,
+        element: hgLazyElement(<HGBiliContentPage />),
       },
       {
         path: ROUTE_PATH.PERSONAL_CENTER,
-        element: <HGContentCenterPage />,
+        element: hgLazyElement(<HGContentCenterPage />),
       },
       {
         path: ROUTE_PATH.USER_SPACE,
-        element: <HGUserSpacePage />,
+        element: hgLazyElement(<HGUserSpacePage />),
       },
     ],
   },
@@ -119,7 +121,7 @@ const HGRouter = createBrowserRouter([
     path: ROUTE_PATH.USER_PROFILE,
     element: (
       <HGAuthGuard>
-        <HGUserProfilePage />
+        {hgLazyElement(<HGUserProfilePage />)}
       </HGAuthGuard>
     ),
   },
@@ -127,7 +129,7 @@ const HGRouter = createBrowserRouter([
     path: ROUTE_PATH.UPDATE_USER_PROIFE,
     element: (
       <HGAuthGuard>
-        <HGUpdateUserProfilePage />
+        {hgLazyElement(<HGUpdateUserProfilePage />)}
       </HGAuthGuard>
     ),
   },
@@ -135,7 +137,7 @@ const HGRouter = createBrowserRouter([
     path: ROUTE_PATH.EDIT_USER_INFO,
     element: (
       <HGAuthGuard>
-        <WrappedHGEditUserPage />
+        {hgLazyElement(<WrappedHGEditUserPage />)}
       </HGAuthGuard>
     ),
   },
@@ -143,21 +145,21 @@ const HGRouter = createBrowserRouter([
     path: ROUTE_PATH.VIDEO_UPLOAD_EDIT,
     element: (
       <HGAuthGuard>
-        <WrappedHGVideoUploadEditPage />
+        {hgLazyElement(<WrappedHGVideoUploadEditPage />)}
       </HGAuthGuard>
     ),
   },
   {
     path: ROUTE_PATH.LOGIN,
-    element: <HGLoginPage />,
+    element: hgLazyElement(<HGLoginPage />),
   },
   {
     path: ROUTE_PATH.REGISTER,
-    element: <HGRegisterPage />,
+    element: hgLazyElement(<HGRegisterPage />),
   },
   {
     path: ROUTE_PATH.FORGET_PASSWORD,
-    element: <HGForgetPasswordPage />,
+    element: hgLazyElement(<HGForgetPasswordPage />),
   },
 ]);
 
