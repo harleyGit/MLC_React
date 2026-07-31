@@ -176,6 +176,21 @@
   background: #e3e5e7;
 }
 
+.actionButtonActive {
+  color: #fb7299;
+  background: #fff0f5;
+}
+
+.actionButtonActive:hover {
+  color: #f45b8b;
+  background: #ffe4ed;
+}
+
+.actionButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .actionButton svg {
   width: 18px;
   height: 18px;
@@ -183,6 +198,22 @@
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.actionCount {
+  min-width: 1ch;
+  color: #9499a0;
+  font-variant-numeric: tabular-nums;
+}
+
+.interactionFeedback {
+  margin: 10px 0 0;
+  color: #00a1d6;
+  font-size: 13px;
+}
+
+.interactionFeedbackError {
+  color: #f04438;
 }
 
 .authorInfo {

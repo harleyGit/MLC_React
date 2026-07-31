@@ -12,6 +12,7 @@
 import { LogError } from "../logger/hg_logger";
 import { REFRESH_TOKEN_KEY, TOKEN_KEY } from "../manager_antd/auth/hg_auth";
 import { joinApiURL } from "./hg_api_url";
+import { normalizeSignPath as normalizeHGSignPath } from "./hg_sign_path";
 import { redirectToLogin, showError, showWarning } from "./hg_ui_feedback";
 
 const env = import.meta.env;
@@ -364,20 +365,7 @@ class NetAPI {
 
   // normalizeSignPath 对齐 Go 服务在 root handler 中的 StripPrefix 行为，保证前后端签名使用同一条 path。
   normalizeSignPath(path = "") {
-    const cleanPath = path.startsWith("/") ? path : `/${path}`;
-    const stripPrefixes = ["/api/v1/auth", "/api/v1/user", "/api/v1/profile", "/api/v1/video_upload", "/api/v1/ops", "/api/v1/test", "/auth", "/user", "/profile", "/video_upload", "/ops", "/test"];
-
-    for (const prefix of stripPrefixes) {
-      if (cleanPath === prefix) {
-        return "/";
-      }
-
-      if (cleanPath.startsWith(`${prefix}/`)) {
-        return cleanPath.slice(prefix.length);
-      }
-    }
-
-    return cleanPath;
+    return normalizeHGSignPath(path);
   }
 
   // hmacSHA256Hex 生成 HMAC-SHA256 十六进制签名；非安全上下文无 Web Crypto 时走 JS 降级实现。

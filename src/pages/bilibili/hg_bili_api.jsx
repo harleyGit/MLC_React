@@ -1,4 +1,9 @@
 import HGNetManager from "../../api/hg_net_manager";
+import {
+  buildVideoInteractionBody,
+  getVideoInteractionPath,
+  HG_VIDEO_INTERACTION_STATE_PATH,
+} from "./hg_video_interaction_request";
 
 const HGNet = new HGNetManager();
 
@@ -39,3 +44,32 @@ export const getDougaTags = async () => {
     throw error;
   }
 };
+
+/**
+ * 获取当前用户对指定视频的互动状态和实时计数。
+ * @param {string|number} submissionId 视频投稿标识。
+ * @param {string|number} authorId 作者用户标识，可为空。
+ * @returns {Promise<Object>} 后端 StateResponse。
+ */
+export const getVideoInteractionState = (submissionId, authorId = "") => HGNet.get(
+  HG_VIDEO_INTERACTION_STATE_PATH,
+  {
+    submissionId: String(submissionId || "").trim(),
+    ...(authorId ? { authorId: String(authorId).trim() } : {}),
+  },
+);
+
+/**
+ * 提交点赞、投币、收藏或分享操作。
+ * @param {string|number} submissionId 视频投稿标识。
+ * @param {"like"|"coin"|"favorite"|"share"} action 互动操作。
+ * @param {boolean} active 点赞或收藏目标状态。
+ * @param {string} requestId 投币幂等请求标识。
+ * @returns {Promise<Object>} 后端 AcceptedResponse。
+ */
+export const setVideoInteraction = (submissionId, action, active = true, requestId = "") => (
+  HGNet.post(
+    getVideoInteractionPath(action),
+    buildVideoInteractionBody(submissionId, action, active, requestId),
+  )
+);
