@@ -6,8 +6,15 @@ import HGInputNumberPage from "../../../../components/hg_input_number/hg_input_n
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
+import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_coin_operations.module.css";
-import HGCoinOperationsVM, { HG_COIN_TRANSACTION_PAGE_SIZE } from "./hg_coin_operations_vm";
+import {
+  HG_ASSET_PERMISSIONS,
+  canApproveCorrection,
+  getCurrentOperatorId,
+  normalizeAssetPermissions,
+} from "./hg_coin_operations_helpers.js";
+import HGCoinOperationsVM, { HG_COIN_CORRECTION_PAGE_SIZE, HG_COIN_TRANSACTION_PAGE_SIZE } from "./hg_coin_operations_vm";
 
 const EMPTY_ACCOUNT = { userId: "", balance: "0", authority: "mysql" };
 
@@ -15,12 +22,22 @@ const EMPTY_ACCOUNT = { userId: "", balance: "0", authority: "mysql" };
 class HGCoinOperationsPage extends Component {
   state = {
     userIdInput: "",
+    permissions: [],
+    permissionsLoading: true,
+    permissionsError: "",
+    operatorId: getCurrentOperatorId(HGUserProfileStorage.getUserProfile()),
     account: null,
     accountLoading: false,
     transactions: [],
     transactionLoading: false,
     cursorByPage: { 1: "" },
     pagination: { current: 1, pageSize: HG_COIN_TRANSACTION_PAGE_SIZE, total: 0 },
+    corrections: [],
+    correctionLoading: false,
+    correctionCursorByPage: { 1: "" },
+    correctionPagination: { current: 1, pageSize: HG_COIN_CORRECTION_PAGE_SIZE, total: 0 },
+    pendingCorrection: null,
+    approvingCorrectionId: "",
     pipeline: null,
     pipelineLoading: false,
     lastStatusError: "",
@@ -30,8 +47,35 @@ class HGCoinOperationsPage extends Component {
   };
 
   componentDidMount() {
-    this.fetchPipelineStatus();
+    this.fetchAssetPermissions();
   }
+
+  /** 权限加载完成前不发起受保护的资产数据请求；后端仍执行最终鉴权。 */
+  fetchAssetPermissions = () => {
+    this.setState({ permissionsLoading: true, permissionsError: "" });
+    HGCoinOperationsVM.fetchAssetPermissions()
+      .then((response) => {
+        const permissions = normalizeAssetPermissions(response);
+        this.setState({ permissions }, () => {
+          if (this.hasPermission(HG_ASSET_PERMISSIONS.PIPELINE_READ)) this.fetchPipelineStatus();
+          if (this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST)) this.fetchCorrections(1, HG_COIN_CORRECTION_PAGE_SIZE);
+        });
+      })
+      .catch((error) => this.setState({ permissions: [], permissionsError: error?.message || "资产权限加载失败" }))
+      .finally(() => this.setState({ permissionsLoading: false }));
+  };
+
+  /** 页面权限仅控制可见性和交互，不能替代后端授权。 */
+  hasPermission = (permission) => this.state.permissions.includes(permission);
+
+  /** 判断当前操作人是否需要目标用户选择器，不据此放宽任何接口权限。 */
+  canSelectTargetUser = () => [
+    HG_ASSET_PERMISSIONS.BALANCE_READ,
+    HG_ASSET_PERMISSIONS.TRANSACTION_READ,
+    HG_ASSET_PERMISSIONS.GRANT,
+    HG_ASSET_PERMISSIONS.REFUND,
+    HG_ASSET_PERMISSIONS.CORRECTION_REQUEST,
+  ].some((permission) => this.hasPermission(permission));
 
   /** 加载链路状态；失败时保留上一份成功快照并标记陈旧状态。 */
   fetchPipelineStatus = () => {
@@ -50,14 +94,23 @@ class HGCoinOperationsPage extends Component {
       return;
     }
     this.setState({ accountLoading: true, userIdInput: userId });
+    if (!this.hasPermission(HG_ASSET_PERMISSIONS.BALANCE_READ)) {
+      this.setState({ account: { ...EMPTY_ACCOUNT, userId }, cursorByPage: { 1: "" }, accountLoading: false }, () => {
+        if (this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ)) this.fetchTransactions(1, HG_COIN_TRANSACTION_PAGE_SIZE);
+      });
+      return;
+    }
     HGCoinOperationsVM.fetchAccount(userId)
-      .then((account) => this.setState({ account: account || { ...EMPTY_ACCOUNT, userId }, cursorByPage: { 1: "" } }, () => this.fetchTransactions(1, HG_COIN_TRANSACTION_PAGE_SIZE)))
+      .then((account) => this.setState({ account: account || { ...EMPTY_ACCOUNT, userId }, cursorByPage: { 1: "" } }, () => {
+        if (this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ)) this.fetchTransactions(1, HG_COIN_TRANSACTION_PAGE_SIZE);
+      }))
       .catch((error) => message.error(error?.message || "权威余额查询失败"))
       .finally(() => this.setState({ accountLoading: false }));
   };
 
   /** 使用后端不透明 cursor 翻页，前端不推导数据库主键或时间边界。 */
   fetchTransactions = (pageNum, pageSize) => {
+    if (!this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ)) return;
     const userId = this.state.account?.userId;
     if (!userId) return;
     const cursor = this.state.cursorByPage[pageNum] || "";
@@ -91,8 +144,48 @@ class HGCoinOperationsPage extends Component {
     this.fetchTransactions(pagination.current, pagination.pageSize);
   };
 
+  /** 使用后端 correction ID cursor 有界加载双人复核记录。 */
+  fetchCorrections = (pageNum, pageSize) => {
+    if (!this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST)) return;
+    const cursor = this.state.correctionCursorByPage[pageNum] || "";
+    this.setState({ correctionLoading: true });
+    HGCoinOperationsVM.fetchCorrections({ cursor, pageSize })
+      .then((result) => {
+        const rows = HGCoinOperationsVM.toCorrectionRows(result?.list || []);
+        this.setState((state) => {
+          const correctionCursorByPage = { ...state.correctionCursorByPage };
+          if (result?.hasMore && result.nextCursor) correctionCursorByPage[pageNum + 1] = String(result.nextCursor);
+          return {
+            corrections: rows,
+            correctionCursorByPage,
+            correctionPagination: {
+              current: pageNum,
+              pageSize,
+              total: (pageNum - 1) * pageSize + rows.length + (result?.hasMore ? 1 : 0),
+            },
+          };
+        });
+      })
+      .catch((error) => message.error(error?.message || "修正申请列表加载失败"))
+      .finally(() => this.setState({ correctionLoading: false }));
+  };
+
+  handleCorrectionTableChange = (pagination) => {
+    if (pagination.pageSize !== this.state.correctionPagination.pageSize) {
+      this.setState({ correctionCursorByPage: { 1: "" } }, () => this.fetchCorrections(1, pagination.pageSize));
+      return;
+    }
+    this.fetchCorrections(pagination.current, pagination.pageSize);
+  };
+
   /** 打开写操作弹窗时生成一次 requestId，失败重试继续复用。 */
   openMutation = (operation, record = null) => {
+    const requiredPermission = {
+      grant: HG_ASSET_PERMISSIONS.GRANT,
+      refund: HG_ASSET_PERMISSIONS.REFUND,
+      correct: HG_ASSET_PERMISSIONS.CORRECTION_REQUEST,
+    }[operation];
+    if (!this.hasPermission(requiredPermission)) return;
     const userId = this.state.account?.userId;
     if (!userId) {
       message.warning("请先查询目标用户");
@@ -107,6 +200,8 @@ class HGCoinOperationsPage extends Component {
         delta: 1,
         reason: "",
         businessKey: "",
+        ticketId: "",
+        workOrderId: "",
         referenceTransactionId: record?.transactionId || "",
       },
     });
@@ -133,13 +228,35 @@ class HGCoinOperationsPage extends Component {
     this.setState({ submitting: true });
     request
       .then((result) => {
+        if (modal === "correct") {
+          message.success(`修正申请已提交，状态 ${result?.status || "pending"}`);
+          this.setState({ modal: null, form: {}, pendingCorrection: result || null });
+          this.fetchCorrections(1, this.state.correctionPagination.pageSize);
+          return;
+        }
         message.success(result?.idempotentReplay ? "幂等请求已确认，无重复资产变化" : `资产操作成功，流水 ${result?.transactionId || "--"}`);
         this.setState({ modal: null, form: {} });
         this.searchAccount(form.userId);
-        this.fetchPipelineStatus();
+        if (this.hasPermission(HG_ASSET_PERMISSIONS.PIPELINE_READ)) this.fetchPipelineStatus();
       })
       .catch((error) => message.error(error?.message || "资产操作失败，requestId 已保留，可安全重试"))
       .finally(() => this.setState({ submitting: false }));
+  };
+
+  /** 审批操作只提交 correctionId；申请人与审批人分离由前后端共同提示、后端强制。 */
+  approveCorrection = (record) => {
+    const { permissions, operatorId } = this.state;
+    if (!canApproveCorrection(permissions, record, operatorId)) return;
+    this.setState({ approvingCorrectionId: record.correctionId });
+    HGCoinOperationsVM.approveCorrection(record.correctionId)
+      .then((result) => {
+        message.success(`修正已审批并应用，流水 ${result?.transactionId || "--"}`);
+        this.setState({ pendingCorrection: result || null });
+        this.fetchCorrections(this.state.correctionPagination.current, this.state.correctionPagination.pageSize);
+        if (this.state.account?.userId === result?.userId && this.hasPermission(HG_ASSET_PERMISSIONS.BALANCE_READ)) this.searchAccount(result.userId);
+      })
+      .catch((error) => message.error(error?.message || "修正审批失败"))
+      .finally(() => this.setState({ approvingCorrectionId: "" }));
   };
 
   getTransactionColumns = () => [
@@ -151,8 +268,30 @@ class HGCoinOperationsPage extends Component {
     { title: "关联流水", dataIndex: "referenceTransactionId", width: 110, render: (value) => value || "--" },
     { title: "审计原因", dataIndex: "reason", width: 260 },
     { title: "时间", dataIndex: "createdAt", width: 180, render: HGCoinOperationsVM.formatTime },
-    { title: "操作", dataIndex: "action", width: 90, render: (_, record) => record.operation === "debit" ? <a className={styles.action} onClick={() => this.openMutation("refund", record)}>退款</a> : "--" },
+    { title: "操作", dataIndex: "action", width: 90, render: (_, record) => record.operation === "debit" && this.hasPermission(HG_ASSET_PERMISSIONS.REFUND) ? <a className={styles.action} onClick={() => this.openMutation("refund", record)}>退款</a> : "--" },
   ];
+
+  getCorrectionColumns = () => [
+    { title: "修正 ID", dataIndex: "correctionId", width: 130 },
+    { title: "目标用户", dataIndex: "userId", width: 120 },
+    { title: "修正值", dataIndex: "delta", width: 85, render: (value) => <strong className={Number(value) >= 0 ? styles.positive : styles.negative}>{Number(value) >= 0 ? "+" : ""}{value}</strong> },
+    { title: "Ticket / Work Order", dataIndex: "ticketId", width: 190, render: (value, record) => [value, record.workOrderId].filter(Boolean).join(" / ") || "--" },
+    { title: "申请人", dataIndex: "applicantId", width: 120 },
+    { title: "审批人", dataIndex: "approverId", width: 120, render: (value) => value || "--" },
+    { title: "状态", dataIndex: "status", width: 100, render: (status) => <span className={`${styles.correctionStatus} ${styles[`correction_${status}`] || ""}`}>{HGCoinOperationsVM.getCorrectionStatusLabel(status)}</span> },
+    { title: "原因", dataIndex: "reason", width: 220 },
+    { title: "申请时间", dataIndex: "createdAt", width: 180, render: HGCoinOperationsVM.formatTime },
+    { title: "操作", dataIndex: "action", width: 110, render: (_, record) => this.renderCorrectionAction(record) },
+  ];
+
+  renderCorrectionAction = (record) => {
+    const { permissions, operatorId, approvingCorrectionId } = this.state;
+    const hasApprovalPermissions = permissions.includes(HG_ASSET_PERMISSIONS.CORRECTION_APPROVE)
+      && permissions.includes(HG_ASSET_PERMISSIONS.CORRECTION_APPLY);
+    if (!hasApprovalPermissions || record.status !== "pending") return "--";
+    if (operatorId && String(record.applicantId) === operatorId) return <span className={styles.disabledAction}>本人申请，不可审批</span>;
+    return <HGButtonPage type="link" loading={approvingCorrectionId === record.correctionId} onClick={() => this.approveCorrection(record)}>审批并应用</HGButtonPage>;
+  };
 
   getKafkaColumns = () => [
     { title: "Consumer Group", dataIndex: "group", width: 220 },
@@ -164,23 +303,35 @@ class HGCoinOperationsPage extends Component {
 
   renderAccountCard = () => {
     const { account, accountLoading, userIdInput } = this.state;
+    const canReadBalance = this.hasPermission(HG_ASSET_PERMISSIONS.BALANCE_READ);
     return (
-      <HGCardPage title="权威资产查询" extra={<HGButtonPage disabled={!account} onClick={() => account && this.searchAccount(account.userId)}>刷新账户</HGButtonPage>}>
+      <HGCardPage title={canReadBalance ? "权威资产查询" : "目标用户选择"} extra={<HGButtonPage disabled={!account} onClick={() => account && this.searchAccount(account.userId)}>刷新数据</HGButtonPage>}>
         <div className={styles.searchRow}>
           <HGInputSearch value={userIdInput} allowClear enterButton={accountLoading ? "查询中..." : "查询"} disabled={accountLoading} placeholder="输入业务 userId" onChange={(event) => this.setState({ userIdInput: event.target.value })} onSearch={this.searchAccount} />
-          <p>查询直接读取 MySQL `user_coin_wallets`，Redis 不作为资产权威。</p>
+          <p>{canReadBalance ? "余额直接读取 MySQL `user_coin_wallets`，Redis 不作为资产权威。" : "用于限定流水或写操作的目标用户；当前权限不读取余额。"}</p>
         </div>
         {account ? (
           <div className={styles.accountSummary}>
             <div><span>用户</span><strong>{account.userId}</strong></div>
-            <div><span>权威余额</span><strong className={styles.balance}>{HGCoinOperationsVM.formatInteger(account.balance)}</strong></div>
-            <div><span>数据源</span><strong>{String(account.authority || "mysql").toUpperCase()}</strong></div>
+            {canReadBalance && <div><span>权威余额</span><strong className={styles.balance}>{HGCoinOperationsVM.formatInteger(account.balance)}</strong></div>}
+            {canReadBalance && <div><span>数据源</span><strong>{String(account.authority || "mysql").toUpperCase()}</strong></div>}
             <div className={styles.operationButtons}>
-              <HGButtonPage type="primary" onClick={() => this.openMutation("grant")}>赠币</HGButtonPage>
-              <HGButtonPage danger onClick={() => this.openMutation("correct")}>资产修正</HGButtonPage>
+              {this.hasPermission(HG_ASSET_PERMISSIONS.GRANT) && <HGButtonPage type="primary" onClick={() => this.openMutation("grant")}>赠币</HGButtonPage>}
+              {this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST) && <HGButtonPage danger onClick={() => this.openMutation("correct")}>申请资产修正</HGButtonPage>}
             </div>
           </div>
-        ) : <div className={styles.empty}>输入用户 ID 后查询权威余额与不可变流水</div>}
+        ) : <div className={styles.empty}>输入用户 ID 后加载当前权限允许的资产数据与操作</div>}
+      </HGCardPage>
+    );
+  };
+
+  renderCorrectionCard = () => {
+    const { corrections, correctionLoading, correctionPagination, pendingCorrection } = this.state;
+    return (
+      <HGCardPage title="资产修正双人复核" extra={<HGButtonPage loading={correctionLoading} onClick={() => this.fetchCorrections(1, correctionPagination.pageSize)}>刷新申请</HGButtonPage>}>
+        <div className={styles.auditNotice}>修正申请先写入不可变审计记录，不会立即改动余额；必须由另一名同时具备审批与应用权限的操作人复核后才会应用。</div>
+        {pendingCorrection && <div className={styles.pendingNotice}><span>最近修正</span><strong>{pendingCorrection.correctionId || "--"}</strong><span>状态</span><strong>{HGCoinOperationsVM.getCorrectionStatusLabel(pendingCorrection.status)}</strong></div>}
+        <HGTablePage rowKey="key" columns={this.getCorrectionColumns()} dataSource={corrections} loading={correctionLoading} pagination={{ ...correctionPagination, showSizeChanger: true }} onChange={this.handleCorrectionTableChange} scroll={{ y: 360 }} />
       </HGCardPage>
     );
   };
@@ -217,15 +368,20 @@ class HGCoinOperationsPage extends Component {
     const { modal, form, submitting } = this.state;
     if (!modal) return null;
     const title = modal === "grant" ? "人工赠币" : modal === "refund" ? "原扣款退款" : "资产修正";
+    const riskCopy = modal === "correct"
+      ? "提交后只创建不可变修正申请，不会立即修改余额；必须由另一名具备审批与应用权限的操作人复核。"
+      : "该操作将写入 MySQL 不可变资产流水与 Outbox。不要刷新 requestId 后重复提交同一业务。";
     return (
       <HGModalPage visible title={title} size="large" closable={!submitting} onClose={this.closeMutation} footer={<><HGButtonPage disabled={submitting} onClick={this.closeMutation}>取消</HGButtonPage><HGButtonPage type="primary" danger={modal === "correct"} loading={submitting} onClick={this.submitMutation}>确认提交</HGButtonPage></>}>
-        <div className={styles.riskNotice}>该操作将写入 MySQL 不可变资产流水与 Outbox。不要刷新 requestId 后重复提交同一业务。</div>
+        <div className={styles.riskNotice}>{riskCopy}</div>
         <div className={styles.formGrid}>
           <label>目标用户<HGInputPage value={form.userId || ""} disabled /></label>
           <label>Request ID<HGInputPage value={form.requestId || ""} disabled /></label>
           {modal === "correct" ? <label>修正值（-1000 至 1000）<HGInputNumberPage value={form.delta} min={-1000} max={1000} step={1} onChange={(value) => this.changeForm("delta", value)} /></label> : <label>数量（1 至 1000）<HGInputNumberPage value={form.amount} min={1} max={1000} step={1} onChange={(value) => this.changeForm("amount", value)} /></label>}
           {modal === "grant" && <label>活动/工单编号<HGInputPage value={form.businessKey || ""} maxLength={255} onChange={(event) => this.changeForm("businessKey", event.target.value)} /></label>}
           {modal === "refund" && <label>原扣款流水 ID<HGInputPage value={form.referenceTransactionId || ""} onChange={(event) => this.changeForm("referenceTransactionId", event.target.value)} /></label>}
+          {modal === "correct" && <label>Ticket ID<HGInputPage value={form.ticketId || ""} maxLength={128} onChange={(event) => this.changeForm("ticketId", event.target.value)} /></label>}
+          {modal === "correct" && <label>Work Order ID<HGInputPage value={form.workOrderId || ""} maxLength={128} onChange={(event) => this.changeForm("workOrderId", event.target.value)} /></label>}
           <label className={styles.fullField}>审计原因<HGInputTextArea value={form.reason || ""} rows={4} maxLength={200} placeholder="填写工单、活动或已确认漂移原因" onChange={(event) => this.changeForm("reason", event.target.value)} /></label>
         </div>
       </HGModalPage>
@@ -233,15 +389,18 @@ class HGCoinOperationsPage extends Component {
   };
 
   render() {
-    const { account, transactions, transactionLoading, pagination, pipeline } = this.state;
+    const { account, transactions, transactionLoading, pagination, pipeline, permissionsLoading, permissionsError } = this.state;
     const kafkaRows = HGCoinOperationsVM.toKafkaRows(pipeline?.kafka?.items || []);
     return (
       <div className={styles.container}>
-        <div className={styles.hero}><div><span>CONTROL PLANE / COIN ASSET</span><h2>硬币资产与异步链路</h2><p>所有写操作进入同一权威事务，展示投影可随时从 MySQL 重建。</p></div><div className={styles.heroMark}>COIN<br />OPS</div></div>
-        {this.renderAccountCard()}
-        <HGCardPage title="不可变资产流水"><HGTablePage rowKey="key" columns={this.getTransactionColumns()} dataSource={transactions} loading={transactionLoading} pagination={account ? { ...pagination, showSizeChanger: true } : false} onChange={this.handleTableChange} scroll={{ y: 400 }} /></HGCardPage>
-        {this.renderPipelineCards()}
-        <HGCardPage title="Kafka Consumer Lag"><HGTablePage rowKey="key" columns={this.getKafkaColumns()} dataSource={kafkaRows} pagination={false} scroll={{ y: 320 }} /></HGCardPage>
+        <div className={styles.hero}><div><span>CONTROL PLANE / COIN ASSET</span><h2>硬币资产与异步链路</h2><p>资产变更保留不可变审计；高风险修正采用申请与审批分离的双人复核。</p></div><div className={styles.heroMark}>COIN<br />OPS</div></div>
+        {permissionsLoading && <div className={styles.permissionBanner}>正在加载当前操作人的资产权限...</div>}
+        {permissionsError && <div className={styles.permissionError}>资产权限加载失败，受保护操作已隐藏：{permissionsError} <HGButtonPage type="link" onClick={this.fetchAssetPermissions}>重试</HGButtonPage></div>}
+        {!permissionsLoading && this.canSelectTargetUser() && this.renderAccountCard()}
+        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ) && <HGCardPage title="不可变资产流水"><HGTablePage rowKey="key" columns={this.getTransactionColumns()} dataSource={transactions} loading={transactionLoading} pagination={account ? { ...pagination, showSizeChanger: true } : false} onChange={this.handleTableChange} scroll={{ y: 400 }} /></HGCardPage>}
+        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST) && this.renderCorrectionCard()}
+        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.PIPELINE_READ) && this.renderPipelineCards()}
+        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.PIPELINE_READ) && <HGCardPage title="Kafka Consumer Lag"><HGTablePage rowKey="key" columns={this.getKafkaColumns()} dataSource={kafkaRows} pagination={false} scroll={{ y: 320 }} /></HGCardPage>}
         {this.renderMutationModal()}
       </div>
     );

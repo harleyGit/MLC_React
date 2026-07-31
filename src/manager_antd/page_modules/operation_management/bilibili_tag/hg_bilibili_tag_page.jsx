@@ -17,8 +17,8 @@ class HGBilibiliTagPage extends Component {
     data: [],
     /** 标签列表请求状态。 */
     loading: false,
-    /** 页码到后端 cursor 的映射；第 1 页固定使用 0。 */
-    cursorByPage: { 1: 0 },
+    /** 页码到后端不透明 cursor 的映射；第 1 页固定使用空字符串。 */
+    cursorByPage: { 1: "" },
     /** 表格分页状态；total 是根据 hasMore 合成的最小数量，不是数据库精确总数。 */
     pagination: { current: 1, pageSize: BILIBILI_TAG_PAGE_SIZE, total: 0 },
     /** 新增/编辑共用弹窗状态。 */
@@ -39,15 +39,15 @@ class HGBilibiliTagPage extends Component {
    * 后端返回的 nextCursor 只保存给下一页，切换 pageSize 时必须清空旧映射。
    */
   fetchTags = (pageNum, pageSize) => {
-    const cursor = Number(this.state.cursorByPage[pageNum] || 0);
+    const cursor = String(this.state.cursorByPage[pageNum] || "");
     this.setState({ loading: true });
     HGBilibiliTagVM.fetchTags({ cursor, pageSize })
       .then((res) => {
         const rows = HGBilibiliTagVM.toRows(res?.list || []);
         this.setState((state) => {
           const cursorByPage = { ...state.cursorByPage };
-          if (res?.hasMore && Number(res.nextCursor) > 0)
-            cursorByPage[pageNum + 1] = Number(res.nextCursor);
+          if (res?.hasMore && res?.nextCursor)
+            cursorByPage[pageNum + 1] = String(res.nextCursor);
           return {
             data: rows,
             cursorByPage,
@@ -64,14 +64,21 @@ class HGBilibiliTagPage extends Component {
           };
         });
       })
-      .catch(() => message.error("动画标签获取失败，请稍后重试"))
+      .catch((error) =>
+        message.error(
+          HGBilibiliTagVM.getErrorMessage(
+            error,
+            "动画标签获取失败，请稍后重试"
+          )
+        )
+      )
       .finally(() => this.setState({ loading: false }));
   };
 
   /** 处理分页或每页数量变化；pageSize 改变后从首页重新建立 cursor 链。 */
   handleTableChange = (pagination) => {
     if (pagination.pageSize !== this.state.pagination.pageSize) {
-      this.setState({ cursorByPage: { 1: 0 } }, () =>
+      this.setState({ cursorByPage: { 1: "" } }, () =>
         this.fetchTags(1, pagination.pageSize)
       );
       return;
@@ -84,8 +91,16 @@ class HGBilibiliTagPage extends Component {
     this.setState({ formVisible: true, form: { ...EMPTY_FORM } });
 
   /** 打开编辑弹窗，复制当前记录避免直接修改表格数据对象。 */
-  openEdit = (record) =>
-    this.setState({ formVisible: true, form: { ...record } });
+  openEdit = (tagId) => {
+    const record = this.state.data.find((item) => item.tagId === tagId);
+    if (record) this.setState({ formVisible: true, form: { ...record } });
+  };
+
+  /** 按业务 tagId 打开删除确认，避免操作列闭包依赖整个记录对象。 */
+  openDelete = (tagId) => {
+    const record = this.state.data.find((item) => item.tagId === tagId);
+    if (record) this.setState({ deleteRecord: record });
+  };
 
   /** 关闭表单弹窗并恢复默认值。 */
   closeForm = () =>
@@ -116,7 +131,14 @@ class HGBilibiliTagPage extends Component {
           pagination.pageSize
         );
       })
-      .catch(() => message.error(form.tagId ? "标签更新失败" : "标签创建失败"))
+      .catch((error) =>
+        message.error(
+          HGBilibiliTagVM.getErrorMessage(
+            error,
+            form.tagId ? "标签更新失败" : "标签创建失败"
+          )
+        )
+      )
       .finally(() => this.setState({ submitting: false }));
   };
 
@@ -130,7 +152,11 @@ class HGBilibiliTagPage extends Component {
         this.setState({ deleteRecord: null });
         this.fetchTags(pagination.current, pagination.pageSize);
       })
-      .catch(() => message.error("标签删除失败"));
+      .catch((error) =>
+        message.error(
+          HGBilibiliTagVM.getErrorMessage(error, "标签删除失败")
+        )
+      );
   };
 
   /** 构建标签表格列和操作入口。 */
@@ -157,13 +183,13 @@ class HGBilibiliTagPage extends Component {
       width: 180,
       render: (_, record) => (
         <span>
-          <a className={styles.action} onClick={() => this.openEdit(record)}>
+          <a className={styles.action} onClick={() => this.openEdit(record.tagId)}>
             编辑
           </a>
           <span style={{ margin: "0 8px", color: "#d8deea" }}>|</span>
           <a
             className={styles.dangerAction}
-            onClick={() => this.setState({ deleteRecord: record })}
+            onClick={() => this.openDelete(record.tagId)}
           >
             删除
           </a>
@@ -245,7 +271,7 @@ class HGBilibiliTagPage extends Component {
             “推荐”为系统保留项，不入库；停用或删除标签不会修改历史视频上的标签快照。
           </p>
           <HGTablePage
-            rowKey={(record) => record.tagId}
+            rowKey={(record) => String(record.tagId)}
             columns={this.getColumns()}
             dataSource={data}
             loading={loading}

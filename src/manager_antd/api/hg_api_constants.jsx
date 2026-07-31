@@ -50,6 +50,9 @@ export const HGMANAGER_API = {
   OPS_COIN_TRANSACTION_LIST: "/api/v1/ops/coin/transactions/list", // 查询硬币不可变流水
   OPS_COIN_GRANT: "/api/v1/ops/coin/grant", // 人工赠币
   OPS_COIN_REFUND: "/api/v1/ops/coin/refund", // 关联原扣款退款
-  OPS_COIN_CORRECT: "/api/v1/ops/coin/correct", // 通过 correction 流水修正资产
+  OPS_COIN_CORRECT: "/api/v1/ops/coin/correct", // 创建待双人复核的资产修正申请
+  OPS_COIN_CORRECTION_LIST: "/api/v1/ops/coin/corrections/list", // 有界查询资产修正申请
+  OPS_COIN_CORRECTION_APPROVE: "/api/v1/ops/coin/corrections/approve", // 审批并应用资产修正
+  OPS_ASSET_PERMISSIONS_CURRENT: "/api/v1/ops/asset-permissions/current", // 当前操作人资产权限
   OPS_ASSET_PIPELINE_STATUS: "/api/v1/ops/observability/asset-pipeline", // Coin、Interaction 和 Kafka 状态
 };

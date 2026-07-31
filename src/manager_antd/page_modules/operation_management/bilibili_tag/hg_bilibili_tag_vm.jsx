@@ -1,5 +1,6 @@
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
+import { getRequestErrorMessage } from "../../../../api/hg_request_error";
 
 /** 默认每页数量，与后端 ops 标签列表 pageSize 上限约束配合使用。 */
 export const BILIBILI_TAG_PAGE_SIZE = 20;
@@ -8,9 +9,9 @@ export const BILIBILI_TAG_PAGE_SIZE = 20;
 export default class HGBilibiliTagVM {
   /**
    * 获取运维标签列表。
-   * cursor=0 表示首页，后续页传上一页响应的 nextCursor，避免 OFFSET 深分页。
+   * 空 cursor 表示首页，后续页原样传上一页响应的 nextCursor，避免破坏不透明游标。
    */
-  static fetchTags = ({ cursor = 0, pageSize = BILIBILI_TAG_PAGE_SIZE } = {}) =>
+  static fetchTags = ({ cursor = "", pageSize = BILIBILI_TAG_PAGE_SIZE } = {}) =>
     HGNet.get(HGMANAGER_API.OPS_BILIBILI_TAG_LIST, { cursor, pageSize });
 
   /** 创建标签，并在请求前统一去除名称两侧空白和转换数值字段。 */
@@ -32,6 +33,10 @@ export default class HGBilibiliTagVM {
 
   /** 软删除标签目录项，历史视频标签关联不会被修改。 */
   static deleteTag = ({ tagId }) => HGNet.post(HGMANAGER_API.OPS_BILIBILI_TAG_DELETE, { tagId });
+
+  /** 将请求错误转换为页面可展示文案，优先透传后端业务错误。 */
+  static getErrorMessage = (error, fallbackMessage) =>
+    getRequestErrorMessage(error, fallbackMessage);
 
   /**
    * 执行前端快速校验，减少无效请求；后端仍会执行同等约束校验，前端结果不作为安全边界。

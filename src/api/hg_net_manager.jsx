@@ -1,10 +1,11 @@
 import { LogOut } from "../logger/hg_logger";
 import NetManager from "./HttpManagerV1";
+import { joinApiURL } from "./hg_api_url";
 
 const env = import.meta.env;
 const defaultBaseURL = env.DEV
   ? ""
-  : env.VITE_API_URL || "http://localhost:8080";
+  : env.VITE_API_BASE || env.VITE_API_URL || "http://localhost:8080";
 
 class HGNetManager {
   constructor(baseURL = defaultBaseURL) {
@@ -16,15 +17,10 @@ class HGNetManager {
    * @param {string} path - 接口路径，如 "/api/user/login"
    */
   getFullURL(path) {
-    // 避免重复斜杠
-    if (path.startsWith("/")) {
-      return `${this.baseURL}${path}`;
-    } else {
-      return `${this.baseURL}/${path}`;
-    }
+    return joinApiURL(this.baseURL, path);
   }
   getFullURLV2(path) {
-    return `${defaultBaseURL}${path}`;
+    return joinApiURL(defaultBaseURL, path);
   }
 
   /**
@@ -87,12 +83,13 @@ class HGNetManager {
    * @param {Object} options
    */
   delete(path, options = {}) {
+    const { params = {}, ...requestOptions } = options;
     const query = new URLSearchParams(params).toString();
     const url = query
       ? `${this.getFullURL(path)}?${query}`
       : this.getFullURL(path);
 
-    return NetManager.deleteWithURL(url, options);
+    return NetManager.deleteWithURL(url, requestOptions);
   }
 }
 

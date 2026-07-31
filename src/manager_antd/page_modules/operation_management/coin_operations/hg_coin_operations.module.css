@@ -26,6 +26,13 @@
 .streamCard code { display: block; overflow: hidden; padding: 8px; border-radius: 5px; background: #101827; color: #8ee3d8; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .observedAt { margin: 12px 0 0; color: #8a94a7; font-size: 12px; text-align: right; }
 .staleBanner, .riskNotice { margin-bottom: 14px; padding: 10px 13px; border: 1px solid #ffd591; border-radius: 7px; background: #fff7e6; color: #874d00; font-size: 13px; }
+.permissionBanner, .permissionError, .auditNotice { padding: 12px 14px; border-radius: 8px; font-size: 13px; }
+.permissionBanner { border: 1px solid #b7eb8f; background: #f6ffed; color: #356b18; }
+.permissionError { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #ffccc7; background: #fff2f0; color: #a61d24; }
+.auditNotice { margin-bottom: 14px; border-left: 3px solid #1677ff; background: #f0f6ff; color: #315273; }
+.pendingNotice { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px 14px; border: 1px solid #b7eb8f; border-radius: 8px; background: #f6ffed; }
+.pendingNotice span { color: #6d7b8e; font-size: 12px; }
+.pendingNotice strong { margin-right: 14px; overflow-wrap: anywhere; }
 .statusPill { display: inline-block; min-width: 52px; padding: 3px 9px; border-radius: 999px; text-align: center; font-size: 12px; font-weight: 700; }
 .healthy { background: #e7f8ef; color: #137a4b; }
 .warning { background: #fff4dc; color: #ad6800; }
@@ -34,8 +41,14 @@
 .criticalText, .negative { color: #c72d26; }
 .positive { color: #137a4b; }
 .action { color: #1677ff; cursor: pointer; }
+.disabledAction { color: #9aa4b3; font-size: 12px; cursor: not-allowed; }
+.correctionStatus { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #eef2f6; color: #536176; font-size: 12px; font-weight: 700; }
+.correction_pending { background: #fff4dc; color: #ad6800; }
+.correction_applying { background: #e6f4ff; color: #0958d9; }
+.correction_applied { background: #e7f8ef; color: #137a4b; }
+.correction_failed { background: #ffe8e6; color: #c72d26; }
 .formGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .formGrid label { display: grid; gap: 7px; color: #344056; font-size: 13px; font-weight: 600; }
 .fullField { grid-column: 1 / -1; }
 @media (max-width: 1200px) { .statusGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .accountSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .hero { padding: 22px; } .heroMark { display: none; } .searchRow, .operationButtons { align-items: stretch; flex-direction: column; } .statusGrid, .streamGrid, .accountSummary, .formGrid { grid-template-columns: 1fr; } .fullField { grid-column: auto; } }
+@media (max-width: 720px) { .hero { padding: 22px; } .heroMark { display: none; } .searchRow, .operationButtons, .permissionError, .pendingNotice { align-items: stretch; flex-direction: column; } .statusGrid, .streamGrid, .accountSummary, .formGrid { grid-template-columns: 1fr; } .fullField { grid-column: auto; } }

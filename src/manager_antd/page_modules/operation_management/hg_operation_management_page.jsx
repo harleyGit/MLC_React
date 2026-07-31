@@ -6,29 +6,31 @@
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
-import React, { Component } from "react";
+import React, { Component, lazy, Suspense } from "react";
+import HGLoading from "../../../components/hg_loading";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
-import HGAdminAddPage from "./admin_add/hg_admin_add_page";
-import HGAdminListPage from "./admin_list/hg_admin_list_page";
-import HGAdminRoleAssignPage from "./admin_role_assign/hg_admin_role_assign_page";
-import HGEmployeeRolePage from "./employee_role/hg_employee_role_page";
-import HGFileListPage from "./file_management/file_list/hg_file_list_page";
-import HGFileManagementPage from "./file_management/hg_file_management_page";
 import HGOperationManagementVM, {
   OPERATION_MENU_ITEMS,
 } from "./hg_operation_management_vm";
-import HGPermissionMenuPage from "./hg_permission_menu_page";
-import HGRoleCreatePage from "./role_create/hg_role_create_page";
-import HGUserPermissionPage from "./user_permission/hg_user_permission_page";
-import HGRoleListPage from "./role_list/hg_role_list_page";
-import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
-import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
-import HGBilibiliTagPage from "./bilibili_tag/hg_bilibili_tag_page";
-import HGCoinOperationsPage from "./coin_operations/hg_coin_operations_page";
-// 用户资料/用户列表真实页面：运维管理菜单中的 user_list 会复用该页面展示用户数据。
-import HGUserProfilePage from "../user/hg_user_profile_page";
 import styles from "./hg_operation_management.module.css";
+
+// 真实业务页按菜单项独立拆包；占位页保留同步渲染，避免无意义的小 chunk。
+const HGAdminAddPage = lazy(() => import("./admin_add/hg_admin_add_page"));
+const HGAdminListPage = lazy(() => import("./admin_list/hg_admin_list_page"));
+const HGAdminRoleAssignPage = lazy(() => import("./admin_role_assign/hg_admin_role_assign_page"));
+const HGEmployeeRolePage = lazy(() => import("./employee_role/hg_employee_role_page"));
+const HGFileListPage = lazy(() => import("./file_management/file_list/hg_file_list_page"));
+const HGFileManagementPage = lazy(() => import("./file_management/hg_file_management_page"));
+const HGPermissionMenuPage = lazy(() => import("./hg_permission_menu_page"));
+const HGRoleCreatePage = lazy(() => import("./role_create/hg_role_create_page"));
+const HGUserPermissionPage = lazy(() => import("./user_permission/hg_user_permission_page"));
+const HGRoleListPage = lazy(() => import("./role_list/hg_role_list_page"));
+const HGRolePermissionPage = lazy(() => import("./role_permission/hg_role_permission_page"));
+const HGSmsTemplatePage = lazy(() => import("./sms_template/hg_sms_template_page"));
+const HGBilibiliTagPage = lazy(() => import("./bilibili_tag/hg_bilibili_tag_page"));
+const HGCoinOperationsPage = lazy(() => import("./coin_operations/hg_coin_operations_page"));
+const HGUserProfilePage = lazy(() => import("../user/hg_user_profile_page"));
 
 /**
  * 用户列表占位页面
@@ -282,7 +284,11 @@ class HGOperationManagementPage extends Component {
     const { selectedKey } = this.state;
     const PageComponent = PAGE_MAP[selectedKey];
     if (PageComponent) {
-      return <PageComponent />;
+      return (
+        <Suspense fallback={<HGLoading text="正在加载页面..." />}>
+          <PageComponent />
+        </Suspense>
+      );
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;
   };

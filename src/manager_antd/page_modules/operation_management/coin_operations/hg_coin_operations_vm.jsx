@@ -1,11 +1,15 @@
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
+import { buildCorrectionListParams, buildCorrectionRequest } from "./hg_coin_operations_helpers.js";
 
 export const HG_COIN_TRANSACTION_PAGE_SIZE = 20;
+export const HG_COIN_CORRECTION_PAGE_SIZE = 20;
 export const HG_COIN_MAX_MUTATION_AMOUNT = 1000;
 
 /** 硬币资产运维 ViewModel，集中处理接口调用、游标分页、校验和低基数状态转换。 */
 export default class HGCoinOperationsVM {
+  static fetchAssetPermissions = () => HGNet.get(HGMANAGER_API.OPS_ASSET_PERMISSIONS_CURRENT);
+
   static fetchAccount = (userId) =>
     HGNet.get(HGMANAGER_API.OPS_COIN_ACCOUNT_DETAIL, { userId: String(userId || "").trim() });
 
@@ -17,6 +21,9 @@ export default class HGCoinOperationsVM {
     });
 
   static fetchPipelineStatus = () => HGNet.get(HGMANAGER_API.OPS_ASSET_PIPELINE_STATUS);
+
+  static fetchCorrections = ({ cursor = "", pageSize = HG_COIN_CORRECTION_PAGE_SIZE } = {}) =>
+    HGNet.get(HGMANAGER_API.OPS_COIN_CORRECTION_LIST, buildCorrectionListParams({ cursor, pageSize }));
 
   static grantCoin = (form) => HGNet.post(HGMANAGER_API.OPS_COIN_GRANT, {
     userId: form.userId.trim(),
@@ -34,11 +41,10 @@ export default class HGCoinOperationsVM {
     referenceTransactionId: form.referenceTransactionId.trim(),
   });
 
-  static correctCoin = (form) => HGNet.post(HGMANAGER_API.OPS_COIN_CORRECT, {
-    userId: form.userId.trim(),
-    requestId: form.requestId,
-    delta: String(form.delta),
-    reason: form.reason.trim(),
+  static correctCoin = (form) => HGNet.post(HGMANAGER_API.OPS_COIN_CORRECT, buildCorrectionRequest(form));
+
+  static approveCorrection = (correctionId) => HGNet.post(HGMANAGER_API.OPS_COIN_CORRECTION_APPROVE, {
+    correctionId: String(correctionId || "").trim(),
   });
 
   /** requestId 在弹窗生命周期内保持稳定，网络失败后的重试不会产生第二笔资产命令。 */
@@ -58,6 +64,8 @@ export default class HGCoinOperationsVM {
     if (operation === "grant" && !String(form.businessKey || "").trim()) return "赠币必须关联活动或工单编号";
     if (operation === "refund" && !/^\d+$/.test(String(form.referenceTransactionId || "").trim()))
       return "退款必须填写原扣款流水 ID";
+    if (operation === "correct" && !String(form.ticketId || "").trim() && !String(form.workOrderId || "").trim())
+      return "资产修正必须关联 Ticket ID 或 Work Order ID";
     return "";
   };
 
@@ -79,6 +87,13 @@ export default class HGCoinOperationsVM {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN", { hour12: false });
   };
 
+  static getCorrectionStatusLabel = (status) => ({
+    pending: "待复核",
+    applying: "应用中",
+    applied: "已应用",
+    failed: "应用失败",
+  }[status] || status || "--");
+
   static toTransactionRows = (list = []) => list.map((item) => ({
     ...item,
     key: item.transactionId,
@@ -90,4 +105,6 @@ export default class HGCoinOperationsVM {
   static toKafkaRows = (items = []) => items
     .map((item) => ({ ...item, key: `${item.group}:${item.topic}`, level: HGCoinOperationsVM.getLagLevel(item.lagRecords) }))
     .sort((left, right) => Number(right.lagRecords) - Number(left.lagRecords));
+
+  static toCorrectionRows = (list = []) => list.map((item) => ({ ...item, key: item.correctionId }));
 }

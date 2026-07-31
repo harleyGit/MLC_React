@@ -19,7 +19,6 @@ import HGEditUserPage from "../page_modules/user/edit_user_info/hg_edit_user_pag
 import HGVideoUploadEditPage from "../page_modules/hg_video_upload/hg_video_upload_edit_page";
 import HGUpdateUserProfilePage from "../page_modules/user/hg_update_user_profile_page";
 import HGUserProfilePage from "../page_modules/user/hg_user_profile_page";
-import HGOperationManagementPage from "../page_modules/operation_management/hg_operation_management_page";
 import HGTestModulePage from "../page_modules/test_module/hg_test_module_page";
 import HGTableDemoPage from "../../components/hg_table/hg_table_demo_page";
 import BiliDougaPage from "../../pages/bilibili/hg_bili_douga_page";
@@ -28,7 +27,12 @@ import HGContentCenterPage from "../page_modules/personal_center/hg_content_cent
 import HGUserSpacePage from "../page_modules/user_space/hg_user_space_page";
 import { WithNavigation } from "./hg_naviagion_hook";
 import { ROUTE_PATH } from "./hg_router_path";
-import React from "react";
+import React, { lazy, Suspense } from "react";
+import HGLoading from "../../components/hg_loading";
+
+const HGOperationManagementPage = lazy(() =>
+  import("../page_modules/operation_management/hg_operation_management_page")
+);
 
 // 包装布局组件以支持类组件访问路由方法
 const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);
@@ -78,7 +82,11 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.OPERATION_MANAGEMENT,
-        element: <HGOperationManagementPage />,
+        element: (
+          <Suspense fallback={<HGLoading text="正在加载运维管理..." />}>
+            <HGOperationManagementPage />
+          </Suspense>
+        ),
       },
       {
         path: ROUTE_PATH.TEST_MODULE,

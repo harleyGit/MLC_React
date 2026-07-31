@@ -11,6 +11,7 @@
 
 import { LogError } from "../logger/hg_logger";
 import { REFRESH_TOKEN_KEY, TOKEN_KEY } from "../manager_antd/auth/hg_auth";
+import { joinApiURL } from "./hg_api_url";
 import { redirectToLogin, showError, showWarning } from "./hg_ui_feedback";
 
 const env = import.meta.env;
@@ -110,7 +111,6 @@ class NetAPI {
       "X-Language": navigator.language || "zh-CN",
       "X-Request-ID": requestId,
       "X-Timestamp": timestamp,
-      "X-Role": "user",  // 用户角色，可选值: admin / user
       ...extraHeaders,
     };
   }
@@ -187,10 +187,14 @@ class NetAPI {
           });
         }
 
+        const errorData = await response.json().catch(() => null);
         throw {
           type: "HTTP_ERROR",
           status: response.status,
-          message: response.statusText || "HTTP 请求失败",
+          code: errorData?.code,
+          message:
+            errorData?.message || response.statusText || "HTTP 请求失败",
+          tid: errorData?.tid,
         };
       }
 
@@ -634,7 +638,7 @@ class NetAPI {
     }
 
     const apiBase = getApiBase();
-    const url = `${apiBase}/api/v1/auth/refresh`;
+    const url = joinApiURL(apiBase, "/api/v1/auth/refresh");
     const body = { refreshToken };
     const commonHeaders = this.getCommonHeaders();
     const requestHeaders = {
