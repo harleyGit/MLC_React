@@ -25,6 +25,7 @@ import HGRoleListPage from "./role_list/hg_role_list_page";
 import HGRolePermissionPage from "./role_permission/hg_role_permission_page";
 import HGSmsTemplatePage from "./sms_template/hg_sms_template_page";
 import HGBilibiliTagPage from "./bilibili_tag/hg_bilibili_tag_page";
+import HGCoinOperationsPage from "./coin_operations/hg_coin_operations_page";
 // 用户资料/用户列表真实页面：运维管理菜单中的 user_list 会复用该页面展示用户数据。
 import HGUserProfilePage from "../user/hg_user_profile_page";
 import styles from "./hg_operation_management.module.css";
@@ -219,6 +220,7 @@ const PAGE_MAP = {
   resource_file: HGFileManagementPage,
   resource_file_list: HGFileListPage,
   bilibili_douga_tags: HGBilibiliTagPage,
+  coin_operations: HGCoinOperationsPage,
 };
 
 /**

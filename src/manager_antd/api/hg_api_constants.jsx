@@ -46,4 +46,10 @@ export const HGMANAGER_API = {
   OPS_BILIBILI_TAG_LIST: "/api/v1/ops/bilibili/tags/list", // 获取 Bilibili 动画标签
   OPS_BILIBILI_TAG_UPDATE: "/api/v1/ops/bilibili/tags/update", // 更新 Bilibili 动画标签
   OPS_BILIBILI_TAG_DELETE: "/api/v1/ops/bilibili/tags/delete", // 删除 Bilibili 动画标签
+  OPS_COIN_ACCOUNT_DETAIL: "/api/v1/ops/coin/accounts/detail", // 查询 MySQL 权威硬币余额
+  OPS_COIN_TRANSACTION_LIST: "/api/v1/ops/coin/transactions/list", // 查询硬币不可变流水
+  OPS_COIN_GRANT: "/api/v1/ops/coin/grant", // 人工赠币
+  OPS_COIN_REFUND: "/api/v1/ops/coin/refund", // 关联原扣款退款
+  OPS_COIN_CORRECT: "/api/v1/ops/coin/correct", // 通过 correction 流水修正资产
+  OPS_ASSET_PIPELINE_STATUS: "/api/v1/ops/observability/asset-pipeline", // Coin、Interaction 和 Kafka 状态
 };

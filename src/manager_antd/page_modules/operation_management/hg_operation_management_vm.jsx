@@ -74,6 +74,14 @@ export const OPERATION_MENU_ITEMS = [
     ],
   },
   {
+    key: "asset_pipeline",
+    label: "资产与链路",
+    icon: <HGIconPage type="config" />,
+    children: [
+      { key: "coin_operations", label: "硬币资产运维", icon: <HGIconPage type="table" /> },
+    ],
+  },
+  {
     key: "system",
     label: "系统设置",
     icon: <HGIconPage type="config" />,
