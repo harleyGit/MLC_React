@@ -69,6 +69,7 @@ test("canApproveCorrection rejects own pending request when operator identity is
 test("getCurrentOperatorId reads supported cached profile identity fields as strings", () => {
   assert.equal(getCurrentOperatorId({ id: 42 }), "42");
   assert.equal(getCurrentOperatorId({ user_id: " admin-7 " }), "admin-7");
+  assert.equal(getCurrentOperatorId({ id: 42, user_id: " hgid-super-admin " }), "hgid-super-admin");
   assert.equal(getCurrentOperatorId(null), "");
 });
 

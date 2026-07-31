@@ -47,9 +47,9 @@ export function canApproveCorrection(permissions, correction, operatorId = "") {
   return !applicantId || !currentOperatorId || applicantId !== currentOperatorId;
 }
 
-/** 从已缓存的安全资料字段中读取当前操作人 ID；缺失时交由后端最终鉴权。 */
+/** 优先读取与 JWT/admin_user.user_id 一致的业务 ID，内部自增 id 仅作为旧缓存兜底。 */
 export function getCurrentOperatorId(profile) {
-  return String(profile?.id ?? profile?.user_id ?? "").trim();
+  return String(profile?.user_id ?? profile?.userId ?? profile?.id ?? "").trim();
 }
 
 /** 构造单一唯一索引精确查询参数，禁止把任意字段名传给后端。 */

@@ -8,6 +8,7 @@ export const HG_COIN_MAX_MUTATION_AMOUNT = 1000;
 
 /** 硬币资产运维 ViewModel，集中处理接口调用、游标分页、校验和低基数状态转换。 */
 export default class HGCoinOperationsVM {
+  /** 当前操作人只能由 JWT 确定，前端不传手机号或角色参数，避免伪造超级管理员身份。 */
   static fetchAssetPermissions = () => HGNet.get(HGMANAGER_API.OPS_ASSET_PERMISSIONS_CURRENT);
 
   static searchUser = (field, keyword) =>
