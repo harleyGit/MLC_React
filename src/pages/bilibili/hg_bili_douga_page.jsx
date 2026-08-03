@@ -68,8 +68,10 @@ class BiliDougaPage extends React.Component {
     try {
       const response = await getVideoList(cursor, 20, tag === "推荐" ? "" : tag);
       if (response && response.videos) {
+        // 播放路由使用 videoId；评论按稿件聚合，因此必须同时保留 submissionId。
         const videos = response.videos.map((item) => ({
           id: item.videoId || item.submissionId,
+          submissionId: item.submissionId,
           title: item.title,
           cover: item.coverUrl || "",
           url: item.filePath || "",

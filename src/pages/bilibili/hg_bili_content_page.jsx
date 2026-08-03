@@ -330,7 +330,8 @@ class HGBiliContentPage extends React.Component {
           <HGVideoPlayerPage video={video} />
           {this.renderVideoInfo(video)}
           {this.renderAuthorInfo(video)}
-          <HGVideoComments submissionId={video.id} />
+          {/* 接口数据按 submissionId 聚合评论，本地回退视频仅有 id。 */}
+          <HGVideoComments submissionId={video.submissionId || video.id} />
         </section>
         <aside className={styles.playerSidebar}>
           <h2>接下来播放</h2>
