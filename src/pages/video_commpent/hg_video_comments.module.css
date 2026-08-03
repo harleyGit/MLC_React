@@ -20,6 +20,13 @@
   font-size: 22px;
 }
 
+.sectionHeading h2 span {
+  margin-left: 6px;
+  color: #9499a0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
 .eyebrow {
   color: #fb7299;
   font-size: 10px;
@@ -90,6 +97,80 @@
   font-size: 12px;
 }
 
+.imagePicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 12px 7px;
+}
+
+.imagePicker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.imagePicker label {
+  padding: 6px 10px;
+  color: #00a1d6;
+  background: #fff;
+  border: 1px dashed #80d4ed;
+  border-radius: 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.imagePickerDisabled label,
+.imagePickerDisabled .imageDraft button {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.imagePickerDisabled label {
+  pointer-events: none;
+}
+
+.imageDrafts {
+  display: flex;
+  gap: 8px;
+}
+
+.imageDraft {
+  position: relative;
+  width: 58px;
+  height: 58px;
+}
+
+.imageDraft img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+.imageDraft button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: #fff;
+  background: rgba(24, 25, 28, 0.78);
+  border: 0;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .composerFooter button,
 .statePanel button {
   color: #fff;
@@ -106,7 +187,8 @@
 }
 
 .composerFooter button:disabled,
-.deleteButton:disabled {
+.deleteButton:disabled,
+.commentActions button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -199,7 +281,52 @@
   line-height: 1.55;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
+}
+
+.commentImages {
+  display: flex;
+  gap: 7px;
+  height: 70px;
+  margin-top: 7px;
+}
+
+.commentImages a {
+  display: block;
+  width: 70px;
+  height: 70px;
+  overflow: hidden;
+  background: #f1f2f3;
+  border-radius: 7px;
+}
+
+.commentImages img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.commentActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 24px;
+  margin-top: 7px;
+}
+
+.commentActions button {
+  padding: 2px 0;
+  color: #9499a0;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.commentActions button:hover,
+.commentActions .activeAction {
+  color: #00a1d6;
 }
 
 .deleteButton {
@@ -255,6 +382,82 @@
   text-align: center;
 }
 
+.replyPanel {
+  margin-top: 18px;
+  padding: 18px;
+  background: #f6f7f8;
+  border: 1px solid #e3e5e7;
+  border-radius: 12px;
+}
+
+.replyPanelHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.replyPanelHeading span {
+  color: #9499a0;
+  font-size: 11px;
+}
+
+.replyPanelHeading h3 {
+  margin: 2px 0 0;
+  font-size: 17px;
+}
+
+.replyPanelHeading button,
+.loadRepliesButton {
+  padding: 6px 11px;
+  color: #61666d;
+  background: #fff;
+  border: 1px solid #e3e5e7;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.replyComposer {
+  background: #fff;
+}
+
+.replyRow {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px 2px;
+  border-bottom: 1px solid #e3e5e7;
+}
+
+.replyRow .commentAvatar {
+  width: 36px;
+  height: 36px;
+}
+
+.replyContent {
+  margin: 6px 0 0;
+  color: #2f3134;
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.replyState {
+  padding: 16px 0 4px;
+  color: #9499a0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.loadRepliesButton {
+  display: block;
+  margin: 14px auto 0;
+  color: #00a1d6;
+}
+
 @media (max-width: 768px) {
   .commentSection {
     padding: 17px 12px;
@@ -279,5 +482,33 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 1px;
+  }
+
+  .commentImages {
+    height: 58px;
+  }
+
+  .commentImages a {
+    width: 58px;
+    height: 58px;
+  }
+
+  .replyPanel {
+    padding: 14px 10px;
+  }
+
+  .replyRow {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .replyRow .commentAvatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .imagePicker {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
