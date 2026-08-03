@@ -9,6 +9,13 @@ test("normalizeSignPath strips the video interaction module prefix", () => {
   );
 });
 
+test("normalizeSignPath strips the video comment module prefix", () => {
+  assert.equal(
+    normalizeSignPath("/api/v1/video_comments/create"),
+    "/create",
+  );
+});
+
 test("normalizeSignPath preserves paths outside registered module prefixes", () => {
   assert.equal(normalizeSignPath("/health"), "/health");
 });

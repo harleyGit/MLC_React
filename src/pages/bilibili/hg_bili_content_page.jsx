@@ -3,6 +3,7 @@ import { generatePath } from "react-router-dom";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
 import HGVideoPlayerPage from "../../components/hg_video_player/hg_video_player_page";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
+import HGVideoComments from "../video_commpent/hg_video_comments";
 import withRouter from "../../utils/WithRouter";
 import { getVideoInteractionState, setVideoInteraction } from "./hg_bili_api";
 import styles from "./hg_bili_content_page.module.css";
@@ -329,6 +330,7 @@ class HGBiliContentPage extends React.Component {
           <HGVideoPlayerPage video={video} />
           {this.renderVideoInfo(video)}
           {this.renderAuthorInfo(video)}
+          <HGVideoComments submissionId={video.id} />
         </section>
         <aside className={styles.playerSidebar}>
           <h2>接下来播放</h2>
