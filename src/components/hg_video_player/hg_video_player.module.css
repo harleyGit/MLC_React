@@ -142,7 +142,7 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 72px;
   overflow: hidden;
   pointer-events: none;
   z-index: 3;
@@ -150,17 +150,60 @@
 
 .danmakuItem {
   position: absolute;
-  right: -200px;
+  left: 100%;
   font-size: 16px;
   font-weight: 500;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  max-width: 70%;
+  text-shadow: -1px -1px 1px #000, 1px -1px 1px #000, -1px 1px 1px #000, 1px 1px 1px #000;
   white-space: nowrap;
   animation: danmakuMove 8s linear forwards;
 }
 
 @keyframes danmakuMove {
   from { transform: translateX(0); }
-  to { transform: translateX(calc(-100vw - 200px)); }
+  to { transform: translateX(calc(-100% - 1200px)); }
+}
+
+/* 输入区位于控制层内，因此可以交互，同时不会让弹幕覆盖层拦截鼠标事件。 */
+.danmakuComposer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(18, 20, 24, 0.88);
+  backdrop-filter: blur(8px);
+}
+
+.danmakuInput {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  outline: none;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.danmakuInput:focus { border-color: #00aeec; box-shadow: 0 0 0 2px rgba(0, 174, 236, 0.18); }
+.danmakuLength, .danmakuFeedback { color: rgba(255, 255, 255, 0.7); font-size: 12px; white-space: nowrap; }
+.danmakuSendButton, .danmakuVisibilityButton { height: 34px; padding: 0 14px; border: 0; border-radius: 6px; color: #fff; background: #00aeec; cursor: pointer; }
+.danmakuVisibilityButton { background: rgba(255, 255, 255, 0.14); }
+.danmakuSendButton:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 720px) {
+  .danmakuComposer { flex-wrap: wrap; }
+  .danmakuInput { flex-basis: calc(100% - 80px); }
+  .danmakuFeedback { flex-basis: 100%; }
+  .danmakuLayer { bottom: 104px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .danmakuItem { animation: none; left: 16px; }
 }
 
 /* ===== 播放控件 ===== */

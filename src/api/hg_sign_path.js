@@ -5,6 +5,7 @@ const HG_SIGN_STRIP_PREFIXES = [
   "/api/v1/video_upload",
   "/api/v1/video_interactions",
   "/api/v1/video_comments",
+  "/api/v1/video_danmaku",
   "/api/v1/ops",
   "/api/v1/test",
   "/auth",

@@ -327,7 +327,7 @@ class HGBiliContentPage extends React.Component {
           <button type="button" className={styles.backButton} onClick={this.handleBack}>
             ← 返回上一页
           </button>
-          <HGVideoPlayerPage video={video} />
+          <HGVideoPlayerPage key={String(video.id)} video={video} />
           {this.renderVideoInfo(video)}
           {this.renderAuthorInfo(video)}
           {/* 接口数据按 submissionId 聚合评论，本地回退视频仅有 id。 */}

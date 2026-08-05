@@ -1,5 +1,12 @@
 import React from "react";
 import HGTooltipPage from "../hg_tooltip/hg_tooltip_page";
+import {
+  buildVideoDanmakuWebSocketURL,
+  createVideoDanmaku,
+  getVideoDanmaku,
+  getVideoDanmakuTicket,
+} from "../../pages/bilibili/hg_bili_danmaku_api";
+import { HG_VIDEO_DANMAKU_MAX_LENGTH } from "../../pages/bilibili/hg_bili_danmaku_request";
 import styles from "./hg_video_player.module.css";
 
 /**
@@ -323,6 +330,13 @@ class HGVideoPlayerPage extends React.Component {
     this.longPressTimer = null;
     this.isLongPressing = false;
     this.lastClickTime = 0;
+    this.danmakuSocket = null;
+    this.danmakuReconnectTimer = null;
+    this.danmakuLoadSequence = 0;
+    this.loadedDanmakuWindows = new Set();
+    this.launchedDanmakuIds = new Set();
+    this.danmakuMounted = false;
+    this.pendingDanmakuRequest = null;
     this.state = {
       isPlaying: false,
       currentTime: 0,
@@ -335,6 +349,12 @@ class HGVideoPlayerPage extends React.Component {
       showRateMenu: false,
       showDanmaku: true,
       danmakuList: [],
+      activeDanmaku: [],
+      danmakuContent: "",
+      showDanmakuComposer: false,
+      danmakuSubmitting: false,
+      danmakuFeedback: "",
+      danmakuTotalCount: 0,
       quality: "1080p",
       showQualityMenu: false,
       buffered: 0,
@@ -347,7 +367,8 @@ class HGVideoPlayerPage extends React.Component {
   }
 
   componentDidMount() {
-    this.initDanmaku();
+    this.danmakuMounted = true;
+    this.initializeDanmaku();
     document.addEventListener("fullscreenchange", this.handleFullscreenChange);
     document.addEventListener(
       "webkitfullscreenchange",
@@ -357,10 +378,20 @@ class HGVideoPlayerPage extends React.Component {
     document.addEventListener("keyup", this.handleKeyUp);
   }
 
+  componentDidUpdate(prevProps) {
+    if (String(prevProps.video?.id || "") !== String(this.props.video?.id || "")) {
+      this.initializeDanmaku();
+    }
+  }
+
   componentWillUnmount() {
+    this.danmakuMounted = false;
+    this.danmakuLoadSequence += 1;
     if (this.controlsTimer) clearTimeout(this.controlsTimer);
     if (this.clickTimer) clearTimeout(this.clickTimer);
     if (this.longPressTimer) clearTimeout(this.longPressTimer);
+    if (this.danmakuReconnectTimer) clearTimeout(this.danmakuReconnectTimer);
+    this.closeDanmakuSocket();
     document.removeEventListener(
       "fullscreenchange",
       this.handleFullscreenChange
@@ -445,22 +476,127 @@ class HGVideoPlayerPage extends React.Component {
   };
 
   /**
-   * 初始化弹幕数据（模拟）。
+   * 视频切换时清空上一个房间、历史窗口和飞行中的 DOM，再加载首个时间窗并连接实时网关。
+   * sequence 使旧视频的迟到 HTTP 响应无法污染新视频状态。
    */
-  initDanmaku = () => {
-    const mockDanmaku = [
-      { id: 1, time: 2, text: "前排", color: "#fff" },
-      { id: 2, time: 5, text: "来了来了", color: "#fe0302" },
-      { id: 3, time: 8, text: "太强了", color: "#00ff00" },
-      { id: 4, time: 12, text: "哈哈哈哈哈", color: "#fff" },
-      { id: 5, time: 15, text: "草", color: "#fe0302" },
-      { id: 6, time: 18, text: "绝了", color: "#00ff00" },
-      { id: 7, time: 22, text: "好家伙", color: "#fff" },
-      { id: 8, time: 25, text: "太强了", color: "#fe0302" },
-      { id: 9, time: 30, text: "awsl", color: "#00ff00" },
-      { id: 10, time: 35, text: "下次一定", color: "#fff" },
-    ];
-    this.setState({ danmakuList: mockDanmaku });
+  initializeDanmaku = () => {
+    this.danmakuLoadSequence += 1;
+    this.loadedDanmakuWindows.clear();
+    this.launchedDanmakuIds.clear();
+    this.pendingDanmakuRequest = null;
+    this.closeDanmakuSocket();
+    this.setState({ danmakuList: [], activeDanmaku: [], danmakuContent: "", danmakuFeedback: "", danmakuTotalCount: 0 });
+    if (!this.props.video?.id) return;
+    this.loadDanmakuWindow(0);
+    this.connectDanmakuSocket();
+  };
+
+  /** 按整分钟窗口去重加载，避免 timeupdate 高频重复请求。 */
+  loadDanmakuWindow = async (timeMs) => {
+    const videoId = String(this.props.video?.id || "");
+    const windowStart = Math.floor(Math.max(0, timeMs) / 60000) * 60000;
+    const windowKey = `${videoId}:${windowStart}`;
+    if (!videoId || this.loadedDanmakuWindows.has(windowKey)) return;
+    this.loadedDanmakuWindows.add(windowKey);
+    const sequence = this.danmakuLoadSequence;
+    try {
+      let cursor = "";
+      let pageCount = 0;
+      let totalCount = 0;
+      do {
+        const response = await getVideoDanmaku(videoId, windowStart, cursor);
+        if (!this.danmakuMounted || sequence !== this.danmakuLoadSequence) return;
+        const items = response?.danmaku || [];
+        this.mergeDanmaku(items);
+        const currentMs = Math.floor((this.videoRef.current?.currentTime || 0) * 1000);
+        items.filter((item) => Math.abs(item.progressMs - currentMs) <= 500).slice(0, 50).forEach(this.launchDanmaku);
+        totalCount = Number(response?.totalCount) || totalCount;
+        cursor = response?.hasMore ? response?.nextCursor || "" : "";
+        pageCount += 1;
+      } while (cursor && pageCount < 4);
+      this.setState({ danmakuTotalCount: totalCount });
+    } catch (error) {
+      this.loadedDanmakuWindows.delete(windowKey);
+      if (this.danmakuMounted && sequence === this.danmakuLoadSequence) this.setState({ danmakuFeedback: error?.message || "弹幕加载失败" });
+    }
+  };
+
+  /** 按服务端 danmakuId 去重，HTTP 历史、发送响应和 WebSocket 广播可安全汇合。 */
+  mergeDanmaku = (items) => {
+    this.setState((state) => {
+      const byId = new Map(state.danmakuList.map((item) => [item.danmakuId, item]));
+      items.forEach((item) => { if (item?.danmakuId) byId.set(item.danmakuId, item); });
+      return { danmakuList: Array.from(byId.values()).sort((a, b) => a.progressMs - b.progressMs) };
+    });
+  };
+
+  /**
+   * 先通过签名 HTTP 获取单次 ticket，再使用浏览器原生 WebSocket；长期 JWT 不进入 URL 或代理日志。
+   */
+  connectDanmakuSocket = async () => {
+    const videoId = String(this.props.video?.id || "");
+    if (!videoId) return;
+    const sequence = this.danmakuLoadSequence;
+    try {
+      const ticket = await getVideoDanmakuTicket(videoId);
+      if (!this.danmakuMounted || sequence !== this.danmakuLoadSequence) return;
+      const socket = new WebSocket(buildVideoDanmakuWebSocketURL(ticket.webSocketPath, ticket.ticket));
+      this.danmakuSocket = socket;
+      socket.onmessage = (event) => {
+        if (!this.danmakuMounted || sequence !== this.danmakuLoadSequence) return;
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === "danmaku.created" && message.data?.videoId === videoId) {
+            this.mergeDanmaku([message.data]);
+            const currentMs = Math.floor((this.videoRef.current?.currentTime || 0) * 1000);
+            if (Math.abs(message.data.progressMs - currentMs) <= 1500) this.launchDanmaku(message.data);
+          } else if (message.type === "error") {
+            this.setState({ danmakuFeedback: message.data?.message || "弹幕发送失败" });
+          }
+        } catch { /* 忽略无法识别的服务端消息，历史接口仍可恢复。 */ }
+      };
+      socket.onclose = () => {
+        if (this.danmakuSocket === socket) this.danmakuSocket = null;
+        if (this.danmakuMounted && sequence === this.danmakuLoadSequence) this.danmakuReconnectTimer = setTimeout(this.connectDanmakuSocket, 3000);
+      };
+    } catch {
+      if (this.danmakuMounted && sequence === this.danmakuLoadSequence) this.danmakuReconnectTimer = setTimeout(this.connectDanmakuSocket, 5000);
+    }
+  };
+
+  closeDanmakuSocket = () => {
+    if (this.danmakuReconnectTimer) clearTimeout(this.danmakuReconnectTimer);
+    this.danmakuReconnectTimer = null;
+    if (this.danmakuSocket) { const socket = this.danmakuSocket; this.danmakuSocket = null; socket.onclose = null; socket.close(); }
+  };
+
+  /** 将到达播放时间的弹幕放入有上限的活动层，动画结束后立即移除 DOM。 */
+  launchDanmaku = (item) => {
+    if (!item?.danmakuId || this.launchedDanmakuIds.has(item.danmakuId)) return;
+    this.launchedDanmakuIds.add(item.danmakuId);
+    const instanceId = `${item.danmakuId}:${Date.now()}:${Math.random()}`;
+    const lane = this.state.activeDanmaku.length % 8;
+    this.setState((state) => ({ activeDanmaku: [...state.activeDanmaku.slice(-49), { ...item, instanceId, lane }] }));
+  };
+
+  handleDanmakuSubmit = async (event) => {
+    event?.preventDefault();
+    const content = this.state.danmakuContent.trim();
+    if (!content || this.state.danmakuSubmitting) return;
+    if (!this.pendingDanmakuRequest || this.pendingDanmakuRequest.content !== content) {
+      this.pendingDanmakuRequest = { content, requestId: globalThis.crypto?.randomUUID?.() || `dm_${Date.now()}_${Math.random().toString(16).slice(2)}` };
+    }
+    const input = { videoId: this.props.video?.id, content, progressMs: Math.floor((this.videoRef.current?.currentTime || 0) * 1000), requestId: this.pendingDanmakuRequest.requestId };
+    this.setState({ danmakuSubmitting: true, danmakuFeedback: "" });
+    try {
+      const item = await createVideoDanmaku(input);
+      this.mergeDanmaku([item]);
+      this.launchDanmaku(item);
+      this.pendingDanmakuRequest = null;
+      this.setState((state) => ({ danmakuSubmitting: false, danmakuContent: "", showDanmaku: true, danmakuTotalCount: state.danmakuTotalCount + 1, danmakuFeedback: "发送成功" }));
+    } catch (error) {
+      this.setState({ danmakuSubmitting: false, danmakuFeedback: error?.message || "弹幕发送失败" });
+    }
   };
 
   /**
@@ -622,10 +758,21 @@ class HGVideoPlayerPage extends React.Component {
   handleTimeUpdate = () => {
     const videoEl = this.videoRef.current;
     if (!videoEl) return;
+    const previousMs = Math.floor(this.state.currentTime * 1000);
+    const currentMs = Math.floor(videoEl.currentTime * 1000);
     this.setState({
       currentTime: videoEl.currentTime,
       duration: videoEl.duration || 0,
     });
+    this.loadDanmakuWindow(currentMs);
+    this.loadDanmakuWindow(currentMs + 30000);
+    if (currentMs >= previousMs && currentMs - previousMs < 2000) {
+      this.state.danmakuList.filter((item) => item.progressMs > previousMs && item.progressMs <= currentMs).slice(0, 50).forEach(this.launchDanmaku);
+    } else if (Math.abs(currentMs - previousMs) >= 2000) {
+      // seek 后重新允许目标时间附近的弹幕发射；历史记录仍由已加载时间窗去重保存。
+      this.launchedDanmakuIds.clear();
+      this.setState({ activeDanmaku: [] });
+    }
   };
 
   /**
@@ -739,8 +886,11 @@ class HGVideoPlayerPage extends React.Component {
    * 切换弹幕显示。
    */
   toggleDanmaku = () => {
-    this.setState({ showDanmaku: !this.state.showDanmaku });
+    this.setState((state) => ({ showDanmaku: true, showDanmakuComposer: !state.showDanmakuComposer }));
   };
+
+  /** 独立保留弹幕显隐能力，发送入口不会强迫用户永久开启覆盖层。 */
+  toggleDanmakuVisibility = () => this.setState((state) => ({ showDanmaku: !state.showDanmaku }));
 
   /**
    * 重置控件显示计时器。
@@ -764,24 +914,23 @@ class HGVideoPlayerPage extends React.Component {
    * 渲染弹幕层。
    */
   renderDanmaku = () => {
-    const { showDanmaku, danmakuList, currentTime } = this.state;
+    const { showDanmaku, activeDanmaku, isPlaying } = this.state;
     if (!showDanmaku) return null;
-    const visibleDanmaku = danmakuList.filter(
-      (d) => Math.abs(d.time - currentTime) < 3
-    );
     return (
       <div className={styles.danmakuLayer}>
-        {visibleDanmaku.map((danmaku, idx) => (
+        {activeDanmaku.map((danmaku) => (
           <div
-            key={danmaku.id}
+            key={danmaku.instanceId}
             className={styles.danmakuItem}
             style={{
               color: danmaku.color,
-              top: `${(idx * 30) % 200}px`,
-              animationDelay: `${idx * 0.5}s`,
+              top: `${16 + danmaku.lane * 32}px`,
+              fontSize: `${Math.min(36, Math.max(12, danmaku.fontSize || 25))}px`,
+              animationPlayState: isPlaying ? "running" : "paused",
             }}
+            onAnimationEnd={() => this.setState((state) => ({ activeDanmaku: state.activeDanmaku.filter((item) => item.instanceId !== danmaku.instanceId) }))}
           >
-            {danmaku.text}
+            {danmaku.content}
           </div>
         ))}
       </div>
@@ -806,6 +955,10 @@ class HGVideoPlayerPage extends React.Component {
       buffered,
       playMode,
       isLongPressSpeed,
+      showDanmakuComposer,
+      danmakuContent,
+      danmakuSubmitting,
+      danmakuFeedback,
     } = this.state;
 
     const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -842,6 +995,22 @@ class HGVideoPlayerPage extends React.Component {
         </div>
 
         {/* 底部控件 */}
+        {showDanmakuComposer && (
+          <form className={styles.danmakuComposer} onSubmit={this.handleDanmakuSubmit}>
+            <input
+              className={styles.danmakuInput}
+              value={danmakuContent}
+              maxLength={HG_VIDEO_DANMAKU_MAX_LENGTH}
+              onChange={(event) => this.setState({ danmakuContent: event.target.value, danmakuFeedback: "" })}
+              placeholder="发个友善的弹幕见证当下"
+              aria-label="弹幕内容"
+            />
+            <span className={styles.danmakuLength}>{Array.from(danmakuContent).length}/{HG_VIDEO_DANMAKU_MAX_LENGTH}</span>
+            <button className={styles.danmakuSendButton} type="submit" disabled={!danmakuContent.trim() || danmakuSubmitting}>{danmakuSubmitting ? "发送中" : "发送"}</button>
+            <button className={styles.danmakuVisibilityButton} type="button" onClick={this.toggleDanmakuVisibility}>{showDanmaku ? "隐藏" : "显示"}</button>
+            {danmakuFeedback && <span className={styles.danmakuFeedback} role="status" aria-live="polite">{danmakuFeedback}</span>}
+          </form>
+        )}
         <div className={styles.controlsBottom}>
           <div className={styles.controlsLeft}>
             <HGTooltipPage
@@ -889,14 +1058,16 @@ class HGVideoPlayerPage extends React.Component {
             </HGTooltipPage>
 
             <HGTooltipPage
-              content={showDanmaku ? "关闭弹幕" : "开启弹幕"}
+              content={showDanmakuComposer ? "收起弹幕输入" : "发送弹幕"}
               placement="top"
             >
               <button
                 className={`${styles.controlBtn} ${
-                  showDanmaku ? styles.controlBtnActive : ""
+                  showDanmakuComposer ? styles.controlBtnActive : ""
                 }`}
                 onClick={this.toggleDanmaku}
+                aria-label={showDanmakuComposer ? "收起弹幕输入" : "发送弹幕"}
+                aria-expanded={showDanmakuComposer}
               >
                 {showDanmaku ? <Icon.Danmaku /> : <Icon.DanmakuOff />}
               </button>

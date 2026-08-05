@@ -45,6 +45,13 @@ export default defineConfig({
         changeOrigin: true,
       },
 
+      // 弹幕 WebSocket 使用独立 gnet 端口；Vite upgrade 会跳过未启用 ws 的通用 /api/v1 规则。
+      "/api/v1/video_danmaku/ws": {
+        target: "ws://localhost:8081",
+        ws: true,
+        changeOrigin: true,
+      },
+
       // 其他 /api 调用（保留）
       "/api": {
         target: "https://itango.tencent.com/out/itango/myip",

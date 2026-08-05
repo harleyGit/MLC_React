@@ -16,6 +16,10 @@ test("normalizeSignPath strips the video comment module prefix", () => {
   );
 });
 
+test("normalizeSignPath strips the video danmaku module prefix", () => {
+  assert.equal(normalizeSignPath("/api/v1/video_danmaku/ticket"), "/ticket");
+});
+
 test("normalizeSignPath preserves paths outside registered module prefixes", () => {
   assert.equal(normalizeSignPath("/health"), "/health");
 });
