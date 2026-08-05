@@ -6,7 +6,11 @@ import {
   getVideoDanmaku,
   getVideoDanmakuTicket,
 } from "../../pages/bilibili/hg_bili_danmaku_api";
-import { HG_VIDEO_DANMAKU_MAX_LENGTH } from "../../pages/bilibili/hg_bili_danmaku_request";
+import {
+  buildVideoDanmakuCreateBody,
+  buildVideoDanmakuSocketCommand,
+  HG_VIDEO_DANMAKU_MAX_LENGTH,
+} from "../../pages/bilibili/hg_bili_danmaku_request";
 import styles from "./hg_video_player.module.css";
 
 /**
@@ -337,6 +341,8 @@ class HGVideoPlayerPage extends React.Component {
     this.launchedDanmakuIds = new Set();
     this.danmakuMounted = false;
     this.pendingDanmakuRequest = null;
+    // 每个 gnet 创建命令以 requestId 等待独立 ack；断线、切换视频和卸载时必须全部 reject，避免 Promise/定时器泄漏。
+    this.pendingDanmakuSocketCommands = new Map();
     this.state = {
       isPlaying: false,
       currentTime: 0,
@@ -542,6 +548,9 @@ class HGVideoPlayerPage extends React.Component {
       if (!this.danmakuMounted || sequence !== this.danmakuLoadSequence) return;
       const socket = new WebSocket(buildVideoDanmakuWebSocketURL(ticket.webSocketPath, ticket.ticket));
       this.danmakuSocket = socket;
+      socket.onopen = () => {
+        if (this.danmakuMounted && sequence === this.danmakuLoadSequence) this.setState({ danmakuFeedback: "" });
+      };
       socket.onmessage = (event) => {
         if (!this.danmakuMounted || sequence !== this.danmakuLoadSequence) return;
         try {
@@ -550,13 +559,24 @@ class HGVideoPlayerPage extends React.Component {
             this.mergeDanmaku([message.data]);
             const currentMs = Math.floor((this.videoRef.current?.currentTime || 0) * 1000);
             if (Math.abs(message.data.progressMs - currentMs) <= 1500) this.launchDanmaku(message.data);
+          } else if (message.type === "danmaku.ack" && message.requestId) {
+            this.finishDanmakuSocketCommand(message.requestId, null, message.data);
           } else if (message.type === "error") {
-            this.setState({ danmakuFeedback: message.data?.message || "弹幕发送失败" });
+            if (message.requestId) {
+              const error = new Error(message.data?.message || "弹幕发送失败");
+              // 服务端已给出确定业务结果，不允许再打 HTTP；仅连接级未知结果可使用幂等回退。
+              error.allowHTTPFallback = false;
+              this.finishDanmakuSocketCommand(message.requestId, error);
+            }
+            else this.setState({ danmakuFeedback: message.data?.message || "弹幕发送失败" });
           }
         } catch { /* 忽略无法识别的服务端消息，历史接口仍可恢复。 */ }
       };
       socket.onclose = () => {
-        if (this.danmakuSocket === socket) this.danmakuSocket = null;
+        if (this.danmakuSocket === socket) {
+          this.danmakuSocket = null;
+          this.rejectDanmakuSocketCommands(new Error("弹幕实时连接已断开"));
+        }
         if (this.danmakuMounted && sequence === this.danmakuLoadSequence) this.danmakuReconnectTimer = setTimeout(this.connectDanmakuSocket, 3000);
       };
     } catch {
@@ -567,7 +587,37 @@ class HGVideoPlayerPage extends React.Component {
   closeDanmakuSocket = () => {
     if (this.danmakuReconnectTimer) clearTimeout(this.danmakuReconnectTimer);
     this.danmakuReconnectTimer = null;
+    this.rejectDanmakuSocketCommands(new Error("弹幕实时连接已断开"));
     if (this.danmakuSocket) { const socket = this.danmakuSocket; this.danmakuSocket = null; socket.onclose = null; socket.close(); }
+  };
+
+  finishDanmakuSocketCommand = (requestId, error, item) => {
+    const pending = this.pendingDanmakuSocketCommands.get(requestId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingDanmakuSocketCommands.delete(requestId);
+    if (error) pending.reject(error);
+    else pending.resolve(item);
+  };
+
+  /** 连接关闭时立即结束所有等待，调用方随后可用相同 requestId 走 HTTP 幂等恢复。 */
+  rejectDanmakuSocketCommands = (error) => {
+    for (const [requestId] of this.pendingDanmakuSocketCommands) this.finishDanmakuSocketCommand(requestId, error);
+  };
+
+  /** 优先经 gnet 发送；5 秒无 ack 时由调用方使用同一 requestId 幂等回退 HTTP。 */
+  createDanmakuRealtime = (body) => {
+    const socket = this.danmakuSocket;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return Promise.reject(new Error("弹幕实时连接未就绪"));
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => this.finishDanmakuSocketCommand(body.requestId, new Error("弹幕实时发送确认超时")), 5000);
+      this.pendingDanmakuSocketCommands.set(body.requestId, { resolve, reject, timer });
+      try {
+        socket.send(JSON.stringify(buildVideoDanmakuSocketCommand(body)));
+      } catch (error) {
+        this.finishDanmakuSocketCommand(body.requestId, error);
+      }
+    });
   };
 
   /** 将到达播放时间的弹幕放入有上限的活动层，动画结束后立即移除 DOM。 */
@@ -587,9 +637,17 @@ class HGVideoPlayerPage extends React.Component {
       this.pendingDanmakuRequest = { content, requestId: globalThis.crypto?.randomUUID?.() || `dm_${Date.now()}_${Math.random().toString(16).slice(2)}` };
     }
     const input = { videoId: this.props.video?.id, content, progressMs: Math.floor((this.videoRef.current?.currentTime || 0) * 1000), requestId: this.pendingDanmakuRequest.requestId };
+    const body = buildVideoDanmakuCreateBody(input);
     this.setState({ danmakuSubmitting: true, danmakuFeedback: "" });
     try {
-      const item = await createVideoDanmaku(input);
+      let item;
+      try {
+        item = await this.createDanmakuRealtime(body);
+      } catch (error) {
+        if (error?.allowHTTPFallback === false) throw error;
+        // WebSocket 未就绪、断线或 ack 丢失时复用同一 requestId，数据库唯一键保证不会重复创建和广播。
+        item = await createVideoDanmaku(body);
+      }
       this.mergeDanmaku([item]);
       this.launchDanmaku(item);
       this.pendingDanmakuRequest = null;

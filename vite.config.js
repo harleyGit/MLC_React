@@ -39,16 +39,16 @@ export default defineConfig({
         changeOrigin: true,
       },
 
-      // 后端新版 API 路径
-      "/api/v1": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
-
-      // 弹幕 WebSocket 使用独立 gnet 端口；Vite upgrade 会跳过未启用 ws 的通用 /api/v1 规则。
+      // 更具体的 WebSocket 路径必须排在 /api/v1 前，确保 Upgrade 请求进入 gnet 8081。
       "/api/v1/video_danmaku/ws": {
         target: "ws://localhost:8081",
         ws: true,
+        changeOrigin: true,
+      },
+
+      // 后端新版 API 路径
+      "/api/v1": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
 
