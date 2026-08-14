@@ -109,6 +109,7 @@ class HGVideoComments extends React.Component {
     this.hgPendingCreateRequestId = "";
     this.hgPendingReplyContent = "";
     this.hgPendingReplyRequestId = "";
+    this.hgReplyComposerRef = React.createRef();
   }
 
   componentDidMount() {
@@ -396,7 +397,11 @@ class HGVideoComments extends React.Component {
       replyContent: "",
       replyImages: [],
       replyError: "",
-    }, () => this.fetchReplies(rootCommentId, "", false, requestSequence));
+    }, () => {
+      this.hgReplyComposerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      this.hgReplyComposerRef.current?.focus({ preventScroll: true });
+      this.fetchReplies(rootCommentId, "", false, requestSequence);
+    });
   };
 
   /** 读取回复游标页，最多在面板中保留 100 条。 */
@@ -631,7 +636,7 @@ class HGVideoComments extends React.Component {
             disabled={this.state.replySubmitting || this.state.replyUploading}
             onClick={() => this.handleOpenReplies(comment)}
           >
-            回复 {Math.max(0, Number(comment?.replyCount) || 0)}
+            {this.state.selectedRootCommentId === commentId ? "正在回复" : "回复"} {Math.max(0, Number(comment?.replyCount) || 0)}
           </button>
         )}
       </div>
@@ -717,6 +722,7 @@ class HGVideoComments extends React.Component {
     return (
       <form className={`${styles.composer} ${isReply ? styles.replyComposer : ""}`} onSubmit={isReply ? this.handleReplySubmit : this.handleSubmit}>
         <textarea
+          ref={isReply ? this.hgReplyComposerRef : undefined}
           value={content}
           rows={isReply ? 2 : 3}
           placeholder={isReply ? "回复这条评论" : "友善发言，分享你的看法"}
