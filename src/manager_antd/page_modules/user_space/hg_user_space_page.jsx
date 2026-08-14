@@ -2,16 +2,19 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-30
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-30
+ * @LastEditTime: 2026-08-14 20:43:27
  * @FilePath: /MLC_React/src/manager_antd/page_modules/user_space/hg_user_space_page.jsx
  * @Description: 用户空间页面，模拟B站个人空间，包含封面、用户信息、标签导航、视频列表
  */
 import React, { Component } from "react";
-import HGUserCardPage from "../../../components/hg_user_card/hg_user_card_page";
+import { getRequestErrorMessage } from "../../../api/hg_request_error";
+import { hgMessage } from "../../../components/hg_message/hg_message_page";
 import HGTabNavPage from "../../../components/hg_tab_nav/hg_tab_nav_page";
+import HGUserCardPage from "../../../components/hg_user_card/hg_user_card_page";
 import HGVideoCardPage from "../../../components/hg_video_card/hg_video_card_page";
-import HGUserSpaceVM, { SPACE_TABS } from "./hg_user_space_vm";
+import HGEnvLogger from "../../../utils/HGEnvLogger";
 import styles from "./hg_user_space.module.css";
+import HGUserSpaceVM, { followUser, SPACE_TABS } from "./hg_user_space_vm";
 
 /**
  * 用户空间页面
@@ -26,7 +29,10 @@ class HGUserSpacePage extends Component {
       videos: [],
       activeTab: "video",
       loading: true,
+      isFollowed: false,
+      followSubmitting: false,
     };
+    this.hgFollowPending = false;
   }
 
   /**
@@ -44,7 +50,10 @@ class HGUserSpacePage extends Component {
     Promise.all([HGUserSpaceVM.getUserInfo(), HGUserSpaceVM.getVideoList()])
       .then(([userRes, videoRes]) => {
         if (userRes.code === 0) {
-          this.setState({ user: userRes.data });
+          this.setState({
+            user: userRes.data,
+            isFollowed: Boolean(userRes.data?.followed),
+          });
         }
         if (videoRes.code === 0) {
           this.setState({ videos: videoRes.data });
@@ -65,13 +74,55 @@ class HGUserSpacePage extends Component {
 
   /**
    * 关注按钮点击
+   * @param {React.MouseEvent<HTMLButtonElement>} event 点击事件
    */
-  handleFollow = () => {
-    HGUserSpaceVM.followUser().then((res) => {
-      if (res.code === 0) {
-        alert(res.message);
+  handleFollow = async (event) => {
+    HGEnvLogger.info("关注up㊗️====");
+    event?.preventDefault();
+    event?.stopPropagation();
+    HGEnvLogger.info("关注up㊗️《〈《〈《〈");
+    if (this.hgFollowPending) {
+      return;
+    }
+
+    this.hgFollowPending = true;
+    this.setState({ followSubmitting: true });
+    try {
+      const followeeId = String(
+        this.props.params?.uid || this.state.user?.uid || ""
+      ).trim();
+      if (!followeeId) {
+        throw new Error("无法确定要关注的用户");
       }
-    });
+
+      const active = !this.state.isFollowed;
+      await followUser(followeeId, active);
+      this.setState((prevState) => ({
+        isFollowed: active,
+        user: prevState.user
+          ? {
+              ...prevState.user,
+              followers: Math.max(
+                0,
+                Number(prevState.user.followers || 0) + (active ? 1 : -1)
+              ),
+            }
+          : prevState.user,
+      }));
+      hgMessage.success(active ? "关注成功" : "已取消关注");
+    } catch (error) {
+      hgMessage.error(
+        getRequestErrorMessage(
+          error,
+          this.state.isFollowed
+            ? "取消关注失败，请稍后重试"
+            : "关注失败，请稍后重试"
+        )
+      );
+    } finally {
+      this.hgFollowPending = false;
+      this.setState({ followSubmitting: false });
+    }
   };
 
   /**
@@ -117,6 +168,8 @@ class HGUserSpacePage extends Component {
           following={user.following}
           followers={user.followers}
           plays={user.plays}
+          isFollowed={this.state.isFollowed}
+          followLoading={this.state.followSubmitting}
           onFollow={this.handleFollow}
           onMessage={this.handleMessage}
         />
@@ -131,9 +184,11 @@ class HGUserSpacePage extends Component {
   renderTabNav = () => {
     const { activeTab, user } = this.state;
     const tabsWithCount = SPACE_TABS.map((tab) => {
-      if (tab.key === "video") return { ...tab, count: this.state.videos.length };
+      if (tab.key === "video")
+        return { ...tab, count: this.state.videos.length };
       if (tab.key === "fans") return { ...tab, count: user?.followers || 0 };
-      if (tab.key === "following") return { ...tab, count: user?.following || 0 };
+      if (tab.key === "following")
+        return { ...tab, count: user?.following || 0 };
       return tab;
     });
     return (
@@ -197,9 +252,7 @@ class HGUserSpacePage extends Component {
         {this.renderCover()}
         {this.renderUserCard()}
         {this.renderTabNav()}
-        <div className={styles.contentSection}>
-          {this.renderContent()}
-        </div>
+        <div className={styles.contentSection}>{this.renderContent()}</div>
       </div>
     );
   }

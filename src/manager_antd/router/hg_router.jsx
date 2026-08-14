@@ -44,6 +44,7 @@ const hgLazyElement = (element, text = "正在加载页面...") => (
 const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);
 const WrappedHGEditUserPage = WithNavigation(HGEditUserPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
+const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
 
 const HGRouter = createBrowserRouter([
   //受保护的主布局路由
@@ -112,7 +113,7 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.USER_SPACE,
-        element: hgLazyElement(<HGUserSpacePage />),
+        element: hgLazyElement(<WrappedHGUserSpacePage />),
       },
     ],
   },

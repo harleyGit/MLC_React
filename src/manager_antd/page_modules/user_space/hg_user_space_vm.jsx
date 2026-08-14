@@ -33,6 +33,7 @@ const mockUser = {
   following: 128,
   followers: 25600,
   plays: 1580000,
+  followed: false,
 };
 
 /**
@@ -90,6 +91,24 @@ const mockVideos = [
 ];
 
 /**
+ * 模拟设置用户空间关注状态。
+ * @param {string|number} followeeId 被关注用户业务 ID
+ * @param {boolean} active true 表示关注，false 表示取消关注
+ * @returns {Promise<Object>} 模拟关注结果
+ */
+export function followUser(followeeId, active) {
+  if (!String(followeeId || "").trim()) {
+    return Promise.reject(new Error("被关注用户 ID 不能为空"));
+  }
+
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({ code: 0, message: active ? "关注成功" : "已取消关注" });
+    }, 300);
+  });
+}
+
+/**
  * 用户空间 ViewModel 类
  * 职责：管理用户数据、视频列表、标签页状态
  */
@@ -121,15 +140,13 @@ export default class HGUserSpaceVM {
   };
 
   /**
-   * 关注用户
-   * 约束：对接真实 API 时替换本方法实现
+   * 设置当前登录用户对目标用户的关注状态。
+   * 用户空间当前使用模拟数据，不调用视频作者关注接口。
+   * @param {string|number} followeeId 被关注用户业务 ID
+   * @param {boolean} active true 表示关注，false 表示取消关注
    * @returns {Promise} 关注结果
    */
-  static followUser = () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ code: 0, message: "关注成功" });
-      }, 300);
-    });
-  };
+  static followUser(followeeId, active) {
+    return followUser(followeeId, active);
+  }
 }

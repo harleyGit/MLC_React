@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-30
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-30
+ * @LastEditTime: 2026-08-14 20:46:32
  * @FilePath: /MLC_React/src/components/hg_user_card/hg_user_card_page.jsx
  * @Description: 用户信息卡片组件，展示头像、昵称、简介、关注/粉丝/播放量统计
  */
@@ -36,12 +36,16 @@ class HGUserCardPage extends Component {
     return (
       <div className={styles.statsRow}>
         <div className={styles.statItem}>
-          <span className={styles.statValue}>{this.formatNumber(following)}</span>
+          <span className={styles.statValue}>
+            {this.formatNumber(following)}
+          </span>
           <span className={styles.statLabel}>关注</span>
         </div>
         <div className={styles.statDivider} />
         <div className={styles.statItem}>
-          <span className={styles.statValue}>{this.formatNumber(followers)}</span>
+          <span className={styles.statValue}>
+            {this.formatNumber(followers)}
+          </span>
           <span className={styles.statLabel}>粉丝</span>
         </div>
         <div className={styles.statDivider} />
@@ -58,13 +62,30 @@ class HGUserCardPage extends Component {
    * @returns {React.ReactNode} 按钮节点
    */
   renderActions = () => {
-    const { onFollow, onMessage } = this.props;
+    const {
+      onFollow,
+      onMessage,
+      isFollowed = false,
+      followLoading = false,
+    } = this.props;
     return (
       <div className={styles.actionsRow}>
-        <button className={styles.followButton} onClick={onFollow}>
-          + 关注
+        <button
+          type="button"
+          className={`${styles.followButton} ${
+            isFollowed ? styles.followButtonActive : ""
+          }`}
+          onClick={onFollow}
+          disabled={followLoading}
+          aria-pressed={isFollowed}
+        >
+          {followLoading ? "处理中..." : isFollowed ? "已关注" : "+ 关注"}
         </button>
-        <button className={styles.messageButton} onClick={onMessage}>
+        <button
+          type="button"
+          className={styles.messageButton}
+          onClick={onMessage}
+        >
           发消息
         </button>
       </div>

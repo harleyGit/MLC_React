@@ -123,6 +123,19 @@
   background: #fc8bab;
 }
 
+.followButtonActive {
+  background: #9499a0;
+}
+
+.followButtonActive:hover {
+  background: #7a7f87;
+}
+
+.followButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .messageButton {
   background: #fff;
   color: #fb7299;
