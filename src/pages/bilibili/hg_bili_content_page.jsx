@@ -3,9 +3,13 @@ import { generatePath } from "react-router-dom";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
 import HGVideoPlayerPage from "../../components/hg_video_player/hg_video_player_page";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
-import HGVideoComments from "../video_commpent/hg_video_comments";
 import withRouter from "../../utils/WithRouter";
-import { getVideoInteractionState, setVideoInteraction } from "./hg_bili_api";
+import HGVideoComments from "../video_commpent/hg_video_comments";
+import {
+  getVideoInteractionState,
+  setAuthorFollow,
+  setVideoInteraction,
+} from "./hg_bili_api";
 import styles from "./hg_bili_content_page.module.css";
 import HGBiliContentPageVM from "./hg_bili_content_page_vm";
 
@@ -52,6 +56,7 @@ class HGBiliContentPage extends React.Component {
       interaction: {
         liked: false,
         favorited: false,
+        followed: false,
         coinCount: 0,
         userCoinCount: 0,
         likeCount: 0,
@@ -83,7 +88,9 @@ class HGBiliContentPage extends React.Component {
    * @returns {{contentType: string, contentKey: string}} 路由内容参数。
    */
   getRouteContent = () => {
-    const pathParts = (this.props.location?.pathname || "").split("/").filter(Boolean);
+    const pathParts = (this.props.location?.pathname || "")
+      .split("/")
+      .filter(Boolean);
     return {
       contentType: pathParts[2] || "channel",
       contentKey: decodeURIComponent(pathParts.slice(3).join("/")) || "popular",
@@ -101,7 +108,7 @@ class HGBiliContentPage extends React.Component {
       }),
       {
         state: { video },
-      },
+      }
     );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -120,7 +127,10 @@ class HGBiliContentPage extends React.Component {
   loadCurrentVideoInteraction = () => {
     const { contentType, contentKey } = this.getRouteContent();
     if (contentType !== "video") return;
-    const video = HGBiliContentPageVM.getVideo(contentKey, this.props.location?.state?.video);
+    const video = HGBiliContentPageVM.getVideo(
+      contentKey,
+      this.props.location?.state?.video
+    );
     this.loadVideoInteraction(video);
   };
 
@@ -138,12 +148,16 @@ class HGBiliContentPage extends React.Component {
     });
 
     try {
-      const response = await getVideoInteractionState(video.id, video.authorId || video.userId || "");
+      const response = await getVideoInteractionState(
+        video.id,
+        video.authorId || video.userId || ""
+      );
       if (requestSequence !== this.hgInteractionRequestSequence) return;
       this.setState({
         interaction: {
           liked: Boolean(response?.liked),
           favorited: Boolean(response?.favorited),
+          followed: Boolean(response?.followed),
           coinCount: Number(response?.coinCount) || 0,
           userCoinCount: Number(response?.userCoinCount) || 0,
           likeCount: Number(response?.likeCount) || 0,
@@ -162,6 +176,42 @@ class HGBiliContentPage extends React.Component {
     }
   };
 
+  /** 关注或取消关注当前视频作者，并在后端接受命令后更新按钮状态。 */
+  handleAuthorFollow = async (video) => {
+    const { interaction, interactionLoading, pendingAction } = this.state;
+    if (interactionLoading || pendingAction) return;
+
+    const requestSequence = this.hgInteractionRequestSequence;
+    const active = !interaction.followed;
+    const followeeId = video.authorId || video.userId || "";
+    this.setState({
+      pendingAction: "follow",
+      interactionFeedback: "",
+      interactionFeedbackError: false,
+    });
+
+    try {
+      await setAuthorFollow(followeeId, active);
+      if (requestSequence !== this.hgInteractionRequestSequence) return;
+      this.setState((state) => ({
+        interaction: {
+          ...state.interaction,
+          followed: active,
+        },
+        pendingAction: "",
+        interactionFeedback: active ? "关注成功" : "已取消关注",
+        interactionFeedbackError: false,
+      }));
+    } catch (error) {
+      if (requestSequence !== this.hgInteractionRequestSequence) return;
+      this.setState({
+        pendingAction: "",
+        interactionFeedback: error?.message || "关注操作失败，请稍后重试",
+        interactionFeedbackError: true,
+      });
+    }
+  };
+
   /**
    * 提交视频互动并在后端接受命令后更新页面状态和计数。
    * @param {Object} video 当前视频。
@@ -172,14 +222,17 @@ class HGBiliContentPage extends React.Component {
     if (interactionLoading || pendingAction) return;
     const requestSequence = this.hgInteractionRequestSequence;
 
-    const active = action === "like"
-      ? !interaction.liked
-      : action === "favorite"
+    const active =
+      action === "like"
+        ? !interaction.liked
+        : action === "favorite"
         ? !interaction.favorited
         : true;
-    const requestId = action === "coin"
-      ? (globalThis.crypto?.randomUUID?.() || `coin_${Date.now()}_${Math.random().toString(16).slice(2)}`)
-      : "";
+    const requestId =
+      action === "coin"
+        ? globalThis.crypto?.randomUUID?.() ||
+          `coin_${Date.now()}_${Math.random().toString(16).slice(2)}`
+        : "";
 
     this.setState({
       pendingAction: action,
@@ -194,10 +247,16 @@ class HGBiliContentPage extends React.Component {
         const nextInteraction = { ...state.interaction };
         if (action === "like") {
           nextInteraction.liked = active;
-          nextInteraction.likeCount = Math.max(0, nextInteraction.likeCount + (active ? 1 : -1));
+          nextInteraction.likeCount = Math.max(
+            0,
+            nextInteraction.likeCount + (active ? 1 : -1)
+          );
         } else if (action === "favorite") {
           nextInteraction.favorited = active;
-          nextInteraction.favoriteCount = Math.max(0, nextInteraction.favoriteCount + (active ? 1 : -1));
+          nextInteraction.favoriteCount = Math.max(
+            0,
+            nextInteraction.favoriteCount + (active ? 1 : -1)
+          );
         } else if (action === "coin") {
           nextInteraction.coinCount += 1;
           nextInteraction.userCoinCount += 1;
@@ -205,7 +264,12 @@ class HGBiliContentPage extends React.Component {
           nextInteraction.shareCount += 1;
         }
 
-        const actionLabels = { like: active ? "点赞成功" : "已取消点赞", coin: "投币成功", favorite: active ? "收藏成功" : "已取消收藏", share: "分享已记录" };
+        const actionLabels = {
+          like: active ? "点赞成功" : "已取消点赞",
+          coin: "投币成功",
+          favorite: active ? "收藏成功" : "已取消收藏",
+          share: "分享已记录",
+        };
         return {
           interaction: nextInteraction,
           pendingAction: "",
@@ -233,10 +297,34 @@ class HGBiliContentPage extends React.Component {
       interactionFeedbackError,
     } = this.state;
     const actions = [
-      { type: "like", action: "like", label: "点赞", active: interaction.liked, count: interaction.likeCount },
-      { type: "coin", action: "coin", label: "投币", active: false, count: interaction.coinCount },
-      { type: "star", action: "favorite", label: "收藏", active: interaction.favorited, count: interaction.favoriteCount },
-      { type: "share", action: "share", label: "分享", active: false, count: interaction.shareCount },
+      {
+        type: "like",
+        action: "like",
+        label: "点赞",
+        active: interaction.liked,
+        count: interaction.likeCount,
+      },
+      {
+        type: "coin",
+        action: "coin",
+        label: "投币",
+        active: false,
+        count: interaction.coinCount,
+      },
+      {
+        type: "star",
+        action: "favorite",
+        label: "收藏",
+        active: interaction.favorited,
+        count: interaction.favoriteCount,
+      },
+      {
+        type: "share",
+        action: "share",
+        label: "分享",
+        active: false,
+        count: interaction.shareCount,
+      },
     ];
 
     return (
@@ -252,20 +340,32 @@ class HGBiliContentPage extends React.Component {
             <button
               key={item.action}
               type="button"
-              className={`${styles.actionButton} ${item.active ? styles.actionButtonActive : ""}`}
+              className={`${styles.actionButton} ${
+                item.active ? styles.actionButtonActive : ""
+              }`}
               disabled={interactionLoading || Boolean(pendingAction)}
-              aria-pressed={item.action === "like" || item.action === "favorite" ? item.active : undefined}
+              aria-pressed={
+                item.action === "like" || item.action === "favorite"
+                  ? item.active
+                  : undefined
+              }
               onClick={() => this.handleVideoAction(video, item.action)}
             >
               <VideoActionIcon type={item.type} />
-              <span>{pendingAction === item.action ? "处理中..." : item.label}</span>
-              <span className={styles.actionCount}>{formatCount(item.count)}</span>
+              <span>
+                {pendingAction === item.action ? "处理中..." : item.label}
+              </span>
+              <span className={styles.actionCount}>
+                {formatCount(item.count)}
+              </span>
             </button>
           ))}
         </div>
         {interactionFeedback && (
           <p
-            className={`${styles.interactionFeedback} ${interactionFeedbackError ? styles.interactionFeedbackError : ""}`}
+            className={`${styles.interactionFeedback} ${
+              interactionFeedbackError ? styles.interactionFeedbackError : ""
+            }`}
             role={interactionFeedbackError ? "alert" : "status"}
           >
             {interactionFeedback}
@@ -276,20 +376,39 @@ class HGBiliContentPage extends React.Component {
   };
 
   /** 渲染视频作者信息和关注入口。 */
-  renderAuthorInfo = (video) => (
-    <section className={styles.authorInfo}>
-      <img
-        className={styles.authorAvatar}
-        src={video.authorAvatar || "https://via.placeholder.com/40"}
-        alt={video.author}
-      />
-      <div className={styles.authorDetail}>
-        <span className={styles.authorName}>{video.author}</span>
-        <span className={styles.authorFans}>{video.authorFans || "0"}粉丝</span>
-      </div>
-      <button type="button" className={styles.followButton}>+ 关注</button>
-    </section>
-  );
+  renderAuthorInfo = (video) => {
+    const { interaction, interactionLoading, pendingAction } = this.state;
+    const followSubmitting = pendingAction === "follow";
+
+    return (
+      <section className={styles.authorInfo}>
+        <img
+          className={styles.authorAvatar}
+          src={video.authorAvatar || "https://via.placeholder.com/40"}
+          alt={video.author}
+        />
+        <div className={styles.authorDetail}>
+          <span className={styles.authorName}>{video.author}</span>
+          <span className={styles.authorFans}>{video.authorFans || "0"}粉丝</span>
+        </div>
+        <button
+          type="button"
+          className={`${styles.followButton} ${
+            interaction.followed ? styles.followButtonActive : ""
+          }`}
+          disabled={interactionLoading || Boolean(pendingAction)}
+          aria-pressed={interaction.followed}
+          onClick={() => this.handleAuthorFollow(video)}
+        >
+          {followSubmitting
+            ? "处理中..."
+            : interaction.followed
+            ? "已关注"
+            : "+ 关注"}
+        </button>
+      </section>
+    );
+  };
 
   /** 渲染频道视频列表。 */
   renderChannel = (channelKey) => {
@@ -318,13 +437,20 @@ class HGBiliContentPage extends React.Component {
 
   /** 渲染独立视频播放页。 */
   renderVideo = (videoId) => {
-    const video = HGBiliContentPageVM.getVideo(videoId, this.props.location?.state?.video);
+    const video = HGBiliContentPageVM.getVideo(
+      videoId,
+      this.props.location?.state?.video
+    );
     const relatedVideos = HGBiliContentPageVM.getRelatedVideos(video);
 
     return (
       <main className={styles.playerLayout}>
         <section className={styles.playerMain}>
-          <button type="button" className={styles.backButton} onClick={this.handleBack}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={this.handleBack}
+          >
             ← 返回上一页
           </button>
           <HGVideoPlayerPage key={String(video.id)} video={video} />
@@ -352,11 +478,21 @@ class HGBiliContentPage extends React.Component {
     return (
       <div className={styles.pageContainer}>
         <header className={styles.pageHeader}>
-          <button type="button" className={styles.brand} onClick={this.handleBackHome}>
+          <button
+            type="button"
+            className={styles.brand}
+            onClick={this.handleBackHome}
+          >
             <span className={styles.brandName}>bilibili</span>
-            <span className={styles.brandLabel}>{contentType === "video" ? "视频" : "频道"}</span>
+            <span className={styles.brandLabel}>
+              {contentType === "video" ? "视频" : "频道"}
+            </span>
           </button>
-          <button type="button" className={styles.homeButton} onClick={this.handleBackHome}>
+          <button
+            type="button"
+            className={styles.homeButton}
+            onClick={this.handleBackHome}
+          >
             推荐首页
           </button>
         </header>

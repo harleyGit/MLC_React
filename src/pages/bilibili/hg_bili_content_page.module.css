@@ -266,6 +266,20 @@
   background: #00b5e5;
 }
 
+.followButtonActive {
+  color: #61666d;
+  background: #e3e5e7;
+}
+
+.followButtonActive:hover {
+  background: #d7d9dc;
+}
+
+.followButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .playerSidebar {
   min-width: 0;
   padding-top: 51px;

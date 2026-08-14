@@ -1,7 +1,9 @@
 import HGNetManager from "../../api/hg_net_manager";
 import {
+  buildVideoFollowBody,
   buildVideoInteractionBody,
   getVideoInteractionPath,
+  HG_VIDEO_INTERACTION_FOLLOW_PATH,
   HG_VIDEO_INTERACTION_STATE_PATH,
 } from "./hg_video_interaction_request";
 
@@ -72,4 +74,15 @@ export const setVideoInteraction = (submissionId, action, active = true, request
     getVideoInteractionPath(action),
     buildVideoInteractionBody(submissionId, action, active, requestId),
   )
+);
+
+/**
+ * 关注或取消关注当前视频作者。
+ * @param {string|number} followeeId 被关注作者用户标识。
+ * @param {boolean} active true 表示关注，false 表示取消关注。
+ * @returns {Promise<Object>} 后端 AcceptedResponse。
+ */
+export const setAuthorFollow = (followeeId, active) => HGNet.post(
+  HG_VIDEO_INTERACTION_FOLLOW_PATH,
+  buildVideoFollowBody(followeeId, active),
 );

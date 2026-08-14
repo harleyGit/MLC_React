@@ -35,5 +35,26 @@ export function buildVideoInteractionBody(submissionId, action, active = true, r
   return body;
 }
 
+/**
+ * 按 Go FollowRequest 契约构造作者关注请求体。
+ * @param {string|number} followeeId 被关注作者用户标识。
+ * @param {boolean} active true 表示关注，false 表示取消关注。
+ * @returns {{followeeId: string, active: boolean}} 后端 FollowRequest 请求体。
+ */
+export function buildVideoFollowBody(followeeId, active) {
+  const normalizedFolloweeId = String(followeeId || "").trim();
+  if (!normalizedFolloweeId) {
+    throw new Error("无法确定视频作者");
+  }
+
+  return {
+    followeeId: normalizedFolloweeId,
+    active: Boolean(active),
+  };
+}
+
 /** 视频互动状态查询接口路径。 */
 export const HG_VIDEO_INTERACTION_STATE_PATH = `${HG_VIDEO_INTERACTION_BASE_PATH}/state`;
+
+/** 作者关注或取消关注接口路径。 */
+export const HG_VIDEO_INTERACTION_FOLLOW_PATH = `${HG_VIDEO_INTERACTION_BASE_PATH}/follow`;
