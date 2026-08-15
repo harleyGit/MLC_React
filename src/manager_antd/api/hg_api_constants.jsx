@@ -56,4 +56,10 @@ export const HGMANAGER_API = {
   OPS_COIN_CORRECTION_APPROVE: "/api/v1/ops/coin/corrections/approve", // 审批并应用资产修正
   OPS_ASSET_PERMISSIONS_CURRENT: "/api/v1/ops/asset-permissions/current", // 当前操作人资产权限
   OPS_ASSET_PIPELINE_STATUS: "/api/v1/ops/observability/asset-pipeline", // Coin、Interaction 和 Kafka 状态
+  CRAWLER_DASHBOARD: "/api/v1/crawler/dashboard", // 采集指标、趋势和最近任务
+  CRAWLER_SPIDERS: "/api/v1/crawler/spiders", // Spider 运行状态列表
+  CRAWLER_TASKS: "/api/v1/crawler/tasks", // 任务 cursor 列表和手动创建任务
+  CRAWLER_RECOMMENDATIONS: "/api/v1/crawler/recommendations", // 最近一次成功推荐快照
+  CRAWLER_SPIDER_START: (id) => `/api/v1/crawler/spiders/${id}/start`, // 启动指定 Spider
+  CRAWLER_SPIDER_STOP: (id) => `/api/v1/crawler/spiders/${id}/stop`, // 停止指定 Spider
 };

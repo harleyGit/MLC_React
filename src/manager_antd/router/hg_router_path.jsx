@@ -28,4 +28,5 @@ export const ROUTE_PATH = {
   BILI_AUTHOR_SPACE: "/bilibili/space/:userId", //B站作者空间页面
   PERSONAL_CENTER: "/personal/center", //内容中心
   USER_SPACE: "/space/:uid", //用户空间页面（B站风格）
+  CRAWLER_PLATFORM: "/crawler", //数据采集平台
 };

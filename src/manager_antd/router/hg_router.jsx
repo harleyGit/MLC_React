@@ -65,6 +65,9 @@ const HGUserSpacePage = lazy(() =>
 const HGOperationManagementPage = lazy(() =>
   import("../page_modules/operation_management/hg_operation_management_page")
 );
+const HGCrawlerPlatformPage = lazy(() =>
+  import("../../pages/crawler_platform/hg_crawler_platform_page")
+);
 
 // Route definitions are static, so creating the Suspense element here does not trigger a dynamic import until the route renders.
 const hgLazyElement = (element, text = "正在加载页面...") => (
@@ -125,6 +128,10 @@ const HGRouter = createBrowserRouter([
           <HGOperationManagementPage />,
           "正在加载运维管理..."
         ),
+      },
+      {
+        path: ROUTE_PATH.CRAWLER_PLATFORM,
+        element: hgLazyElement(<HGCrawlerPlatformPage />, "正在加载采集平台..."),
       },
       {
         path: ROUTE_PATH.TEST_MODULE,

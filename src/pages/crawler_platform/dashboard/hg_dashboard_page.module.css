@@ -1,0 +1,22 @@
+.pageHeader { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 22px; }
+.pageHeader p { margin: 0 0 7px; color: #168d84; font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+.pageHeader h1 { margin: 0; color: #15323a; font-size: clamp(26px, 4vw, 40px); line-height: 1.1; }
+.pageHeader span { display: block; margin-top: 8px; color: #6c7e84; }
+.statsGrid { display: grid; grid-template-columns: repeat(5, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.statCard { padding: 18px; border: 1px solid #dce6e7; border-radius: 14px; background: #fff; }
+.statCard span, .statCard small { display: block; color: #73868c; }
+.statCard strong { display: block; margin: 8px 0 6px; color: #16333b; font-size: 28px; }
+.statCard small { font-size: 11px; }
+.mainGrid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(230px, 1fr); gap: 16px; margin-bottom: 16px; }
+.chart { position: relative; height: 220px; background: repeating-linear-gradient(to bottom, transparent 0 43px, #e8eeee 44px); }
+.chart svg { width: 100%; height: 100%; overflow: visible; }
+.emptyChart { position: absolute; inset: 0; display: grid; place-items: center; color: #91a0a5; }
+.liveLabel { color: #168d84; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.policy { margin: 0; }
+.policy div { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid #edf1f2; }
+.policy dt { color: #75868b; }.policy dd { margin: 0; color: #19353d; font-weight: 700; }
+.status { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #edf1f2; font-size: 12px; font-weight: 700; }
+.statusSUCCESS { background: #dff5eb; color: #08764f; }.statusFAILED { background: #ffe5e1; color: #ad3328; }.statusRUNNING { background: #fff1c9; color: #8a6100; }
+.tableNote { color: #89989d; font-size: 12px; }
+@media (max-width: 1080px) { .statsGrid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 720px) { .pageHeader { align-items: flex-start; flex-direction: column; }.statsGrid { grid-template-columns: repeat(2, 1fr); }.mainGrid { grid-template-columns: 1fr; } }
