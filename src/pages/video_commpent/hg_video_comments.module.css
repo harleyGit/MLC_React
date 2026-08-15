@@ -223,9 +223,14 @@
   grid-template-columns: 42px minmax(0, 1fr) auto;
   gap: 12px;
   box-sizing: border-box;
-  height: 100%;
   padding: 14px 4px;
-  overflow: hidden;
+}
+
+.commentList {
+  border-top: 1px solid #f1f2f3;
+}
+
+.commentThread {
   border-bottom: 1px solid #f1f2f3;
 }
 
@@ -382,34 +387,25 @@
   text-align: center;
 }
 
-.replyPanel {
-  margin-top: 18px;
-  padding: 18px;
+.inlineReplies {
+  margin: 0 4px 14px 58px;
+  padding: 0 16px 8px;
   background: #f6f7f8;
-  border: 1px solid #e3e5e7;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
-.replyPanelHeading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+.inlineReplyComposer {
+  position: relative;
+  padding-top: 14px;
 }
 
-.replyPanelHeading span {
-  color: #9499a0;
-  font-size: 11px;
+.inlineReplyComposer .replyComposer {
+  margin-bottom: 8px;
 }
 
-.replyPanelHeading h3 {
-  margin: 2px 0 0;
-  font-size: 17px;
-}
-
-.replyPanelHeading button,
-.loadRepliesButton {
+.cancelReplyButton,
+.loadRepliesButton,
+.loadCommentsButton {
   padding: 6px 11px;
   color: #61666d;
   background: #fff;
@@ -422,6 +418,11 @@
 
 .replyComposer {
   background: #fff;
+}
+
+.cancelReplyButton {
+  display: block;
+  margin: 0 0 10px auto;
 }
 
 .replyTarget {
@@ -470,6 +471,12 @@
   color: #00a1d6;
 }
 
+.loadCommentsButton {
+  display: block;
+  margin: 0 auto 10px;
+  color: #00a1d6;
+}
+
 @media (max-width: 768px) {
   .commentSection {
     padding: 17px 12px;
@@ -505,8 +512,10 @@
     height: 58px;
   }
 
-  .replyPanel {
-    padding: 14px 10px;
+  .inlineReplies {
+    margin-left: 45px;
+    padding-right: 10px;
+    padding-left: 10px;
   }
 
   .replyRow {
