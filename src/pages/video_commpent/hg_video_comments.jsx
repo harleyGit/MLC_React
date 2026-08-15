@@ -106,6 +106,7 @@ class HGVideoComments extends React.Component {
     super(props);
     this.state = {
       comments: [],
+      commentPage: 0,
       totalCount: 0,
       sort: "latest",
       nextCursor: "",
@@ -178,6 +179,7 @@ class HGVideoComments extends React.Component {
     this.setState(
       {
         comments: [],
+        commentPage: 0,
         totalCount: 0,
         sort,
         nextCursor: "",
@@ -213,7 +215,8 @@ class HGVideoComments extends React.Component {
     sort,
     cursor,
     append,
-    requestSequence = this.hgRequestSequence
+    requestSequence = this.hgRequestSequence,
+    targetPage = 0
   ) => {
     if (!String(submissionId || "").trim()) {
       if (this.hgMounted && requestSequence === this.hgRequestSequence) {
@@ -235,13 +238,19 @@ class HGVideoComments extends React.Component {
       );
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
       this.setState((state) => {
+        const currentComments = append
+          ? state.comments
+          : state.pendingCreatedComment
+          ? [state.pendingCreatedComment]
+          : [];
         const comments = mergeVideoComments(
-          state.comments,
+          currentComments,
           response?.comments || []
         );
         const reachedClientLimit = comments.length >= HG_COMMENT_MAX_RETAINED;
         return {
           comments,
+          commentPage: targetPage,
           totalCount: Math.max(
             state.totalCount,
             Math.max(0, Number(response?.totalCount) || 0)
@@ -253,7 +262,7 @@ class HGVideoComments extends React.Component {
           error: "",
           reachedClientLimit,
         };
-      }, () => this.loadVisibleCommentReplies());
+      }, () => this.loadCurrentPageReplies());
     } catch (error) {
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
       this.setState({
@@ -263,12 +272,38 @@ class HGVideoComments extends React.Component {
     }
   };
 
-  /** 接近顶层列表底部时读取下一页，空游标不会重复请求。 */
-  handleLoadMore = () => {
-    const { loading, hasMore, nextCursor, sort } = this.state;
-    if (loading || !hasMore || !nextCursor) return;
+  /** 切换一级评论上一页，回复输入框随页面切换关闭。 */
+  handlePreviousCommentPage = () => {
+    if (this.state.loading || this.state.commentPage <= 0) return;
+    this.handleCloseReplies();
+    this.setState(
+      (state) => ({ commentPage: state.commentPage - 1 }),
+      this.loadCurrentPageReplies
+    );
+  };
+
+  /** 优先使用已缓存一级评论页，未缓存时按服务端游标读取下一页。 */
+  handleNextCommentPage = () => {
+    const { comments, commentPage, loading, hasMore, nextCursor, sort } =
+      this.state;
+    if (loading) return;
+    const nextPage = commentPage + 1;
+    if (nextPage * HG_COMMENT_PAGE_SIZE < comments.length) {
+      this.handleCloseReplies();
+      this.setState({ commentPage: nextPage }, this.loadCurrentPageReplies);
+      return;
+    }
+    if (!hasMore || !nextCursor) return;
+    this.handleCloseReplies();
     this.setState({ loading: true, error: "" }, () => {
-      this.fetchComments(this.props.submissionId, sort, nextCursor, true);
+      this.fetchComments(
+        this.props.submissionId,
+        sort,
+        nextCursor,
+        true,
+        this.hgRequestSequence,
+        nextPage
+      );
     });
   };
 
@@ -435,45 +470,34 @@ class HGVideoComments extends React.Component {
       this.revokeImageDrafts(images);
       this.hgPendingCreateContent = "";
       this.hgPendingCreateRequestId = "";
-      if (this.state.sort !== "latest") {
-        const nextRequestSequence = ++this.hgRequestSequence;
-        this.setState(
-          (state) => ({
-            comments: [comment],
-            totalCount: state.totalCount + 1,
-            sort: "latest",
-            nextCursor: "",
-            hasMore: true,
-            content: "",
-            images: [],
-            pendingCreatedComment: comment,
-            submitting: false,
-            uploading: false,
-            loading: true,
-            error: "",
-            feedback: "评论发布成功",
-            reachedClientLimit: false,
-          }),
-          () =>
-            this.fetchComments(
-              this.props.submissionId,
-              "latest",
-              "",
-              false,
-              nextRequestSequence
-            )
-        );
-        return;
-      }
-      this.setState((state) => ({
-        comments: mergeVideoComments([comment], state.comments),
-        totalCount: state.totalCount + 1,
-        content: "",
-        images: [],
-        submitting: false,
-        uploading: false,
-        feedback: "评论发布成功",
-      }));
+      const nextRequestSequence = ++this.hgRequestSequence;
+      this.setState(
+        (state) => ({
+          comments: [comment],
+          commentPage: 0,
+          totalCount: state.totalCount + 1,
+          sort: "latest",
+          nextCursor: "",
+          hasMore: true,
+          content: "",
+          images: [],
+          pendingCreatedComment: comment,
+          submitting: false,
+          uploading: false,
+          loading: true,
+          error: "",
+          feedback: "评论发布成功",
+          reachedClientLimit: false,
+        }),
+        () =>
+          this.fetchComments(
+            this.props.submissionId,
+            "latest",
+            "",
+            false,
+            nextRequestSequence
+          )
+      );
     } catch (error) {
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
       this.setState({
@@ -552,13 +576,16 @@ class HGVideoComments extends React.Component {
     );
   };
 
-  /** 为当前已加载的一级评论自动读取二级评论。 */
-  loadVisibleCommentReplies = () => {
-    this.state.comments.forEach((comment) => {
-      if (Math.max(0, Number(comment?.replyCount) || 0) > 0) {
-        this.ensureRepliesLoaded(String(comment?.commentId || ""));
-      }
-    });
+  /** 仅为当前一级评论分页自动读取二级评论，避免一次请求全部回复。 */
+  loadCurrentPageReplies = () => {
+    const start = this.state.commentPage * HG_COMMENT_PAGE_SIZE;
+    this.state.comments
+      .slice(start, start + HG_COMMENT_PAGE_SIZE)
+      .forEach((comment) => {
+        if (Math.max(0, Number(comment?.replyCount) || 0) > 0) {
+          this.ensureRepliesLoaded(String(comment?.commentId || ""));
+        }
+      });
   };
 
   /** 首次读取指定一级评论的回复，已加载或加载中的分组不会重复请求。 */
@@ -572,6 +599,7 @@ class HGVideoComments extends React.Component {
           ...state.replyGroups,
           [normalizedRootCommentId]: {
             replies: [],
+            page: 0,
             nextCursor: "",
             hasMore: false,
             loading: true,
@@ -580,7 +608,7 @@ class HGVideoComments extends React.Component {
           },
         },
       }),
-      () => this.fetchReplies(normalizedRootCommentId, "", false)
+      () => this.fetchReplies(normalizedRootCommentId, "", false, 0)
     );
   };
 
@@ -588,7 +616,8 @@ class HGVideoComments extends React.Component {
   fetchReplies = async (
     rootCommentId,
     cursor,
-    append
+    append,
+    targetPage
   ) => {
     const requestSequence = this.hgRequestSequence;
     try {
@@ -612,6 +641,7 @@ class HGVideoComments extends React.Component {
             ...state.replyGroups,
             [rootCommentId]: {
               replies,
+              page: targetPage,
               nextCursor: response?.nextCursor || "",
               hasMore: !reachedReplyLimit && Boolean(response?.hasMore),
               loading: false,
@@ -637,17 +667,35 @@ class HGVideoComments extends React.Component {
     }
   };
 
-  /** 加载指定一级评论的下一页回复。 */
-  handleLoadMoreReplies = (rootCommentId) => {
+  /** 切换指定一级评论的上一页回复。 */
+  handlePreviousReplyPage = (rootCommentId) => {
     const group = this.state.replyGroups[rootCommentId];
-    if (
-      !rootCommentId ||
-      !group ||
-      group.loading ||
-      !group.hasMore ||
-      !group.nextCursor
-    )
+    if (!rootCommentId || !group || group.loading || group.page <= 0) return;
+    this.setState(
+      (state) => ({
+        replyGroups: {
+          ...state.replyGroups,
+          [rootCommentId]: { ...group, page: group.page - 1 },
+        },
+      })
+    );
+  };
+
+  /** 优先切换缓存页，未缓存时按该一级评论的回复游标读取下一页。 */
+  handleNextReplyPage = (rootCommentId) => {
+    const group = this.state.replyGroups[rootCommentId];
+    if (!rootCommentId || !group || group.loading) return;
+    const nextPage = group.page + 1;
+    if (nextPage * HG_COMMENT_PAGE_SIZE < group.replies.length) {
+      this.setState((state) => ({
+        replyGroups: {
+          ...state.replyGroups,
+          [rootCommentId]: { ...group, page: nextPage },
+        },
+      }));
       return;
+    }
+    if (!group.hasMore || !group.nextCursor) return;
     this.setState(
       (state) => ({
         replyGroups: {
@@ -655,7 +703,7 @@ class HGVideoComments extends React.Component {
           [rootCommentId]: { ...group, loading: true, error: "" },
         },
       }),
-      () => this.fetchReplies(rootCommentId, group.nextCursor, true)
+      () => this.fetchReplies(rootCommentId, group.nextCursor, true, nextPage)
     );
   };
 
@@ -720,42 +768,49 @@ class HGVideoComments extends React.Component {
       this.revokeImageDrafts(replyImages);
       this.hgPendingReplyContent = "";
       this.hgPendingReplyRequestId = "";
-      this.setState((state) => ({
-        replyParentCommentId: selectedRootCommentId,
-        replyToUserName:
-          state.comments.find(
-            (comment) =>
-              String(comment?.commentId || "") === selectedRootCommentId
-          )?.userName || "匿名用户",
-        replyGroups: {
-          ...state.replyGroups,
-          [selectedRootCommentId]: {
-            ...(state.replyGroups[selectedRootCommentId] || {}),
-            replies: mergeVideoComments(
-              state.replyGroups[selectedRootCommentId]?.replies || [],
-              [reply],
-              HG_COMMENT_REPLY_MAX_RETAINED
-            ),
-            loaded: true,
-            loading: false,
-            error: "",
+      this.setState((state) => {
+        const replies = mergeVideoComments(
+          state.replyGroups[selectedRootCommentId]?.replies || [],
+          [reply],
+          HG_COMMENT_REPLY_MAX_RETAINED
+        );
+        return {
+          replyParentCommentId: selectedRootCommentId,
+          replyToUserName:
+            state.comments.find(
+              (comment) =>
+                String(comment?.commentId || "") === selectedRootCommentId
+            )?.userName || "匿名用户",
+          replyGroups: {
+            ...state.replyGroups,
+            [selectedRootCommentId]: {
+              ...(state.replyGroups[selectedRootCommentId] || {}),
+              replies,
+              page: Math.max(
+                0,
+                Math.ceil(replies.length / HG_COMMENT_PAGE_SIZE) - 1
+              ),
+              loaded: true,
+              loading: false,
+              error: "",
+            },
           },
-        },
-        comments: updateCommentById(
-          state.comments,
-          selectedRootCommentId,
-          (comment) => ({
-            ...comment,
-            replyCount: Math.max(0, Number(comment.replyCount) || 0) + 1,
-          })
-        ),
-        totalCount: state.totalCount + 1,
-        replyContent: "",
-        replyImages: [],
-        replySubmitting: false,
-        replyUploading: false,
-        feedback: "回复发布成功",
-      }));
+          comments: updateCommentById(
+            state.comments,
+            selectedRootCommentId,
+            (comment) => ({
+              ...comment,
+              replyCount: Math.max(0, Number(comment.replyCount) || 0) + 1,
+            })
+          ),
+          totalCount: state.totalCount + 1,
+          replyContent: "",
+          replyImages: [],
+          replySubmitting: false,
+          replyUploading: false,
+          feedback: "回复发布成功",
+        };
+      });
     } catch (error) {
       if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence)
         return;
@@ -863,32 +918,51 @@ class HGVideoComments extends React.Component {
         throw new Error("评论删除响应无效");
       if (isSelectedRoot) this.revokeImageDrafts(this.state.replyImages);
       this.setState((state) => {
-        return {
-          comments: decrementVideoCommentReplyCount(
-            state.comments.filter(
-              (item) => String(item?.commentId) !== commentId
-            ),
-            rootCommentId
+        const comments = decrementVideoCommentReplyCount(
+          state.comments.filter(
+            (item) => String(item?.commentId) !== commentId
           ),
-          replyGroups: !isReply
-            ? Object.fromEntries(
-                Object.entries(state.replyGroups).filter(
-                  ([groupRootCommentId]) => groupRootCommentId !== commentId
-                )
+          rootCommentId
+        );
+        const replyGroups = !isReply
+          ? Object.fromEntries(
+              Object.entries(state.replyGroups).filter(
+                ([groupRootCommentId]) => groupRootCommentId !== commentId
               )
-            : Object.fromEntries(
-                Object.entries(state.replyGroups).map(
-                  ([groupRootCommentId, group]) => [
+            )
+          : Object.fromEntries(
+              Object.entries(state.replyGroups).map(
+                ([groupRootCommentId, group]) => {
+                  const replies = (group.replies || []).filter(
+                    (item) => String(item?.commentId) !== commentId
+                  );
+                  return [
                     groupRootCommentId,
                     {
                       ...group,
-                      replies: (group.replies || []).filter(
-                        (item) => String(item?.commentId) !== commentId
+                      replies,
+                      page: Math.min(
+                        group.page || 0,
+                        Math.max(
+                          0,
+                          Math.ceil(replies.length / HG_COMMENT_PAGE_SIZE) - 1
+                        )
                       ),
                     },
-                  ]
-                )
-              ),
+                  ];
+                }
+              )
+            );
+        return {
+          comments,
+          commentPage: Math.min(
+            state.commentPage,
+            Math.max(
+              0,
+              Math.ceil(comments.length / HG_COMMENT_PAGE_SIZE) - 1
+            )
+          ),
+          replyGroups,
           totalCount: Math.max(0, state.totalCount - 1),
           selectedRootCommentId: isSelectedRoot
             ? ""
@@ -1050,13 +1124,72 @@ class HGVideoComments extends React.Component {
     const rootCommentId = String(comment?.commentId || "");
     const group = this.state.replyGroups[rootCommentId];
     const replies = group?.replies || [];
+    const replyPage = Math.max(0, Number(group?.page) || 0);
+    const replyPageStart = replyPage * HG_COMMENT_PAGE_SIZE;
+    const visibleReplies = replies.slice(
+      replyPageStart,
+      replyPageStart + HG_COMMENT_PAGE_SIZE
+    );
     const composerOpen = this.state.selectedRootCommentId === rootCommentId;
     if (!group && !composerOpen) return null;
     return (
       <div className={styles.inlineReplies}>
+        {group?.error && (
+          <p className={styles.inlineError} role="alert">
+            {group.error}
+          </p>
+        )}
+        {visibleReplies.map((reply) => this.renderReplyRow(reply))}
+        {group?.loading && (
+          <div className={styles.replyState}>回复加载中...</div>
+        )}
+        {!group?.loading && group?.loaded && replies.length === 0 && composerOpen && (
+          <div className={styles.replyState}>还没有回复</div>
+        )}
+        {!group?.loading &&
+          replies.length >= HG_COMMENT_REPLY_MAX_RETAINED && (
+            <div className={styles.replyState}>
+              最多展示 {HG_COMMENT_REPLY_MAX_RETAINED} 条回复
+            </div>
+          )}
+        {group?.loaded && replies.length > 0 && (
+          <div className={styles.pagination} aria-label="二级评论分页">
+            <button
+              type="button"
+              disabled={
+                group.loading ||
+                replyPage <= 0 ||
+                this.state.replySubmitting ||
+                this.state.replyUploading
+              }
+              onClick={() => this.handlePreviousReplyPage(rootCommentId)}
+            >
+              上一页
+            </button>
+            <span>第 {replyPage + 1} 页</span>
+            <button
+              type="button"
+              disabled={
+                group.loading ||
+                ((replyPage + 1) * HG_COMMENT_PAGE_SIZE >= replies.length &&
+                  (!group.hasMore || !group.nextCursor)) ||
+                this.state.replySubmitting ||
+                this.state.replyUploading
+              }
+              onClick={() => this.handleNextReplyPage(rootCommentId)}
+            >
+              下一页
+            </button>
+          </div>
+        )}
         {composerOpen && (
           <div className={styles.inlineReplyComposer}>
             {this.renderComposer(true)}
+            {this.state.replyError && (
+              <p className={styles.inlineError} role="alert">
+                {this.state.replyError}
+              </p>
+            )}
             <button
               type="button"
               className={styles.cancelReplyButton}
@@ -1069,38 +1202,6 @@ class HGVideoComments extends React.Component {
             </button>
           </div>
         )}
-        {group?.error && (
-          <p className={styles.inlineError} role="alert">
-            {group.error}
-          </p>
-        )}
-        {composerOpen && this.state.replyError && (
-          <p className={styles.inlineError} role="alert">
-            {this.state.replyError}
-          </p>
-        )}
-        {replies.map((reply) => this.renderReplyRow(reply))}
-        {group?.loading && (
-          <div className={styles.replyState}>回复加载中...</div>
-        )}
-        {!group?.loading && group?.loaded && replies.length === 0 && composerOpen && (
-          <div className={styles.replyState}>还没有回复</div>
-        )}
-        {!group?.loading && group?.hasMore && (
-          <button
-            type="button"
-            className={styles.loadRepliesButton}
-            onClick={() => this.handleLoadMoreReplies(rootCommentId)}
-          >
-            加载更多回复
-          </button>
-        )}
-        {!group?.loading &&
-          replies.length >= HG_COMMENT_REPLY_MAX_RETAINED && (
-            <div className={styles.replyState}>
-              最多展示 {HG_COMMENT_REPLY_MAX_RETAINED} 条回复
-            </div>
-          )}
       </div>
     );
   }
@@ -1254,8 +1355,15 @@ class HGVideoComments extends React.Component {
   }
 
   renderListState() {
-    const { comments, loading, error, hasMore, nextCursor, reachedClientLimit } =
-      this.state;
+    const {
+      comments,
+      commentPage,
+      loading,
+      error,
+      hasMore,
+      nextCursor,
+      reachedClientLimit,
+    } = this.state;
     if (loading && comments.length === 0)
       return <div className={styles.statePanel}>评论加载中...</div>;
     if (error && comments.length === 0) {
@@ -1279,10 +1387,18 @@ class HGVideoComments extends React.Component {
     if (comments.length === 0)
       return <div className={styles.statePanel}>还没有评论，来抢沙发吧</div>;
 
+    const pageStart = commentPage * HG_COMMENT_PAGE_SIZE;
+    const visibleComments = comments.slice(
+      pageStart,
+      pageStart + HG_COMMENT_PAGE_SIZE
+    );
+    const hasCachedNextPage =
+      (commentPage + 1) * HG_COMMENT_PAGE_SIZE < comments.length;
+
     return (
       <>
         <div className={styles.commentList}>
-          {comments.map((comment) => (
+          {visibleComments.map((comment) => (
             <React.Fragment key={String(comment?.commentId || "")}>
               {this.renderCommentRow(comment)}
             </React.Fragment>
@@ -1295,15 +1411,33 @@ class HGVideoComments extends React.Component {
             `为控制内存占用，仅保留前 ${HG_COMMENT_MAX_RETAINED} 条评论`}
           {!loading && !hasMore && !reachedClientLimit && "没有更多评论了"}
         </div>
-        {!loading && hasMore && nextCursor && (
+        <div className={styles.pagination} aria-label="一级评论分页">
           <button
             type="button"
-            className={styles.loadCommentsButton}
-            onClick={this.handleLoadMore}
+            disabled={
+              loading ||
+              commentPage <= 0 ||
+              this.state.replySubmitting ||
+              this.state.replyUploading
+            }
+            onClick={this.handlePreviousCommentPage}
           >
-            加载更多评论
+            上一页
           </button>
-        )}
+          <span>第 {commentPage + 1} 页</span>
+          <button
+            type="button"
+            disabled={
+              loading ||
+              (!hasCachedNextPage && (!hasMore || !nextCursor)) ||
+              this.state.replySubmitting ||
+              this.state.replyUploading
+            }
+            onClick={this.handleNextCommentPage}
+          >
+            下一页
+          </button>
+        </div>
       </>
     );
   }
