@@ -424,6 +424,18 @@
   background: #fff;
 }
 
+.replyTarget {
+  padding: 10px 14px 0;
+  color: #61666d;
+  font-size: 13px;
+}
+
+.replyTarget strong,
+.replyMention {
+  color: #00a1d6;
+  font-weight: 500;
+}
+
 .replyRow {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) auto;

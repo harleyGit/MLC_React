@@ -27,7 +27,11 @@ const HG_COMMENT_REPLY_MAX_RETAINED = 100;
 const HG_COMMENT_ROW_HEIGHT = 224;
 const HG_COMMENT_MAX_IMAGES = 3;
 const HG_COMMENT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const HG_COMMENT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const HG_COMMENT_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 const HG_COMMENT_TIME_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -40,15 +44,17 @@ const HG_COMMENT_TIME_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
 
 /** commentId 是服务端稳定身份，虚拟行和回复面板都只按该字段更新。 */
 function updateCommentById(comments, commentId, updater) {
-  return comments.map((comment) => (
+  return comments.map((comment) =>
     String(comment?.commentId || "") === commentId ? updater(comment) : comment
-  ));
+  );
 }
 
 /** 生成评论创建幂等标识，失败重试前由当前提交过程保持同一个值。 */
 function createCommentRequestId() {
-  return globalThis.crypto?.randomUUID?.()
-    || `comment_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ||
+    `comment_${Date.now()}_${Math.random().toString(16).slice(2)}`
+  );
 }
 
 /** 固定使用 zh-CN 和东八区，避免时间展示受浏览器默认地区影响。 */
@@ -56,7 +62,12 @@ function formatCommentTime(comment) {
   const value = comment?.createdAt || "";
   if (!value) return "刚刚";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : HG_COMMENT_TIME_FORMATTER.format(date);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const elapsedSeconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (elapsedSeconds >= 0 && elapsedSeconds < 60) return "刚刚";
+  if (elapsedSeconds < 3600) return `${Math.floor(elapsedSeconds / 60)}分钟前`;
+  if (elapsedSeconds < 86400) return `${Math.floor(elapsedSeconds / 3600)}小时前`;
+  return HG_COMMENT_TIME_FORMATTER.format(date);
 }
 
 /** 返回 time 元素使用的原始 ISO 时间，非法值不输出 dateTime。 */
@@ -67,7 +78,11 @@ function getCommentDateTime(comment) {
 
 /** 将选择的文件转换为可回收的本地预览记录。 */
 function createImageDrafts(files) {
-  return files.map((file) => ({ file, previewURL: URL.createObjectURL(file), imageURL: "" }));
+  return files.map((file) => ({
+    file,
+    previewURL: URL.createObjectURL(file),
+    imageURL: "",
+  }));
 }
 
 /** 可复用的视频评论区，负责游标列表、图片、反应、回复和删除。 */
@@ -89,6 +104,8 @@ class HGVideoComments extends React.Component {
       images: [],
       pendingCreatedComment: null,
       selectedRootCommentId: "",
+      replyParentCommentId: "",
+      replyToUserName: "",
       replies: [],
       replyNextCursor: "",
       replyHasMore: false,
@@ -146,57 +163,80 @@ class HGVideoComments extends React.Component {
     this.hgPendingCreateRequestId = "";
     this.hgPendingReplyContent = "";
     this.hgPendingReplyRequestId = "";
-    this.setState({
-      comments: [],
-      totalCount: 0,
-      sort,
-      nextCursor: "",
-      hasMore: true,
-      loading: true,
-      submitting: false,
-      uploading: false,
-      deletingCommentId: "",
-      pendingReactionIds: {},
-      content: "",
-      images: [],
-      pendingCreatedComment: null,
-      selectedRootCommentId: "",
-      replies: [],
-      replyNextCursor: "",
-      replyHasMore: false,
-      replyLoading: false,
-      replySubmitting: false,
-      replyUploading: false,
-      replyContent: "",
-      replyImages: [],
-      error: "",
-      feedback: "",
-      replyError: "",
-      reachedClientLimit: false,
-    }, () => this.fetchComments(submissionId, sort, "", false, requestSequence));
+    this.setState(
+      {
+        comments: [],
+        totalCount: 0,
+        sort,
+        nextCursor: "",
+        hasMore: true,
+        loading: true,
+        submitting: false,
+        uploading: false,
+        deletingCommentId: "",
+        pendingReactionIds: {},
+        content: "",
+        images: [],
+        pendingCreatedComment: null,
+        selectedRootCommentId: "",
+        replyParentCommentId: "",
+        replyToUserName: "",
+        replies: [],
+        replyNextCursor: "",
+        replyHasMore: false,
+        replyLoading: false,
+        replySubmitting: false,
+        replyUploading: false,
+        replyContent: "",
+        replyImages: [],
+        error: "",
+        feedback: "",
+        replyError: "",
+        reachedClientLimit: false,
+      },
+      () => this.fetchComments(submissionId, sort, "", false, requestSequence)
+    );
   };
 
   /** 请求一页顶层评论；cursor 原样透传，响应按 commentId 去重。 */
-  fetchComments = async (submissionId, sort, cursor, append, requestSequence = this.hgRequestSequence) => {
+  fetchComments = async (
+    submissionId,
+    sort,
+    cursor,
+    append,
+    requestSequence = this.hgRequestSequence
+  ) => {
     if (!String(submissionId || "").trim()) {
       if (this.hgMounted && requestSequence === this.hgRequestSequence) {
-        this.setState({ loading: false, hasMore: false, error: "缺少视频标识，无法加载评论" });
+        this.setState({
+          loading: false,
+          hasMore: false,
+          error: "缺少视频标识，无法加载评论",
+        });
       }
       return;
     }
 
     try {
-      const response = await getVideoComments(submissionId, sort, cursor, HG_COMMENT_PAGE_SIZE);
+      const response = await getVideoComments(
+        submissionId,
+        sort,
+        cursor,
+        HG_COMMENT_PAGE_SIZE
+      );
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
       this.setState((state) => {
         const comments = mergeVideoComments(
           state.comments,
-          response?.comments || [],
+          response?.comments || []
         );
         const reachedClientLimit = comments.length >= HG_COMMENT_MAX_RETAINED;
         return {
           comments,
-          totalCount: Math.max(state.totalCount, Math.max(0, Number(response?.totalCount) || 0)),
+          totalCount: Math.max(
+            state.totalCount,
+            Math.max(0, Number(response?.totalCount) || 0)
+          ),
           pendingCreatedComment: null,
           nextCursor: response?.nextCursor || "",
           hasMore: !reachedClientLimit && Boolean(response?.hasMore),
@@ -207,7 +247,10 @@ class HGVideoComments extends React.Component {
       });
     } catch (error) {
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
-      this.setState({ loading: false, error: getRequestErrorMessage(error, "评论加载失败，请稍后重试") });
+      this.setState({
+        loading: false,
+        error: getRequestErrorMessage(error, "评论加载失败，请稍后重试"),
+      });
     }
   };
 
@@ -222,7 +265,13 @@ class HGVideoComments extends React.Component {
 
   /** 切换 latest/hot 后重新从首个游标加载。 */
   handleSortChange = (sort) => {
-    if (sort === this.state.sort || this.state.loading || this.state.replySubmitting || this.state.replyUploading) return;
+    if (
+      sort === this.state.sort ||
+      this.state.loading ||
+      this.state.replySubmitting ||
+      this.state.replyUploading
+    )
+      return;
     this.revokeImageDrafts(this.state.images);
     this.revokeImageDrafts(this.state.replyImages);
     this.resetAndLoad(this.props.submissionId, sort);
@@ -257,12 +306,18 @@ class HGVideoComments extends React.Component {
     const currentImages = isReply ? this.state.replyImages : this.state.images;
     const remainingSlots = HG_COMMENT_MAX_IMAGES - currentImages.length;
     if (selectedFiles.length > remainingSlots) {
-      this.setState(isReply ? { replyError: "每条评论最多选择 3 张图片" } : { error: "每条评论最多选择 3 张图片" });
+      this.setState(
+        isReply
+          ? { replyError: "每条评论最多选择 3 张图片" }
+          : { error: "每条评论最多选择 3 张图片" }
+      );
       return;
     }
-    const invalidFile = selectedFiles.find((file) => (
-      !HG_COMMENT_IMAGE_TYPES.has(file.type) || file.size > HG_COMMENT_MAX_IMAGE_BYTES
-    ));
+    const invalidFile = selectedFiles.find(
+      (file) =>
+        !HG_COMMENT_IMAGE_TYPES.has(file.type) ||
+        file.size > HG_COMMENT_MAX_IMAGE_BYTES
+    );
     if (invalidFile) {
       const message = HG_COMMENT_IMAGE_TYPES.has(invalidFile.type)
         ? "每张图片不能超过 5 MiB"
@@ -273,11 +328,18 @@ class HGVideoComments extends React.Component {
     const imageDrafts = createImageDrafts(selectedFiles);
     if (isReply) {
       this.hgPendingReplyRequestId = "";
-      this.setState((state) => ({ replyImages: [...state.replyImages, ...imageDrafts], replyError: "" }));
+      this.setState((state) => ({
+        replyImages: [...state.replyImages, ...imageDrafts],
+        replyError: "",
+      }));
       return;
     }
     this.hgPendingCreateRequestId = "";
-    this.setState((state) => ({ images: [...state.images, ...imageDrafts], error: "", feedback: "" }));
+    this.setState((state) => ({
+      images: [...state.images, ...imageDrafts],
+      error: "",
+      feedback: "",
+    }));
   };
 
   /** 移除单张草稿图片并立即回收本地预览 URL。 */
@@ -302,15 +364,21 @@ class HGVideoComments extends React.Component {
   /** 仅上传尚无缓存 URL 的草稿；部分成功时保留 URL，创建失败重试也沿用同一组资源。 */
   uploadImages = async (drafts, isReply) => {
     const pendingDrafts = getPendingVideoCommentImageDrafts(drafts);
-    const uploadResults = await Promise.allSettled(pendingDrafts.map(async (draft) => {
-      const response = await uploadVideoCommentImage(draft.file);
-      const imageURL = String(response?.imageURL || "").trim();
-      if (!imageURL) throw new Error("图片上传响应无效");
-      draft.imageURL = imageURL;
-    }));
+    const uploadResults = await Promise.allSettled(
+      pendingDrafts.map(async (draft) => {
+        const response = await uploadVideoCommentImage(draft.file);
+        const imageURL = String(response?.imageURL || "").trim();
+        if (!imageURL) throw new Error("图片上传响应无效");
+        draft.imageURL = imageURL;
+      })
+    );
     if (!this.hgMounted) return [];
-    this.setState(isReply ? { replyImages: [...drafts] } : { images: [...drafts] });
-    const failedUpload = uploadResults.find((result) => result.status === "rejected");
+    this.setState(
+      isReply ? { replyImages: [...drafts] } : { images: [...drafts] }
+    );
+    const failedUpload = uploadResults.find(
+      (result) => result.status === "rejected"
+    );
     if (failedUpload) throw failedUpload.reason;
     const imageURLs = getUploadedVideoCommentImageURLs(drafts);
     if (!imageURLs) throw new Error("图片上传响应无效");
@@ -322,41 +390,70 @@ class HGVideoComments extends React.Component {
     event.preventDefault();
     const { images } = this.state;
     const content = this.state.content.trim();
-    if ((!content && images.length === 0) || this.state.submitting || this.state.uploading) return;
+    if (
+      (!content && images.length === 0) ||
+      this.state.submitting ||
+      this.state.uploading
+    )
+      return;
     const requestSequence = this.hgRequestSequence;
-    const draftKey = `${content}|${images.map((draft) => draft.file.name).join("|")}`;
-    const requestId = this.hgPendingCreateContent === draftKey && this.hgPendingCreateRequestId
-      ? this.hgPendingCreateRequestId
-      : createCommentRequestId();
+    const draftKey = `${content}|${images
+      .map((draft) => draft.file.name)
+      .join("|")}`;
+    const requestId =
+      this.hgPendingCreateContent === draftKey && this.hgPendingCreateRequestId
+        ? this.hgPendingCreateRequestId
+        : createCommentRequestId();
     this.hgPendingCreateContent = draftKey;
     this.hgPendingCreateRequestId = requestId;
-    this.setState({ submitting: true, uploading: images.length > 0, error: "", feedback: "" });
+    this.setState({
+      submitting: true,
+      uploading: images.length > 0,
+      error: "",
+      feedback: "",
+    });
 
     try {
       const imageURLs = await this.uploadImages(images, false);
-      const comment = await createVideoComment(this.props.submissionId, content, requestId, "", imageURLs);
+      const comment = await createVideoComment(
+        this.props.submissionId,
+        content,
+        requestId,
+        "",
+        imageURLs
+      );
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
       this.revokeImageDrafts(images);
       this.hgPendingCreateContent = "";
       this.hgPendingCreateRequestId = "";
       if (this.state.sort !== "latest") {
         const nextRequestSequence = ++this.hgRequestSequence;
-        this.setState((state) => ({
-          comments: [comment],
-          totalCount: state.totalCount + 1,
-          sort: "latest",
-          nextCursor: "",
-          hasMore: true,
-          content: "",
-          images: [],
-          pendingCreatedComment: comment,
-          submitting: false,
-          uploading: false,
-          loading: true,
-          error: "",
-          feedback: "评论发布成功",
-          reachedClientLimit: false,
-        }), () => this.fetchComments(this.props.submissionId, "latest", "", false, nextRequestSequence));
+        this.setState(
+          (state) => ({
+            comments: [comment],
+            totalCount: state.totalCount + 1,
+            sort: "latest",
+            nextCursor: "",
+            hasMore: true,
+            content: "",
+            images: [],
+            pendingCreatedComment: comment,
+            submitting: false,
+            uploading: false,
+            loading: true,
+            error: "",
+            feedback: "评论发布成功",
+            reachedClientLimit: false,
+          }),
+          () =>
+            this.fetchComments(
+              this.props.submissionId,
+              "latest",
+              "",
+              false,
+              nextRequestSequence
+            )
+        );
         return;
       }
       this.setState((state) => ({
@@ -381,41 +478,92 @@ class HGVideoComments extends React.Component {
   /** 打开独立回复面板，避免破坏顶层固定行高；回复提交期间禁止切换面板以隔离竞态。 */
   handleOpenReplies = (comment) => {
     const rootCommentId = String(comment?.commentId || "").trim();
-    if (!rootCommentId || this.state.replySubmitting || this.state.replyUploading) return;
+    if (
+      !rootCommentId ||
+      this.state.replySubmitting ||
+      this.state.replyUploading
+    )
+      return;
     this.revokeImageDrafts(this.state.replyImages);
     const requestSequence = ++this.hgReplyRequestSequence;
     this.hgPendingReplyContent = "";
     this.hgPendingReplyRequestId = "";
-    this.setState({
-      selectedRootCommentId: rootCommentId,
-      replies: [],
-      replyNextCursor: "",
-      replyHasMore: false,
-      replyLoading: true,
-      replySubmitting: false,
-      replyUploading: false,
-      replyContent: "",
-      replyImages: [],
-      replyError: "",
-    }, () => {
-      this.hgReplyComposerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      this.hgReplyComposerRef.current?.focus({ preventScroll: true });
-      this.fetchReplies(rootCommentId, "", false, requestSequence);
-    });
+    this.setState(
+      {
+        selectedRootCommentId: rootCommentId,
+        replyParentCommentId: rootCommentId,
+        replyToUserName: comment?.userName || "匿名用户",
+        replies: [],
+        replyNextCursor: "",
+        replyHasMore: false,
+        replyLoading: true,
+        replySubmitting: false,
+        replyUploading: false,
+        replyContent: "",
+        replyImages: [],
+        replyError: "",
+      },
+      () => {
+        this.hgReplyComposerRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        this.hgReplyComposerRef.current?.focus({ preventScroll: true });
+        this.fetchReplies(rootCommentId, "", false, requestSequence);
+      }
+    );
+  };
+
+  /** 将回复目标切换到楼中楼评论，提交时以该评论作为直接父评论。 */
+  handleSelectReplyTarget = (comment) => {
+    const parentCommentId = String(comment?.commentId || "").trim();
+    if (
+      !parentCommentId ||
+      this.state.replySubmitting ||
+      this.state.replyUploading
+    )
+      return;
+    this.hgPendingReplyContent = "";
+    this.hgPendingReplyRequestId = "";
+    this.setState(
+      {
+        replyParentCommentId: parentCommentId,
+        replyToUserName: comment?.userName || "匿名用户",
+        replyError: "",
+      },
+      () => {
+        this.hgReplyComposerRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        this.hgReplyComposerRef.current?.focus({ preventScroll: true });
+      }
+    );
   };
 
   /** 读取回复游标页，最多在面板中保留 100 条。 */
-  fetchReplies = async (rootCommentId, cursor, append, requestSequence = this.hgReplyRequestSequence) => {
+  fetchReplies = async (
+    rootCommentId,
+    cursor,
+    append,
+    requestSequence = this.hgReplyRequestSequence
+  ) => {
     try {
-      const response = await getVideoCommentReplies(rootCommentId, cursor, HG_COMMENT_PAGE_SIZE);
-      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence) return;
+      const response = await getVideoCommentReplies(
+        rootCommentId,
+        cursor,
+        HG_COMMENT_PAGE_SIZE
+      );
+      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence)
+        return;
       this.setState((state) => {
         const replies = mergeVideoComments(
           state.replies,
           response?.comments || [],
-          HG_COMMENT_REPLY_MAX_RETAINED,
+          HG_COMMENT_REPLY_MAX_RETAINED
         );
-        const reachedReplyLimit = replies.length >= HG_COMMENT_REPLY_MAX_RETAINED;
+        const reachedReplyLimit =
+          replies.length >= HG_COMMENT_REPLY_MAX_RETAINED;
         return {
           replies,
           replyNextCursor: response?.nextCursor || "",
@@ -425,15 +573,30 @@ class HGVideoComments extends React.Component {
         };
       });
     } catch (error) {
-      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence) return;
-      this.setState({ replyLoading: false, replyError: getRequestErrorMessage(error, "回复加载失败，请稍后重试") });
+      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence)
+        return;
+      this.setState({
+        replyLoading: false,
+        replyError: getRequestErrorMessage(error, "回复加载失败，请稍后重试"),
+      });
     }
   };
 
   /** 加载回复面板下一页。 */
   handleLoadMoreReplies = () => {
-    const { selectedRootCommentId, replyLoading, replyHasMore, replyNextCursor } = this.state;
-    if (!selectedRootCommentId || replyLoading || !replyHasMore || !replyNextCursor) return;
+    const {
+      selectedRootCommentId,
+      replyLoading,
+      replyHasMore,
+      replyNextCursor,
+    } = this.state;
+    if (
+      !selectedRootCommentId ||
+      replyLoading ||
+      !replyHasMore ||
+      !replyNextCursor
+    )
+      return;
     this.setState({ replyLoading: true, replyError: "" }, () => {
       this.fetchReplies(selectedRootCommentId, replyNextCursor, true);
     });
@@ -446,6 +609,8 @@ class HGVideoComments extends React.Component {
     this.revokeImageDrafts(this.state.replyImages);
     this.setState({
       selectedRootCommentId: "",
+      replyParentCommentId: "",
+      replyToUserName: "",
       replies: [],
       replyContent: "",
       replyImages: [],
@@ -459,17 +624,32 @@ class HGVideoComments extends React.Component {
   /** 发布回复并同步根评论 replyCount 与全局评论总数。 */
   handleReplySubmit = async (event) => {
     event.preventDefault();
-    const { selectedRootCommentId, replyImages } = this.state;
+    const { selectedRootCommentId, replyParentCommentId, replyImages } =
+      this.state;
     const content = this.state.replyContent.trim();
-    if (!selectedRootCommentId || (!content && replyImages.length === 0) || this.state.replySubmitting || this.state.replyUploading) return;
+    if (
+      !selectedRootCommentId ||
+      !replyParentCommentId ||
+      (!content && replyImages.length === 0) ||
+      this.state.replySubmitting ||
+      this.state.replyUploading
+    )
+      return;
     const requestSequence = this.hgReplyRequestSequence;
-    const draftKey = `${content}|${replyImages.map((draft) => draft.file.name).join("|")}`;
-    const requestId = this.hgPendingReplyContent === draftKey && this.hgPendingReplyRequestId
-      ? this.hgPendingReplyRequestId
-      : createCommentRequestId();
+    const draftKey = `${replyParentCommentId}|${content}|${replyImages
+      .map((draft) => draft.file.name)
+      .join("|")}`;
+    const requestId =
+      this.hgPendingReplyContent === draftKey && this.hgPendingReplyRequestId
+        ? this.hgPendingReplyRequestId
+        : createCommentRequestId();
     this.hgPendingReplyContent = draftKey;
     this.hgPendingReplyRequestId = requestId;
-    this.setState({ replySubmitting: true, replyUploading: replyImages.length > 0, replyError: "" });
+    this.setState({
+      replySubmitting: true,
+      replyUploading: replyImages.length > 0,
+      replyError: "",
+    });
 
     try {
       const imageURLs = await this.uploadImages(replyImages, true);
@@ -477,19 +657,34 @@ class HGVideoComments extends React.Component {
         this.props.submissionId,
         content,
         requestId,
-        selectedRootCommentId,
-        imageURLs,
+        replyParentCommentId,
+        imageURLs
       );
-      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence) return;
+      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence)
+        return;
       this.revokeImageDrafts(replyImages);
       this.hgPendingReplyContent = "";
       this.hgPendingReplyRequestId = "";
       this.setState((state) => ({
-        replies: mergeVideoComments(state.replies, [reply], HG_COMMENT_REPLY_MAX_RETAINED),
-        comments: updateCommentById(state.comments, selectedRootCommentId, (comment) => ({
-          ...comment,
-          replyCount: Math.max(0, Number(comment.replyCount) || 0) + 1,
-        })),
+        replyParentCommentId: selectedRootCommentId,
+        replyToUserName:
+          state.comments.find(
+            (comment) =>
+              String(comment?.commentId || "") === selectedRootCommentId
+          )?.userName || "匿名用户",
+        replies: mergeVideoComments(
+          state.replies,
+          [reply],
+          HG_COMMENT_REPLY_MAX_RETAINED
+        ),
+        comments: updateCommentById(
+          state.comments,
+          selectedRootCommentId,
+          (comment) => ({
+            ...comment,
+            replyCount: Math.max(0, Number(comment.replyCount) || 0) + 1,
+          })
+        ),
         totalCount: state.totalCount + 1,
         replyContent: "",
         replyImages: [],
@@ -498,7 +693,8 @@ class HGVideoComments extends React.Component {
         feedback: "回复发布成功",
       }));
     } catch (error) {
-      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence) return;
+      if (!this.hgMounted || requestSequence !== this.hgReplyRequestSequence)
+        return;
       this.setState({
         replySubmitting: false,
         replyUploading: false,
@@ -511,8 +707,11 @@ class HGVideoComments extends React.Component {
   handleReaction = async (comment, requestedReaction) => {
     const commentId = String(comment?.commentId || "").trim();
     if (!commentId || this.state.pendingReactionIds[commentId]) return;
-    const isReply = this.state.replies.some((item) => String(item?.commentId || "") === commentId);
-    const reaction = comment?.reaction === requestedReaction ? "none" : requestedReaction;
+    const isReply = this.state.replies.some(
+      (item) => String(item?.commentId || "") === commentId
+    );
+    const reaction =
+      comment?.reaction === requestedReaction ? "none" : requestedReaction;
     const requestSequence = this.hgRequestSequence;
     this.setState((state) => ({
       pendingReactionIds: { ...state.pendingReactionIds, [commentId]: true },
@@ -523,7 +722,8 @@ class HGVideoComments extends React.Component {
     try {
       const response = await setVideoCommentReaction(commentId, reaction);
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
-      if (String(response?.commentId || "").trim() !== commentId) throw new Error("评论反应响应无效");
+      if (String(response?.commentId || "").trim() !== commentId)
+        throw new Error("评论反应响应无效");
       const applyResponse = (item) => ({
         ...item,
         reaction: response?.reaction || "none",
@@ -547,8 +747,18 @@ class HGVideoComments extends React.Component {
         return {
           pendingReactionIds,
           ...(isReply
-            ? { replyError: getRequestErrorMessage(error, "回复操作失败，请稍后重试") }
-            : { error: getRequestErrorMessage(error, "评论操作失败，请稍后重试") }),
+            ? {
+                replyError: getRequestErrorMessage(
+                  error,
+                  "回复操作失败，请稍后重试"
+                ),
+              }
+            : {
+                error: getRequestErrorMessage(
+                  error,
+                  "评论操作失败，请稍后重试"
+                ),
+              }),
         };
       });
     }
@@ -557,27 +767,59 @@ class HGVideoComments extends React.Component {
   /** 删除顶层或已加载回复，并同步总数及根评论回复数。 */
   handleDelete = async (comment) => {
     const commentId = String(comment?.commentId || "").trim();
-    if (!comment?.canDelete || !commentId || this.state.deletingCommentId) return;
+    if (!comment?.canDelete || !commentId || this.state.deletingCommentId)
+      return;
     const requestSequence = this.hgRequestSequence;
-    const isReply = this.state.replies.some((item) => String(item?.commentId || "") === commentId);
-    const rootCommentId = isReply ? String(comment?.rootCommentId || "").trim() : "";
+    const isReply = this.state.replies.some(
+      (item) => String(item?.commentId || "") === commentId
+    );
+    const rootCommentId = isReply
+      ? String(comment?.rootCommentId || "").trim()
+      : "";
     const isSelectedRoot = this.state.selectedRootCommentId === commentId;
-    this.setState({ deletingCommentId: commentId, error: "", replyError: "", feedback: "" });
+    this.setState({
+      deletingCommentId: commentId,
+      error: "",
+      replyError: "",
+      feedback: "",
+    });
 
     try {
       const response = await deleteVideoComment(commentId);
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
-      if (!response?.deleted || String(response?.commentId) !== commentId) throw new Error("评论删除响应无效");
+      if (!response?.deleted || String(response?.commentId) !== commentId)
+        throw new Error("评论删除响应无效");
       if (isSelectedRoot) this.revokeImageDrafts(this.state.replyImages);
       this.setState((state) => {
         return {
           comments: decrementVideoCommentReplyCount(
-            state.comments.filter((item) => String(item?.commentId) !== commentId),
-            rootCommentId,
+            state.comments.filter(
+              (item) => String(item?.commentId) !== commentId
+            ),
+            rootCommentId
           ),
-          replies: isSelectedRoot ? [] : state.replies.filter((item) => String(item?.commentId) !== commentId),
+          replies: isSelectedRoot
+            ? []
+            : state.replies.filter(
+                (item) => String(item?.commentId) !== commentId
+              ),
           totalCount: Math.max(0, state.totalCount - 1),
-          selectedRootCommentId: isSelectedRoot ? "" : state.selectedRootCommentId,
+          selectedRootCommentId: isSelectedRoot
+            ? ""
+            : state.selectedRootCommentId,
+          replyParentCommentId: isSelectedRoot
+            ? ""
+            : state.replyParentCommentId === commentId
+            ? state.selectedRootCommentId
+            : state.replyParentCommentId,
+          replyToUserName: isSelectedRoot
+            ? ""
+            : state.replyParentCommentId === commentId
+            ? state.comments.find(
+                (item) =>
+                  String(item?.commentId || "") === state.selectedRootCommentId
+              )?.userName || "匿名用户"
+            : state.replyToUserName,
           replyContent: isSelectedRoot ? "" : state.replyContent,
           replyImages: isSelectedRoot ? [] : state.replyImages,
           deletingCommentId: "",
@@ -586,18 +828,28 @@ class HGVideoComments extends React.Component {
       });
     } catch (error) {
       if (!this.hgMounted || requestSequence !== this.hgRequestSequence) return;
-      this.setState({ deletingCommentId: "", error: getRequestErrorMessage(error, "评论删除失败，请稍后重试") });
+      this.setState({
+        deletingCommentId: "",
+        error: getRequestErrorMessage(error, "评论删除失败，请稍后重试"),
+      });
     }
   };
 
   /** 渲染最多三张服务端评论图片。 */
   renderCommentImages(comment) {
-    const imageURLs = (Array.isArray(comment?.imageURLs) ? comment.imageURLs : []).slice(0, 3);
+    const imageURLs = (
+      Array.isArray(comment?.imageURLs) ? comment.imageURLs : []
+    ).slice(0, 3);
     if (imageURLs.length === 0) return null;
     return (
       <div className={styles.commentImages}>
         {imageURLs.map((imageURL, index) => (
-          <a key={`${imageURL}-${index}`} href={imageURL} target="_blank" rel="noreferrer">
+          <a
+            key={`${imageURL}-${index}`}
+            href={imageURL}
+            target="_blank"
+            rel="noreferrer"
+          >
             <img src={imageURL} alt={`评论图片 ${index + 1}`} loading="lazy" />
           </a>
         ))}
@@ -606,7 +858,7 @@ class HGVideoComments extends React.Component {
   }
 
   /** 渲染点赞、点踩和回复操作，反应请求按 commentId 独立禁用。 */
-  renderCommentActions(comment, showReplyButton) {
+  renderCommentActions(comment, replyAction) {
     const commentId = String(comment?.commentId || "");
     const pending = Boolean(this.state.pendingReactionIds[commentId]);
     return (
@@ -629,14 +881,27 @@ class HGVideoComments extends React.Component {
         >
           踩 {Math.max(0, Number(comment?.dislikeCount) || 0)}
         </button>
-        {showReplyButton && (
+        {replyAction && (
           <button
             type="button"
-            aria-expanded={this.state.selectedRootCommentId === commentId}
+            aria-expanded={
+              replyAction === "root"
+                ? this.state.selectedRootCommentId === commentId
+                : undefined
+            }
             disabled={this.state.replySubmitting || this.state.replyUploading}
-            onClick={() => this.handleOpenReplies(comment)}
+            onClick={() =>
+              replyAction === "root"
+                ? this.handleOpenReplies(comment)
+                : this.handleSelectReplyTarget(comment)
+            }
           >
-            {this.state.selectedRootCommentId === commentId ? "正在回复" : "回复"} {Math.max(0, Number(comment?.replyCount) || 0)}
+            {replyAction === "root" &&
+            this.state.selectedRootCommentId === commentId
+              ? "正在回复"
+              : "回复"}
+            {replyAction === "root" &&
+              ` ${Math.max(0, Number(comment?.replyCount) || 0)}`}
           </button>
         )}
       </div>
@@ -651,16 +916,24 @@ class HGVideoComments extends React.Component {
     return (
       <article className={styles.commentRow} aria-label={`${authorName}的评论`}>
         <div className={styles.commentAvatar} aria-hidden="true">
-          {avatar ? <img src={avatar} alt="" /> : authorName.slice(0, 1).toUpperCase()}
+          {avatar ? (
+            <img src={avatar} alt="" />
+          ) : (
+            authorName.slice(0, 1).toUpperCase()
+          )}
         </div>
         <div className={styles.commentBody}>
           <div className={styles.commentHeading}>
             <strong>{authorName}</strong>
-            <time dateTime={getCommentDateTime(comment)}>{formatCommentTime(comment)}</time>
+            <time dateTime={getCommentDateTime(comment)}>
+              {formatCommentTime(comment)}
+            </time>
           </div>
-          {comment?.content && <p className={styles.commentContent}>{comment.content}</p>}
+          {comment?.content && (
+            <p className={styles.commentContent}>{comment.content}</p>
+          )}
           {this.renderCommentImages(comment)}
-          {this.renderCommentActions(comment, true)}
+          {this.renderCommentActions(comment, "root")}
         </div>
         {comment?.canDelete && (
           <button
@@ -678,9 +951,15 @@ class HGVideoComments extends React.Component {
 
   /** 渲染图片选择入口与固定预览。 */
   renderImagePicker(images, isReply, disabled) {
-    const inputId = isReply ? "video-comment-reply-images" : "video-comment-images";
+    const inputId = isReply
+      ? "video-comment-reply-images"
+      : "video-comment-images";
     return (
-      <div className={`${styles.imagePicker} ${disabled ? styles.imagePickerDisabled : ""}`}>
+      <div
+        className={`${styles.imagePicker} ${
+          disabled ? styles.imagePickerDisabled : ""
+        }`}
+      >
         <div className={styles.imageDrafts}>
           {images.map((draft, index) => (
             <div key={draft.previewURL} className={styles.imageDraft}>
@@ -706,7 +985,9 @@ class HGVideoComments extends React.Component {
               disabled={disabled}
               onChange={(event) => this.handleImageSelect(event, isReply)}
             />
-            <label htmlFor={inputId} aria-disabled={disabled}>添加图片 {images.length}/3</label>
+            <label htmlFor={inputId} aria-disabled={disabled}>
+              添加图片 {images.length}/3
+            </label>
           </>
         )}
       </div>
@@ -717,24 +998,55 @@ class HGVideoComments extends React.Component {
   renderComposer(isReply = false) {
     const content = isReply ? this.state.replyContent : this.state.content;
     const images = isReply ? this.state.replyImages : this.state.images;
-    const submitting = isReply ? this.state.replySubmitting : this.state.submitting;
-    const uploading = isReply ? this.state.replyUploading : this.state.uploading;
+    const submitting = isReply
+      ? this.state.replySubmitting
+      : this.state.submitting;
+    const uploading = isReply
+      ? this.state.replyUploading
+      : this.state.uploading;
     return (
-      <form className={`${styles.composer} ${isReply ? styles.replyComposer : ""}`} onSubmit={isReply ? this.handleReplySubmit : this.handleSubmit}>
+      <form
+        className={`${styles.composer} ${isReply ? styles.replyComposer : ""}`}
+        onSubmit={isReply ? this.handleReplySubmit : this.handleSubmit}
+      >
+        {isReply && this.state.replyToUserName && (
+          <div className={styles.replyTarget}>
+            回复 <strong>@{this.state.replyToUserName}</strong>
+          </div>
+        )}
         <textarea
           ref={isReply ? this.hgReplyComposerRef : undefined}
           value={content}
           rows={isReply ? 2 : 3}
-          placeholder={isReply ? "回复这条评论" : "友善发言，分享你的看法"}
+          placeholder={
+            isReply
+              ? `回复 @${this.state.replyToUserName || "这条评论"}`
+              : "友善发言，分享你的看法"
+          }
           aria-label={isReply ? "回复内容" : "评论内容"}
           disabled={submitting || uploading}
           onChange={(event) => this.handleContentChange(event, isReply)}
         />
         {this.renderImagePicker(images, isReply, submitting || uploading)}
         <div className={styles.composerFooter}>
-          <span>{Array.from(content).length}/{HG_VIDEO_COMMENT_MAX_LENGTH}</span>
-          <button type="submit" disabled={submitting || uploading || (!content.trim() && images.length === 0)}>
-            {uploading ? "图片上传中..." : submitting ? "发布中..." : isReply ? "发布回复" : "发布评论"}
+          <span>
+            {Array.from(content).length}/{HG_VIDEO_COMMENT_MAX_LENGTH}
+          </span>
+          <button
+            type="submit"
+            disabled={
+              submitting ||
+              uploading ||
+              (!content.trim() && images.length === 0)
+            }
+          >
+            {uploading
+              ? "图片上传中..."
+              : submitting
+              ? "发布中..."
+              : isReply
+              ? "发布回复"
+              : "发布评论"}
           </button>
         </div>
       </form>
@@ -742,17 +1054,30 @@ class HGVideoComments extends React.Component {
   }
 
   renderListState() {
-    const { comments, loading, error, hasMore, reachedClientLimit } = this.state;
-    if (loading && comments.length === 0) return <div className={styles.statePanel}>评论加载中...</div>;
+    const { comments, loading, error, hasMore, reachedClientLimit } =
+      this.state;
+    if (loading && comments.length === 0)
+      return <div className={styles.statePanel}>评论加载中...</div>;
     if (error && comments.length === 0) {
       return (
-        <div className={`${styles.statePanel} ${styles.errorState}`} role="alert">
+        <div
+          className={`${styles.statePanel} ${styles.errorState}`}
+          role="alert"
+        >
           <span>{error}</span>
-          <button type="button" onClick={() => this.resetAndLoad(this.props.submissionId, this.state.sort)}>重试</button>
+          <button
+            type="button"
+            onClick={() =>
+              this.resetAndLoad(this.props.submissionId, this.state.sort)
+            }
+          >
+            重试
+          </button>
         </div>
       );
     }
-    if (comments.length === 0) return <div className={styles.statePanel}>还没有评论，来抢沙发吧</div>;
+    if (comments.length === 0)
+      return <div className={styles.statePanel}>还没有评论，来抢沙发吧</div>;
 
     return (
       <>
@@ -768,7 +1093,9 @@ class HGVideoComments extends React.Component {
         />
         <div className={styles.listFooter} role="status">
           {loading && "正在加载更多评论..."}
-          {!loading && reachedClientLimit && `为控制内存占用，仅保留前 ${HG_COMMENT_MAX_RETAINED} 条评论`}
+          {!loading &&
+            reachedClientLimit &&
+            `为控制内存占用，仅保留前 ${HG_COMMENT_MAX_RETAINED} 条评论`}
           {!loading && !hasMore && !reachedClientLimit && "没有更多评论了"}
         </div>
       </>
@@ -777,15 +1104,28 @@ class HGVideoComments extends React.Component {
 
   /** 回复面板位于虚拟列表之外，可按普通文档流渲染有界数据。 */
   renderReplyPanel() {
-    const { selectedRootCommentId, replies, replyLoading, replyHasMore, replyError } = this.state;
+    const {
+      selectedRootCommentId,
+      replies,
+      replyLoading,
+      replyHasMore,
+      replyError,
+    } = this.state;
     if (!selectedRootCommentId) return null;
-    const rootComment = this.state.comments.find((comment) => String(comment?.commentId || "") === selectedRootCommentId);
+    const rootComment = this.state.comments.find(
+      (comment) => String(comment?.commentId || "") === selectedRootCommentId
+    );
     return (
-      <aside className={styles.replyPanel} aria-labelledby="video-comment-replies-title">
+      <aside
+        className={styles.replyPanel}
+        aria-labelledby="video-comment-replies-title"
+      >
         <div className={styles.replyPanelHeading}>
           <div>
             <span>回复列表</span>
-            <h3 id="video-comment-replies-title">{rootComment?.userName || "评论"} 的讨论</h3>
+            <h3 id="video-comment-replies-title">
+              {rootComment?.userName || "评论"} 的讨论
+            </h3>
           </div>
           <button
             type="button"
@@ -796,23 +1136,46 @@ class HGVideoComments extends React.Component {
           </button>
         </div>
         {this.renderComposer(true)}
-        {replyError && <p className={styles.inlineError} role="alert">{replyError}</p>}
+        {replyError && (
+          <p className={styles.inlineError} role="alert">
+            {replyError}
+          </p>
+        )}
         {replies.map((reply) => {
           const commentId = String(reply?.commentId || "");
           const authorName = reply?.userName || "匿名用户";
           return (
             <article key={commentId} className={styles.replyRow}>
               <div className={styles.commentAvatar} aria-hidden="true">
-                {reply?.avatarURL ? <img src={reply.avatarURL} alt="" /> : authorName.slice(0, 1).toUpperCase()}
+                {reply?.avatarURL ? (
+                  <img src={reply.avatarURL} alt="" />
+                ) : (
+                  authorName.slice(0, 1).toUpperCase()
+                )}
               </div>
               <div className={styles.commentBody}>
                 <div className={styles.commentHeading}>
                   <strong>{authorName}</strong>
-                  <time dateTime={getCommentDateTime(reply)}>{formatCommentTime(reply)}</time>
+                  <time dateTime={getCommentDateTime(reply)}>
+                    {formatCommentTime(reply)}
+                  </time>
                 </div>
-                {reply?.content && <p className={styles.replyContent}>{reply.content}</p>}
+                {reply?.content && (
+                  <p className={styles.replyContent}>
+                    {reply?.replyToUserName && (
+                      <>
+                        回复 {" "}
+                        <span className={styles.replyMention}>
+                          @{reply.replyToUserName}
+                        </span>{" "}
+                        : {" "}
+                      </>
+                    )}
+                    {reply.content}
+                  </p>
+                )}
                 {this.renderCommentImages(reply)}
-                {this.renderCommentActions(reply, false)}
+                {this.renderCommentActions(reply, "reply")}
               </div>
               {reply?.canDelete && (
                 <button
@@ -821,19 +1184,31 @@ class HGVideoComments extends React.Component {
                   disabled={this.state.deletingCommentId === commentId}
                   onClick={() => this.handleDelete(reply)}
                 >
-                  {this.state.deletingCommentId === commentId ? "删除中" : "删除"}
+                  {this.state.deletingCommentId === commentId
+                    ? "删除中"
+                    : "删除"}
                 </button>
               )}
             </article>
           );
         })}
         {replyLoading && <div className={styles.replyState}>回复加载中...</div>}
-        {!replyLoading && replies.length === 0 && !replyError && <div className={styles.replyState}>还没有回复</div>}
+        {!replyLoading && replies.length === 0 && !replyError && (
+          <div className={styles.replyState}>还没有回复</div>
+        )}
         {!replyLoading && replyHasMore && (
-          <button type="button" className={styles.loadRepliesButton} onClick={this.handleLoadMoreReplies}>加载更多回复</button>
+          <button
+            type="button"
+            className={styles.loadRepliesButton}
+            onClick={this.handleLoadMoreReplies}
+          >
+            加载更多回复
+          </button>
         )}
         {!replyLoading && replies.length >= HG_COMMENT_REPLY_MAX_RETAINED && (
-          <div className={styles.replyState}>回复面板最多展示 {HG_COMMENT_REPLY_MAX_RETAINED} 条</div>
+          <div className={styles.replyState}>
+            回复面板最多展示 {HG_COMMENT_REPLY_MAX_RETAINED} 条
+          </div>
         )}
       </aside>
     );
@@ -842,19 +1217,29 @@ class HGVideoComments extends React.Component {
   render() {
     const { sort, totalCount, error, feedback } = this.state;
     return (
-      <section className={styles.commentSection} aria-labelledby="video-comments-title">
+      <section
+        className={styles.commentSection}
+        aria-labelledby="video-comments-title"
+      >
         <div className={styles.sectionHeading}>
           <div>
             <span className={styles.eyebrow}>DISCUSSION</span>
-            <h2 id="video-comments-title">评论 <span>{totalCount}</span></h2>
+            <h2 id="video-comments-title">
+              评论 <span>{totalCount}</span>
+            </h2>
           </div>
           <div className={styles.sortTabs} aria-label="评论排序">
-            {[{ value: "latest", label: "最新" }, { value: "hot", label: "热门" }].map((item) => (
+            {[
+              { value: "latest", label: "最新" },
+              { value: "hot", label: "热门" },
+            ].map((item) => (
               <button
                 key={item.value}
                 type="button"
                 aria-pressed={sort === item.value}
-                disabled={this.state.replySubmitting || this.state.replyUploading}
+                disabled={
+                  this.state.replySubmitting || this.state.replyUploading
+                }
                 className={sort === item.value ? styles.activeTab : ""}
                 onClick={() => this.handleSortChange(item.value)}
               >
@@ -865,7 +1250,12 @@ class HGVideoComments extends React.Component {
         </div>
         {this.renderComposer(false)}
         {(error || feedback) && this.state.comments.length > 0 && (
-          <p className={error ? styles.inlineError : styles.inlineFeedback} role={error ? "alert" : "status"}>{error || feedback}</p>
+          <p
+            className={error ? styles.inlineError : styles.inlineFeedback}
+            role={error ? "alert" : "status"}
+          >
+            {error || feedback}
+          </p>
         )}
         {this.renderListState()}
         {this.renderReplyPanel()}
