@@ -86,3 +86,21 @@ export const setAuthorFollow = (followeeId, active) => HGNet.post(
   HG_VIDEO_INTERACTION_FOLLOW_PATH,
   buildVideoFollowBody(followeeId, active),
 );
+
+/** 获取作者公开资料。 */
+export const getBiliAuthorProfile = (userId) => HGNet.get(
+  "/api/v1/bilibili/author/profile",
+  { userId: String(userId || "").trim() },
+);
+
+/** 获取作者空间首屏聚合数据。 */
+export const getBiliAuthorHomepage = (userId, pageSize = 20) => HGNet.get(
+  "/api/v1/bilibili/author/homepage",
+  { userId: String(userId || "").trim(), pageSize },
+);
+
+/** 获取作者公开视频下一页。 */
+export const getBiliAuthorVideos = (userId, cursor = "", pageSize = 20) => HGNet.get(
+  "/api/v1/bilibili/author/videos",
+  { userId: String(userId || "").trim(), cursor, pageSize },
+);

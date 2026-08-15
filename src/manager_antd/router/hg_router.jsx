@@ -29,6 +29,7 @@ const HGTestModulePage = lazy(() => import("../page_modules/test_module/hg_test_
 const HGTableDemoPage = lazy(() => import("../../components/hg_table/hg_table_demo_page"));
 const BiliDougaPage = lazy(() => import("../../pages/bilibili/hg_bili_douga_page"));
 const HGBiliContentPage = lazy(() => import("../../pages/bilibili/hg_bili_content_page"));
+const HGBiliAuthorSpacePage = lazy(() => import("../../pages/bilibili/hg_bili_author_space_page"));
 const HGContentCenterPage = lazy(() => import("../page_modules/personal_center/hg_content_center_page"));
 const HGUserSpacePage = lazy(() => import("../page_modules/user_space/hg_user_space_page"));
 const HGOperationManagementPage = lazy(() =>
@@ -45,6 +46,7 @@ const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);
 const WrappedHGEditUserPage = WithNavigation(HGEditUserPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
+const WrappedHGBiliAuthorSpacePage = WithNavigation(HGBiliAuthorSpacePage);
 
 const HGRouter = createBrowserRouter([
   //受保护的主布局路由
@@ -106,6 +108,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.BILI_CONTENT,
         element: hgLazyElement(<HGBiliContentPage />),
+      },
+      {
+        path: ROUTE_PATH.BILI_AUTHOR_SPACE,
+        element: hgLazyElement(<WrappedHGBiliAuthorSpacePage />),
       },
       {
         path: ROUTE_PATH.PERSONAL_CENTER,

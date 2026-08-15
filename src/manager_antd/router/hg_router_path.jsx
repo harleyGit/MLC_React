@@ -25,6 +25,7 @@ export const ROUTE_PATH = {
   BILI_CONTENT: "/bilibili/content/:contentType/:contentKey", //B站频道和视频内容页
   BILI_VIDEO_CONTENT: "/bilibili/content/video/:contentKey", //B站视频内容页
   BILI_CHANNEL_CONTENT: "/bilibili/content/channel/:contentKey", //B站频道内容页
+  BILI_AUTHOR_SPACE: "/bilibili/space/:userId", //B站作者空间页面
   PERSONAL_CENTER: "/personal/center", //内容中心
   USER_SPACE: "/space/:uid", //用户空间页面（B站风格）
 };

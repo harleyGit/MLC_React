@@ -232,6 +232,32 @@
   border-radius: 50%;
 }
 
+.authorIdentity {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.authorAvatarFallback {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, #fb7299, #00aeec);
+  border-radius: 50%;
+  font-weight: 700;
+}
+
 .authorDetail {
   display: flex;
   flex: 1;

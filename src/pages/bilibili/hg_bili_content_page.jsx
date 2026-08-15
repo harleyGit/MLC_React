@@ -7,6 +7,7 @@ import withRouter from "../../utils/WithRouter";
 import HGVideoComments from "../video_commpent/hg_video_comments";
 import {
   getVideoInteractionState,
+  getBiliAuthorProfile,
   setAuthorFollow,
   setVideoInteraction,
 } from "./hg_bili_api";
@@ -62,7 +63,9 @@ class HGBiliContentPage extends React.Component {
         likeCount: 0,
         favoriteCount: 0,
         shareCount: 0,
+        followerCount: 0,
       },
+      authorProfile: null,
       interactionLoading: false,
       pendingAction: "",
       interactionFeedback: "",
@@ -145,11 +148,13 @@ class HGBiliContentPage extends React.Component {
       pendingAction: "",
       interactionFeedback: "",
       interactionFeedbackError: false,
+      authorProfile: null,
     });
+    this.loadAuthorProfile(video);
 
     try {
       const response = await getVideoInteractionState(
-        video.id,
+        video.submissionId || video.id,
         video.authorId || video.userId || ""
       );
       if (requestSequence !== this.hgInteractionRequestSequence) return;
@@ -163,6 +168,7 @@ class HGBiliContentPage extends React.Component {
           likeCount: Number(response?.likeCount) || 0,
           favoriteCount: Number(response?.favoriteCount) || 0,
           shareCount: Number(response?.shareCount) || 0,
+          followerCount: Number(response?.followerCount) || 0,
         },
         interactionLoading: false,
       });
@@ -173,6 +179,21 @@ class HGBiliContentPage extends React.Component {
         interactionFeedback: error?.message || "互动状态加载失败",
         interactionFeedbackError: true,
       });
+    }
+  };
+
+  /** 独立加载作者公开资料，失败时保留视频中的 userId 回退展示。 */
+  loadAuthorProfile = async (video) => {
+    const userId = String(video.authorId || video.userId || "").trim();
+    if (!userId) return;
+    const requestSequence = this.hgInteractionRequestSequence;
+    try {
+      const profile = await getBiliAuthorProfile(userId);
+      if (requestSequence === this.hgInteractionRequestSequence) {
+        this.setState({ authorProfile: profile });
+      }
+    } catch (error) {
+      console.error("作者资料加载失败:", error);
     }
   };
 
@@ -241,7 +262,7 @@ class HGBiliContentPage extends React.Component {
     });
 
     try {
-      await setVideoInteraction(video.id, action, active, requestId);
+      await setVideoInteraction(video.submissionId || video.id, action, active, requestId);
       if (requestSequence !== this.hgInteractionRequestSequence) return;
       this.setState((state) => {
         const nextInteraction = { ...state.interaction };
@@ -378,19 +399,29 @@ class HGBiliContentPage extends React.Component {
   /** 渲染视频作者信息和关注入口。 */
   renderAuthorInfo = (video) => {
     const { interaction, interactionLoading, pendingAction } = this.state;
+    const profile = this.state.authorProfile;
+    const authorId = video.authorId || video.userId || profile?.userId || "";
+    const authorName = profile?.displayName || video.author || authorId || "未知用户";
+    const avatarURL = profile?.avatarUrl || video.authorAvatar || "";
+    const followerCount = interaction.followerCount || Number(video.authorFans) || 0;
+    const followerLabel = interaction.followerCount || !video.authorFans
+      ? formatCount(followerCount)
+      : String(video.authorFans);
     const followSubmitting = pendingAction === "follow";
 
     return (
       <section className={styles.authorInfo}>
-        <img
-          className={styles.authorAvatar}
-          src={video.authorAvatar || "https://via.placeholder.com/40"}
-          alt={video.author}
-        />
-        <div className={styles.authorDetail}>
-          <span className={styles.authorName}>{video.author}</span>
-          <span className={styles.authorFans}>{video.authorFans || "0"}粉丝</span>
-        </div>
+        <button type="button" className={styles.authorIdentity} onClick={() => this.handleAuthorClick(video, profile)}>
+          {avatarURL ? (
+            <img className={styles.authorAvatar} src={avatarURL} alt={authorName} />
+          ) : (
+            <span className={styles.authorAvatarFallback}>{authorName.slice(0, 1)}</span>
+          )}
+          <span className={styles.authorDetail}>
+            <span className={styles.authorName}>{authorName}</span>
+            <span className={styles.authorFans}>{followerLabel}粉丝</span>
+          </span>
+        </button>
         <button
           type="button"
           className={`${styles.followButton} ${
@@ -408,6 +439,15 @@ class HGBiliContentPage extends React.Component {
         </button>
       </section>
     );
+  };
+
+  /** 点击作者身份进入 Bilibili 作者空间。 */
+  handleAuthorClick = (video, profile) => {
+    const userId = video.authorId || video.userId || profile?.userId;
+    if (!userId) return;
+    this.props.navigate(generatePath(ROUTE_PATH.BILI_AUTHOR_SPACE, { userId: encodeURIComponent(userId) }), {
+      state: { profile },
+    });
   };
 
   /** 渲染频道视频列表。 */
