@@ -1,16 +1,18 @@
+// 视频详情Page
+
 import React from "react";
 import { generatePath } from "react-router-dom";
-import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
-import HGVideoPlayerPage from "../../components/hg_video_player/hg_video_player_page";
-import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
-import withRouter from "../../utils/WithRouter";
-import HGVideoComments from "../video_commpent/hg_video_comments";
+import HGVideoGridPage from "../../../components/hg_video_grid/hg_video_grid_page";
+import HGVideoPlayerPage from "../../../components/hg_video_player/hg_video_player_page";
+import { ROUTE_PATH } from "../../../manager_antd/router/hg_router_path";
+import withRouter from "../../../utils/WithRouter";
+import HGVideoComments from "../../video_commpent/hg_video_comments";
 import {
-  getVideoInteractionState,
   getBiliAuthorProfile,
+  getVideoInteractionState,
   setAuthorFollow,
   setVideoInteraction,
-} from "./hg_bili_api";
+} from "../hg_bili_api";
 import styles from "./hg_bili_content_page.module.css";
 import HGBiliContentPageVM from "./hg_bili_content_page_vm";
 
@@ -262,7 +264,12 @@ class HGBiliContentPage extends React.Component {
     });
 
     try {
-      await setVideoInteraction(video.submissionId || video.id, action, active, requestId);
+      await setVideoInteraction(
+        video.submissionId || video.id,
+        action,
+        active,
+        requestId
+      );
       if (requestSequence !== this.hgInteractionRequestSequence) return;
       this.setState((state) => {
         const nextInteraction = { ...state.interaction };
@@ -401,21 +408,34 @@ class HGBiliContentPage extends React.Component {
     const { interaction, interactionLoading, pendingAction } = this.state;
     const profile = this.state.authorProfile;
     const authorId = video.authorId || video.userId || profile?.userId || "";
-    const authorName = profile?.displayName || video.author || authorId || "未知用户";
+    const authorName =
+      profile?.displayName || video.author || authorId || "未知用户";
     const avatarURL = profile?.avatarUrl || video.authorAvatar || "";
-    const followerCount = interaction.followerCount || Number(video.authorFans) || 0;
-    const followerLabel = interaction.followerCount || !video.authorFans
-      ? formatCount(followerCount)
-      : String(video.authorFans);
+    const followerCount =
+      interaction.followerCount || Number(video.authorFans) || 0;
+    const followerLabel =
+      interaction.followerCount || !video.authorFans
+        ? formatCount(followerCount)
+        : String(video.authorFans);
     const followSubmitting = pendingAction === "follow";
 
     return (
       <section className={styles.authorInfo}>
-        <button type="button" className={styles.authorIdentity} onClick={() => this.handleAuthorClick(video, profile)}>
+        <button
+          type="button"
+          className={styles.authorIdentity}
+          onClick={() => this.handleAuthorClick(video, profile)}
+        >
           {avatarURL ? (
-            <img className={styles.authorAvatar} src={avatarURL} alt={authorName} />
+            <img
+              className={styles.authorAvatar}
+              src={avatarURL}
+              alt={authorName}
+            />
           ) : (
-            <span className={styles.authorAvatarFallback}>{authorName.slice(0, 1)}</span>
+            <span className={styles.authorAvatarFallback}>
+              {authorName.slice(0, 1)}
+            </span>
           )}
           <span className={styles.authorDetail}>
             <span className={styles.authorName}>{authorName}</span>
@@ -445,9 +465,14 @@ class HGBiliContentPage extends React.Component {
   handleAuthorClick = (video, profile) => {
     const userId = video.authorId || video.userId || profile?.userId;
     if (!userId) return;
-    this.props.navigate(generatePath(ROUTE_PATH.BILI_AUTHOR_SPACE, { userId: encodeURIComponent(userId) }), {
-      state: { profile },
-    });
+    this.props.navigate(
+      generatePath(ROUTE_PATH.BILI_AUTHOR_SPACE, {
+        userId: encodeURIComponent(userId),
+      }),
+      {
+        state: { profile },
+      }
+    );
   };
 
   /** 渲染频道视频列表。 */

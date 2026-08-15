@@ -6,7 +6,7 @@ import withRouter from "../../utils/WithRouter";
 import { getDougaTags, getVideoList } from "./hg_bili_api";
 import styles from "./hg_bili_douga.module.css";
 import { HOT_VIDEOS } from "./hg_mock_data";
-import HGBiliContentPageVM from "./hg_bili_content_page_vm";
+import HGBiliContentPageVM from "./video_detail/hg_bili_content_page_vm";
 
 /**
  * B 站动画区页面。

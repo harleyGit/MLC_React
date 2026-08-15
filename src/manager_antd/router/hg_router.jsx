@@ -1,8 +1,8 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:58:51
- * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-04-23 00:10:19
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-08-15 16:09:22
  * @FilePath: /MLC_React/src/manager_antd/router/hg_index.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -28,7 +28,9 @@ const HGUserProfilePage = lazy(() => import("../page_modules/user/hg_user_profil
 const HGTestModulePage = lazy(() => import("../page_modules/test_module/hg_test_module_page"));
 const HGTableDemoPage = lazy(() => import("../../components/hg_table/hg_table_demo_page"));
 const BiliDougaPage = lazy(() => import("../../pages/bilibili/hg_bili_douga_page"));
-const HGBiliContentPage = lazy(() => import("../../pages/bilibili/hg_bili_content_page"));
+const HGBiliContentPage = lazy(() =>
+  import("../../pages/bilibili/video_detail/hg_bili_content_page")
+);
 const HGBiliAuthorSpacePage = lazy(() => import("../../pages/bilibili/hg_bili_author_space_page"));
 const HGContentCenterPage = lazy(() => import("../page_modules/personal_center/hg_content_center_page"));
 const HGUserSpacePage = lazy(() => import("../page_modules/user_space/hg_user_space_page"));

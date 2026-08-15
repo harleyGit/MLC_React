@@ -1,4 +1,4 @@
-import { generateMockVideos, HOT_VIDEOS } from "./hg_mock_data";
+import { generateMockVideos, HOT_VIDEOS } from "../hg_mock_data";
 
 /**
  * 首页频道导航配置。
@@ -63,10 +63,12 @@ class HGBiliContentPageVM {
       ...BILI_CHANNEL_NAV.primary,
       ...BILI_CHANNEL_NAV.secondary,
     ];
-    return channels.find((item) => item.key === channelKey) || {
-      key: channelKey,
-      label: channelKey,
-    };
+    return (
+      channels.find((item) => item.key === channelKey) || {
+        key: channelKey,
+        label: channelKey,
+      }
+    );
   }
 
   /**
@@ -92,7 +94,10 @@ class HGBiliContentPageVM {
    */
   static getVideo(videoId, routeVideo) {
     if (routeVideo) return routeVideo;
-    return HOT_VIDEOS.find((item) => String(item.id) === String(videoId)) || HOT_VIDEOS[0];
+    return (
+      HOT_VIDEOS.find((item) => String(item.id) === String(videoId)) ||
+      HOT_VIDEOS[0]
+    );
   }
 
   /**
