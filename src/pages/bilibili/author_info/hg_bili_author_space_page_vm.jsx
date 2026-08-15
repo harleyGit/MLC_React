@@ -1,4 +1,12 @@
-import { getBiliAuthorHomepage, getBiliAuthorVideos } from "./hg_bili_api";
+/*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-08-14 21:28:46
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-08-15 19:10:10
+ * @FilePath: /MLC_React/src/pages/bilibili/auth_info/hg_bili_author_space_page_vm.jsx
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+import { getBiliAuthorHomepage, getBiliAuthorVideos } from "../hg_bili_api";
 
 /** 作者空间 VM，统一后端字段与页面视频卡片字段。 */
 class HGBiliAuthorSpacePageVM {
@@ -12,7 +20,9 @@ class HGBiliAuthorSpacePageVM {
   }
 
   static async getVideos(userId, cursor) {
-    return this.normalizeVideoPage(await getBiliAuthorVideos(userId, cursor, 20));
+    return this.normalizeVideoPage(
+      await getBiliAuthorVideos(userId, cursor, 20)
+    );
   }
 
   static normalizeProfile(profile, userId) {
@@ -78,7 +88,10 @@ class HGBiliAuthorSpacePageVM {
     if (!value) return "";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(date.getDate()).padStart(2, "0")}`;
   }
 }
 

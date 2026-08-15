@@ -1,7 +1,7 @@
 import React from "react";
 import { generatePath } from "react-router-dom";
-import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
-import { setAuthorFollow } from "./hg_bili_api";
+import { ROUTE_PATH } from "../../../manager_antd/router/hg_router_path";
+import { setAuthorFollow } from "../hg_bili_api";
 import styles from "./hg_bili_author_space_page.module.css";
 import HGBiliAuthorSpacePageVM from "./hg_bili_author_space_page_vm";
 
