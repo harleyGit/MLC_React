@@ -36,21 +36,28 @@ class HGBiliAuthorSpacePageVM {
   }
 
   static normalizeVideoPage(page) {
+    const sourceVideos = Array.isArray(page?.videos)
+      ? page.videos
+      : Array.isArray(page?.list)
+      ? page.list
+      : [];
     return {
       pageSize: Number(page?.pageSize) || 20,
       hasMore: Boolean(page?.hasMore),
       nextCursor: page?.nextCursor || "",
-      videos: (page?.videos || []).map((video) => ({
+      pageLoaded: Boolean(page),
+      videos: sourceVideos.map((video) => ({
         id: video.videoId || video.submissionId,
-        submissionId: video.submissionId,
+        submissionId: video.submissionId || video.videoId,
         userId: video.userId,
-        title: video.title,
+        title: video.title || "未命名视频",
         cover: video.coverUrl || "",
         url: video.filePath || "",
         category: video.category || "",
         description: video.description || "",
         duration: Number(video.duration) || 0,
-        publishTime: video.publishTime || "",
+        publishTime:
+          video.publishTime || video.submitTime || video.createdAt || "",
         play: Number(video.likeCount) || 0,
         likeCount: Number(video.likeCount) || 0,
         coinCount: Number(video.coinCount) || 0,

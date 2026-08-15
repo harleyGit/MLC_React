@@ -7,6 +7,8 @@ import HGBiliAuthorSpacePageVM from "./hg_bili_author_space_page_vm";
 
 /** Bilibili 风格作者空间，首屏读取聚合接口，视频区使用游标增量加载。 */
 class HGBiliAuthorSpacePage extends React.Component {
+  homepageRequestId = 0;
+
   state = {
     profile: null,
     stats: { followers: 0, following: 0, videos: 0 },
@@ -35,6 +37,7 @@ class HGBiliAuthorSpacePage extends React.Component {
 
   loadHomepage = async () => {
     const userId = this.getUserId();
+    const requestId = ++this.homepageRequestId;
     this.setState({
       loading: true,
       error: "",
@@ -44,40 +47,58 @@ class HGBiliAuthorSpacePage extends React.Component {
     });
     try {
       const response = await HGBiliAuthorSpacePageVM.getHomepage(userId);
+      if (requestId !== this.homepageRequestId) return;
+
+      const videoPage = response.videos.pageLoaded
+        ? response.videos
+        : await HGBiliAuthorSpacePageVM.getVideos(userId, "");
+      if (requestId !== this.homepageRequestId) return;
+
       this.setState({
         profile: response.profile,
-        stats: response.stats,
-        videos: response.videos.videos,
-        nextCursor: response.videos.nextCursor,
-        hasMore: response.videos.hasMore,
+        stats: {
+          ...response.stats,
+          videos: Math.max(response.stats.videos, videoPage.videos.length),
+        },
+        videos: videoPage.videos,
+        nextCursor: videoPage.nextCursor,
+        hasMore: videoPage.hasMore,
       });
     } catch (error) {
+      if (requestId !== this.homepageRequestId) return;
       this.setState({
         error: error?.message || "作者空间加载失败，请稍后重试",
       });
     } finally {
-      this.setState({ loading: false });
+      if (requestId === this.homepageRequestId) {
+        this.setState({ loading: false });
+      }
     }
   };
 
   loadMore = async () => {
     const { hasMore, loadingMore, nextCursor } = this.state;
     if (!hasMore || loadingMore || !nextCursor) return;
+    const userId = this.getUserId();
     this.setState({ loadingMore: true });
     try {
       const response = await HGBiliAuthorSpacePageVM.getVideos(
-        this.getUserId(),
+        userId,
         nextCursor
       );
+      if (userId !== this.getUserId()) return;
       this.setState((state) => ({
         videos: [...state.videos, ...response.videos],
         nextCursor: response.nextCursor,
         hasMore: response.hasMore,
       }));
     } catch (error) {
+      if (userId !== this.getUserId()) return;
       this.setState({ error: error?.message || "更多投稿加载失败" });
     } finally {
-      this.setState({ loadingMore: false });
+      if (userId === this.getUserId()) {
+        this.setState({ loadingMore: false });
+      }
     }
   };
 
@@ -208,7 +229,7 @@ class HGBiliAuthorSpacePage extends React.Component {
           <div className={styles.videoGrid}>
             {videos.map((video) => (
               <button
-                key={video.submissionId}
+                key={video.submissionId || video.id}
                 type="button"
                 className={styles.videoCard}
                 onClick={() => this.handleVideoClick(video)}
