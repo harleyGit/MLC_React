@@ -15,9 +15,15 @@ export default class HGTaskVM {
 
   /**
    * 创建当前版本唯一支持的 Bilibili 推荐任务。
+   * 后端同步执行整轮采集且单轮默认上限为 10 秒，因此这里显式使用 15 秒客户端超时，
+   * 避免公共请求层 5 秒默认值把仍在正常执行的任务误报为网络失败。
    * @returns {Promise<Object>} 完成后的任务快照。
    */
-  static createTask = () => HGNet.post(HGMANAGER_API.CRAWLER_TASKS, { platform: "bilibili", type: "recommendation", priority: 5 });
+  static createTask = () => HGNet.post(
+    HGMANAGER_API.CRAWLER_TASKS,
+    { platform: "bilibili", type: "recommendation", priority: 5 },
+    { timeout: 15000 }
+  );
 
   /**
    * 将 cursor 分页信息合成为 HGTablePage 可使用的最小 total。

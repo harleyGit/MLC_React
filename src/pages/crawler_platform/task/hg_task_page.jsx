@@ -4,6 +4,7 @@ import HGCardPage from "../../../components/hg_card/hg_card_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGSelectPage from "../../../components/hg_select/hg_select_page";
 import HGTablePage from "../../../components/hg_table/hg_table_page";
+import { getRequestErrorMessage } from "../../../api/hg_request_error";
 import HGTaskVM, { CRAWLER_TASK_PAGE_SIZE } from "./hg_task_vm";
 import styles from "./hg_task_page.module.css";
 
@@ -51,7 +52,7 @@ class HGTaskPage extends Component {
           total: HGTaskVM.total({ page, pageSize, count: result?.list?.length || 0, hasMore: result?.hasMore }),
         },
       })))
-      .catch(() => message.error("任务列表获取失败"))
+      .catch((error) => message.error(getRequestErrorMessage(error, "任务列表获取失败")))
       .finally(() => this.setState({ loading: false }));
   };
 
@@ -87,7 +88,7 @@ class HGTaskPage extends Component {
         message.success("Bilibili 推荐采集完成");
         this.setState({ cursorByPage: { 1: 0 } }, () => this.loadTasks(1, this.state.pagination.pageSize));
       })
-      .catch(() => message.error("任务执行失败或已有任务运行中"))
+      .catch((error) => message.error(getRequestErrorMessage(error, "任务执行失败或已有任务运行中")))
       .finally(() => this.setState({ creating: false }));
   };
 

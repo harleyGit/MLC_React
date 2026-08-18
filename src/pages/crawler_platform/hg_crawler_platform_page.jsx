@@ -8,13 +8,15 @@ import styles from "./hg_crawler_platform.module.css";
 const HGDashboardPage = lazy(() => import("./dashboard/hg_dashboard_page"));
 const HGSpiderPage = lazy(() => import("./spider/hg_spider_page"));
 const HGTaskPage = lazy(() => import("./task/hg_task_page"));
+const HGRecommendationPage = lazy(() => import("./recommendation/hg_recommendation_page"));
 
 // PAGE_MAP 只保存叶子菜单到页面组件的映射；菜单 key 必须与 CRAWLER_MENU_ITEMS 保持一致。
-// 这里使用 lazy 组件，使 Dashboard、Spider、Task 的表格和样式不会全部进入主页面初始包。
+// 这里使用 lazy 组件，使 Dashboard、Spider、Task、采集结果的表格和样式不会全部进入主页面初始包。
 const PAGE_MAP = {
   crawler_dashboard: HGDashboardPage,
   crawler_spiders: HGSpiderPage,
   crawler_tasks: HGTaskPage,
+  crawler_recommendations: HGRecommendationPage,
 };
 
 /**
