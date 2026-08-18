@@ -46,6 +46,12 @@ export default defineConfig({
         changeOrigin: true,
       },
 
+      // Crawler 管理 API 由独立 hg_crawler 服务提供，避免转发到主服务 8080 后返回 404。
+      "/api/v1/crawler": {
+        target: "http://localhost:8090",
+        changeOrigin: true,
+      },
+
       // 后端新版 API 路径
       "/api/v1": {
         target: "http://localhost:8080",
