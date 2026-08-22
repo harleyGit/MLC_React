@@ -41,8 +41,33 @@ export function hgTaskRowsToObject(rows = []) {
   }, {});
 }
 
+/** Parses the method-specific request editor while keeping invalid JSON out of API payloads. */
+export function parseHGTaskRequestInput(method, input) {
+  const value = String(input || "");
+  if (String(method || "GET").toUpperCase() !== "GET") {
+    return { body: value, params: {} };
+  }
+  if (!value.trim()) return { body: "", params: {} };
+  const parsed = JSON.parse(value);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+    throw new Error("GET 参数必须是 JSON 对象");
+  }
+  return {
+    body: "",
+    params: Object.fromEntries(
+      Object.entries(parsed).map(([key, item]) => [key, String(item ?? "")]),
+    ),
+  };
+}
+
 /** Builds the persisted crawler task payload without retaining unsupported UI-only options. */
-export function buildHGTaskSavePayload({ form, headers = [], params = [], mappings = [] }) {
+export function buildHGTaskSavePayload({
+  form,
+  headers = [],
+  params = [],
+  mappings = [],
+  requestInput,
+}) {
   const parserType = String(form.parserType || "restricted_jsonpath").trim();
   const itemSelector = String(form.itemSelector || "").trim();
   const fields = mappings.reduce((result, row) => {
@@ -52,11 +77,21 @@ export function buildHGTaskSavePayload({ form, headers = [], params = [], mappin
     const attribute = String(row.attribute || "").trim();
     result[canonicalName] = {
       selector,
-      ...(parserType !== "restricted_jsonpath" && attribute ? { attribute } : {}),
+      ...(parserType !== "restricted_jsonpath" && attribute
+        ? { attribute }
+        : {}),
     };
     return result;
   }, {});
   const enabled = form.executionMode === "cron";
+  const request =
+    requestInput === undefined
+      ? { body: String(form.body || ""), params: hgTaskRowsToObject(params) }
+      : parseHGTaskRequestInput(form.method, requestInput);
+  const urls = String(form.sourceUrls || "")
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   return {
     id: Number(form.id || 0),
@@ -70,12 +105,16 @@ export function buildHGTaskSavePayload({ form, headers = [], params = [], mappin
     configuration: {
       request: {
         url: String(form.url || "").trim(),
-        method: String(form.method || "GET").trim().toUpperCase(),
+        method: String(form.method || "GET")
+          .trim()
+          .toUpperCase(),
         headers: hgTaskRowsToObject(headers),
-        params: hgTaskRowsToObject(params),
-        body: String(form.body || ""),
+        params: request.params,
+        body: request.body,
         timeoutMs: Number(form.timeoutSeconds || 10) * 1000,
       },
+      collectType: String(form.collectType || "api").trim(),
+      urls,
       parser: {
         type: parserType,
         platform: String(form.platform || "").trim(),

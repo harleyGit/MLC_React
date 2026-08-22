@@ -1,6 +1,10 @@
 import { HGMANAGER_API } from "../../../manager_antd/api/hg_api_constants";
 import HGNet from "../../../manager_antd/net_handle/hg_net_manager_vm";
-import { buildHGTaskSavePayload, hgTaskRowsToObject } from "./hg_task_payload";
+import {
+  buildHGTaskSavePayload,
+  hgTaskRowsToObject,
+  parseHGTaskRequestInput,
+} from "./hg_task_payload";
 
 export const HG_TASK_INITIAL_FORM = {
   name: "B站视频采集",
@@ -16,6 +20,7 @@ export const HG_TASK_INITIAL_FORM = {
   itemSelector: "$.data.item[*]",
   maxItems: 20,
   storage: "mysql",
+  sourceUrls: "",
   id: 0,
   version: 0,
 };
@@ -27,13 +32,20 @@ export default class HGTaskCreateVM {
     const configuration = definition.configuration || {};
     const request = configuration.request || {};
     const parser = configuration.parser || {};
-    const toRows = (values = {}) => Object.entries(values).map(([key, value], index) => ({ id: index + 1, key, value: String(value ?? "") }));
-    const mappings = Object.entries(parser.fields || {}).map(([name, field], index) => ({
-      id: index + 1,
-      name,
-      path: field?.selector || "",
-      attribute: field?.attribute || "",
-    }));
+    const toRows = (values = {}) =>
+      Object.entries(values).map(([key, value], index) => ({
+        id: index + 1,
+        key,
+        value: String(value ?? ""),
+      }));
+    const mappings = Object.entries(parser.fields || {}).map(
+      ([name, field], index) => ({
+        id: index + 1,
+        name,
+        path: field?.selector || "",
+        attribute: field?.attribute || "",
+      }),
+    );
     return {
       form: {
         ...HG_TASK_INITIAL_FORM,
@@ -41,13 +53,16 @@ export default class HGTaskCreateVM {
         version: definition.version,
         name: definition.name || "",
         platform: definition.platform || "custom",
+        collectType: configuration.collectType || "api",
+        sourceUrls: (configuration.urls || []).join("\n"),
         url: request.url || "",
         method: request.method || "GET",
         body: request.body || "",
         executionMode: definition.enabled ? "cron" : "manual",
         cron: definition.cron || "",
         timeoutSeconds: Math.max(1, Number(request.timeoutMs || 10000) / 1000),
-        parserType: definition.parserType || parser.type || "restricted_jsonpath",
+        parserType:
+          definition.parserType || parser.type || "restricted_jsonpath",
         itemSelector: definition.itemPath || parser.itemSelector || "",
         maxItems: definition.maxItems || 20,
       },
@@ -57,23 +72,37 @@ export default class HGTaskCreateVM {
     };
   };
 
-  static testRequest = ({ form, headers, params }) => HGNet.post(
-    HGMANAGER_API.OPS_CRAWLER_TASK_DEBUG,
-    {
-      url: form.url,
-      method: form.method,
-      headers: hgTaskRowsToObject(headers),
-      params: hgTaskRowsToObject(params),
-      body: form.body,
-      timeoutMs: Number(form.timeoutSeconds || 10) * 1000,
-    },
-    { timeout: 15000 }
-  );
+  static testRequest = ({ form, headers, params, requestInput }) => {
+    const request =
+      requestInput === undefined
+        ? { body: form.body, params: hgTaskRowsToObject(params) }
+        : parseHGTaskRequestInput(form.method, requestInput);
+    return HGNet.post(
+      HGMANAGER_API.OPS_CRAWLER_TASK_DEBUG,
+      {
+        url:
+          form.collectType === "url_list"
+            ? String(form.sourceUrls || "")
+                .split(/\r?\n/)
+                .find(Boolean) || form.url
+            : form.url,
+        method: form.method,
+        headers: hgTaskRowsToObject(headers),
+        params: request.params,
+        body: request.body,
+        timeoutMs: Number(form.timeoutSeconds || 10) * 1000,
+      },
+      { timeout: 15000 },
+    );
+  };
 
   /** Persists a definition, optionally executing the saved snapshot immediately. */
-  static saveTask = (state, runNow = false) => HGNet.post(
-    runNow ? HGMANAGER_API.OPS_CRAWLER_TASK_SAVE_AND_RUN : HGMANAGER_API.OPS_CRAWLER_TASK_SAVE,
-    buildHGTaskSavePayload(state),
-    { timeout: runNow ? 15000 : 5000 }
-  );
+  static saveTask = (state, runNow = false) =>
+    HGNet.post(
+      runNow
+        ? HGMANAGER_API.OPS_CRAWLER_TASK_SAVE_AND_RUN
+        : HGMANAGER_API.OPS_CRAWLER_TASK_SAVE,
+      buildHGTaskSavePayload(state),
+      { timeout: runNow ? 15000 : 5000 },
+    );
 }
