@@ -1,5 +1,4 @@
 const HG_CANONICAL_FIELD_NAMES = new Set([
-  "platform",
   "contentId",
   "title",
   "authorId",

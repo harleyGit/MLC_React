@@ -98,14 +98,13 @@ class HGTaskCreatePage extends Component {
     this.setState({ [loadingKey]: true });
     HGTaskCreateVM.saveTask(this.state, runNow)
       .then((result) => {
-        const task = result?.task || result?.definition || result;
         const run = result?.run;
         if (runNow && run && String(run.status || run.Status).toLowerCase() === "failed") {
           message.error(`任务已保存，但运行失败：${run.errorMessage || run.ErrorMessage || "未知错误"}`);
         } else {
           message.success(runNow ? "任务已保存并运行完成" : "任务已保存");
         }
-        if (task?.id || task?.ID || result?.task || result?.definition) this.props.onNavigate?.("crawler_tasks");
+        this.props.onNavigate?.("crawler_tasks");
       })
       .catch((error) => message.error(getRequestErrorMessage(error, runNow ? "保存并运行失败" : "保存任务失败")))
       .finally(() => this.setState({ [loadingKey]: false }));
