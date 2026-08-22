@@ -56,6 +56,10 @@ export const HGMANAGER_API = {
   OPS_COIN_CORRECTION_APPROVE: "/api/v1/ops/coin/corrections/approve", // 审批并应用资产修正
   OPS_ASSET_PERMISSIONS_CURRENT: "/api/v1/ops/asset-permissions/current", // 当前操作人资产权限
   OPS_ASSET_PIPELINE_STATUS: "/api/v1/ops/observability/asset-pipeline", // Coin、Interaction 和 Kafka 状态
+  OPS_CRAWLER_TASK_DEBUG: "/api/v1/ops/crawler/tasks/debug", // 安全测试采集请求并识别 JSON 字段
+  OPS_CRAWLER_TASK_SAVE: "/api/v1/ops/crawler/tasks/save", // 保存持久化采集任务定义
+  OPS_CRAWLER_TASK_SAVE_AND_RUN: "/api/v1/ops/crawler/tasks/save-and-run", // 保存任务定义并立即执行
+  OPS_CRAWLER_TASK_LIST: "/api/v1/ops/crawler/tasks/list", // 获取持久化采集任务定义
   CRAWLER_DASHBOARD: "/api/v1/crawler/dashboard", // 采集指标、趋势和最近任务
   CRAWLER_SPIDERS: "/api/v1/crawler/spiders", // Spider 运行状态列表
   CRAWLER_TASKS: "/api/v1/crawler/tasks", // 任务 cursor 列表和手动创建任务

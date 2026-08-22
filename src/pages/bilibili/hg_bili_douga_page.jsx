@@ -3,9 +3,8 @@ import { generatePath } from "react-router-dom";
 import HGVideoGridPage from "../../components/hg_video_grid/hg_video_grid_page";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
 import withRouter from "../../utils/WithRouter";
-import { getDougaTags, getVideoList } from "./hg_bili_api";
+import { getDougaTags, getVideoList, normalizeVideoListItem } from "./hg_bili_api";
 import styles from "./hg_bili_douga.module.css";
-import { HOT_VIDEOS } from "./hg_mock_data";
 import HGBiliContentPageVM from "./video_detail/hg_bili_content_page_vm";
 
 /**
@@ -26,7 +25,7 @@ class BiliDougaPage extends React.Component {
       activeTag: "推荐",
       // 顶部频道优先使用远端启用标签；接口返回前或无数据时使用 VM 默认频道。
       tags: [],
-      videos: HOT_VIDEOS,
+      videos: [],
       loading: false,
       hasMore: true,
       page: 1,
@@ -67,24 +66,9 @@ class BiliDougaPage extends React.Component {
     this.setState({ loading: true });
     try {
       const response = await getVideoList(cursor, 20, tag === "推荐" ? "" : tag);
-      if (response && response.videos) {
+      if (Array.isArray(response?.videos)) {
         // 播放路由使用 videoId；评论按稿件聚合，因此必须同时保留 submissionId。
-        const videos = response.videos.map((item) => ({
-          id: item.videoId || item.submissionId,
-          submissionId: item.submissionId,
-          title: item.title,
-          cover: item.coverUrl || "",
-          url: item.filePath || "",
-          author: item.userId,
-          authorId: item.userId,
-          play: Math.floor(Math.random() * 100000),
-          danmaku: Math.floor(Math.random() * 10000),
-          duration: Number(item.duration) || 0,
-          category: item.category,
-          description: item.description,
-          filePath: item.filePath,
-          pubDate: item.createdAt || new Date().toISOString(),
-        }));
+        const videos = response.videos.map(normalizeVideoListItem);
 
         this.setState((state) => ({
           videos: append ? [...state.videos, ...videos] : videos,
@@ -93,9 +77,16 @@ class BiliDougaPage extends React.Component {
           nextCursor: response.nextCursor || "",
           page: append ? state.page + 1 : 1,
         }));
+      } else {
+        this.setState((state) => ({
+          videos: append ? state.videos : [],
+          hasMore: false,
+          nextCursor: "",
+        }));
       }
     } catch (error) {
-      console.error("获取视频列表失败，使用本地数据:", error);
+      console.error("获取视频列表失败:", error);
+    } finally {
       this.setState({ loading: false });
     }
   };
@@ -114,6 +105,7 @@ class BiliDougaPage extends React.Component {
    * @param {Object} video 被点击的视频。
    */
   handleVideoClick = (video) => {
+    if (!video?.id || (video.playbackType !== "external_link" && !video.filePath)) return;
     this.props.navigate(
       generatePath(ROUTE_PATH.BILI_VIDEO_CONTENT, {
         contentKey: encodeURIComponent(video.id),

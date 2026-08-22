@@ -9,6 +9,8 @@ import withRouter from "../../../utils/WithRouter";
 import HGVideoComments from "../../video_commpent/hg_video_comments";
 import {
   getBiliAuthorProfile,
+  getVideoDetail,
+  normalizeVideoListItem,
   getVideoInteractionState,
   setAuthorFollow,
   setVideoInteraction,
@@ -72,21 +74,43 @@ class HGBiliContentPage extends React.Component {
       pendingAction: "",
       interactionFeedback: "",
       interactionFeedbackError: false,
+	  video: props.location?.state?.video || null,
+	  videoLoading: false,
+	  videoError: "",
     };
     this.hgInteractionRequestSequence = 0;
   }
 
   /** 视频页挂载后读取当前登录用户的互动状态。 */
   componentDidMount() {
-    this.loadCurrentVideoInteraction();
+	this.loadCurrentVideo();
   }
 
   /** 相关推荐切换视频后重新读取互动状态，避免沿用上一个视频的数据。 */
   componentDidUpdate(prevProps) {
     if (prevProps.location?.pathname !== this.props.location?.pathname) {
-      this.loadCurrentVideoInteraction();
+	  this.loadCurrentVideo();
     }
   }
+
+  /** 优先使用路由 state；刷新或直达 URL 时回源详情接口。 */
+  loadCurrentVideo = async () => {
+	const { contentType, contentKey } = this.getRouteContent();
+	if (contentType !== "video") return;
+	const routeVideo = this.props.location?.state?.video;
+	if (routeVideo && String(routeVideo.id) === String(contentKey)) {
+	  this.setState({ video: routeVideo, videoError: "" }, () => this.loadVideoInteraction(routeVideo));
+	  return;
+	}
+	this.setState({ video: null, videoLoading: true, videoError: "" });
+	try {
+	  const response = await getVideoDetail(contentKey);
+	  const video = normalizeVideoListItem(response);
+	  this.setState({ video, videoLoading: false }, () => this.loadVideoInteraction(video));
+	} catch (error) {
+	  this.setState({ videoLoading: false, videoError: error?.message || "视频加载失败" });
+	}
+  };
 
   /**
    * 从 pathname 中提取内容类型和标识，避免页面依赖函数式路由 Hook。
@@ -144,6 +168,11 @@ class HGBiliContentPage extends React.Component {
    * @param {Object} video 当前视频。
    */
   loadVideoInteraction = async (video) => {
+	if (video?.playbackType === "external_link") {
+	  this.hgInteractionRequestSequence += 1;
+	  this.setState({ interactionLoading: false, authorProfile: null, interactionFeedback: "" });
+	  return;
+	}
     const requestSequence = ++this.hgInteractionRequestSequence;
     this.setState({
       interactionLoading: true,
@@ -317,6 +346,21 @@ class HGBiliContentPage extends React.Component {
 
   /** 渲染视频标题、播放数据和页面级互动操作。 */
   renderVideoInfo = (video) => {
+	if (video.playbackType === "external_link") {
+	  return (
+	    <section className={styles.videoInfo}>
+	      <h1 className={styles.videoTitle}>{video.title}</h1>
+	      <div className={styles.videoMeta}>
+	        <span>{formatCount(video.play)}播放</span>
+	        <span>{video.danmaku}弹幕</span>
+	        <span>{video.pubDate}</span>
+	      </div>
+	      <a className={styles.externalLink} href={video.targetUrl} target="_blank" rel="noreferrer">
+	        在 Bilibili 打开原视频
+	      </a>
+	    </section>
+	  );
+	}
     const {
       interaction,
       interactionLoading,
@@ -405,6 +449,18 @@ class HGBiliContentPage extends React.Component {
 
   /** 渲染视频作者信息和关注入口。 */
   renderAuthorInfo = (video) => {
+	if (video.playbackType === "external_link") {
+	  const authorName = video.author || video.authorId || "未知作者";
+	  return (
+	    <section className={styles.authorInfo}>
+	      <span className={styles.authorAvatarFallback}>{authorName.slice(0, 1)}</span>
+	      <span className={styles.authorDetail}>
+	        <span className={styles.authorName}>{authorName}</span>
+	        <span className={styles.authorFans}>Bilibili 创作者</span>
+	      </span>
+	    </section>
+	  );
+	}
     const { interaction, interactionLoading, pendingAction } = this.state;
     const profile = this.state.authorProfile;
     const authorId = video.authorId || video.userId || profile?.userId || "";
@@ -501,12 +557,14 @@ class HGBiliContentPage extends React.Component {
   };
 
   /** 渲染独立视频播放页。 */
-  renderVideo = (videoId) => {
-    const video = HGBiliContentPageVM.getVideo(
-      videoId,
-      this.props.location?.state?.video
-    );
+  renderVideo = () => {
+	const { video, videoLoading, videoError } = this.state;
+	if (videoLoading) return <main className={styles.playerState}>视频加载中...</main>;
+	if (videoError || !video) return <main className={styles.playerState}>{videoError || "视频不存在"}</main>;
     const relatedVideos = HGBiliContentPageVM.getRelatedVideos(video);
+	const externalPlayerURL = video.externalContentId
+	  ? `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(video.externalContentId)}&page=1&high_quality=1&danmaku=1`
+	  : "";
 
     return (
       <main className={styles.playerLayout}>
@@ -518,11 +576,24 @@ class HGBiliContentPage extends React.Component {
           >
             ← 返回上一页
           </button>
-          <HGVideoPlayerPage key={String(video.id)} video={video} />
-          {this.renderVideoInfo(video)}
-          {this.renderAuthorInfo(video)}
+	      {video.playbackType === "external_link" ? (
+	        <div className={styles.externalPlayer}>
+	          <iframe
+	            src={externalPlayerURL}
+	            title={video.title}
+	            allow="autoplay; fullscreen; picture-in-picture"
+	            allowFullScreen
+	          />
+	        </div>
+	      ) : (
+	        <HGVideoPlayerPage key={String(video.id)} video={video} />
+	      )}
+	      {this.renderVideoInfo(video)}
+	      {this.renderAuthorInfo(video)}
           {/* 接口数据按 submissionId 聚合评论，本地回退视频仅有 id。 */}
-          <HGVideoComments submissionId={video.submissionId || video.id} />
+	      {video.playbackType !== "external_link" && (
+	        <HGVideoComments submissionId={video.submissionId || video.id} />
+	      )}
         </section>
         <aside className={styles.playerSidebar}>
           <h2>接下来播放</h2>

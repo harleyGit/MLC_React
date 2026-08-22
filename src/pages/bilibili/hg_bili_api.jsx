@@ -9,6 +9,31 @@ import {
 
 const HGNet = new HGNetManager();
 
+/** 把后端统一视频列表项转换为页面和播放器使用的稳定结构。 */
+export function normalizeVideoListItem(item) {
+  return {
+    id: item.videoId || item.submissionId,
+    submissionId: item.submissionId,
+    title: item.title || item.fileName || "未命名视频",
+    cover: item.coverUrl || "",
+    url: item.filePath || "",
+    author: item.authorName || item.userId || "未知作者",
+    authorId: item.userId || "",
+    play: Number(item.viewCount) || 0,
+    danmaku: Number(item.commentCount) || 0,
+    likeCount: Number(item.likeCount) || 0,
+    duration: Number(item.duration) || 0,
+    category: item.category || "",
+    description: item.description || "",
+    filePath: item.filePath || "",
+    playbackType: item.playbackType || "native_file",
+    sourcePlatform: item.sourcePlatform || "",
+    externalContentId: item.externalContentId || "",
+    targetUrl: item.targetUrl || "",
+    pubDate: item.submitTime || item.createdAt || "",
+  };
+}
+
 /**
  * 获取视频列表（游标分页）
  * @param {string} cursor - 翻页游标，首次调用传空，后续使用响应中的 nextCursor
@@ -29,6 +54,12 @@ export const getVideoList = async (cursor = "", pageSize = 20, tagName = "") => 
     throw error;
   }
 };
+
+/** 根据列表内容 ID 获取视频详情，供刷新或直达播放页恢复路由数据。 */
+export const getVideoDetail = (contentId) => HGNet.get(
+  "/api/v1/video_upload/detail",
+  { contentId: String(contentId || "").trim() },
+);
 
 /**
  * 获取动画页启用标签。
