@@ -2,9 +2,7 @@ import React, { Component } from "react";
 import { getRequestErrorMessage } from "../../../api/hg_request_error";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../components/hg_card/hg_card_page";
-import HGDetailGridPage from "../../../components/hg_detail_grid/hg_detail_grid_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
-import HGModalPage from "../../../components/hg_modal/hg_modal_page";
 import HGTablePage from "../../../components/hg_table/hg_table_page";
 import styles from "./hg_task_page.module.css";
 import HGTaskVM, { CRAWLER_TASK_PAGE_SIZE } from "./hg_task_vm";
@@ -16,7 +14,6 @@ class HGTaskPage extends Component {
     this.state = {
       rows: [],
       loading: false,
-      detailTask: null,
       cursorByPage: { 1: 0 },
       pagination: { current: 1, pageSize: CRAWLER_TASK_PAGE_SIZE, total: 0 },
     };
@@ -114,44 +111,16 @@ class HGTaskPage extends Component {
       title: "查看任务详情",
       dataIndex: "detail",
       width: 140,
-      render: (_, row) => <HGButtonPage type="link" onClick={() => this.setState({ detailTask: row })}>查看详情</HGButtonPage>,
+      render: (_, row) => (
+        <HGButtonPage
+          type="link"
+          onClick={() => this.props.onNavigate?.("crawler_task_detail", { task: row })}
+        >
+          查看详情
+        </HGButtonPage>
+      ),
     },
   ];
-
-  /** 渲染任务定义和最近运行摘要。 */
-  renderDetail = () => {
-    const { detailTask } = this.state;
-    if (!detailTask) return null;
-    const request = detailTask.configuration?.request || {};
-    return (
-      <HGModalPage visible title="采集任务详情" size="large" footer={null} onClose={() => this.setState({ detailTask: null })}>
-        <HGDetailGridPage
-          columns={2}
-          maxValueLines={3}
-          items={[
-            { label: "任务 ID", value: detailTask.id },
-            { label: "任务名称", value: detailTask.name },
-            { label: "数据源", value: detailTask.platform },
-            { label: "请求方式", value: request.method || "GET" },
-            { label: "请求地址", value: request.url },
-            { label: "解析类型", value: detailTask.parserType },
-            { label: "Item Selector", value: detailTask.itemPath },
-            { label: "执行方式", value: detailTask.enabled ? `Cron ${detailTask.cron}` : "手动" },
-            { label: "执行限制", value: `${this.getTimeoutSeconds(detailTask)} 秒 / ${detailTask.maxItems} 条` },
-            { label: "最近状态", value: HGTaskVM.statusText(detailTask.lastRunStatus) },
-            { label: "最近数据量", value: detailTask.lastRunItemCount },
-            { label: "最近错误", value: detailTask.lastRunError },
-            { label: "创建时间", value: detailTask.createdAt ? new Date(detailTask.createdAt).toLocaleString() : "-" },
-            { label: "更新时间", value: detailTask.updatedAt ? new Date(detailTask.updatedAt).toLocaleString() : "-" },
-          ]}
-        />
-        <div className={styles.configurationBlock}>
-          <strong>完整任务配置</strong>
-          <pre>{JSON.stringify(detailTask.configuration, null, 2)}</pre>
-        </div>
-      </HGModalPage>
-    );
-  };
 
   render() {
     const { loading, pagination, rows } = this.state;
@@ -176,7 +145,6 @@ class HGTaskPage extends Component {
             scroll={{ y: 440, x: 1020 }}
           />
         </HGCardPage>
-        {this.renderDetail()}
       </div>
     );
   }

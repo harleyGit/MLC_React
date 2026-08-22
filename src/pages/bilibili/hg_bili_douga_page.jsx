@@ -29,6 +29,8 @@ class BiliDougaPage extends React.Component {
       loading: false,
       hasMore: false,
       page: 1,
+      pageSize: 20,
+      jumpPage: "",
       cursorByPage: { 1: "" },
       // 后端复合游标，格式由后端定义，前端只透传，不解析或转成数字。
       nextCursor: "",
@@ -68,28 +70,36 @@ class BiliDougaPage extends React.Component {
    * @param {string} tag - 视频标签；“推荐”会转换为空 tagName。
    * @param {string} cursor - 后端 nextCursor，空字符串表示首页。
    * @param {number} page - 当前前端页码，仅用于保存 cursor 映射。
+   * @param {number} pageSize - 当前每页条数，切换后必须重建 cursor 链。
    */
-  fetchVideoList = async (tag = "推荐", cursor = "", page = 1) => {
+  fetchVideoList = async (tag = "推荐", cursor = "", page = 1, pageSize = this.state.pageSize) => {
     const sequence = ++this.requestSequence;
     this.setState({ loading: true });
     try {
-      const response = await getVideoList(cursor, 20, tag === "推荐" ? "" : tag);
+      const response = await getVideoList(cursor, pageSize, tag === "推荐" ? "" : tag);
       if (this.unmounted || sequence !== this.requestSequence) return;
       if (Array.isArray(response?.videos)) {
         // 播放路由使用 videoId；评论按稿件聚合，因此必须同时保留 submissionId。
         const videos = response.videos.map(normalizeVideoListItem);
 
-        this.setState((state) => ({
-          videos,
-          loading: false,
-          hasMore: Boolean(response.hasMore),
-          nextCursor: response.nextCursor || "",
-          page,
-          cursorByPage: {
-            ...state.cursorByPage,
-            ...(response.hasMore && response.nextCursor ? { [page + 1]: response.nextCursor } : {}),
-          },
-        }));
+        this.setState((state) => {
+          const cursorByPage = { ...state.cursorByPage };
+          if (response.hasMore && response.nextCursor) {
+            cursorByPage[page + 1] = response.nextCursor;
+          } else {
+            delete cursorByPage[page + 1];
+          }
+          return {
+            videos,
+            loading: false,
+            hasMore: Boolean(response.hasMore),
+            nextCursor: response.nextCursor || "",
+            page,
+            pageSize,
+            jumpPage: "",
+            cursorByPage,
+          };
+        });
       } else {
         this.setState({
           videos: [],
@@ -114,9 +124,11 @@ class BiliDougaPage extends React.Component {
    * 处理标签切换：重置 cursor 和页码，并从新标签首页开始加载。
    */
   handleTagChange = (tag) => {
-    this.setState({ activeTag: tag, loading: true, page: 1, nextCursor: "", hasMore: false, cursorByPage: { 1: "" } });
-
-    this.fetchVideoList(tag, "", 1);
+    const { pageSize } = this.state;
+    this.setState(
+      { activeTag: tag, loading: true, page: 1, jumpPage: "", nextCursor: "", hasMore: false, cursorByPage: { 1: "" } },
+      () => this.fetchVideoList(tag, "", 1, pageSize),
+    );
   };
 
   /**
@@ -149,15 +161,38 @@ class BiliDougaPage extends React.Component {
   };
 
   /**
-   * 处理加载更多；只在未加载、仍有下一页且后端返回有效 cursor 时发起请求。
+   * 使用已缓存的后端 cursor 跳转到指定页。
    */
   handlePageChange = (nextPage) => {
-    const { activeTag, cursorByPage, loading, page, hasMore, nextCursor } = this.state;
-    if (loading || nextPage < 1 || (nextPage > page && (!hasMore || !nextCursor))) return;
+    const { activeTag, cursorByPage, loading, pageSize } = this.state;
+    if (loading || nextPage < 1) return;
     const cursor = cursorByPage[nextPage];
     if (cursor === undefined) return;
-    this.fetchVideoList(activeTag, cursor, nextPage);
+    this.fetchVideoList(activeTag, cursor, nextPage, pageSize);
   };
+
+  /** 切换每页条数后从首页重新建立与 pageSize 对应的 opaque cursor 链。 */
+  handlePageSizeChange = (event) => {
+    const pageSize = Number(event.target.value);
+    if (!pageSize || pageSize === this.state.pageSize) return;
+    this.setState(
+      { pageSize, page: 1, jumpPage: "", cursorByPage: { 1: "" }, hasMore: false, nextCursor: "" },
+      () => this.fetchVideoList(this.state.activeTag, "", 1, pageSize),
+    );
+  };
+
+  /** opaque cursor 只能跳转到已获取 cursor 的页码，避免构造无效后端游标。 */
+  handleQuickJump = () => {
+    const nextPage = Number(this.state.jumpPage);
+    if (!Number.isInteger(nextPage)) return;
+    this.handlePageChange(nextPage);
+  };
+
+  /** 返回已发现 cursor 对应的页码，供用户直接跳转。 */
+  getAvailablePages = () => Object.keys(this.state.cursorByPage)
+    .map(Number)
+    .filter(Number.isInteger)
+    .sort((left, right) => left - right);
 
   /**
    * 渲染页面头部（B 站风格）。
@@ -245,7 +280,9 @@ class BiliDougaPage extends React.Component {
    * 渲染列表视图。
    */
   renderListView = () => {
-    const { videos, loading, hasMore, nextCursor, page } = this.state;
+    const { videos, loading, page, pageSize, jumpPage, cursorByPage } = this.state;
+    const availablePages = this.getAvailablePages();
+    const maxAvailablePage = availablePages[availablePages.length - 1] || 1;
 
     return (
       <div className={styles.listContainer}>
@@ -261,9 +298,57 @@ class BiliDougaPage extends React.Component {
           columns={5}
         />
         <div className={styles.pagination}>
+          <label className={styles.pageSizeControl}>
+            每页
+            <select value={pageSize} disabled={loading} onChange={this.handlePageSizeChange}>
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>{size} 条</option>
+              ))}
+            </select>
+          </label>
           <button type="button" disabled={loading || page <= 1} onClick={() => this.handlePageChange(page - 1)}>上一页</button>
-          <span>第 {page} 页</span>
-          <button type="button" disabled={loading || !hasMore || !nextCursor} onClick={() => this.handlePageChange(page + 1)}>下一页</button>
+          <div className={styles.pageNumbers}>
+            {availablePages.map((availablePage) => (
+              <button
+                type="button"
+                key={availablePage}
+                disabled={loading}
+                className={availablePage === page ? styles.activePage : ""}
+                onClick={() => this.handlePageChange(availablePage)}
+              >
+                {availablePage}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={loading || cursorByPage[page + 1] === undefined}
+            onClick={() => this.handlePageChange(page + 1)}
+          >
+            下一页
+          </button>
+          <label className={styles.quickJump}>
+            跳至
+            <input
+              type="number"
+              min="1"
+              max={maxAvailablePage}
+              value={jumpPage}
+              disabled={loading}
+              onChange={(event) => this.setState({ jumpPage: event.target.value })}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") this.handleQuickJump();
+              }}
+            />
+            页
+          </label>
+          <button
+            type="button"
+            disabled={loading || cursorByPage[Number(jumpPage)] === undefined}
+            onClick={this.handleQuickJump}
+          >
+            跳转
+          </button>
         </div>
       </div>
     );

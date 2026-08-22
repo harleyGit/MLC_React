@@ -5,4 +5,9 @@
 .configurationBlock { margin-top: 16px; }
 .configurationBlock strong { display: block; margin-bottom: 8px; color: #18353d; }
 .configurationBlock pre { max-height: 300px; margin: 0; padding: 14px; overflow: auto; border-radius: 10px; background: #102b31; color: #d7f3ef; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.detailHeader { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.detailHeader p { margin: 0 0 5px; color: #168d84; font-size: 10px; font-weight: 800; letter-spacing: .14em; }
+.detailHeader h1 { margin: 0; color: #15323a; font-size: 30px; line-height: 1.15; }
+.detailHeader span { display: block; margin-top: 5px; color: #708187; font-size: 12px; }
+.empty { margin-bottom: 16px; color: #708187; }
 @media (max-width: 720px) { .header { align-items: flex-start; flex-direction: column; } }

@@ -9,16 +9,26 @@ const HGDashboardPage = lazy(() => import("./dashboard/hg_dashboard_page"));
 const HGSpiderPage = lazy(() => import("./spider/hg_spider_page"));
 const HGTaskPage = lazy(() => import("./task/hg_task_page"));
 const HGTaskCreatePage = lazy(() => import("./task/hg_task_create_page"));
+const HGTaskDetailPage = lazy(() => import("./task/hg_task_detail_page"));
 const HGRecommendationPage = lazy(() => import("./recommendation/hg_recommendation_page"));
+const HGRecommendationDetailPage = lazy(() => import("./recommendation/hg_recommendation_detail_page"));
 
-// PAGE_MAP 只保存叶子菜单到页面组件的映射；菜单 key 必须与 CRAWLER_MENU_ITEMS 保持一致。
-// 这里使用 lazy 组件，使 Dashboard、Spider、Task、采集结果的表格和样式不会全部进入主页面初始包。
+// PAGE_MAP 同时保存菜单页和隐藏导航页；菜单页 key 必须与 CRAWLER_MENU_ITEMS 保持一致。
+// 这里使用 lazy 组件，使各业务页面的表格和样式不会全部进入主页面初始包。
 const PAGE_MAP = {
   crawler_dashboard: HGDashboardPage,
   crawler_spiders: HGSpiderPage,
   crawler_tasks: HGTaskPage,
   crawler_task_create: HGTaskCreatePage,
+  crawler_task_detail: HGTaskDetailPage,
   crawler_recommendations: HGRecommendationPage,
+  crawler_recommendation_detail: HGRecommendationDetailPage,
+};
+
+const BREADCRUMB_PARENT_KEY = {
+  crawler_task_create: "crawler_tasks",
+  crawler_task_detail: "crawler_tasks",
+  crawler_recommendation_detail: "crawler_recommendations",
 };
 
 /**
@@ -45,7 +55,7 @@ class HGCrawlerPlatformPage extends Component {
    * @returns {React.ReactNode} 当前菜单路径。
    */
   renderBreadcrumb = () => {
-    const breadcrumbKey = this.state.selectedKey === "crawler_task_create" ? "crawler_tasks" : this.state.selectedKey;
+    const breadcrumbKey = BREADCRUMB_PARENT_KEY[this.state.selectedKey] || this.state.selectedKey;
     const path = HGSideMenuVM.findPathToKey(CRAWLER_MENU_ITEMS, breadcrumbKey);
     return (
       <div className={styles.breadcrumb}>

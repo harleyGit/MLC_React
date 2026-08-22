@@ -161,6 +161,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 14px;
   padding: 20px 0 8px;
   color: #61666d;
@@ -179,6 +180,14 @@
 
 .pagination button:hover:not(:disabled) { color: #00a1d6; border-color: #00a1d6; }
 .pagination button:disabled { opacity: .45; cursor: not-allowed; }
+
+.pageNumbers { display: flex; align-items: center; gap: 6px; }
+.pageNumbers button { min-width: 36px; padding: 8px 10px; }
+.pageNumbers .activePage { color: #fff; border-color: #00a1d6; background: #00a1d6; }
+.pageSizeControl, .quickJump { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.pageSizeControl select, .quickJump input { height: 34px; border: 1px solid #e3e5e7; border-radius: 6px; background: #fff; color: #61666d; }
+.pageSizeControl select { padding: 0 10px; }
+.quickJump input { width: 62px; padding: 0 8px; }
 
 /* ===== 响应式 ===== */
 @media (max-width: 1200px) {
@@ -219,5 +228,9 @@
 
   .listContainer {
     padding: 12px;
+  }
+
+  .pagination {
+    gap: 10px;
   }
 }
