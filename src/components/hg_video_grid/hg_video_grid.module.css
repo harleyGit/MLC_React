@@ -110,6 +110,18 @@
   transition: transform 0.3s;
 }
 
+.coverFallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #dfe7ea, #f3f6f7);
+  color: #87959a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
 /* 时长标签 */
 .durationTag {
   position: absolute;

@@ -5,189 +5,159 @@ import HGCardPage from "../../../components/hg_card/hg_card_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGTablePage from "../../../components/hg_table/hg_table_page";
 import styles from "./hg_recommendation_page.module.css";
-import HGRecommendationVM from "./hg_recommendation_vm";
+import HGRecommendationVM, { CRAWLER_CONTENT_PAGE_SIZE } from "./hg_recommendation_vm";
 
-/**
- * HGRecommendationPage 展示最近一次成功任务产出的标准化推荐快照。
- * 页面只读且直接链接原站，不代理媒体内容；请求失败时保留已有 rows，避免短暂故障导致操作台闪空。
- */
+/** HGRecommendationPage 先分页展示采集任务，再分页查看该任务关联的采集内容。 */
 class HGRecommendationPage extends Component {
   constructor(props) {
     super(props);
-    this.state = { rows: [], loading: false, refreshedAt: null };
-    // requestSequence 用于丢弃慢请求的过期响应，防止连续点击刷新时旧结果覆盖新结果。
+    this.state = {
+      selectedTask: null,
+      taskRows: [],
+      contentRows: [],
+      loading: false,
+      taskCursorByPage: { 1: 0 },
+      contentCursorByPage: { 1: 0 },
+      taskPagination: { current: 1, pageSize: HGRecommendationVM.taskPageSize, total: 0 },
+      contentPagination: { current: 1, pageSize: CRAWLER_CONTENT_PAGE_SIZE, total: 0 },
+    };
     this.requestSequence = 0;
     this.unmounted = false;
   }
 
-  /** 页面挂载后自动读取最近成功快照。 */
   componentDidMount() {
-    this.loadRecommendations();
+    this.loadTasks(1, HGRecommendationVM.taskPageSize);
   }
 
-  /** 标记页面已卸载，异步请求完成后不再调用 setState。 */
   componentWillUnmount() {
     this.unmounted = true;
   }
 
-  /**
-   * 加载最新推荐快照。
-   * 只有最后发起的请求可以提交状态，确保高延迟网络下的刷新顺序与用户操作顺序一致。
-   */
-  loadRecommendations = () => {
-    const sequence = ++this.requestSequence;
+  /** 通用请求序列确保任务和内容快速切换时只提交最后一次响应。 */
+  nextSequence = () => ++this.requestSequence;
+
+  loadTasks = (page, pageSize) => {
+    const cursor = this.state.taskCursorByPage[page] ?? 0;
+    const sequence = this.nextSequence();
     this.setState({ loading: true });
-    HGRecommendationVM.fetchRecommendations()
+    HGRecommendationVM.fetchTasks({ cursor, pageSize })
       .then((result) => {
         if (this.unmounted || sequence !== this.requestSequence) return;
-        this.setState({
-          rows: HGRecommendationVM.rows(result),
-          refreshedAt: new Date(),
-        });
+        this.setState((prev) => ({
+          taskRows: result.list,
+          taskCursorByPage: { ...prev.taskCursorByPage, ...(result.hasMore ? { [page + 1]: result.nextCursor } : {}) },
+          taskPagination: {
+            current: page,
+            pageSize,
+            total: HGRecommendationVM.total({ page, pageSize, count: result.list.length, hasMore: result.hasMore }),
+          },
+        }));
       })
       .catch((error) => {
-        if (this.unmounted || sequence !== this.requestSequence) return;
-        message.error(getRequestErrorMessage(error, "采集结果获取失败"));
+        if (!this.unmounted && sequence === this.requestSequence) message.error(getRequestErrorMessage(error, "采集任务获取失败"));
       })
       .finally(() => {
-        if (!this.unmounted && sequence === this.requestSequence)
-          this.setState({ loading: false });
+        if (!this.unmounted && sequence === this.requestSequence) this.setState({ loading: false });
       });
   };
 
-  /** @returns {React.ReactNode} 标题、作者和封面的组合展示。 */
+  loadContents = (task, page, pageSize) => {
+    const cursor = this.state.contentCursorByPage[page] ?? 0;
+    const sequence = this.nextSequence();
+    this.setState({ loading: true });
+    HGRecommendationVM.fetchContents({ taskId: task.id, cursor, pageSize })
+      .then((result) => {
+        if (this.unmounted || sequence !== this.requestSequence) return;
+        this.setState((prev) => ({
+          contentRows: result.list,
+          contentCursorByPage: { ...prev.contentCursorByPage, ...(result.hasMore ? { [page + 1]: result.nextCursor } : {}) },
+          contentPagination: {
+            current: page,
+            pageSize,
+            total: HGRecommendationVM.total({ page, pageSize, count: result.list.length, hasMore: result.hasMore }),
+          },
+        }));
+      })
+      .catch((error) => {
+        if (!this.unmounted && sequence === this.requestSequence) message.error(getRequestErrorMessage(error, "任务采集数据获取失败"));
+      })
+      .finally(() => {
+        if (!this.unmounted && sequence === this.requestSequence) this.setState({ loading: false });
+      });
+  };
+
+  selectTask = (task) => this.setState({
+    selectedTask: task,
+    contentRows: [],
+    contentCursorByPage: { 1: 0 },
+    contentPagination: { current: 1, pageSize: CRAWLER_CONTENT_PAGE_SIZE, total: 0 },
+  }, () => this.loadContents(task, 1, CRAWLER_CONTENT_PAGE_SIZE));
+
+  handleTaskPageChange = (next) => {
+    if (next.pageSize !== this.state.taskPagination.pageSize) {
+      this.setState({ taskCursorByPage: { 1: 0 } }, () => this.loadTasks(1, next.pageSize));
+      return;
+    }
+    this.loadTasks(next.current, next.pageSize);
+  };
+
+  handleContentPageChange = (next) => {
+    if (next.pageSize !== this.state.contentPagination.pageSize) {
+      this.setState({ contentCursorByPage: { 1: 0 } }, () => this.loadContents(this.state.selectedTask, 1, next.pageSize));
+      return;
+    }
+    this.loadContents(this.state.selectedTask, next.current, next.pageSize);
+  };
+
+  getTaskColumns = () => [
+    { title: "任务名称", dataIndex: "name", width: 220 },
+    { title: "数据源", dataIndex: "platform", width: 130 },
+    { title: "执行方式", dataIndex: "cron", width: 210, render: (value, row) => (row.enabled ? `定时：${value}` : "手动执行") },
+    { title: "最近状态", dataIndex: "lastRunStatus", width: 120, render: (value) => value || "未运行" },
+    { title: "最近数据量", dataIndex: "lastRunItemCount", width: 120 },
+    { title: "查看采集数据", dataIndex: "action", width: 140, render: (_, row) => <HGButtonPage type="link" onClick={() => this.selectTask(row)}>查看数据</HGButtonPage> },
+  ];
+
   renderContent = (_, row) => (
     <div className={styles.contentCell}>
-      {row.coverUrl ? (
-        <img
-          src={row.coverUrl}
-          alt=""
-          loading="lazy"
-          referrerPolicy="no-referrer"
-        />
-      ) : (
-        <div className={styles.coverFallback}>NO COVER</div>
-      )}
-      <div>
-        <strong title={row.title}>{row.title || "未命名内容"}</strong>
-        <span>
-          {row.authorName || "未知作者"} · {row.contentId || "-"}
-        </span>
-      </div>
+      {row.coverUrl ? <img src={row.coverUrl} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <div className={styles.coverFallback}>NO COVER</div>}
+      <div><strong title={row.title}>{row.title || "未命名内容"}</strong><span>{row.authorName || "未知作者"} · {row.contentId || "-"}</span></div>
     </div>
   );
 
-  /** @returns {Array<Object>} 采集结果表格列配置。 */
-  getColumns = () => [
-    {
-      title: "内容",
-      dataIndex: "title",
-      width: 360,
-      render: this.renderContent,
-    },
-    {
-      title: "播放",
-      dataIndex: "viewCount",
-      width: 110,
-      render: HGRecommendationVM.countText,
-    },
-    {
-      title: "点赞",
-      dataIndex: "likeCount",
-      width: 100,
-      render: HGRecommendationVM.countText,
-    },
-    {
-      title: "弹幕",
-      dataIndex: "commentCount",
-      width: 100,
-      render: HGRecommendationVM.countText,
-    },
-    {
-      title: "时长",
-      dataIndex: "durationSeconds",
-      width: 90,
-      render: HGRecommendationVM.durationText,
-    },
-    {
-      title: "发布时间",
-      dataIndex: "publishedAt",
-      width: 190,
-      render: (value) => (value ? new Date(value).toLocaleString() : "-"),
-    },
-    {
-      title: "原站",
-      dataIndex: "targetUrl",
-      width: 100,
-      render: (value) =>
-        value ? (
-          <a
-            className={styles.sourceLink}
-            href={value}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            查看
-          </a>
-        ) : (
-          "-"
-        ),
-    },
+  getContentColumns = () => [
+    { title: "内容", dataIndex: "title", width: 360, render: this.renderContent },
+    { title: "播放", dataIndex: "viewCount", width: 100, render: HGRecommendationVM.countText },
+    { title: "点赞", dataIndex: "likeCount", width: 100, render: HGRecommendationVM.countText },
+    { title: "评论", dataIndex: "commentCount", width: 100, render: HGRecommendationVM.countText },
+    { title: "时长", dataIndex: "durationSeconds", width: 90, render: HGRecommendationVM.durationText },
+    { title: "发布时间", dataIndex: "publishedAt", width: 180, render: (value) => (value ? new Date(value).toLocaleString() : "-") },
+    { title: "最近采集", dataIndex: "lastSeenAt", width: 180, render: (value) => (value ? new Date(value).toLocaleString() : "-") },
+    { title: "原站", dataIndex: "targetUrl", width: 90, render: (value) => (value ? <a className={styles.sourceLink} href={value} target="_blank" rel="noreferrer noopener">查看</a> : "-") },
   ];
 
-  /** @returns {React.ReactNode} 最近成功采集结果页面。 */
+  renderTaskList = () => {
+    const { loading, taskRows, taskPagination } = this.state;
+    return <HGCardPage title="采集任务列表"><HGTablePage rowKey={(row) => row.id} columns={this.getTaskColumns()} dataSource={taskRows} loading={loading} pagination={{ ...taskPagination, showSizeChanger: true }} onChange={this.handleTaskPageChange} scroll={{ y: 460, x: 980 }} /></HGCardPage>;
+  };
+
+  renderContentList = () => {
+    const { selectedTask, loading, contentRows, contentPagination } = this.state;
+    return (
+      <>
+        <div className={styles.detailHeader}><HGButtonPage onClick={() => this.setState({ selectedTask: null, contentRows: [] })}>返回任务列表</HGButtonPage><div><p>TASK DATA</p><h2>{selectedTask.name}</h2><span>{selectedTask.platform} · 任务 ID {selectedTask.id}</span></div></div>
+        <HGCardPage title="采集数据字段列表" extra={<span className={styles.note}>按任务关联记录倒序分页</span>}>
+          <HGTablePage rowKey={(row) => row.associationId} columns={this.getContentColumns()} dataSource={contentRows} loading={loading} pagination={{ ...contentPagination, showSizeChanger: true }} onChange={this.handleContentPageChange} scroll={{ y: 470, x: 1200 }} />
+        </HGCardPage>
+      </>
+    );
+  };
+
   render() {
-    const { rows, loading, refreshedAt } = this.state;
     return (
       <div>
-        <div className={styles.header}>
-          <div>
-            <p>COLLECTED DATA</p>
-            <h1>采集结果</h1>
-            <span>
-              查看最近一次成功任务产出的公开元数据快照，不下载或代理媒体文件
-            </span>
-          </div>
-          <HGButtonPage loading={loading} onClick={this.loadRecommendations}>
-            刷新快照
-          </HGButtonPage>
-        </div>
-        <div className={styles.summary}>
-          <div>
-            <span>快照记录</span>
-            <strong>{rows.length}</strong>
-          </div>
-          <div>
-            <span>数据来源</span>
-            <strong>Bilibili Public API</strong>
-          </div>
-          <div>
-            <span>页面刷新</span>
-            <strong>
-              {refreshedAt ? refreshedAt.toLocaleTimeString() : "等待加载"}
-            </strong>
-          </div>
-        </div>
-        <HGCardPage
-          title="最新成功快照"
-          extra={
-            <span className={styles.note}>失败任务不会覆盖上一份可用数据</span>
-          }
-        >
-          <HGTablePage
-            rowKey={(row) => `${row.platform}:${row.contentId}`}
-            columns={this.getColumns()}
-            dataSource={rows}
-            loading={loading}
-            pagination={false}
-            scroll={{ y: 480 }}
-          />
-          {!loading && rows.length === 0 ? (
-            <div className={styles.empty}>
-              尚无成功采集快照，请先在任务管理中执行推荐采集。
-            </div>
-          ) : null}
-        </HGCardPage>
+        <div className={styles.header}><div><p>COLLECTED DATA</p><h1>采集结果</h1><span>先选择采集任务，再分页查看该任务写入的标准化数据字段</span></div></div>
+        {this.state.selectedTask ? this.renderContentList() : this.renderTaskList()}
       </div>
     );
   }

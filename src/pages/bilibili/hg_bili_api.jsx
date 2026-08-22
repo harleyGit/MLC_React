@@ -6,6 +6,7 @@ import {
   HG_VIDEO_INTERACTION_FOLLOW_PATH,
   HG_VIDEO_INTERACTION_STATE_PATH,
 } from "./hg_video_interaction_request";
+import { normalizeVideoCoverUrl } from "./hg_bili_media_url";
 
 const HGNet = new HGNetManager();
 
@@ -15,7 +16,7 @@ export function normalizeVideoListItem(item) {
     id: item.videoId || item.submissionId,
     submissionId: item.submissionId,
     title: item.title || item.fileName || "未命名视频",
-    cover: item.coverUrl || "",
+    cover: normalizeVideoCoverUrl(item.coverUrl),
     url: item.filePath || "",
     author: item.authorName || item.userId || "未知作者",
     authorId: item.userId || "",

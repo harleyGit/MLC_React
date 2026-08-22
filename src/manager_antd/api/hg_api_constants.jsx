@@ -60,6 +60,7 @@ export const HGMANAGER_API = {
   OPS_CRAWLER_TASK_SAVE: "/api/v1/ops/crawler/tasks/save", // 保存持久化采集任务定义
   OPS_CRAWLER_TASK_SAVE_AND_RUN: "/api/v1/ops/crawler/tasks/save-and-run", // 保存任务定义并立即执行
   OPS_CRAWLER_TASK_LIST: "/api/v1/ops/crawler/tasks/list", // 获取持久化采集任务定义
+  OPS_CRAWLER_TASK_CONTENTS: "/api/v1/ops/crawler/tasks/contents", // 获取指定任务采集到的外部内容
   CRAWLER_DASHBOARD: "/api/v1/crawler/dashboard", // 采集指标、趋势和最近任务
   CRAWLER_SPIDERS: "/api/v1/crawler/spiders", // Spider 运行状态列表
   CRAWLER_TASKS: "/api/v1/crawler/tasks", // 任务 cursor 列表和手动创建任务

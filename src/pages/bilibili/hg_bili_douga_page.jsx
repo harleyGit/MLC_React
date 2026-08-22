@@ -27,11 +27,14 @@ class BiliDougaPage extends React.Component {
       tags: [],
       videos: [],
       loading: false,
-      hasMore: true,
+      hasMore: false,
       page: 1,
+      cursorByPage: { 1: "" },
       // 后端复合游标，格式由后端定义，前端只透传，不解析或转成数字。
       nextCursor: "",
     };
+    this.requestSequence = 0;
+    this.unmounted = false;
   }
 
   /**
@@ -39,6 +42,10 @@ class BiliDougaPage extends React.Component {
    */
   componentDidMount() {
     this.loadInitialData();
+  }
+
+  componentWillUnmount() {
+    this.unmounted = true;
   }
 
   /**
@@ -60,34 +67,46 @@ class BiliDougaPage extends React.Component {
    * 从后端获取视频列表。
    * @param {string} tag - 视频标签；“推荐”会转换为空 tagName。
    * @param {string} cursor - 后端 nextCursor，空字符串表示首页。
-   * @param {boolean} append - 是否追加到当前列表；false 时替换当前标签的数据。
+   * @param {number} page - 当前前端页码，仅用于保存 cursor 映射。
    */
-  fetchVideoList = async (tag = "推荐", cursor = "", append = false) => {
+  fetchVideoList = async (tag = "推荐", cursor = "", page = 1) => {
+    const sequence = ++this.requestSequence;
     this.setState({ loading: true });
     try {
       const response = await getVideoList(cursor, 20, tag === "推荐" ? "" : tag);
+      if (this.unmounted || sequence !== this.requestSequence) return;
       if (Array.isArray(response?.videos)) {
         // 播放路由使用 videoId；评论按稿件聚合，因此必须同时保留 submissionId。
         const videos = response.videos.map(normalizeVideoListItem);
 
         this.setState((state) => ({
-          videos: append ? [...state.videos, ...videos] : videos,
+          videos,
           loading: false,
           hasMore: Boolean(response.hasMore),
           nextCursor: response.nextCursor || "",
-          page: append ? state.page + 1 : 1,
+          page,
+          cursorByPage: {
+            ...state.cursorByPage,
+            ...(response.hasMore && response.nextCursor ? { [page + 1]: response.nextCursor } : {}),
+          },
         }));
       } else {
-        this.setState((state) => ({
-          videos: append ? state.videos : [],
+        this.setState({
+          videos: [],
           hasMore: false,
           nextCursor: "",
-        }));
+        });
       }
     } catch (error) {
-      console.error("获取视频列表失败:", error);
+      if (!this.unmounted && sequence === this.requestSequence) {
+        console.error("获取视频列表失败:", error);
+        this.setState((state) => ({
+          hasMore: state.videos.length > 0 ? state.hasMore : false,
+          nextCursor: state.videos.length > 0 ? state.nextCursor : "",
+        }));
+      }
     } finally {
-      this.setState({ loading: false });
+      if (!this.unmounted && sequence === this.requestSequence) this.setState({ loading: false });
     }
   };
 
@@ -95,9 +114,9 @@ class BiliDougaPage extends React.Component {
    * 处理标签切换：重置 cursor 和页码，并从新标签首页开始加载。
    */
   handleTagChange = (tag) => {
-    this.setState({ activeTag: tag, loading: true, page: 1, nextCursor: "" });
+    this.setState({ activeTag: tag, loading: true, page: 1, nextCursor: "", hasMore: false, cursorByPage: { 1: "" } });
 
-    this.fetchVideoList(tag);
+    this.fetchVideoList(tag, "", 1);
   };
 
   /**
@@ -132,10 +151,12 @@ class BiliDougaPage extends React.Component {
   /**
    * 处理加载更多；只在未加载、仍有下一页且后端返回有效 cursor 时发起请求。
    */
-  handleLoadMore = () => {
-    const { activeTag, nextCursor, loading, hasMore } = this.state;
-    if (loading || !hasMore || !nextCursor) return;
-    this.fetchVideoList(activeTag, nextCursor, true);
+  handlePageChange = (nextPage) => {
+    const { activeTag, cursorByPage, loading, page, hasMore, nextCursor } = this.state;
+    if (loading || nextPage < 1 || (nextPage > page && (!hasMore || !nextCursor))) return;
+    const cursor = cursorByPage[nextPage];
+    if (cursor === undefined) return;
+    this.fetchVideoList(activeTag, cursor, nextPage);
   };
 
   /**
@@ -224,7 +245,7 @@ class BiliDougaPage extends React.Component {
    * 渲染列表视图。
    */
   renderListView = () => {
-    const { videos, loading, hasMore } = this.state;
+    const { videos, loading, hasMore, nextCursor, page } = this.state;
 
     return (
       <div className={styles.listContainer}>
@@ -236,10 +257,14 @@ class BiliDougaPage extends React.Component {
           videos={videos}
           onVideoClick={this.handleVideoClick}
           loading={loading}
-          hasMore={hasMore}
-          onLoadMore={this.handleLoadMore}
+          hasMore={false}
           columns={5}
         />
+        <div className={styles.pagination}>
+          <button type="button" disabled={loading || page <= 1} onClick={() => this.handlePageChange(page - 1)}>上一页</button>
+          <span>第 {page} 页</span>
+          <button type="button" disabled={loading || !hasMore || !nextCursor} onClick={() => this.handlePageChange(page + 1)}>下一页</button>
+        </div>
       </div>
     );
   };

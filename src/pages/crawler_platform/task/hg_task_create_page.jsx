@@ -14,27 +14,32 @@ import styles from "./hg_task_create_page.module.css";
 const nextRow = (() => { let id = 3; return () => ({ id: id++, key: "", value: "" }); })();
 
 class HGTaskCreatePage extends Component {
-  state = {
-    form: { ...HG_TASK_INITIAL_FORM },
-    headers: [
-      { id: 1, key: "User-Agent", value: "Mozilla/5.0" },
-      { id: 2, key: "Accept", value: "application/json" },
-    ],
-    params: [{ id: 1, key: "fresh_type", value: "3" }, { id: 2, key: "ps", value: "20" }],
-    mappings: [
-      { id: 1, name: "contentId", path: "$.bvid", attribute: "" },
-      { id: 2, name: "title", path: "$.title", attribute: "" },
-      { id: 3, name: "authorName", path: "$.owner.name", attribute: "" },
-      { id: 4, name: "targetUrl", path: "$.uri", attribute: "" },
-      { id: 5, name: "viewCount", path: "$.stat.view", attribute: "" },
-      { id: 6, name: "commentCount", path: "$.stat.reply", attribute: "" },
-    ],
-    testing: false,
-    saving: false,
-    savingAndRunning: false,
-    response: null,
-    detectedFields: [],
-  };
+  constructor(props) {
+    super(props);
+    const editorState = HGTaskCreateVM.toEditorState(props.pageContext?.task);
+    this.state = {
+      form: { ...HG_TASK_INITIAL_FORM },
+      headers: [
+        { id: 1, key: "User-Agent", value: "Mozilla/5.0" },
+        { id: 2, key: "Accept", value: "application/json" },
+      ],
+      params: [{ id: 1, key: "fresh_type", value: "3" }, { id: 2, key: "ps", value: "20" }],
+      mappings: [
+        { id: 1, name: "contentId", path: "$.bvid", attribute: "" },
+        { id: 2, name: "title", path: "$.title", attribute: "" },
+        { id: 3, name: "authorName", path: "$.owner.name", attribute: "" },
+        { id: 4, name: "targetUrl", path: "$.uri", attribute: "" },
+        { id: 5, name: "viewCount", path: "$.stat.view", attribute: "" },
+        { id: 6, name: "commentCount", path: "$.stat.reply", attribute: "" },
+      ],
+      ...editorState,
+      testing: false,
+      saving: false,
+      savingAndRunning: false,
+      response: null,
+      detectedFields: [],
+    };
+  }
 
   setField = (key, value) => this.setState((prev) => ({ form: { ...prev.form, [key]: value } }));
 
@@ -124,7 +129,7 @@ class HGTaskCreatePage extends Component {
   render() {
     const { form, headers, params, mappings, testing, saving, savingAndRunning, response, detectedFields } = this.state;
     return <div className={styles.page}>
-      <div className={styles.header}><div><p>CRAWLER BUILDER</p><h1>创建采集任务</h1><span>先验证目标响应，再配置解析、调度和存储策略</span></div><HGButtonPage onClick={() => this.props.onNavigate?.("crawler_tasks")}>返回任务管理</HGButtonPage></div>
+      <div className={styles.header}><div><p>CRAWLER BUILDER</p><h1>{form.id ? "编辑采集任务" : "创建采集任务"}</h1><span>先验证目标响应，再配置解析、调度和存储策略</span></div><HGButtonPage onClick={() => this.props.onNavigate?.("crawler_tasks")}>返回任务管理</HGButtonPage></div>
 
       <HGCardPage title="① 基础信息"><div className={styles.grid}>
         {this.renderField("任务名称", <HGInputPage value={form.name} onChange={(event) => this.setField("name", event.target.value)} />)}

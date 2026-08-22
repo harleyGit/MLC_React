@@ -157,6 +157,29 @@
   border-color: #00a1d6;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px 0 8px;
+  color: #61666d;
+  font-size: 13px;
+}
+
+.pagination button {
+  min-width: 84px;
+  padding: 8px 16px;
+  border: 1px solid #e3e5e7;
+  border-radius: 6px;
+  background: #fff;
+  color: #61666d;
+  cursor: pointer;
+}
+
+.pagination button:hover:not(:disabled) { color: #00a1d6; border-color: #00a1d6; }
+.pagination button:disabled { opacity: .45; cursor: not-allowed; }
+
 /* ===== 响应式 ===== */
 @media (max-width: 1200px) {
   .channelNavContent {

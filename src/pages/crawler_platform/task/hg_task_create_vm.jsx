@@ -21,6 +21,42 @@ export const HG_TASK_INITIAL_FORM = {
 };
 
 export default class HGTaskCreateVM {
+  /** Converts one persisted definition into the editable create-page state. */
+  static toEditorState = (definition) => {
+    if (!definition?.id) return null;
+    const configuration = definition.configuration || {};
+    const request = configuration.request || {};
+    const parser = configuration.parser || {};
+    const toRows = (values = {}) => Object.entries(values).map(([key, value], index) => ({ id: index + 1, key, value: String(value ?? "") }));
+    const mappings = Object.entries(parser.fields || {}).map(([name, field], index) => ({
+      id: index + 1,
+      name,
+      path: field?.selector || "",
+      attribute: field?.attribute || "",
+    }));
+    return {
+      form: {
+        ...HG_TASK_INITIAL_FORM,
+        id: definition.id,
+        version: definition.version,
+        name: definition.name || "",
+        platform: definition.platform || "custom",
+        url: request.url || "",
+        method: request.method || "GET",
+        body: request.body || "",
+        executionMode: definition.enabled ? "cron" : "manual",
+        cron: definition.cron || "",
+        timeoutSeconds: Math.max(1, Number(request.timeoutMs || 10000) / 1000),
+        parserType: definition.parserType || parser.type || "restricted_jsonpath",
+        itemSelector: definition.itemPath || parser.itemSelector || "",
+        maxItems: definition.maxItems || 20,
+      },
+      headers: toRows(request.headers),
+      params: toRows(request.params),
+      mappings,
+    };
+  };
+
   static testRequest = ({ form, headers, params }) => HGNet.post(
     HGMANAGER_API.OPS_CRAWLER_TASK_DEBUG,
     {

@@ -28,21 +28,25 @@ const PAGE_MAP = {
 class HGCrawlerPlatformPage extends Component {
   constructor(props) {
     super(props);
-    this.state = { selectedKey: HGCrawlerPlatformVM.getDefaultSelectedKey() };
+    this.state = {
+      selectedKey: HGCrawlerPlatformVM.getDefaultSelectedKey(),
+      pageContext: null,
+    };
   }
 
   /**
    * 处理侧边栏叶子菜单选择。
    * @param {string} selectedKey 与 PAGE_MAP 对应的页面 key。
    */
-  handleMenuSelect = (selectedKey) => this.setState({ selectedKey });
+  handleMenuSelect = (selectedKey, pageContext = null) => this.setState({ selectedKey, pageContext });
 
   /**
    * 根据当前菜单 key 计算完整层级并渲染面包屑。
    * @returns {React.ReactNode} 当前菜单路径。
    */
   renderBreadcrumb = () => {
-    const path = HGSideMenuVM.findPathToKey(CRAWLER_MENU_ITEMS, this.state.selectedKey);
+    const breadcrumbKey = this.state.selectedKey === "crawler_task_create" ? "crawler_tasks" : this.state.selectedKey;
+    const path = HGSideMenuVM.findPathToKey(CRAWLER_MENU_ITEMS, breadcrumbKey);
     return (
       <div className={styles.breadcrumb}>
         {path.map((node, index) => (
@@ -63,7 +67,7 @@ class HGCrawlerPlatformPage extends Component {
    * @returns {React.ReactNode} 平台布局。
    */
   render() {
-    const { selectedKey } = this.state;
+    const { selectedKey, pageContext } = this.state;
     const PageComponent = PAGE_MAP[selectedKey] || HGDashboardPage;
     return (
       <div className={styles.platform}>
@@ -77,7 +81,7 @@ class HGCrawlerPlatformPage extends Component {
         <main className={styles.content}>
           {this.renderBreadcrumb()}
           <Suspense fallback={<HGLoading text="正在加载采集平台..." />}>
-            <PageComponent onNavigate={this.handleMenuSelect} />
+            <PageComponent onNavigate={this.handleMenuSelect} pageContext={pageContext} />
           </Suspense>
         </main>
       </div>

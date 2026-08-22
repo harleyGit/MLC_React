@@ -54,6 +54,15 @@ function formatPubDate(dateStr) {
  * 职责：渲染单个视频卡片，包含封面、标题、播放量、作者等信息。
  */
 class VideoCard extends React.PureComponent {
+  state = { coverFailed: false };
+
+  /** 卡片复用到新封面时清理上一张图片的失败状态。 */
+  componentDidUpdate(prevProps) {
+    if (prevProps.video?.cover !== this.props.video?.cover && this.state.coverFailed) {
+      this.setState({ coverFailed: false });
+    }
+  }
+
   /**
    * 处理整个卡片点击。
    */
@@ -74,6 +83,9 @@ class VideoCard extends React.PureComponent {
     }
   };
 
+  /** 图片请求失败后展示本地占位，避免浏览器破图图标长期显示。 */
+  handleCoverError = () => this.setState({ coverFailed: true });
+
   render() {
     const { video, layout } = this.props;
     if (!video) return null;
@@ -87,12 +99,18 @@ class VideoCard extends React.PureComponent {
       >
         {/* 封面区域 */}
         <div className={styles.coverWrapper}>
-          <img
-            className={styles.coverImage}
-            src={video.cover}
-            alt={video.title}
-            loading="lazy"
-          />
+          {video.cover && !this.state.coverFailed ? (
+            <img
+              className={styles.coverImage}
+              src={video.cover}
+              alt={video.title}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              onError={this.handleCoverError}
+            />
+          ) : (
+            <span className={styles.coverFallback}>NO COVER</span>
+          )}
           {/* 时长标签 */}
           <span className={styles.durationTag}>{formatDuration(video.duration)}</span>
           {/* 播放量覆盖层 */}

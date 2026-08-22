@@ -18,4 +18,8 @@
 .sourceLink:hover { text-decoration: underline; }
 .note { color: #89989d; font-size: 12px; }
 .empty { padding: 36px 16px; color: #89989d; text-align: center; }
+.detailHeader { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.detailHeader p { margin: 0 0 4px; color: #168d84; font-size: 10px; font-weight: 800; letter-spacing: .14em; }
+.detailHeader h2 { margin: 0; color: #18353d; }
+.detailHeader span { color: #7b8b90; font-size: 12px; }
 @media (max-width: 720px) { .header { align-items: flex-start; flex-direction: column; }.summary { grid-template-columns: 1fr; } }

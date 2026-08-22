@@ -10,7 +10,6 @@ export const CRAWLER_MENU_ITEMS = [
       { key: "crawler_dashboard", label: "Dashboard" },
       { key: "crawler_spiders", label: "Spider 管理" },
       { key: "crawler_tasks", label: "任务管理" },
-      { key: "crawler_task_create", label: "创建任务" },
       { key: "crawler_recommendations", label: "采集结果" },
     ],
   },

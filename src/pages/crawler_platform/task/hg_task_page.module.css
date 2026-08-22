@@ -2,4 +2,7 @@
 .filters { display: flex; align-items: center; gap: 10px; color: #6d7d83; font-size: 12px; }.filters > div { width: 130px; }
 .status { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #edf1f2; font-size: 12px; font-weight: 700; }.statusSUCCESS, .statusSUCCEEDED { background: #dff5eb; color: #08764f; }.statusFAILED { background: #ffe5e1; color: #ad3328; }.statusRUNNING { background: #fff1c9; color: #8a6100; }
 .errorCell { display: block; overflow: hidden; color: #a54b42; text-overflow: ellipsis; white-space: nowrap; }
+.configurationBlock { margin-top: 16px; }
+.configurationBlock strong { display: block; margin-bottom: 8px; color: #18353d; }
+.configurationBlock pre { max-height: 300px; margin: 0; padding: 14px; overflow: auto; border-radius: 10px; background: #102b31; color: #d7f3ef; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 @media (max-width: 720px) { .header { align-items: flex-start; flex-direction: column; } }
