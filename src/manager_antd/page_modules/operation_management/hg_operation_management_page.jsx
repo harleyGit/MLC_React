@@ -31,6 +31,8 @@ const HGSmsTemplatePage = lazy(() => import("./sms_template/hg_sms_template_page
 const HGBilibiliTagPage = lazy(() => import("./bilibili_tag/hg_bilibili_tag_page"));
 const HGCoinOperationsPage = lazy(() => import("./coin_operations/hg_coin_operations_page"));
 const HGUserProfilePage = lazy(() => import("../user/hg_user_profile_page"));
+// 检测工具按需加载，不增加默认运维页面的初始化请求。
+const DomainDetectPage = lazy(() => import("../domain_module/DomainDetectPage.jsx"));
 
 /**
  * 用户列表占位页面
@@ -192,6 +194,7 @@ class SystemNotifyChannelPage extends Component {
  * - user_list 当前对应真实的 HGUserProfilePage，用于替代原先的 UserListPage 占位页面。
  */
 const PAGE_MAP = {
+  domain_detect: DomainDetectPage,
   // 管理员管理：admin_list 对应独立管理员列表业务页面。
   admin_list: HGAdminListPage,
   admin_add: HGAdminAddPage,

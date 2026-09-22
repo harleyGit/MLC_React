@@ -86,6 +86,8 @@ export const OPERATION_MENU_ITEMS = [
     label: "系统设置",
     icon: <HGIconPage type="config" />,
     children: [
+      // 叶子 key 与 PAGE_MAP 对齐，在当前运维布局内打开诊断页面。
+      { key: "domain_detect", label: "域名检测", icon: <HGIconPage type="config" /> },
       {
         key: "system_basic",
         label: "基础配置",

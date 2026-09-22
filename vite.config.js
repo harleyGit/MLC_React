@@ -10,21 +10,18 @@
  */
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
+import domainDetectMiddleware, { domainDetectProxy } from "./proxy_until.js";
 
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
-  plugins: [react()],
+  plugins: [react(), domainDetectMiddleware()],
   server: {
     port: 5174,
     strictPort: true,
     proxy: {
-      // 代理阿里 DNS,为了nslookup
-      "/dns.alidns": {
-        target: "https://dns.alidns.com",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/dns\.alidns/, ""),
-      },
+      // 域名检测的同源 DNS 代理，与本地原生诊断接口共用配置入口。
+      ...domainDetectProxy,
 
       // 公网IP信息获取
       "/ipai": {
