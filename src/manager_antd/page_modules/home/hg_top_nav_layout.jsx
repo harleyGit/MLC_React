@@ -66,7 +66,12 @@ class HGTopNavLayout extends Component {
     if (path === ROUTE_PATH.PRODUCTS) return "products";
     if (path === ROUTE_PATH.ABOUT) return "about";
     if (path === ROUTE_PATH.USER_PROFILE) return "profile";
-    if (path === ROUTE_PATH.EDIT_USER_INFO) return "avatar";
+    if (
+      path === ROUTE_PATH.EDIT_USER_INFO ||
+      path === ROUTE_PATH.WALLET
+    ) {
+      return "avatar";
+    }
     if (path === ROUTE_PATH.OPERATION_MANAGEMENT) return "operation";
     if (path.startsWith(ROUTE_PATH.CRAWLER_PLATFORM)) return "crawler";
     if (path === ROUTE_PATH.TEST_MODULE) return "test_module";
@@ -92,7 +97,7 @@ class HGTopNavLayout extends Component {
 
   /**
    * 点击头像切换浮层显示状态。
-   * 约束：只切换布尔值，不在此方法内做路由跳转。
+   * 约束：进入账号相关页面时只高亮头像，不自动打开浮层；浮层仅由此点击事件触发。
    */
   toggleUserDropdown = () => {
     this.setState((prevState) => {
