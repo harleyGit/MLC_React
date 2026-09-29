@@ -78,21 +78,26 @@
 
 > <h1 id="AI规则文件">AI规则文件</h1>
 
-```sh
-MLC_React/
-├── AGENTS.md
-├── rules/
-│   ├── common.md
-│   ├── react.md
-│   ├── ios.md
-│   └── go.md
-└── codex-pro-init.sh
+项目根目录 [AGENTS.md](AGENTS.md) 承载项目事实、目录、版本、类组件约束、禁止事项与验证入口，不再保留旧 `rules/` 副本。
 
+- React 方法按需使用 `~/HGFiles/GitHub/AITools/Skills/mlc-engineering/react/SKILL.md`。
+- 通用实施、安全、测试、审查分别使用 `engineering-workflow`、`security`、`testing`、`code-review` 技能；输出与提交参照 `dev_general_skill`。
+- 跨语言任务先获得授权并读取目标工程 `AGENTS.md`，再使用对应语言技能，不覆盖目标构建范围或设备约束。
 
-想iOS、GO、React共用一套AGENTS.md文件，如下：
-chmod +x codex-pro-init.sh
-./codex-pro-init.sh /path/to/MLC_GO
+项目 `opencode.json` 只注册公共技能发现路径，不通过 `instructions` 强制加载技能正文：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [
+      "~/HGFiles/GitHub/AITools/Skills/mlc-engineering"
+    ]
+  }
+}
 ```
 
+配置修改后退出并重启 OpenCode，从本项目目录启动。该路径要求本机存在对应 AITools 目录；其他机器需提供相同布局或显式调整路径。项目硬约束由根 `AGENTS.md` 提供，技能按任务加载；`dev_general_skill` 的全局发现或直接读取方式见 `AGENTS.md`。
 
+`codex-pro-init.sh` 已弃用，仅提示新入口并退出，不复制规则、不修改任何 CLI 配置、不安装依赖、不执行构建或生成报告。此配置仅面向 OpenCode，不代表 Codex 等其他工具已自动加载规则。
 
