@@ -24,7 +24,7 @@
 - 默认使用 React Class Component，仅非常简单且无复杂业务状态的组件可使用函数组件。不主动把既有类组件改为函数组件或 hooks；既有函数组件和路由适配器也不批量反向迁移。
 - 新增目录、组件与业务文件沿用 `hg_` 前缀和 `.jsx` 后缀，样式使用 `.module.css`；现有纯函数 `.js` 与 `.test.js` 不批量改名。
 - React 组件类/JSX 标识符使用 `HGXxx` 大写形式，如 `HGTestModulePage`，不能改为小写 `hg_xxx` 导致 JSX 被识别为原生标签。
-- 复杂 JSX 拆到 `renderXxx()`，保持页面与 VM 职责、路由、状态流、请求方式和 props 契约稳定。
+- 复杂 JSX 不得集中写在 `render()` 中；按页面职责拆分为 `renderXxx()` 方法（例如页头、卡片、列表和空态），由 `render()` 负责组装调用，保持页面与 VM 职责、路由、状态流、请求方式和 props 契约稳定。
 - 不引入 antd 等第三方 UI 库，优先 React 原生 API 和现有自建组件；目录名 `manager_antd` 不代表允许新增 antd。自建组件提供与 antd 相近的 props，同时保留已有契约。
 
 ## 工作边界与禁止事项

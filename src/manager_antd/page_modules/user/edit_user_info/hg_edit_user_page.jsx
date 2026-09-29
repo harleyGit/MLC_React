@@ -65,10 +65,15 @@ class HGEditUserPage extends React.Component {
 
   /**
    * 切换左侧菜单。
-   * @param {string} menuKey 目标菜单标识（info/avatar/security）。
-   * 约束：只切换一级模块并清空父页面操作提示。
+   * @param {string} menuKey MENU_KEYS 中的目标菜单标识。
+   * 约束：钱包跳转独立路由；其他模块原地切换并清空操作提示。
    */
   handleMenuClick = (menuKey) => {
+    if (menuKey === MENU_KEYS.WALLET) {
+      this.props.navigate?.(ROUTE_PATH.WALLET);
+      return;
+    }
+
     this.setState({
       activeMenuKey: menuKey,
       operationTips: "",
