@@ -14,7 +14,7 @@
 .horizontal {
   display: flex;
   flex-direction: row;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 0;
 }
 
 .horizontal .subMenu {
@@ -92,6 +92,25 @@
   transition: color 0.2s, background 0.2s;
 }
 
+.horizontal .menuItem {
+  position: relative;
+  transition: color 0.24s ease, background 0.24s ease;
+}
+
+.horizontal .menuItem::after {
+  position: absolute;
+  right: 20px;
+  bottom: 5px;
+  left: 20px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.2);
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
 .menuItem:hover {
   color: #1890ff;
 }
@@ -125,6 +144,22 @@
   min-width: 0;
 }
 
+/* 由导航实例指定选中缩放比例，其他菜单保持原尺寸。 */
+.horizontal > .menuItem > .menuLabel {
+  transform: scale(1);
+  transition: transform 0.24s ease;
+}
+
+.horizontal > .menuItemSelected > .menuLabel {
+  transform: scale(var(--hg-menu-selected-scale, 1));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .horizontal > .menuItem > .menuLabel {
+    transition: none;
+  }
+}
+
 /* ===== 展开箭头 ===== */
 .arrowIcon {
   width: 10px;
@@ -152,6 +187,15 @@
 .dark .menuItemSelected {
   color: #fff;
   background: #1890ff;
+}
+
+.dark.horizontal .menuItemSelected {
+  background: transparent;
+}
+
+.dark.horizontal .menuItemSelected::after {
+  opacity: 1;
+  transform: scaleX(1);
 }
 
 .dark .subMenuTitle:hover {

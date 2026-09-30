@@ -8,6 +8,8 @@
   align-items: center;
   gap: 12px;
   position: relative;
+  background: linear-gradient(112deg, #2467e8 0%, #3c83f3 56%, #7768ef 100%);
+  box-shadow: 0 8px 18px rgba(50, 101, 219, 0.18);
 }
 
 .content {
@@ -25,8 +27,17 @@
 }
 
 .topMenu {
+  --hg-menu-selected-scale: 1.52;
   flex: 1;
   min-width: 0;
+  border-bottom: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 覆盖菜单 dark 主题底色，让父级 Header 的渐变连续展示。 */
+.header .topMenu {
+  background: transparent;
 }
 
 .menuLink {
@@ -48,6 +59,9 @@
 .avatarWrap {
   position: relative;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .avatarButton {
@@ -61,18 +75,26 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.24s ease, box-shadow 0.24s ease,
+    border-color 0.24s ease;
+  transform: scale(1);
 }
 
 .avatarButton:hover {
-  transform: translateY(-1px);
   box-shadow: 0 6px 14px rgba(26, 115, 255, 0.35);
 }
 
 .avatarButtonActive {
   border-color: #fff;
+  transform: scale(1.62);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35),
     0 6px 14px rgba(26, 115, 255, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatarButton {
+    transition: none;
+  }
 }
 
 .avatarImage {
