@@ -2,14 +2,30 @@ import React from "react";
 import { ROUTE_PATH } from "../../../router/hg_router_path";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_wallet_page.module.css";
+import HGWalletVM from "./hg_wallet_vm.js";
 
 /**
  * 我的钱包页：展示当前用户的资产概览和交易入口。
- * 余额、充值及交易记录待后端钱包接口接入后替换为真实数据。
+ * 余额与充值入口接入钱包接口，交易记录仍待后端接口开放。
  */
 class HGWalletPage extends React.Component {
+  state = { hgBalance: null, hgBalanceError: "" };
+
+  /** 读取权威币余额；请求链不支持外部取消，卸载时作废返回结果。 */
+  componentDidMount() {
+    const hgRequest = this.hgRequest = {};
+    HGWalletVM.getBalance().then((hgResult) => {
+      if (this.hgRequest === hgRequest) this.setState({ hgBalance: hgResult.balance });
+    }).catch((hgError) => {
+      if (this.hgRequest === hgRequest) this.setState({ hgBalanceError: HGWalletVM.errorMessage(hgError) });
+    });
+  }
+
+  componentWillUnmount() {
+    this.hgRequest = null;
+  }
   /**
-   * 获取当前用户的展示名称，避免钱包页依赖不存在的资产接口。
+   * 使用已有用户资料缓存展示名称，不将展示名称用作订单归属依据。
    */
   getUserDisplayName = () => {
     const profile = HGUserProfileStorage.getUserProfile() || {};
@@ -21,6 +37,11 @@ class HGWalletPage extends React.Component {
    */
   handleBack = () => {
     this.props.navigate?.(ROUTE_PATH.EDIT_USER_INFO);
+  };
+
+  /** 两个充值入口共用受保护路由。 */
+  handleRecharge = () => {
+    this.props.navigate?.(ROUTE_PATH.WALLET_RECHARGE);
   };
 
   /** 渲染钱包页头及返回入口。 */
@@ -49,25 +70,25 @@ class HGWalletPage extends React.Component {
     );
   };
 
-  /** 渲染余额卡片；未接入资产接口时不推断真实余额。 */
+  /** 余额单位是平台币，不能当成人民币元展示。 */
   renderBalanceCard = () => {
     return (
       <section className={styles.balanceCard}>
         <div className={styles.balanceCopy}>
           <p className={styles.cardLabel}>账户余额</p>
           <div className={styles.balanceValue}>
-            <span className={styles.currency}>¥</span>--
+            {this.state.hgBalance ?? "--"}<span className={styles.currency}> M币</span>
           </div>
-          <p className={styles.balanceHint}>余额暂不可查询</p>
+          <p className={styles.balanceHint}>{this.state.hgBalanceError || "平台币余额，以服务端记录为准"}</p>
         </div>
         <div className={styles.walletIllustration} aria-hidden="true">
-          <span className={`${styles.coin} ${styles.coinOne}`}>¥</span>
-          <span className={`${styles.coin} ${styles.coinTwo}`}>¥</span>
+          <span className={`${styles.coin} ${styles.coinOne}`}>M</span>
+          <span className={`${styles.coin} ${styles.coinTwo}`}>M</span>
           <span className={styles.walletShape} />
         </div>
         <div className={styles.balanceActions}>
-          <button type="button" className={styles.primaryButton} disabled>
-            充值（暂未开放）
+          <button type="button" className={styles.primaryButton} onClick={this.handleRecharge}>
+            充值
           </button>
           <button type="button" className={styles.ghostButton} disabled>
             提现（暂未开放）
@@ -89,11 +110,11 @@ class HGWalletPage extends React.Component {
           <span className={styles.sectionNote}>安全、透明、便捷</span>
         </div>
         <div className={styles.quickGrid}>
-          <button type="button" className={styles.quickCard} disabled>
+          <button type="button" className={styles.quickCard} onClick={this.handleRecharge}>
             <span className={`${styles.quickIcon} ${styles.blueIcon}`}>＋</span>
             <span>
               <strong>充值中心</strong>
-              <small>暂未开放</small>
+              <small>选择档位生成订单</small>
             </span>
             <span className={styles.arrow} aria-hidden="true">›</span>
           </button>
@@ -134,7 +155,7 @@ class HGWalletPage extends React.Component {
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon} aria-hidden="true">◎</div>
           <strong>交易记录暂不可查询</strong>
-          <p>钱包服务接入后，可在这里查看真实的账户明细</p>
+          <p>交易记录接口开放后，可在这里查看真实的账户明细</p>
         </div>
       </section>
     );
@@ -144,7 +165,7 @@ class HGWalletPage extends React.Component {
   renderMainContent = () => {
     return (
       <main className={styles.main}>
-        <p className={styles.serviceNotice}>钱包服务尚未接入，余额与交易记录暂不可查询，充值及提现暂未开放。</p>
+        <p className={styles.serviceNotice}>可查看余额和创建充值订单。支付渠道暂未配置，不会扣款或入账；提现与交易记录暂未开放。</p>
         {this.renderBalanceCard()}
         {this.renderQuickServices()}
         {this.renderTransactionRecords()}

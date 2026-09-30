@@ -16,6 +16,7 @@ export const ROUTE_PATH = Object.freeze({
   UPDATE_USER_PROIFE: "/profile/edit", //更新用户信息
   EDIT_USER_INFO: "/account/setting", //账号设置(编辑用户信息页)
   WALLET: "/account/wallet", //我的钱包
+  WALLET_RECHARGE: "/account/wallet/recharge", //充值及订单详情
   VIDEO_UPLOAD_EDIT: "/platform/upload/video/frame", //视频投稿上传后编辑页
   OPERATION_MANAGEMENT: "/operation", //运维管理
   TEST_MODULE: "/test", //测试模块

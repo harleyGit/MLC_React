@@ -19,7 +19,11 @@ class HGAuthGuard extends React.Component {
 
     if (!isAuthenticated()) {
       console.log("🍎未登录");
-      return <Navigate to={ROUTE_PATH.LOGIN} replace />;
+      // 手机打开本人充值链接时，登录后保留订单号；不接受外部重定向地址。
+      const hgRechargeReturn = window.location.pathname === ROUTE_PATH.WALLET_RECHARGE
+        ? { from: `${ROUTE_PATH.WALLET_RECHARGE}${window.location.search}` }
+        : undefined;
+      return <Navigate to={ROUTE_PATH.LOGIN} state={hgRechargeReturn} replace />;
     }
 
     return children;

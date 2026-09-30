@@ -51,7 +51,7 @@ export function redirectToLogin() {
     HGUserProfileStorage.clearUserProfile();
   
     // 带回跳地址
-    const redirect = encodeURIComponent(window.location.pathname);
+    const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
     window.location.href = `/login?redirect=${redirect}`;
   }
   

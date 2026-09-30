@@ -29,6 +29,11 @@ export const HGMANAGER_API = {
   PROFILE: "/api/v1/profile/info", // 获取用户信息
   PROFILE_UPDATE: "/api/v1/profile/update", // 更新用户资料
   AVATAR_UPLOAD: "/api/v1/profile/avatar", // 上传头像
+  WALLET_BALANCE: "/api/v1/wallet/balance", // 当前登录用户的平台币余额
+  WALLET_RECHARGE_SKUS: "/api/v1/wallet/recharge/skus", // 有效充值档位
+  WALLET_RECHARGE_ORDERS: "/api/v1/wallet/recharge/orders", // 创建充值订单
+  WALLET_RECHARGE_ORDER_DETAIL: "/api/v1/wallet/recharge/orders/detail", // 查询本人充值订单
+  WALLET_RECHARGE_PAY: "/api/v1/wallet/recharge/orders/pay", // 充值付款入口
   VIDEO_UPLOAD_FILE: "/api/v1/video_upload/upload", // 上传视频文件
   VIDEO_UPLOAD_DRAFT: "/api/v1/video_upload/draft", // 保存视频稿件草稿
   VIDEO_UPLOAD_SUBMIT: "/api/v1/video_upload/submit", // 提交视频稿件审核

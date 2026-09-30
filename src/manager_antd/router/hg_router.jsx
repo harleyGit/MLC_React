@@ -35,6 +35,9 @@ const HGEditUserPage = lazy(() =>
 const HGWalletPage = lazy(() =>
   import("../page_modules/user/wallet/hg_wallet_page")
 );
+const HGWalletRechargePage = lazy(() =>
+  import("../page_modules/user/wallet/hg_wallet_recharge_page")
+);
 const HGVideoUploadEditPage = lazy(() =>
   import("../page_modules/hg_video_upload/hg_video_upload_edit_page")
 );
@@ -81,6 +84,7 @@ const hgLazyElement = (element, text = "正在加载页面...") => (
 const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);
 const WrappedHGEditUserPage = WithNavigation(HGEditUserPage);
 const WrappedHGWalletPage = WithNavigation(HGWalletPage);
+const WrappedHGWalletRechargePage = WithNavigation(HGWalletRechargePage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
 const WrappedHGBiliAuthorSpacePage = WithNavigation(HGBiliAuthorSpacePage);
@@ -125,6 +129,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.WALLET,
         element: hgLazyElement(<WrappedHGWalletPage />),
+      },
+      {
+        path: ROUTE_PATH.WALLET_RECHARGE,
+        element: hgLazyElement(<WrappedHGWalletRechargePage />),
       },
       {
         path: ROUTE_PATH.VIDEO_UPLOAD_EDIT,

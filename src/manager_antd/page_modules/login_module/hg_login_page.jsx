@@ -10,6 +10,7 @@ import React, { Component } from "react";
 import { LogOut } from "../../../logger/hg_logger";
 import HGLoading from "../../../components/hg_loading";
 import { DEBUG_MAP } from "../../auth/hg_auth";
+import { getHGLoginReturn } from "../../auth/hg_login_return.js";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../../router/hg_router_path";
 import HGEditUserPageVM from "../user/edit_user_info/hg_edit_user_page_vm";
@@ -53,7 +54,11 @@ class HGLoginPage extends Component {
         return HGEditUserPageVM.getUserProfile();
       })
       .then(() => {
-        const from = this.props.location.state?.from || ROUTE_PATH.HOME;
+        const from = getHGLoginReturn(
+          this.props.location.state?.from,
+          this.props.location.search,
+          ROUTE_PATH.HOME
+        );
         this.props.navigate?.(from);
         this.setState({ loading: false });
       })
