@@ -2,18 +2,18 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-07-05
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-07-05
+ * @LastEditTime: 2026-09-30 10:49:16
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/role_list/hg_role_list_page.jsx
  * @Description: 角色列表页面，默认 cursor 分页展示角色列表
  */
 import React, { Component } from "react";
-import HGCardPage from "../../../../components/hg_card/hg_card_page";
-import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
-import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
-import HGRoleListVM, { ROLE_LIST_PAGE_SIZE } from "./hg_role_list_vm";
+import HGCardPage from "../../../../components/hg_card/hg_card_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
+import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
+import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import styles from "./hg_role_list.module.css";
+import HGRoleListVM, { ROLE_LIST_PAGE_SIZE } from "./hg_role_list_vm";
 
 /**
  * 角色列表页面。
@@ -143,7 +143,11 @@ class HGRoleListPage extends Component {
   handleEdit = (record) => {
     this.setState({
       editModalVisible: true,
-      editFormData: { id: record.id, name: record.name, description: record.description || "" },
+      editFormData: {
+        id: record.id,
+        name: record.name,
+        description: record.description || "",
+      },
     });
   };
 
@@ -151,7 +155,10 @@ class HGRoleListPage extends Component {
    * 关闭编辑弹窗。
    */
   handleEditModalClose = () => {
-    this.setState({ editModalVisible: false, editFormData: { id: "", name: "", description: "" } });
+    this.setState({
+      editModalVisible: false,
+      editFormData: { id: "", name: "", description: "" },
+    });
   };
 
   /**
@@ -292,7 +299,11 @@ class HGRoleListPage extends Component {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>角色ID</label>
+          <label
+            style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}
+          >
+            角色ID
+          </label>
           <input
             type="text"
             value={editFormData.id}
@@ -308,7 +319,11 @@ class HGRoleListPage extends Component {
           />
         </div>
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>角色名称 <span style={{ color: "#ff4d4f" }}>*</span></label>
+          <label
+            style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}
+          >
+            角色名称 <span style={{ color: "#ff4d4f" }}>*</span>
+          </label>
           <input
             type="text"
             value={editFormData.name}
@@ -323,10 +338,16 @@ class HGRoleListPage extends Component {
           />
         </div>
         <div>
-          <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>角色描述</label>
+          <label
+            style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}
+          >
+            角色描述
+          </label>
           <textarea
             value={editFormData.description}
-            onChange={(e) => this.handleEditFormChange("description", e.target.value)}
+            onChange={(e) =>
+              this.handleEditFormChange("description", e.target.value)
+            }
             placeholder="请输入角色描述"
             rows={4}
             style={{
@@ -343,7 +364,15 @@ class HGRoleListPage extends Component {
   };
 
   render() {
-    const { data, loading, pagination, editModalVisible, editLoading, deleteModalVisible, deleteRecord } = this.state;
+    const {
+      data,
+      loading,
+      pagination,
+      editModalVisible,
+      editLoading,
+      deleteModalVisible,
+      deleteRecord,
+    } = this.state;
     return (
       <div className={styles.roleListContainer}>
         <HGCardPage

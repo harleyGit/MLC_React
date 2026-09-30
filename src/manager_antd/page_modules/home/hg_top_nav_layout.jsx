@@ -207,14 +207,41 @@ class HGTopNavLayout extends Component {
     logout();
     this.props.navigate(ROUTE_PATH.LOGIN);
   };
- 
 
   /**
-   * 组件主渲染：顶部导航 + 头像下拉 + 子路由内容容器 + 页脚。
-   * @returns {React.ReactNode} 布局根节点。
+   * 渲染顶部导航菜单。
+   * @param {string} current 当前选中的菜单 key。
+   * @returns {React.ReactNode} 顶部菜单节点。
    */
-  render() {
-    const { current, showUserDropdown } = this.state;
+  renderTopMenu = (current) => {
+    return (
+      <HGMenuPage
+        theme="dark"
+        mode="horizontal"
+        selectedKeys={[current]}
+        onClick={this.handleClick}
+        className={styles.topMenu}
+        items={[
+          { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>首页</Link> },
+          { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>产品</Link> },
+          { key: "about", label: <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>我们</Link> },
+          { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
+          { key: "crawler", label: <Link to={ROUTE_PATH.CRAWLER_PLATFORM} className={styles.menuLink}>采集平台</Link> },
+          { key: "test_module", label: <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>测试模块</Link> },
+          { key: "bili_douga", label: <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>B站动画</Link> },
+          { key: "profile", label: <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>我的信息</Link> },
+        ]}
+      />
+    );
+  };
+
+  /**
+   * 渲染头像按钮及用户下拉菜单。
+   * @param {string} current 当前选中的菜单 key。
+   * @param {boolean} showUserDropdown 是否显示用户下拉菜单。
+   * @returns {React.ReactNode} 头像区域节点。
+   */
+  renderAvatarMenu = (current, showUserDropdown) => {
     const userProfile = this.getUserProfile();
     const userDisplayName = this.getUserDisplayName(userProfile);
     const userAvatarUrl = this.getUserAvatarUrl(userProfile);
@@ -225,99 +252,125 @@ class HGTopNavLayout extends Component {
     }`;
 
     return (
-      <Layout className={styles.layout}>
-        <Header className={styles.header}>
-          <div className={styles.logo} />
-          <HGMenuPage
-            theme="dark"
-            mode="horizontal"
-            selectedKeys={[current]}
-            onClick={this.handleClick}
-            className={styles.topMenu}
-            items={[
-              { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>首页</Link> },
-              { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>产品</Link> },
-              { key: "about", label: <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>我们</Link> },
-              { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
-              { key: "crawler", label: <Link to={ROUTE_PATH.CRAWLER_PLATFORM} className={styles.menuLink}>采集平台</Link> },
-              { key: "test_module", label: <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>测试模块</Link> },
-              { key: "bili_douga", label: <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>B站动画</Link> },
-              { key: "profile", label: <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>我的信息</Link> },
-            ]}
-          />
-          <div className={styles.avatarWrap} ref={this.avatarMenuRef}>
+      <div className={styles.avatarWrap} ref={this.avatarMenuRef}>
+        <button
+          type="button"
+          className={avatarButtonClassName}
+          onClick={this.toggleUserDropdown}
+        >
+          {userAvatarUrl ? (
+            <img
+              className={styles.avatarImage}
+              src={userAvatarUrl}
+              alt={userDisplayName}
+            />
+          ) : (
+            <span className={styles.avatarText}>{avatarText}</span>
+          )}
+        </button>
+        {showUserDropdown ? (
+          <div className={styles.userDropdown}>
+            <div className={styles.userInfoCard}>
+              <div className={styles.userInfoAvatar}>
+                {userAvatarUrl ? (
+                  <img
+                    className={styles.userInfoAvatarImage}
+                    src={userAvatarUrl}
+                    alt={userDisplayName}
+                  />
+                ) : (
+                  avatarText
+                )}
+              </div>
+              <div className={styles.userInfoText}>
+                <div className={styles.userName}>{userDisplayName}</div>
+                {userSubtitle ? (
+                  <div className={styles.userSubtitle}>{userSubtitle}</div>
+                ) : null}
+              </div>
+            </div>
+            <div className={styles.dropdownDivider} />
             <button
               type="button"
-              className={avatarButtonClassName}
-              onClick={this.toggleUserDropdown}
+              className={styles.dropdownItem}
+              onClick={this.gotoUserProfile}
             >
-              {userAvatarUrl ? (
-                <img
-                  className={styles.avatarImage}
-                  src={userAvatarUrl}
-                  alt={userDisplayName}
-                />
-              ) : (
-                <span className={styles.avatarText}>{avatarText}</span>
-              )}
+              个人中心
             </button>
-            {showUserDropdown ? (
-              <div className={styles.userDropdown}>
-                <div className={styles.userInfoCard}>
-                  <div className={styles.userInfoAvatar}>
-                    {userAvatarUrl ? (
-                      <img
-                        className={styles.userInfoAvatarImage}
-                        src={userAvatarUrl}
-                        alt={userDisplayName}
-                      />
-                    ) : (
-                      avatarText
-                    )}
-                  </div>
-                  <div className={styles.userInfoText}>
-                    <div className={styles.userName}>{userDisplayName}</div>
-                    {userSubtitle ? (
-                      <div className={styles.userSubtitle}>{userSubtitle}</div>
-                    ) : null}
-                  </div>
-                </div>
-                <div className={styles.dropdownDivider} />
-                <button
-                  type="button"
-                  className={styles.dropdownItem}
-                  onClick={this.gotoUserProfile}
-                >
-                  个人中心
-                </button>
-                <button
-                  type="button"
-                  className={styles.dropdownItem}
-                  onClick={this.gotoPersonalCenter}
-                >
-                  内容管理
-                </button>
-                <button
-                  type="button"
-                  className={styles.dropdownItem}
-                  onClick={this.gotoLogoutPage}
-                >
-                  退出登录
-                </button>
-              </div>
-            ) : null}
+            <button
+              type="button"
+              className={styles.dropdownItem}
+              onClick={this.gotoPersonalCenter}
+            >
+              内容管理
+            </button>
+            <button
+              type="button"
+              className={styles.dropdownItem}
+              onClick={this.gotoLogoutPage}
+            >
+              退出登录
+            </button>
           </div>
-        </Header>
+        ) : null}
+      </div>
+    );
+  };
 
-        <Content className={styles.content}>
-          <div className={styles.contentWrapper}>
-            <Outlet /> {/* 渲染子路由 */}
-          </div>
-        </Content>
+  /**
+   * 渲染页面头部，组合 Logo、顶部菜单和头像区域。
+   * @param {string} current 当前选中的菜单 key。
+   * @param {boolean} showUserDropdown 是否显示用户下拉菜单。
+   * @returns {React.ReactNode} 页面头部节点。
+   */
+  renderHeader = (current, showUserDropdown) => {
+    return (
+      <Header className={styles.header}>
+        <div className={styles.logo} />
+        {this.renderTopMenu(current)}
+        {this.renderAvatarMenu(current, showUserDropdown)}
+      </Header>
+    );
+  };
 
-        <Footer style={{ textAlign: "center", padding: "24px 0" }}>
-          Ant Design ©2026
-        </Footer>
+  /**
+   * 渲染子路由内容容器。
+   * @returns {React.ReactNode} 页面内容节点。
+   */
+  renderContent = () => {
+    return (
+      <Content className={styles.content}>
+        <div className={styles.contentWrapper}>
+          <Outlet /> {/* 渲染子路由 */}
+        </div>
+      </Content>
+    );
+  };
+
+  /**
+   * 渲染页面页脚。
+   * @returns {React.ReactNode} 页面页脚节点。
+   */
+  renderFooter = () => {
+    return (
+      <Footer style={{ textAlign: "center", padding: "24px 0" }}>
+        Ant Design ©2026
+      </Footer>
+    );
+  };
+
+  /**
+   * 组件主渲染：顶部导航 + 头像下拉 + 子路由内容容器 + 页脚。
+   * @returns {React.ReactNode} 布局根节点。
+   */
+  render() {
+    const { current, showUserDropdown } = this.state;
+
+    return (
+      <Layout className={styles.layout}>
+        {this.renderHeader(current, showUserDropdown)}
+        {this.renderContent()}
+        {this.renderFooter()}
       </Layout>
     );
   }
