@@ -1,5 +1,6 @@
 import React from "react";
 import styles from "./hg_table.module.css";
+import { syncHorizontalScroll } from "./hg_table_scroll.js";
 
 /**
  * 默认行高（px）。
@@ -223,9 +224,48 @@ class HGTablePage extends React.Component {
       scrollTop: 0,
     };
     this.scrollRef = React.createRef();
-    // 表头独立于表体滚动容器，必须持有 ref 才能在表体横向滚动时精确同步 scrollLeft。
+    // 表头与表体独立滚动，以 ref 同步像素位置而不触发 React 重渲染。
     this.headerRef = React.createRef();
   }
+
+  /** 监听表体可视宽度变化，包含窗口缩放及纵向滚动条出现/消失。 */
+  componentDidMount() {
+    if (typeof ResizeObserver !== "undefined") {
+      this.hgResizeObserver = new ResizeObserver(this.hgRefreshScrollLayout);
+    }
+    this.hgObserveScrollBody();
+  }
+
+  /** 数据、列及模式更新后，重新绑定可能更换的表体并对齐位置。 */
+  componentDidUpdate() {
+    this.hgObserveScrollBody();
+  }
+
+  /** 卸载后停止尺寸监听，避免访问已移除的滚动节点。 */
+  componentWillUnmount() {
+    this.hgResizeObserver?.disconnect();
+  }
+
+  /** 仅在表体节点更换时重建监听，不在每次虚拟列表更新时重复订阅。 */
+  hgObserveScrollBody = () => {
+    const body = this.scrollRef.current;
+    if (body !== this.hgObservedBody) {
+      this.hgResizeObserver?.disconnect();
+      if (body) this.hgResizeObserver?.observe(body);
+      this.hgObservedBody = body;
+    }
+    this.hgRefreshScrollLayout();
+  };
+
+  /** 表头使用表体的可视宽度，使两端最大横滚范围相同且列保持像素对齐。 */
+  hgRefreshScrollLayout = () => {
+    const body = this.scrollRef.current;
+    const header = this.headerRef.current;
+    if (!body || !header || body.clientWidth === 0) return;
+    const width = `${body.clientWidth}px`;
+    if (header.style.width !== width) header.style.width = width;
+    this.syncScrollPosition(body, header);
+  };
 
   /**
    * 判断是否使用 sections 模式。
@@ -273,11 +313,12 @@ class HGTablePage extends React.Component {
    * 职责：计算虚拟行偏移量与滚动位置，触发 React 更新。
    */
   handleSectionScroll = (e) => {
-    const { scrollTop, scrollLeft } = e.target;
+    if (!this.shouldHandleScroll(e)) return;
+    const { scrollTop } = e.currentTarget;
     const { sections = [] } = this.props;
     const { items } = flattenSections(sections);
 
-    this.syncHeaderScrollLeft(scrollLeft);
+    this.syncScrollPosition(e.currentTarget, this.headerRef.current);
 
     const startIdx = findStartIndex(items, scrollTop - ROW_HEIGHT * BUFFER_ROWS);
     const stateUpdate = {};
@@ -297,12 +338,13 @@ class HGTablePage extends React.Component {
    * 职责：计算行偏移量，触发 React 更新复用池中每行显示的数据。
    */
   handleScroll = (e) => {
-    const { scrollTop, scrollLeft } = e.target;
+    if (!this.shouldHandleScroll(e)) return;
+    const { scrollTop } = e.currentTarget;
     const { dataSource = [] } = this.props;
     const totalCount = dataSource.length;
     const bodyHeight = this.getBodyHeight();
 
-    this.syncHeaderScrollLeft(scrollLeft);
+    this.syncScrollPosition(e.currentTarget, this.headerRef.current);
 
     const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
     const maxOffset = Math.max(0, totalCount - poolSize);
@@ -319,21 +361,35 @@ class HGTablePage extends React.Component {
    * 职责：只同步表头与表体的横向位置，不触发固定行高虚拟滚动计算。
    */
   handleAutoRowHeightScroll = (e) => {
-    const { scrollLeft } = e.target;
+    if (!this.shouldHandleScroll(e)) return;
 
     // 自然行高模式只需要同步横向位置；纵向高度交给浏览器文档流自然计算。
-    this.syncHeaderScrollLeft(scrollLeft);
+    this.syncScrollPosition(e.currentTarget, this.headerRef.current);
   };
 
   /**
-   * 同步表头横向滚动位置。
-   * 职责：统一处理不同表体渲染模式的表头联动，避免依赖 DOM 兄弟关系失效。
+   * 处理表头横向滚动事件。
+   * 职责：只响应 headerWrap 自身的滚动，避免嵌套可滚动节点冒泡造成错误同步。
    */
-  syncHeaderScrollLeft = (scrollLeft) => {
-    if (this.headerRef.current) {
-      // 这里直接写入表头滚动容器的 scrollLeft，保证拖动表体时 title 行同步左右移动。
-      this.headerRef.current.scrollLeft = scrollLeft;
-    }
+  handleHeaderScroll = (e) => {
+    if (!this.shouldHandleScroll(e)) return;
+    this.syncScrollPosition(e.currentTarget, this.scrollRef.current);
+  };
+
+  /**
+   * 只处理容器自身事件；脚本同步产生的事件由相等位置检查避免重复写入。
+   */
+  shouldHandleScroll = (e) => {
+    return e.currentTarget === e.target;
+  };
+
+  /**
+   * 双向同步两个横向滚动容器，并按目标容器的最大范围钳制位置。
+   */
+  syncScrollPosition = (source, target) => {
+    if (!source || !target) return;
+
+    syncHorizontalScroll(source, target);
   };
 
   /**
@@ -482,7 +538,7 @@ class HGTablePage extends React.Component {
     const { columns = [] } = this.props;
     const totalWidth = this.getTotalColumnsWidth();
     return (
-      <div className={styles.headerWrap} ref={this.headerRef}>
+      <div className={styles.headerWrap} ref={this.headerRef} onScroll={this.handleHeaderScroll}>
         {/*
           表头必须采用“外层 100% 可视宽度 + 内层 totalWidth 总列宽”的结构。
           这样 headerWrap 才会拥有真实横向滚动空间，表体滚动时设置 scrollLeft 才能移动 title 行。
@@ -522,8 +578,8 @@ class HGTablePage extends React.Component {
 
     if (items.length === 0) {
       return (
-        <div className={styles.bodyWrap} style={{ height: bodyHeight }}>
-          <div className={styles.emptyCell}>暂无数据</div>
+        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleSectionScroll}>
+          <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
     }
@@ -655,8 +711,8 @@ class HGTablePage extends React.Component {
 
     if (totalCount === 0) {
       return (
-        <div className={styles.bodyWrap} style={{ height: bodyHeight }}>
-          <div className={styles.emptyCell}>暂无数据</div>
+        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleScroll}>
+          <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
     }
@@ -715,7 +771,7 @@ class HGTablePage extends React.Component {
           ref={this.scrollRef}
           onScroll={this.handleAutoRowHeightScroll}
         >
-          <div className={styles.emptyCell}>暂无数据</div>
+          <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
     }
@@ -729,7 +785,7 @@ class HGTablePage extends React.Component {
       >
         {/*
           autoHeightBodyInner 是实际被横向滚动的内容层。
-          minWidth 使用列总宽度撑开表体，width:max-content 由 CSS 保证内容宽度不会被外层压缩。
+          minWidth 使用列总宽度撑开表体，宽容器内则与表头一样填满可视区域。
         */}
         <div className={styles.autoHeightBodyInner} style={{ minWidth: totalWidth }}>
           {dataSource.map((record, rowIndex) => (

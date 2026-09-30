@@ -44,7 +44,8 @@
   border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
   width: 100%;
-  min-width: 100%;
+  /* 实际宽度由表体 clientWidth 校准，不能再以 100% 最小宽度覆盖滚动条补偿。 */
+  min-width: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -83,7 +84,7 @@
 
 .autoHeightBodyInner {
   overflow: hidden;
-  width: max-content;
+  width: 100%;
 }
 
 .virtualSpacer {
@@ -139,6 +140,7 @@
 
 /* ===== 空数据 ===== */
 .emptyCell {
+  box-sizing: border-box;
   padding: 32px 16px;
   text-align: center;
   color: rgba(0, 0, 0, 0.25);

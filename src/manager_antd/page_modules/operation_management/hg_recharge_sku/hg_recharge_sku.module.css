@@ -15,5 +15,6 @@
 .field { display: grid; gap: 7px; color: #283047; font-size: 13px; font-weight: 600; }
 .field input, .field select { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid #d8deea; border-radius: 6px; background: #fff; color: #20263a; font: inherit; font-weight: 400; }
 .versionTip { grid-column: 1 / -1; margin: 0; color: #7a859f; font-size: 12px; }
+.coinTip { grid-column: 1 / -1; margin: 0; color: #7a859f; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; color: #748097; font-size: 13px; }
 @media (max-width: 720px) { .toolbar { align-items: stretch; } .form { grid-template-columns: 1fr; } .versionTip { grid-column: auto; } .error { align-items: stretch; flex-direction: column; } }

@@ -8,6 +8,22 @@ test("金额按字符串精确转分，不使用浮点乘算", () => {
   assert.equal(hgFenToYuan(23300), "233.00");
 });
 
+test("6元示例的基础币不含赠币，兑换比例不自动绑定", () => {
+  const hgForm = { ...HG_EMPTY_SKU_FORM, skuCode: "sku_6", title: "6元档", amountYuan: "6", coinAmount: "600", bonusCoin: "20" };
+  const hgBody = hgBuildSkuRequest(hgForm);
+  assert.equal(hgBody.payAmount, 600);
+  assert.equal(hgBody.coinAmount, 600);
+  assert.equal(hgBody.bonusCoin, 20);
+  assert.equal(hgBody.coinAmount + hgBody.bonusCoin, 620);
+  assert.equal(Object.hasOwn(hgBody, "totalCoin"), false);
+  // 改金额不换算币数，改基础币也不改变金额或赠币。
+  assert.equal(hgBuildSkuRequest({ ...hgForm, amountYuan: "18" }).coinAmount, 600);
+  const hgCustomBody = hgBuildSkuRequest({ ...hgForm, coinAmount: "7" });
+  assert.equal(hgCustomBody.payAmount, 600);
+  assert.equal(hgCustomBody.coinAmount, 7);
+  assert.equal(hgCustomBody.bonusCoin, 20);
+});
+
 test("金额上下界及危险格式", () => {
   assert.equal(hgYuanToFen("90071992547409.91"), Number.MAX_SAFE_INTEGER);
   assert.equal(hgFenToYuan(Number.MAX_SAFE_INTEGER), "90071992547409.91");

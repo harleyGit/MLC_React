@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-24
+ * @LastEditTime: 2026-09-30 18:04:06
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_vm.jsx
  * @Description: 运维管理页面 ViewModel，管理菜单配置与页面切换逻辑
  */
@@ -79,7 +79,7 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="config" />,
     children: [
       { key: "coin_operations", label: "硬币资产运维", icon: <HGIconPage type="table" /> },
-      { key: "hg_recharge_sku", label: "价格充值档位", icon: <HGIconPage type="table" /> },
+      { key: "hg_recharge_sku", label: "M币充值档位", icon: <HGIconPage type="table" /> },
     ],
   },
   {
