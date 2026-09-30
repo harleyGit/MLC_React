@@ -11,12 +11,14 @@
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
 import domainDetectMiddleware, { domainDetectProxy } from "./proxy_until.js";
+import hgWalletDevPlugin from "./hg_wallet_dev.js";
 
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
-  plugins: [react(), domainDetectMiddleware()],
+  plugins: [react(), domainDetectMiddleware(), hgWalletDevPlugin()],
   server: {
+    host: "0.0.0.0",
     port: 5174,
     strictPort: true,
     proxy: {

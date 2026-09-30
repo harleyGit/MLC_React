@@ -13,16 +13,30 @@ class HGWalletPage extends React.Component {
 
   /** 读取权威币余额；请求链不支持外部取消，卸载时作废返回结果。 */
   componentDidMount() {
+    this.hgRefreshBalance();
+    window.addEventListener("pageshow", this.hgRefreshBalance);
+    window.addEventListener("focus", this.hgRefreshBalance);
+  }
+
+  /** 返回路由或恢复浏览器页面时重读余额，旧请求不可覆盖后发请求。 */
+  componentDidUpdate(hgPrevious) {
+    if (hgPrevious.location?.key !== this.props.location?.key) this.hgRefreshBalance();
+  }
+
+  hgRefreshBalance = () => {
     const hgRequest = this.hgRequest = {};
+    this.setState({ hgBalanceError: "" });
     HGWalletVM.getBalance().then((hgResult) => {
       if (this.hgRequest === hgRequest) this.setState({ hgBalance: hgResult.balance });
     }).catch((hgError) => {
       if (this.hgRequest === hgRequest) this.setState({ hgBalanceError: HGWalletVM.errorMessage(hgError) });
     });
-  }
+  };
 
   componentWillUnmount() {
     this.hgRequest = null;
+    window.removeEventListener("pageshow", this.hgRefreshBalance);
+    window.removeEventListener("focus", this.hgRefreshBalance);
   }
   /**
    * 使用已有用户资料缓存展示名称，不将展示名称用作订单归属依据。
@@ -165,7 +179,7 @@ class HGWalletPage extends React.Component {
   renderMainContent = () => {
     return (
       <main className={styles.main}>
-        <p className={styles.serviceNotice}>可查看余额和创建充值订单。支付渠道暂未配置，不会扣款或入账；提现与交易记录暂未开放。</p>
+        <p className={styles.serviceNotice}>可查看余额和创建充值订单。微信、支付宝未接入；仅后端显式开放的 debug 模拟充值会写入真实平台币，不扣人民币，仅限隔离测试。提现与交易记录暂未开放。</p>
         {this.renderBalanceCard()}
         {this.renderQuickServices()}
         {this.renderTransactionRecords()}

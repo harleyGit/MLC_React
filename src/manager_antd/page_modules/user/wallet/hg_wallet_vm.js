@@ -1,6 +1,14 @@
 import QRCode from "qrcode";
+import { getHGWalletLinkOrigin, isHGLocalOnlyOrigin } from "./hg_wallet_origin.js";
+export { isHGLocalOnlyOrigin } from "./hg_wallet_origin.js";
 
 export const HG_RECHARGE_EXPIRY_MINUTES = 10;
+
+/** 仅信任订单能力，不从前端模式、域名或金额猜测后端环境。 */
+export function canHGDebugPay(hgOrder) {
+  return hgOrder?.paymentAvailable === true && hgOrder.paymentMode === "platform_debug" &&
+    Array.isArray(hgOrder.availableMethods) && hgOrder.availableMethods.includes("platform_debug");
+}
 
 /** 按人民币分字符串格式化金额，避免先转 Number 造成精度丢失。 */
 export function formatHGYuanFromFen(value) {
@@ -30,21 +38,13 @@ export function normalizeHGRechargeSKUs(result) {
   );
 }
 
-/** 生成同源订单详情地址；详情页仍由 JWT 保护，需在手机登录同一用户。 */
-export function buildHGRechargeDetailURL(orderId, origin = window.location.origin) {
-  const url = new URL("/account/wallet/recharge", origin);
+/** 开发本机入口改用 LAN；无可用地址则拒绝生成，详情仍需手机登录同一用户。 */
+export function buildHGRechargeDetailURL(orderId, origin = window.location.origin, hgDev) {
+  const hgOrigin = getHGWalletLinkOrigin(origin, hgDev);
+  if (isHGLocalOnlyOrigin(hgOrigin)) throw new Error("当前地址仅本机可达，不能生成手机二维码；请配置手机可达的站点 origin");
+  const url = new URL("/account/wallet/recharge", hgOrigin);
   url.searchParams.set("orderId", String(orderId || ""));
   return url.toString();
-}
-
-/** 判断二维码链接是否只能在当前设备访问，避免把 localhost 当成手机可用地址。 */
-export function isHGLocalOnlyOrigin(origin = window.location.origin) {
-  try {
-    const hgHost = new URL(origin).hostname;
-    return hgHost === "localhost" || hgHost.endsWith(".localhost") || hgHost === "[::1]" || hgHost === "0.0.0.0" || /^127\./.test(hgHost);
-  } catch {
-    return false;
-  }
 }
 
 /** 本地编码订单确认页，不请求第三方二维码服务；保留四模块白色静区。 */
@@ -94,20 +94,23 @@ export default class HGWalletVM {
     return this.hgRequest("get", "WALLET_RECHARGE_ORDER_DETAIL", { orderId });
   }
 
-  /** 能力关闭时不发请求；即使未来返回 200，也不据此推断入账。 */
-  static payOrderIfAvailable(order) {
-    if (order?.paymentAvailable !== true) {
+  /** 未选第三方时才默认 debug；显式第三方选择绝不降级为模拟充值。 */
+  static payOrderIfAvailable(order, paymentMethod = "platform_debug") {
+    if (paymentMethod !== "platform_debug") {
+      return Promise.reject(new Error("微信、支付宝尚未接入，不会转为模拟充值"));
+    }
+    if (!canHGDebugPay(order)) {
       return Promise.reject(new Error("支付渠道暂未配置"));
     }
-    return this.payRechargeOrder(order.orderId);
+    return this.payRechargeOrder(order.orderId, paymentMethod);
   }
 
-  /** 保留真实付款协议，HTTP 503 由调用方显示，不能转换为成功。 */
-  static payRechargeOrder(orderId) {
-    return this.hgRequest("post", "WALLET_RECHARGE_PAY", { orderId });
+  /** 必传支付方法；同订单重试由后端幂等处理，返回完整订单而非成功布尔值。 */
+  static payRechargeOrder(orderId, paymentMethod) {
+    return this.hgRequest("post", "WALLET_RECHARGE_PAY", { orderId, paymentMethod });
   }
 
-  /** 当前契约无成功状态；未来接入服务端入账确认后调用此入口刷新余额。 */
+  /** paid 的 balanceAfter 是历史快照，实时展示必须重新查询权威余额。 */
   static refreshBalanceAfterConfirmedPayment() {
     return this.getBalance();
   }

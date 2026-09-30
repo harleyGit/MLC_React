@@ -126,6 +126,7 @@
   transform: rotate(-14deg);
 }
 .balanceCopy {
+  min-width: 0;
   position: relative;
   z-index: 1;
 }
@@ -135,6 +136,7 @@
   font-size: 14px;
 }
 .balanceValue {
+  overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 45px;
   font-weight: 700;

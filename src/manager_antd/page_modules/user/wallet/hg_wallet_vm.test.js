@@ -46,6 +46,9 @@ test("payment unavailable rejects without invoking pay and preserves HTTP 503 me
 });
 
 test("buildHGRechargeDetailURL creates same-origin order URL", () => {
+  assert.equal(buildHGRechargeDetailURL("order/1", "http://localhost:5174", { address: "192.168.1.8" }),
+    "http://192.168.1.8:5174/account/wallet/recharge?orderId=order%2F1");
+  assert.throws(() => buildHGRechargeDetailURL("order-1", "http://localhost:5174", { error: "请选择网卡" }), /请选择网卡/);
   assert.equal(
     buildHGRechargeDetailURL("order/1", "https://mlc.example"),
     "https://mlc.example/account/wallet/recharge?orderId=order%2F1"

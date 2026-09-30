@@ -6,6 +6,7 @@
 .page a, .confirm a { color: #2166b5; overflow-wrap: anywhere; }
 .page p, .confirm p { line-height: 1.8; }
 .warning { padding: 14px 18px; background: #fff6e8; color: #885211; border: 1px solid #f3ddba; border-radius: 8px; }
+.disabledReason { margin: 12px 0 0; color: #885211; font-size: 14px; font-weight: 600; }
 .panel { padding: 28px; border: 1px solid #e3eaf2; border-radius: 12px; margin: 24px 0; background: #fff; }
 .panel h2, .terms h2 { font-size: 20px; margin-top: 0; }
 .panel > p, .terms { color: #65758b; font-size: 14px; }
