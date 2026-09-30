@@ -79,6 +79,7 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="config" />,
     children: [
       { key: "coin_operations", label: "硬币资产运维", icon: <HGIconPage type="table" /> },
+      { key: "hg_recharge_sku", label: "价格充值档位", icon: <HGIconPage type="table" /> },
     ],
   },
   {

@@ -30,6 +30,7 @@ const HGRolePermissionPage = lazy(() => import("./role_permission/hg_role_permis
 const HGSmsTemplatePage = lazy(() => import("./sms_template/hg_sms_template_page"));
 const HGBilibiliTagPage = lazy(() => import("./bilibili_tag/hg_bilibili_tag_page"));
 const HGCoinOperationsPage = lazy(() => import("./coin_operations/hg_coin_operations_page"));
+const HGRechargeSkuPage = lazy(() => import("./hg_recharge_sku/hg_recharge_sku_page"));
 const HGUserProfilePage = lazy(() => import("../user/hg_user_profile_page"));
 // 检测工具按需加载，不增加默认运维页面的初始化请求。
 const DomainDetectPage = lazy(() => import("../domain_module/DomainDetectPage.jsx"));
@@ -226,6 +227,7 @@ const PAGE_MAP = {
   resource_file_list: HGFileListPage,
   bilibili_douga_tags: HGBilibiliTagPage,
   coin_operations: HGCoinOperationsPage,
+  hg_recharge_sku: HGRechargeSkuPage,
 };
 
 /**
