@@ -6,7 +6,8 @@
  * @FilePath: /MLC_React/src/manager_antd/router/hg_router_path.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-export const ROUTE_PATH = {
+// JavaScript 没有原生字符串枚举；冻结常量对象以提供不可变的枚举式路由值。
+export const ROUTE_PATH = Object.freeze({
   ABOUT: "/about", //关于我们
   PRODUCTS: "/products", //产品
   DEFAULT: "/", //默认路由
@@ -30,4 +31,4 @@ export const ROUTE_PATH = {
   PERSONAL_CENTER: "/personal/center", //内容中心
   USER_SPACE: "/space/:uid", //用户空间页面（B站风格）
   CRAWLER_PLATFORM: "/crawler", //数据采集平台
-};
+});

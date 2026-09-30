@@ -62,22 +62,30 @@ class HGTopNavLayout extends Component {
    */
   getCurrentPage = () => {
     const path = this.props.location?.pathname || "/";
-    if (path === ROUTE_PATH.DEFAULT || path === ROUTE_PATH.HOME) return "home";
-    if (path === ROUTE_PATH.PRODUCTS) return "products";
-    if (path === ROUTE_PATH.ABOUT) return "about";
-    if (path === ROUTE_PATH.USER_PROFILE) return "profile";
-    if (
-      path === ROUTE_PATH.EDIT_USER_INFO ||
-      path === ROUTE_PATH.WALLET
-    ) {
-      return "avatar";
+    switch (path) {
+      case ROUTE_PATH.DEFAULT:
+      case ROUTE_PATH.HOME:
+        return "home";
+      case ROUTE_PATH.PRODUCTS:
+        return "products";
+      case ROUTE_PATH.ABOUT:
+        return "about";
+      case ROUTE_PATH.USER_PROFILE:
+        return "profile";
+      case ROUTE_PATH.EDIT_USER_INFO:
+      case ROUTE_PATH.WALLET:
+        return "avatar";
+      case ROUTE_PATH.OPERATION_MANAGEMENT:
+        return "operation";
+      case ROUTE_PATH.TEST_MODULE:
+        return "test_module";
+      case ROUTE_PATH.PERSONAL_CENTER:
+        return "personal_center";
+      default:
+        if (path.startsWith(ROUTE_PATH.CRAWLER_PLATFORM)) return "crawler";
+        if (path.startsWith("/bilibili/")) return "bili_douga";
+        return "home";
     }
-    if (path === ROUTE_PATH.OPERATION_MANAGEMENT) return "operation";
-    if (path.startsWith(ROUTE_PATH.CRAWLER_PLATFORM)) return "crawler";
-    if (path === ROUTE_PATH.TEST_MODULE) return "test_module";
-    if (path.startsWith("/bilibili/")) return "bili_douga";
-    if (path === ROUTE_PATH.PERSONAL_CENTER) return "personal_center";
-    return "home";
   };
 
   /**
