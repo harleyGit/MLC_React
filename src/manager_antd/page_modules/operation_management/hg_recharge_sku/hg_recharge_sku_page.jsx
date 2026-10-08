@@ -519,7 +519,8 @@ class HGRechargeSkuPage extends Component {
 
   /** 新增与编辑共用表单，保留提交锁和冲突提示。 */
   renderFormModal = () => {
-    const { formVisible, submitting, editingRecord, mutationError } = this.state;
+    const { formVisible, submitting, editingRecord, mutationError } =
+      this.state;
     return (
       <HGModalPage
         visible={formVisible}
@@ -548,9 +549,7 @@ class HGRechargeSkuPage extends Component {
         closable={!deleting}
         footer={this.renderFooter(true)}
         title="确认删除充值档位"
-        onClose={() =>
-          !this.hgWriting && this.setState({ deleteRecord: null })
-        }
+        onClose={() => !this.hgWriting && this.setState({ deleteRecord: null })}
       >
         {mutationError && (
           <p role="alert" className={styles.error}>
