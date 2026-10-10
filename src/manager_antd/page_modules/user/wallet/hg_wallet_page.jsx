@@ -1,5 +1,6 @@
 import React from "react";
-import { ROUTE_PATH } from "../../../router/hg_router_path";
+import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
+import { hgMessage } from "../../../../components/hg_message/hg_message_page";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_wallet_page.module.css";
 import HGWalletVM from "./hg_wallet_vm.js";
@@ -50,12 +51,16 @@ class HGWalletPage extends React.Component {
    * 返回账号设置页，保留用户从钱包回到个人中心的明确路径。
    */
   handleBack = () => {
-    this.props.navigate?.(ROUTE_PATH.EDIT_USER_INFO);
+    this.props.pageNavigator?.open({ page: PAGE.EDIT_USER_INFO });
   };
 
-  /** 两个充值入口共用受保护路由。 */
+  /** 两个入口共用充值会话；回调只发全局通知，返回后由新挂载的钱包读取余额。 */
   handleRecharge = () => {
-    this.props.navigate?.(ROUTE_PATH.WALLET_RECHARGE);
+    this.props.pageNavigator?.open({
+      page: PAGE.WALLET_RECHARGE,
+      params: { source: "wallet" },
+      onSuccess: () => hgMessage.success("充值成功，平台币已入账。"),
+    });
   };
 
   /** 渲染钱包页头及返回入口。 */

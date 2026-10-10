@@ -12,6 +12,7 @@ import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
 import React, { Component } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { ROUTE_PATH } from "../../router/hg_router_path";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
 import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
 import styles from "./hg_top_nav_layout.module.css";
@@ -186,7 +187,7 @@ class HGTopNavLayout extends Component {
    */
   gotoUserProfile = () => {
     this.setState({ showUserDropdown: false });
-    this.props.navigate(ROUTE_PATH.EDIT_USER_INFO);
+    this.props.pageNavigator.open({ page: PAGE.EDIT_USER_INFO });
   };
 
   /**
@@ -195,7 +196,7 @@ class HGTopNavLayout extends Component {
    */
   gotoPersonalCenter = () => {
     this.setState({ showUserDropdown: false });
-    this.props.navigate(ROUTE_PATH.PERSONAL_CENTER);
+    this.props.pageNavigator.open({ page: PAGE.PERSONAL_CENTER });
   };
 
   /**
@@ -205,7 +206,7 @@ class HGTopNavLayout extends Component {
   gotoLogoutPage = () => {
     this.setState({ showUserDropdown: false });
     logout();
-    this.props.navigate(ROUTE_PATH.LOGIN);
+    this.props.pageNavigator.open({ page: PAGE.LOGIN });
   };
 
   /**

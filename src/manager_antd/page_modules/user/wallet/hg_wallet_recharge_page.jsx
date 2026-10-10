@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
+import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
 import { ROUTE_PATH } from "../../../router/hg_router_path";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_wallet_recharge.module.css";
@@ -14,6 +15,16 @@ import HGWalletVM, {
   normalizeHGRechargeSKUs,
 } from "./hg_wallet_vm.js";
 
+/**
+ * @typedef {Object} HGWalletRechargeParams
+ * @property {string} [source] 入口来源，钱包入口为 wallet，不作为支付成功依据。
+ * @property {string} [orderId] 本人订单编号；缺省时展示充值目录。
+ */
+/**
+ * @typedef {Object} HGWalletRechargeResult
+ * @property {string} orderId 服务端确认的订单编号。
+ * @property {'paid'} status 仅服务端返回 paid 时完成成功会话。
+ */
 /** 充值目录与本人订单确认共用页面；创建和付款仅由显式用户操作触发。 */
 export default class HGWalletRechargePage extends React.Component {
   state = {
@@ -34,6 +45,7 @@ export default class HGWalletRechargePage extends React.Component {
   };
 
   componentDidMount() {
+    this.hgMounted = true;
     this.hgLoadRoute();
   }
 
@@ -43,6 +55,7 @@ export default class HGWalletRechargePage extends React.Component {
   }
 
   componentWillUnmount() {
+    this.hgMounted = false;
     this.hgGeneration = null;
     this.hgQRRequest = null;
     clearInterval(this.hgClock);
@@ -62,9 +75,7 @@ export default class HGWalletRechargePage extends React.Component {
     this.hgBalanceRequest = null;
     this.hgRequestID = null;
     this.hgOffset = 0;
-    const hgOrderId = new URLSearchParams(this.props.location.search).get(
-      "orderId"
-    );
+    const hgOrderId = this.props.pageNavigation.params.orderId;
     this.setState({
       hgOrder: null,
       hgSKUs: [],
@@ -82,7 +93,7 @@ export default class HGWalletRechargePage extends React.Component {
       () => this.setState({ hgNow: Date.now() + this.hgOffset }),
       1000
     );
-    if (hgOrderId !== null) this.hgLoadDetail(hgOrderId, this.hgGeneration);
+    if (hgOrderId !== undefined) this.hgLoadDetail(hgOrderId, this.hgGeneration);
     else this.hgLoadSKUs("0");
   };
 
@@ -168,7 +179,7 @@ export default class HGWalletRechargePage extends React.Component {
     } else {
       clearInterval(this.hgClock);
     }
-    if (!new URLSearchParams(this.props.location.search).has("orderId")) {
+    if (this.props.pageNavigation.params.orderId === undefined) {
       try {
         const hgURL = buildHGRechargeDetailURL(hgOrder.orderId);
         if (hgURL !== this.hgQRURL) this.hgEncodeQR(hgURL);
@@ -315,15 +326,36 @@ export default class HGWalletRechargePage extends React.Component {
     // 保留订单查询错误，直到成功取得新快照，避免重查期间恢复付款。
     const hgOrderId =
       this.state.hgOrder?.orderId ||
-      new URLSearchParams(this.props.location.search).get("orderId");
-    if (hgOrderId !== null) this.hgLoadDetail(hgOrderId, this.hgGeneration);
+      this.props.pageNavigation.params.orderId;
+    if (hgOrderId !== undefined) this.hgLoadDetail(hgOrderId, this.hgGeneration);
     else this.hgLoadSKUs("0");
+  };
+
+  /** 只接管当前窗口的普通左键；付款成功仍留页，直到用户明确返回才完成会话。 */
+  hgBackToWallet = async (hgEvent) => {
+    if (hgEvent.defaultPrevented || hgEvent.button !== 0 || hgEvent.metaKey ||
+        hgEvent.ctrlKey || hgEvent.shiftKey || hgEvent.altKey ||
+        (hgEvent.currentTarget.target && hgEvent.currentTarget.target !== "_self")) return;
+    hgEvent.preventDefault();
+    // pending 期间仍阻止 Link 默认跳转，避免重复消费后的 false 触发兜底。
+    if (this.hgReturning) return;
+    this.hgReturning = true;
+    try {
+      const hgOrder = this.state.hgOrder;
+      const hgFinished = hgOrder?.status === "paid"
+        ? await this.props.pageNavigation.success({ orderId: hgOrder.orderId, status: "paid" })
+        : await this.props.pageNavigation.cancel();
+      if (hgFinished === false && this.hgMounted)
+        this.props.pageNavigator.open({ page: PAGE.WALLET, replace: true });
+    } finally {
+      this.hgReturning = false;
+    }
   };
 
   /** 在现有 Modal 内约束键盘焦点，Escape 返回充值中心，不改公共组件契约。 */
   hgModalKeyDown = (hgEvent) => {
     if (hgEvent.key === "Escape")
-      this.props.navigate(ROUTE_PATH.WALLET_RECHARGE);
+      this.props.pageNavigator.open({ page: PAGE.WALLET_RECHARGE });
     if (hgEvent.key !== "Tab") return;
     const hgControls = hgEvent.currentTarget.querySelectorAll(
       "button:not(:disabled), a[href]"
@@ -349,7 +381,7 @@ export default class HGWalletRechargePage extends React.Component {
       hgHasMore,
       hgCursor,
     } = this.state;
-    if (new URLSearchParams(this.props.location.search).has("orderId"))
+    if (this.props.pageNavigation.params.orderId !== undefined)
       return null;
     return (
       <section className={styles.panel}>
@@ -483,7 +515,7 @@ export default class HGWalletRechargePage extends React.Component {
     const { hgOrder, hgQR, hgQRError } = this.state;
     if (
       !hgOrder ||
-      new URLSearchParams(this.props.location.search).has("orderId")
+      this.props.pageNavigation.params.orderId !== undefined
     )
       return null;
     const hgURL = this.hgQRURL;
@@ -558,7 +590,7 @@ export default class HGWalletRechargePage extends React.Component {
     const { hgOrder, hgBusy, hgNotice, hgNow, hgError, hgLoading } = this.state;
     if (
       !hgOrder ||
-      !new URLSearchParams(this.props.location.search).has("orderId")
+      this.props.pageNavigation.params.orderId === undefined
     )
       return null;
     const hgAvailable = canHGDebugPay(hgOrder);
@@ -692,7 +724,7 @@ export default class HGWalletRechargePage extends React.Component {
     return (
       <main className={styles.page}>
         <header className={styles.header}>
-          <Link to={ROUTE_PATH.WALLET}>返回我的钱包</Link>
+          <Link to={ROUTE_PATH.WALLET} onClick={this.hgBackToWallet}>返回我的钱包</Link>
           <p className={styles.eyebrow}>MLC / RECHARGE</p>
           <h1>M币充值中心</h1>
           <p>

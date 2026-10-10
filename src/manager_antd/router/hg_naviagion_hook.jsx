@@ -8,20 +8,21 @@
  */
 import React from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { hgPageNavigator } from "../../components/hg_navigation/hg_page_navigator";
 
-/* 给class 注入navigate ,该方法只能跳转
- * @deprecated Use `WithRouter` instead.,k😀 开玩笑的，试试替代语法
- */
+/** 注入页面导航协议；保留旧路由 props 供尚未迁移的消费者使用。 */
 export function WithNavigation(Component) {
-  return function (props) {
+  return function HGWithNavigation(props) {
     const navigate = useNavigate();
-    return (
-      <Component
-        {...props}
-        navigate={navigate}
-        location={useLocation()}
-        params={useParams()}
-      />
-    );
+    const location = useLocation();
+    const params = useParams();
+    return React.createElement(Component, {
+      ...props,
+      navigate,
+      pageNavigator: hgPageNavigator,
+      pageNavigation: hgPageNavigator.getPageNavigation(location),
+      location,
+      params,
+    });
   };
 }

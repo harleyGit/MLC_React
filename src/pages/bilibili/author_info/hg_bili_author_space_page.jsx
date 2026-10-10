@@ -1,6 +1,5 @@
 import React from "react";
-import { generatePath } from "react-router-dom";
-import { ROUTE_PATH } from "../../../manager_antd/router/hg_router_path";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { setAuthorFollow } from "../hg_bili_api";
 import styles from "./hg_bili_author_space_page.module.css";
 import HGBiliAuthorSpacePageVM from "./hg_bili_author_space_page_vm";
@@ -122,26 +121,26 @@ class HGBiliAuthorSpacePage extends React.Component {
     }
   };
 
+  /** 打开投稿视频页，通过 state 保留作者资料与视频展示信息。 */
   handleVideoClick = (video) => {
     const { profile, stats } = this.state;
-    this.props.navigate(
-      generatePath(ROUTE_PATH.BILI_VIDEO_CONTENT, {
-        contentKey: encodeURIComponent(video.id),
-      }),
-      {
-        state: {
-          video: {
-            ...video,
-            author: profile?.name,
-            authorId: profile?.userId,
-            authorAvatar: profile?.avatar,
-            authorFans: stats.followers,
-            pubDate: HGBiliAuthorSpacePageVM.formatDate(video.publishTime),
-            danmaku: 0,
-          },
+    this.props.pageNavigator.open({
+      page: PAGE.BILI_VIDEO_CONTENT,
+      pathParams: {
+        contentKey: video.id,
+      },
+      state: {
+        video: {
+          ...video,
+          author: profile?.name,
+          authorId: profile?.userId,
+          authorAvatar: profile?.avatar,
+          authorFans: stats.followers,
+          pubDate: HGBiliAuthorSpacePageVM.formatDate(video.publishTime),
+          danmaku: 0,
         },
-      }
-    );
+      },
+    });
   };
 
   renderHero() {

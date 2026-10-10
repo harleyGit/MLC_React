@@ -13,6 +13,7 @@ import { DEBUG_MAP } from "../../auth/hg_auth";
 import { getHGLoginReturn } from "../../auth/hg_login_return.js";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../../router/hg_router_path";
+import { PAGE, getHGPageTarget } from "../../../components/hg_navigation/hg_page_registry";
 import HGEditUserPageVM from "../user/edit_user_info/hg_edit_user_page_vm";
 import styles from "./hg_login.module.css";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
@@ -25,7 +26,7 @@ import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 /**
  * 用户登录页面
  * 职责：提供用户登录表单，处理登录、注册跳转及忘记密码操作。
- * 输入：props - 包含 location（获取来源页）、navigate 方法（由 WithNavigation 注入）。
+ * 输入：props - 包含 location（获取来源页）、pageNavigator（由 WithNavigation 注入）。
  * 约束：登录成功后跳转至来源页或首页；使用 HGLoginVM 进行登录请求。
  */
 class HGLoginPage extends Component {
@@ -59,7 +60,9 @@ class HGLoginPage extends Component {
           this.props.location.search,
           ROUTE_PATH.HOME
         );
-        this.props.navigate?.(from);
+        // 仅将已校验的站内来源转换为页面目标，保留查询、路径参数和锚点。
+        const target = getHGPageTarget(from) || { page: PAGE.HOME };
+        this.props.pageNavigator?.open(target);
         this.setState({ loading: false });
       })
       .catch((error) => {
@@ -76,7 +79,8 @@ class HGLoginPage extends Component {
    */
   handleRegister = (registerType = HGRegisterType.PHONE) => {
     const { userName } = this.state;
-    this.props.navigate?.(ROUTE_PATH.REGISTER, {
+    this.props.pageNavigator?.open({
+      page: PAGE.REGISTER,
       state: {
         userName: userName,
         registerType: registerType,
@@ -91,7 +95,7 @@ class HGLoginPage extends Component {
    * @returns {void}
    */
   handleForgetPassword = () => {
-    this.props.navigate?.(ROUTE_PATH.FORGET_PASSWORD);
+    this.props.pageNavigator?.open({ page: PAGE.FORGET_PASSWORD });
   };
 
   /**

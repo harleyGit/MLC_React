@@ -11,7 +11,7 @@
 // HGUserProfilePage → HGUpdateUserProfilePage 页面传参（class 组件）,该页面是A组件
 import React from "react";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
-import { ROUTE_PATH } from "../../router/hg_router_path";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import CSStyles from "./hg_update_user_profile.module.css";
 
 class HGUpdateUserProfilePage extends React.Component {
@@ -25,8 +25,10 @@ class HGUpdateUserProfilePage extends React.Component {
     this.setState({ localCount: count });
   }
 
+  /** 返回用户资料页，通过 state 回传更新后的计数。 */
   goBackToUserProfilePage = () => {
-    this.props.navigate(ROUTE_PATH.USER_PROFILE, {
+    this.props.pageNavigator.open({
+      page: PAGE.USER_PROFILE,
       // replace: true, // 👈 不新增历史
       state: {
         fromB: true,

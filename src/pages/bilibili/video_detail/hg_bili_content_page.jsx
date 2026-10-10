@@ -1,10 +1,9 @@
 // 视频详情Page
 
 import React from "react";
-import { generatePath } from "react-router-dom";
 import HGVideoGridPage from "../../../components/hg_video_grid/hg_video_grid_page";
 import HGVideoPlayerPage from "../../../components/hg_video_player/hg_video_player_page";
-import { ROUTE_PATH } from "../../../manager_antd/router/hg_router_path";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import withRouter from "../../../utils/WithRouter";
 import HGVideoComments from "../../video_commpent/hg_video_comments";
 import {
@@ -131,25 +130,24 @@ class HGBiliContentPage extends React.Component {
    * @param {Object} video 被点击的视频。
    */
   handleVideoClick = (video) => {
-    this.props.navigate(
-      generatePath(ROUTE_PATH.BILI_VIDEO_CONTENT, {
-        contentKey: encodeURIComponent(video.id),
-      }),
-      {
-        state: { video },
-      }
-    );
+    this.props.pageNavigator.open({
+      page: PAGE.BILI_VIDEO_CONTENT,
+      pathParams: {
+        contentKey: video.id,
+      },
+      state: { video },
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   /** 返回动画推荐首页。 */
   handleBackHome = () => {
-    this.props.navigate(ROUTE_PATH.BILI_DOUGA);
+    this.props.pageNavigator.open({ page: PAGE.BILI_DOUGA });
   };
 
   /** 返回上一个历史页面，无历史时由浏览器保持当前页。 */
   handleBack = () => {
-    this.props.navigate(-1);
+    this.props.pageNavigator.back();
   };
 
   /** 读取当前路由视频及其作者标识并请求后端互动状态。 */
@@ -521,14 +519,13 @@ class HGBiliContentPage extends React.Component {
   handleAuthorClick = (video, profile) => {
     const userId = video.authorId || video.userId || profile?.userId;
     if (!userId) return;
-    this.props.navigate(
-      generatePath(ROUTE_PATH.BILI_AUTHOR_SPACE, {
-        userId: encodeURIComponent(userId),
-      }),
-      {
-        state: { profile },
-      }
-    );
+    this.props.pageNavigator.open({
+      page: PAGE.BILI_AUTHOR_SPACE,
+      pathParams: {
+        userId,
+      },
+      state: { profile },
+    });
   };
 
   /** 渲染频道视频列表。 */

@@ -7,7 +7,7 @@ import styles from "./hg_edit_user_page.module.css";
 import HGAccountSecurityPage from "./hg_account_security_page";
 import HGEditUserPageVM, { MENU_KEYS, MENU_LIST } from "./hg_edit_user_page_vm";
 import HGVideoUploadPage from "../../hg_video_upload/hg_video_upload_page";
-import { ROUTE_PATH } from "../../../router/hg_router_path";
+import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
 
 class HGEditUserPage extends React.Component {
   /**
@@ -70,7 +70,7 @@ class HGEditUserPage extends React.Component {
    */
   handleMenuClick = (menuKey) => {
     if (menuKey === MENU_KEYS.WALLET) {
-      this.props.navigate?.(ROUTE_PATH.WALLET);
+      this.props.pageNavigator?.open({ page: PAGE.WALLET });
       return;
     }
 
@@ -221,7 +221,11 @@ class HGEditUserPage extends React.Component {
    * 约束：文件对象只通过路由 state 传给下一页展示元信息，不在此处上传后端。
    */
   handleUploadVideoSelected = (videoFiles) => {
-    this.props.navigate?.(`${ROUTE_PATH.VIDEO_UPLOAD_EDIT}?spm_id_from=333.788.top_bar.upload`, {
+    this.props.pageNavigator?.open({
+      page: PAGE.VIDEO_UPLOAD_EDIT,
+      params: {
+        spm_id_from: "333.788.top_bar.upload",
+      },
       state: {
         uploadVideos: videoFiles,
       },

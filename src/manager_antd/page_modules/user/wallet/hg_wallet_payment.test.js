@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { transformSync } from "@swc/core";
 import React from "react";
@@ -23,6 +23,8 @@ async function hgFlushBalance() {
 function hgLoadPage(hgName, hgVM) {
   const hgTimers = new Map();
   const hgEvents = new Map();
+  const hgMessages = [];
+  const hgNavigationCalls = [];
   let hgID = 0;
   const hgModule = { exports: {} };
   const hgCode = transformSync(readFileSync(new URL(hgName, import.meta.url), "utf8"), {
@@ -36,20 +38,36 @@ function hgLoadPage(hgName, hgVM) {
     setInterval: () => ++hgID, clearInterval: () => {},
     window: { addEventListener: (hgType, hgFn) => hgEvents.set(hgType, hgFn), removeEventListener: (hgType) => hgEvents.delete(hgType) },
     require: (hgPath) => {
+      if (hgPath.startsWith(".")) {
+        const hgURL = new URL(hgPath, new URL(hgName, import.meta.url));
+        assert.ok(existsSync(hgURL) || existsSync(new URL(`${hgURL}.jsx`)), `依赖不存在：${hgPath}`);
+      }
       if (hgPath === "react") return React;
       if (hgPath.endsWith("hg_wallet_vm.js")) return { ...HGWalletExports, default: hgVM, __esModule: true };
       if (hgPath === "react-router-dom") return { Link: "a" };
-      if (hgPath.includes("hg_router_path")) return { ROUTE_PATH: {} };
+      if (hgPath.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", WALLET_RECHARGE: "/account/wallet/recharge" } };
+      if (hgPath.includes("hg_page_registry")) return { PAGE: { WALLET: "WALLET", WALLET_RECHARGE: "WALLET_RECHARGE" } };
+      if (hgPath.includes("hg_message_page")) return { hgMessage: { success: (hgMessage) => hgMessages.push(hgMessage) } };
       if (hgPath.includes("hg_user_profile_storage")) return { getUserProfile: () => ({}) };
       return {};
     },
   });
-  const hgPage = new hgModule.exports.default({ location: { search: "?orderId=order-1" } });
+  const hgPage = new hgModule.exports.default({
+    location: { search: "?orderId=order-1" },
+    pageNavigation: {
+      params: { orderId: "order-1" },
+      success: (hgResult) => { hgNavigationCalls.push(["success", hgResult]); return true; },
+      cancel: () => { hgNavigationCalls.push(["cancel"]); return true; },
+      error: (hgError) => { hgNavigationCalls.push(["error", hgError]); return true; },
+    },
+    pageNavigator: { open: (hgOptions) => hgNavigationCalls.push(["open", hgOptions]) },
+  });
   hgPage.setState = (hgState) => { hgPage.state = { ...hgPage.state, ...hgState }; };
   hgPage.hgGeneration = {};
+  hgPage.hgMounted = true;
   hgPage.state.hgOrder = hgPending;
   hgPage.state.hgNow = Date.parse(hgPending.serverTime);
-  return { hgPage, hgTimers, hgEvents };
+  return { hgPage, hgTimers, hgEvents, hgMessages, hgNavigationCalls };
 }
 
 /** 展开 React 元素树，断言真实 render 输出而非源码字符串。 */
@@ -58,6 +76,185 @@ function hgText(hgNode) {
   if (React.isValidElement(hgNode)) return hgText(hgNode.props.children);
   return hgNode == null || typeof hgNode === "boolean" ? "" : String(hgNode);
 }
+
+/** 从真实页头取得返回 Link，验证绑定及浏览器默认行为。 */
+function hgWalletBackLink(hgPage) {
+  return hgPage.render().props.children[0].props.children[0];
+}
+
+/** 模拟普通左键，允许用修饰键或 target 覆盖浏览器事件。 */
+function hgClick(hgOverrides = {}) {
+  return {
+    button: 0, currentTarget: { target: "" }, defaultPrevented: false,
+    preventDefault() { this.defaultPrevented = true; }, ...hgOverrides,
+  };
+}
+
+test("wallet recharge callback only notifies globally after source unmount", async () => {
+  let hgBalanceCalls = 0;
+  const { hgPage, hgNavigationCalls, hgMessages } = hgLoadPage("hg_wallet_page.jsx", {
+    getBalance: async () => { hgBalanceCalls++; return { balance: "42" }; },
+  });
+  hgPage.componentDidMount();
+  await hgFlushBalance();
+  hgPage.handleRecharge();
+  const hgOptions = hgNavigationCalls[0][1];
+  assert.equal(hgOptions.page, "WALLET_RECHARGE");
+  assert.equal(hgOptions.params.source, "wallet");
+  hgPage.componentWillUnmount();
+  hgPage.setState = () => assert.fail("卸载后不应更新钱包实例");
+  hgOptions.onSuccess({ orderId: "order-1", status: "paid" });
+  hgOptions.onCancel?.();
+  hgOptions.onError?.(new Error("navigation"));
+  await hgFlushBalance();
+  assert.equal(hgBalanceCalls, 1);
+  assert.equal(hgMessages.length, 1);
+  assert.match(hgMessages[0], /充值成功/);
+});
+
+test("paid stays visible until header return completes the session", async () => {
+  const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {
+    payOrderIfAvailable: async () => hgPaid,
+    refreshBalanceAfterConfirmedPayment: async () => ({ balance: "42" }),
+  });
+  await hgPage.hgPay();
+  await hgFlushBalance();
+  assert.equal(hgNavigationCalls.length, 0);
+  assert.match(hgText(hgPage.renderPaymentModal()), /模拟充值成功/);
+  const hgLink = hgWalletBackLink(hgPage);
+  assert.equal(hgLink.props.to, "/account/wallet");
+  const hgEvent = hgClick();
+  await hgLink.props.onClick(hgEvent);
+  assert.equal(hgEvent.defaultPrevented, true);
+  assert.equal(hgNavigationCalls.length, 1);
+  assert.equal(hgNavigationCalls[0][0], "success");
+  assert.deepEqual({ ...hgNavigationCalls[0][1] }, { orderId: "order-1", status: "paid" });
+});
+
+test("unpaid return cancels even when local notice claims success", async () => {
+  for (const hgOrder of [null, hgPending, { ...hgPending, status: "expired" }]) {
+    const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {});
+    hgPage.state.hgOrder = hgOrder;
+    hgPage.state.hgNotice = "充值成功";
+    await hgWalletBackLink(hgPage).props.onClick(hgClick());
+    assert.deepEqual(hgNavigationCalls, [["cancel"]]);
+  }
+});
+
+test("direct entry falls back to replace wallet when success or cancel returns false", async () => {
+  for (const hgOrder of [hgPending, hgPaid]) {
+    const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {});
+    hgPage.state.hgOrder = hgOrder;
+    const hgMethod = hgOrder.status === "paid" ? "success" : "cancel";
+    let hgFinishes = 0;
+    hgPage.props.pageNavigation[hgMethod] = () => { hgFinishes++; return false; };
+    await hgWalletBackLink(hgPage).props.onClick(hgClick());
+    assert.equal(hgFinishes, 1);
+    assert.equal(hgNavigationCalls.length, 1);
+    assert.equal(hgNavigationCalls[0][0], "open");
+    assert.deepEqual({ ...hgNavigationCalls[0][1] }, { page: "WALLET", replace: true });
+  }
+});
+
+test("header Link preserves modifiers, non-left buttons, targets and prevented clicks", async () => {
+  const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {});
+  const hgLink = hgWalletBackLink(hgPage);
+  for (const hgOverrides of [
+    { metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true },
+    { button: 1 }, { button: 2 }, { currentTarget: { target: "_blank" } },
+    { defaultPrevented: true },
+  ]) {
+    const hgEvent = hgClick(hgOverrides);
+    hgEvent.preventDefault = () => assert.fail("应保留普通链接行为");
+    await hgLink.props.onClick(hgEvent);
+  }
+  assert.equal(hgNavigationCalls.length, 0);
+});
+
+test("async false fallback waits for completion and ignores repeated clicks", async () => {
+  for (const hgOrder of [hgPending, hgPaid]) {
+  let hgResolve;
+  let hgFinishes = 0;
+  const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {});
+  hgPage.state.hgOrder = hgOrder;
+  const hgMethod = hgOrder.status === "paid" ? "success" : "cancel";
+  hgPage.props.pageNavigation[hgMethod] = () => {
+    if (++hgFinishes > 1) return false;
+    return new Promise((hgDone) => { hgResolve = hgDone; });
+  };
+  const hgLink = hgWalletBackLink(hgPage);
+  const hgFirstEvent = hgClick();
+  const hgSecondEvent = hgClick();
+  const hgFirst = hgLink.props.onClick(hgFirstEvent);
+  const hgSecond = hgLink.props.onClick(hgSecondEvent);
+  assert.equal(hgFirstEvent.defaultPrevented, true);
+  assert.equal(hgSecondEvent.defaultPrevented, true);
+  await hgSecond;
+  assert.equal(hgFinishes, 1);
+  assert.equal(hgNavigationCalls.length, 0);
+  hgResolve(false);
+  await hgFirst;
+  assert.equal(hgNavigationCalls.length, 1);
+  assert.equal(hgNavigationCalls[0][0], "open");
+  assert.deepEqual({ ...hgNavigationCalls[0][1] }, { page: "WALLET", replace: true });
+  assert.equal(hgPage.hgReturning, false);
+  }
+});
+
+test("async return skips fallback after unmount and always clears the guard", async () => {
+  let hgResolve;
+  const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {});
+  hgPage.props.pageNavigation.cancel = () => new Promise((hgDone) => { hgResolve = hgDone; });
+  const hgReturn = hgPage.hgBackToWallet(hgClick());
+  hgPage.componentWillUnmount();
+  hgResolve(false);
+  await hgReturn;
+  assert.equal(hgNavigationCalls.length, 0);
+  assert.equal(hgPage.hgReturning, false);
+  hgPage.props.pageNavigation.cancel = async () => { throw new Error("navigation failed"); };
+  await assert.rejects(hgPage.hgBackToWallet(hgClick()), /navigation failed/);
+  assert.equal(hgPage.hgReturning, false);
+});
+
+test("route and retry read navigation params; query errors retain session for retry", async () => {
+  let hgFail = true;
+  const hgIDs = [];
+  const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {
+    errorMessage: HGWalletVM.errorMessage,
+    getRechargeOrderDetail: async (hgID) => {
+      hgIDs.push(hgID);
+      if (hgFail) throw new Error("查询失败");
+      return hgPaid;
+    },
+    refreshBalanceAfterConfirmedPayment: async () => ({ balance: "42" }),
+  });
+  hgPage.props.pageNavigation.params.orderId = "navigation-order";
+  hgPage.componentDidMount();
+  await hgFlushBalance();
+  assert.match(hgPage.state.hgError, /查询失败/);
+  assert.match(hgText(hgPage.render()), /重新查询/);
+  assert.equal(hgNavigationCalls.length, 0);
+  hgFail = false;
+  hgPage.hgRetry();
+  await hgFlushBalance();
+  assert.deepEqual(hgIDs, ["navigation-order", "navigation-order"]);
+  assert.equal(hgPage.state.hgOrder.status, "paid");
+  assert.equal(hgNavigationCalls.length, 0);
+  hgPage.componentWillUnmount();
+});
+
+test("payment and confirmation errors preserve session and original order for retry", async () => {
+  const { hgPage, hgNavigationCalls } = hgLoadPage("hg_wallet_recharge_page.jsx", {
+    errorMessage: HGWalletVM.errorMessage,
+    payOrderIfAvailable: async () => { throw new Error("付款超时"); },
+    getRechargeOrderDetail: async () => { throw new Error("查询失败"); },
+  });
+  await hgPage.hgPay();
+  assert.equal(hgNavigationCalls.length, 0);
+  assert.equal(hgPage.state.hgOrder.orderId, "order-1");
+  assert.equal(hgPage.state.hgBusy, false);
+  assert.match(hgText(hgPage.renderPaymentModal()), /重新查询/);
+});
 
 test("VM requires all capabilities and never falls back from third party", async () => {
   class HGTestVM extends HGWalletVM {

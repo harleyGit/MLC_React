@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import { LogOut } from "../../../logger/hg_logger";
 import HGLoading from "../../../components/hg_loading";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
-import { ROUTE_PATH } from "../../router/hg_router_path";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import styles from "./hg_forget_password.module.css";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
 import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
@@ -98,7 +98,7 @@ class HGForgetPasswordPage extends Component {
       .then((res) => {
         LogOut("重置密码响应：", res);
         message.success("密码重置成功，请重新登录");
-        this.props.navigate?.(ROUTE_PATH.LOGIN);
+        this.props.pageNavigator?.open({ page: PAGE.LOGIN });
       })
       .catch((error) => {
         message.error(error.message || "重置密码失败");
@@ -113,7 +113,7 @@ class HGForgetPasswordPage extends Component {
    * @returns {void}
    */
   handleBackToLogin = () => {
-    this.props.navigate?.(ROUTE_PATH.LOGIN);
+    this.props.pageNavigator?.open({ page: PAGE.LOGIN });
   };
 
   render() {

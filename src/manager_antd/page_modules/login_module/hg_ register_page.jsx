@@ -12,7 +12,7 @@ import { handleError } from "../../../api/HttpManagerV1";
 import { showSuccess } from "../../../api/hg_ui_feedback";
 import { LogError, LogOut } from "../../../logger/hg_logger";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
-import { ROUTE_PATH } from "../../router/hg_router_path";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
 import styles from "./hg_register.module.css";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
@@ -25,7 +25,7 @@ import HGClickCaptchaPage from "../../../components/hg_click_captcha/hg_click_ca
 /**
  * 用户注册页面
  * 职责：提供用户注册表单，支持手机号/邮箱注册、验证码发送、密码设置及提交注册。
- * 输入：props - 包含 location（获取注册类型和用户名）、navigate 方法（由 WithNavigation 注入）。
+ * 输入：props - 包含 location（获取注册类型和用户名）、pageNavigator（由 WithNavigation 注入）。
  * 约束：注册类型由上游页面决定；验证码倒计时需在组件卸载时清除定时器。
  */
 class HGRegisterPage extends Component {
@@ -197,7 +197,7 @@ class HGRegisterPage extends Component {
     registerPromise
       .then((res) => {
         message.success("注册成功，请登录");
-        this.props.navigate(ROUTE_PATH.LOGIN);
+        this.props.pageNavigator.open({ page: PAGE.LOGIN });
       })
       .catch((err) => {
         LogError("注册错误：", err);

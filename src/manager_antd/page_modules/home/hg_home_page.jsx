@@ -10,12 +10,13 @@ import HGButtonPage from "../../../components/hg_button/hg_button_page";
 import React from "react";
 import { logout } from "../../auth/hg_auth";
 import CSStyles from "./hg_home.module.css";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 
 /**
  * 首页（已登录态）
  * 职责：展示已登录用户的首页，提供退出登录和查看个人资料入口。
- * 输入：props - 包含 navigate 方法（由 WithNavigation 注入），用于页面跳转。
- * 约束：依赖 logout 清除登录态，跳转使用原生 window.location。
+ * 输入：props - 包含 pageNavigator，用于个人资料页面跳转。
+ * 约束：依赖 logout 清除登录态，退出登录仍使用原生 window.location。
  */
 class HGHomePage extends React.Component {
   /**
@@ -32,7 +33,7 @@ class HGHomePage extends React.Component {
    * @returns {void}
    */
   viewPersonalProfile = () => {
-    this.props.navigate("/profile");
+    this.props.pageNavigator.open({ page: PAGE.USER_PROFILE });
   };
 
   render() {
