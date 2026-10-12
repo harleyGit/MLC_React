@@ -15,7 +15,7 @@
   transform: none;
   box-shadow: none;
 }
-.backButton:focus-visible {
+.page button:focus-visible {
   outline: 2px solid #2467e8;
   outline-offset: 4px;
 }
@@ -158,6 +158,7 @@
   display: flex;
   gap: 10px;
   margin-left: auto;
+  flex-wrap: wrap;
 }
 .primaryButton,
 .ghostButton {
@@ -351,6 +352,44 @@
   color: #9aa4b6;
   font-size: 12px;
 }
+.retryButton,
+.pageButton {
+  padding: 8px 14px;
+  border: 1px solid #dbe3f2;
+  border-radius: 7px;
+  background: #fff;
+  color: #326fdc;
+  cursor: pointer;
+}
+.recordList {
+  overflow: hidden;
+  border: 1px solid #e7ebf3;
+  border-radius: 12px;
+  background: #fff;
+}
+.recordRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #eef1f6;
+}
+.recordRow:last-child { border-bottom: 0; }
+.recordMain strong,
+.recordMain small,
+.recordAmount small { display: block; }
+.recordMain strong { font-size: 14px; }
+.recordMain small,
+.recordAmount small { margin-top: 5px; color: #9aa4b6; font-size: 11px; }
+.recordRow > div { min-width: 0; overflow-wrap: anywhere; }
+.recordCoin { color: #2b6edc; font-size: 13px; }
+.recordAmount { color: #17223b; font-size: 14px; text-align: right; }
+.paidStatus { color: #2aa27d !important; }
+.pendingStatus { color: #9a7a38 !important; }
+.recordPager { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 14px; color: #7c879a; font-size: 12px; }
+.pageButton:disabled,
+.retryButton:disabled { color: #b8c0ce; cursor: not-allowed; }
 
 @media (max-width: 720px) {
   .backButton,
@@ -398,4 +437,6 @@
   .sectionNote {
     display: none;
   }
+  .recordRow { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .recordAmount { text-align: left; }
 }

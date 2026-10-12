@@ -21,6 +21,7 @@ async function hgFlushBalance() {
 
 /** 执行真实 JSX 类组件，只替换浏览器依赖、网络和时钟；不复制业务实现。 */
 function hgLoadPage(hgName, hgVM) {
+  hgVM = { getRechargeRecords: async () => ({ list: [], nextCursor: "", hasMore: false }), errorMessage: HGWalletVM.errorMessage, ...hgVM };
   const hgTimers = new Map();
   const hgEvents = new Map();
   const hgMessages = [];
@@ -471,4 +472,132 @@ test("QR and balance errors do not block a capable pending order", async () => {
   hgPage.state.hgBalanceError = "balance failed";
   await hgPage.hgPay();
   assert.equal(hgPays, 1);
+});
+
+/** 记录夹具使用大整数十进制字符串，避免测试自身提前丢失精度。 */
+const hgRecord = {
+  orderId: "record-1", title: "测试充值", currency: "CNY", payAmount: "900719925474099312345",
+  totalCoin: "900719925474099312345", status: "pending", paymentMode: "platform_debug",
+  createdAt: "2026-01-01T00:00:00Z",
+};
+
+/** 等待包含 then/catch/finally 的记录请求完成。 */
+async function hgFlushRecords() {
+  for (let hgIndex = 0; hgIndex < 8; hgIndex++) await Promise.resolve();
+}
+
+test("wallet recent loads only 50, all mode navigates opaque cursors and previous page", async () => {
+  const hgCalls = [];
+  const hgRows = Array.from({ length: 50 }, (_, hgIndex) => ({ ...hgRecord, orderId: `record-${hgIndex}` }));
+  const { hgPage } = hgLoadPage("hg_wallet_page.jsx", {
+    getBalance: async () => ({ balance: "1" }),
+    getRechargeRecords: async (hgCursor, hgSize) => {
+      hgCalls.push([hgCursor, hgSize]);
+      return hgCursor ? { list: [hgRecord], hasMore: false, nextCursor: "" } :
+        { list: hgRows, hasMore: true, nextCursor: "900719925474099312345" };
+    },
+  });
+  hgPage.componentDidMount();
+  await hgFlushRecords();
+  assert.equal(hgPage.state.hgRecords.length, 50);
+  assert.deepEqual(hgCalls, [["", 50]]);
+  assert.doesNotMatch(hgText(hgPage.renderTransactionRecords()), /上一页|下一页/);
+  assert.match(hgText(hgPage.renderTransactionRecords()), /9007199254740993123.45/);
+  assert.match(hgText(hgPage.renderTransactionRecords()), /待支付/);
+  assert.doesNotMatch(hgText(hgPage.renderTransactionRecords()), /已入账/);
+  hgPage.hgShowAllRecords();
+  await hgFlushRecords();
+  hgPage.hgLoadNextRecords();
+  hgPage.hgLoadNextRecords();
+  await hgFlushRecords();
+  assert.equal(hgPage.state.hgRecordsPage, 2);
+  assert.equal(hgPage.state.hgRecordsHasMore, false);
+  hgPage.hgLoadPreviousRecords();
+  await hgFlushRecords();
+  assert.equal(hgPage.state.hgRecordsPage, 1);
+  assert.deepEqual(hgCalls, [["", 50], ["", 50], ["900719925474099312345", 50], ["", 50]]);
+  hgPage.componentWillUnmount();
+});
+
+test("wallet failed page retries same cursor, empty pages retain previous navigation", async () => {
+  let hgFail = true;
+  const hgCalls = [];
+  const { hgPage } = hgLoadPage("hg_wallet_page.jsx", {
+    getBalance: async () => ({ balance: "1" }),
+    getRechargeRecords: async (hgCursor) => {
+      hgCalls.push(hgCursor);
+      if (hgCursor && hgFail) throw new Error("网络失败");
+      return { list: [], nextCursor: hgCursor ? "" : "opaque", hasMore: !hgCursor };
+    },
+  });
+  hgPage.componentDidMount();
+  await hgFlushRecords();
+  hgPage.hgShowAllRecords();
+  await hgFlushRecords();
+  assert.match(hgText(hgPage.renderTransactionRecords()), /本页暂无充值记录/);
+  assert.match(hgText(hgPage.renderTransactionRecords()), /上一页/);
+  assert.match(hgText(hgPage.renderTransactionRecords()), /下一页/);
+  hgPage.hgLoadNextRecords();
+  await hgFlushRecords();
+  assert.match(hgText(hgPage.renderTransactionRecords()), /网络失败.*重新加载/);
+  hgFail = false;
+  hgPage.hgRetryRecords();
+  await hgFlushRecords();
+  assert.deepEqual(hgCalls, ["", "", "opaque", "opaque"]);
+  assert.equal(hgPage.state.hgRecordsPage, 2);
+  assert.equal(hgPage.state.hgRecordsError, "");
+  hgPage.componentWillUnmount();
+});
+
+test("wallet focus resets cursor chain and ignores stale responses and unmounted errors", async () => {
+  const hgPendingRecords = [];
+  let hgBalances = 0;
+  const { hgPage, hgEvents } = hgLoadPage("hg_wallet_page.jsx", {
+    getBalance: async () => ({ balance: String(++hgBalances) }),
+    getRechargeRecords: (hgCursor) => new Promise((resolve, reject) => hgPendingRecords.push({ resolve, reject, hgCursor })),
+  });
+  hgPage.componentDidMount();
+  hgPendingRecords[0].resolve({ list: [hgRecord], nextCursor: "opaque", hasMore: true });
+  await hgFlushRecords();
+  hgPage.hgShowAllRecords();
+  hgPendingRecords[1].resolve({ list: [hgRecord], nextCursor: "opaque", hasMore: true });
+  await hgFlushRecords();
+  hgPage.hgLoadNextRecords();
+  hgEvents.get("focus")();
+  assert.equal(hgPendingRecords[2].hgCursor, "opaque");
+  assert.equal(hgPendingRecords[3].hgCursor, "");
+  hgPendingRecords[3].resolve({ list: [{ ...hgRecord, orderId: "fresh" }], nextCursor: "new", hasMore: true });
+  await hgFlushRecords();
+  hgPendingRecords[2].resolve({ list: [hgRecord], nextCursor: "stale", hasMore: true });
+  await hgFlushRecords();
+  assert.equal(hgPage.state.hgRecords[0].orderId, "fresh");
+  assert.equal(hgPage.state.hgRecordsPage, 1);
+  assert.deepEqual([...hgPage.state.hgRecordsCursorHistory], [""]);
+  assert.equal(hgPage.state.hgRecordsNextCursor, "new");
+  assert.equal(hgBalances, 2);
+  hgPage.hgLoadNextRecords();
+  hgPage.componentWillUnmount();
+  hgPage.setState = () => assert.fail("卸载后不应更新记录");
+  hgPendingRecords[4].reject(new Error("late error"));
+  await hgFlushRecords();
+  assert.equal(hgEvents.size, 0);
+});
+
+test("wallet unmounted success is ignored and every non-paid status stays non-credited", async () => {
+  let hgResolve;
+  const { hgPage } = hgLoadPage("hg_wallet_page.jsx", {
+    getBalance: async () => ({ balance: "1" }),
+    getRechargeRecords: () => new Promise((resolve) => { hgResolve = resolve; }),
+  });
+  hgPage.componentDidMount();
+  await hgFlushRecords();
+  for (const hgStatus of ["pending", "expired", "cancelled", "processing", "refunding", "refunded"]) {
+    hgPage.state.hgRecordsLoading = false;
+    hgPage.state.hgRecords = [{ ...hgRecord, status: hgStatus }];
+    assert.doesNotMatch(hgText(hgPage.renderTransactionRecords()), /已入账|\+900/);
+  }
+  hgPage.componentWillUnmount();
+  hgPage.setState = () => assert.fail("卸载后不应更新记录");
+  hgResolve({ list: [hgRecord], nextCursor: "", hasMore: false });
+  await hgFlushRecords();
 });

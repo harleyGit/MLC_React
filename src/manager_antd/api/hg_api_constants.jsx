@@ -34,6 +34,7 @@ export const HGMANAGER_API = {
   WALLET_RECHARGE_ORDERS: "/api/v1/wallet/recharge/orders", // 创建充值订单
   WALLET_RECHARGE_ORDER_DETAIL: "/api/v1/wallet/recharge/orders/detail", // 查询本人充值订单
   WALLET_RECHARGE_PAY: "/api/v1/wallet/recharge/orders/pay", // 充值付款入口
+  WALLET_RECHARGE_RECORDS: "/api/v1/recharge/records", // 当前用户充值记录
   VIDEO_UPLOAD_FILE: "/api/v1/video_upload/upload", // 上传视频文件
   VIDEO_UPLOAD_DRAFT: "/api/v1/video_upload/draft", // 保存视频稿件草稿
   VIDEO_UPLOAD_SUBMIT: "/api/v1/video_upload/submit", // 提交视频稿件审核

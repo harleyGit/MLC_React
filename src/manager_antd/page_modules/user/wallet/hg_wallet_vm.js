@@ -127,6 +127,13 @@ export default class HGWalletVM {
     });
   }
 
+  /** 有界读取当前用户充值记录；cursor 原样透传，不在前端推算总数。 */
+  static getRechargeRecords(cursor = "", pageSize = 50) {
+    const params = { pageSize };
+    if (cursor) params.cursor = cursor;
+    return this.hgRequest("get", "WALLET_RECHARGE_RECORDS", params);
+  }
+
   /** 仅传后端允许的 SKU 与幂等键，金额和展示名由服务端快照决定。 */
   static createRechargeOrder(skuId, requestId) {
     return this.hgRequest("post", "WALLET_RECHARGE_ORDERS", {

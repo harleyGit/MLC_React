@@ -27,6 +27,19 @@ test("formatHGYuanFromFen formats fen as yuan", () => {
   assert.equal(formatHGYuanFromFen(1.2), "--");
 });
 
+test("records VM uses GET with a bounded page and preserves string cursors", async () => {
+  const hgCalls = [];
+  class HGTestVM extends HGWalletVM {
+    static hgRequest(...hgArgs) { hgCalls.push(hgArgs); return Promise.resolve({ list: [] }); }
+  }
+  await HGTestVM.getRechargeRecords();
+  await HGTestVM.getRechargeRecords("900719925474099312345", 50);
+  assert.deepEqual(hgCalls, [
+    ["get", "WALLET_RECHARGE_RECORDS", { pageSize: 50 }],
+    ["get", "WALLET_RECHARGE_RECORDS", { pageSize: 50, cursor: "900719925474099312345" }],
+  ]);
+});
+
 test("getHGRemainingSeconds clamps and rounds up", () => {
   assert.equal(getHGRemainingSeconds("2026-01-01T00:00:10Z", Date.parse("2026-01-01T00:00:00.001Z")), 10);
   assert.equal(getHGRemainingSeconds("2026-01-01T00:00:00Z", Date.parse("2026-01-01T00:00:01Z")), 0);
