@@ -22,6 +22,7 @@ const components = {
   EDIT_USER_INFO: lazy(() => import("../../manager_antd/page_modules/user/edit_user_info/hg_edit_user_page")),
   WALLET: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_page")),
   WALLET_RECHARGE: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_recharge_page")),
+  WALLET_RECORDS: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_records_page")), // 全部充值记录的独立页面。
   VIDEO_UPLOAD_EDIT: lazy(() => import("../../manager_antd/page_modules/hg_video_upload/hg_video_upload_edit_page")),
   OPERATION_MANAGEMENT: lazy(() => import("../../manager_antd/page_modules/operation_management/hg_operation_management_page")),
   TEST_MODULE: lazy(() => import("../../manager_antd/page_modules/test_module/hg_test_module_page")),

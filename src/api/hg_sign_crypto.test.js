@@ -59,3 +59,20 @@ test("wallet GET and POST build identical valid signatures with and without subt
     }
   }
 });
+
+// 使用真实请求层校验充值记录签名，同时覆盖 Web Crypto 与降级算法。
+test("充值记录签名对齐 Go 模块路径、空 GET body 和 Authorization", async () => {
+  const hgHeaders = {
+    "X-Timestamp": "1700000000", "X-Request-ID": "fixture-request",
+    "X-Device-ID": "fixture-device", "X-Client-Type": "web", "X-Client-Version": "1",
+    "X-API-Version": "v1", "X-Language": "zh-CN", Authorization: "Bearer fixture-invalid-jwt",
+  };
+  const hgPayload = ["GET", "/records", "1700000000", "fixture-request", "fixture-device", "web", "1", "v1", "zh-CN",
+    createHash("sha256").update("").digest("hex"), hgHeaders.Authorization].join("\n");
+  const hgExpected = `sha256=${createHmac("sha256", "fixture-only-not-a-real-secret").update(hgPayload).digest("hex")}`;
+  for (const hgSigner of [hgCreateSigner(null), hgCreateSigner(webcrypto.subtle)]) {
+    for (const hgURL of ["/api/v1/recharge/records?pageSize=50", "http://localhost:5174/api/v1/recharge/records?cursor=fixture&pageSize=50"]) {
+      assert.equal(await hgSigner.buildSignature({ url: hgURL, method: "GET", headers: hgHeaders }), hgExpected);
+    }
+  }
+});

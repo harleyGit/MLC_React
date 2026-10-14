@@ -3,27 +3,22 @@ import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
 import { hgMessage } from "../../../../components/hg_message/hg_message_page";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_wallet_page.module.css";
-import HGWalletVM, { formatHGYuanFromFen } from "./hg_wallet_vm.js";
+import HGWalletVM from "./hg_wallet_vm.js";
+import HGWalletRecordsPage from "./hg_wallet_records_page.jsx";
 
 /**
- * 我的钱包页：展示当前用户的资产概览、充值入口和充值记录。
+ * 我的钱包页：展示资产概览、充值入口及最近记录，全部记录由独立路由承载。
+ * props.pageNavigator：由 WithNavigation 注入的站内导航器，无业务默认值。
+ * props.location：由 WithNavigation 注入的路由位置，key 变化时刷新余额。
  */
 class HGWalletPage extends React.Component {
   state = {
-    hgBalance: null,
-    hgBalanceError: "",
-    hgRecords: [],
-    hgRecordsMode: "recent",
-    hgRecordsPage: 1,
-    hgRecordsCursorHistory: [""],
-    hgRecordsNextCursor: "",
-    hgRecordsHasMore: false,
-    hgRecordsLoading: false,
-    hgRecordsError: "",
+    hgBalance: null, // 当前 M币余额，保留服务端十进制字符串；null 表示尚未取得余额。
+    hgBalanceError: "", // 余额查询错误文案；空字符串表示当前没有错误。
+    hgRecordsRefreshKey: 0, // 手动刷新记录的递增版本；初始 0，由记录预览自行首次加载。
   };
-  hgMounted = false;
-  hgRecordsRequestId = 0;
-  hgRecordsBusy = false;
+  hgMounted = false; // 是否已挂载；默认 false，卸载后禁止异步响应更新 state。
+  hgRequest = null; // 最新余额请求的身份标记；null 表示尚未请求或已卸载。
 
   /** 读取权威币余额；请求链不支持外部取消，卸载时作废返回结果。 */
   componentDidMount() {
@@ -38,11 +33,12 @@ class HGWalletPage extends React.Component {
     if (hgPrevious.location?.key !== this.props.location?.key) this.hgRefreshBalance();
   }
 
+  /** 刷新余额并用请求身份隔离晚到响应，保持平台币字符串精度。 */
   hgRefreshBalance = () => {
     if (!this.hgMounted) return;
+    // 本次余额请求的独立标记，只有仍为最新标记时才允许写入页面。
     const hgRequest = this.hgRequest = {};
     this.setState({ hgBalanceError: "" });
-    this.hgLoadRecords("", 1, [""]);
     HGWalletVM.getBalance().then((hgResult) => {
       if (this.hgMounted && this.hgRequest === hgRequest) this.setState({ hgBalance: hgResult.balance });
     }).catch((hgError) => {
@@ -50,69 +46,17 @@ class HGWalletPage extends React.Component {
     });
   };
 
-  /** 记录请求按代次提交，focus 或快速翻页时旧响应不能覆盖当前游标页。 */
-  hgLoadRecords = (hgCursor = "", hgPage = 1, hgCursorHistory = [""]) => {
+  /** 手动刷新同时更新余额与最近记录；记录组件通过版本变化重新请求首页。 */
+  hgRefreshWallet = () => {
     if (!this.hgMounted) return;
-    const hgRequestId = ++this.hgRecordsRequestId;
-    this.hgRecordsBusy = true;
-    this.setState({
-      hgRecordsLoading: true,
-      hgRecordsError: "",
-      hgRecords: [],
-      hgRecordsPage: hgPage,
-      hgRecordsCursorHistory: hgCursorHistory,
-      hgRecordsNextCursor: "",
-      hgRecordsHasMore: false,
-    });
-    HGWalletVM.getRechargeRecords(hgCursor, 50).then((hgResult) => {
-      if (!this.hgMounted || hgRequestId !== this.hgRecordsRequestId) return;
-      if (!Array.isArray(hgResult?.list) || typeof hgResult.hasMore !== "boolean" ||
-          typeof hgResult.nextCursor !== "string" || (hgResult.hasMore &&
-          (!hgResult.nextCursor || hgResult.nextCursor === hgCursor || hgResult.nextCursor === "0")))
-        throw new Error("充值记录响应异常，请重试");
-      this.setState({
-        hgRecords: hgResult.list.slice(0, 50),
-        hgRecordsNextCursor: typeof hgResult?.nextCursor === "string" ? hgResult.nextCursor : "",
-        hgRecordsHasMore: hgResult?.hasMore === true,
-      });
-    }).catch((hgError) => {
-      if (this.hgMounted && hgRequestId === this.hgRecordsRequestId)
-        this.setState({ hgRecordsError: HGWalletVM.errorMessage(hgError) });
-    }).finally(() => {
-      if (hgRequestId === this.hgRecordsRequestId) this.hgRecordsBusy = false;
-      if (this.hgMounted && hgRequestId === this.hgRecordsRequestId)
-        this.setState({ hgRecordsLoading: false });
-    });
+    this.hgRefreshBalance();
+    this.setState((hgPrevious) => ({ hgRecordsRefreshKey: hgPrevious.hgRecordsRefreshKey + 1 }));
   };
 
-  hgRetryRecords = () => !this.hgRecordsBusy && this.hgLoadRecords(
-    this.state.hgRecordsCursorHistory[this.state.hgRecordsPage - 1] || "",
-    this.state.hgRecordsPage,
-    this.state.hgRecordsCursorHistory
-  );
-
-  hgShowAllRecords = () => {
-    const hgMode = this.state.hgRecordsMode === "all" ? "recent" : "all";
-    this.setState({ hgRecordsMode: hgMode });
-    this.hgLoadRecords("", 1, [""]);
-  };
-
-  hgLoadNextRecords = () => {
-    const { hgRecordsNextCursor, hgRecordsPage, hgRecordsCursorHistory, hgRecordsLoading } = this.state;
-    if (!this.hgRecordsBusy && !hgRecordsLoading && this.state.hgRecordsMode === "all" && this.state.hgRecordsHasMore && hgRecordsNextCursor)
-      this.hgLoadRecords(hgRecordsNextCursor, hgRecordsPage + 1, [...hgRecordsCursorHistory, hgRecordsNextCursor]);
-  };
-
-  hgLoadPreviousRecords = () => {
-    const { hgRecordsPage, hgRecordsCursorHistory, hgRecordsLoading } = this.state;
-    if (!this.hgRecordsBusy && !hgRecordsLoading && hgRecordsPage > 1)
-      this.hgLoadRecords(hgRecordsCursorHistory[hgRecordsPage - 2] || "", hgRecordsPage - 1, hgRecordsCursorHistory.slice(0, -1));
-  };
-
+  /** 失效余额请求并移除浏览器监听；记录组件自行清理其请求与监听。 */
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgRequest = null;
-    this.hgRecordsRequestId += 1;
     window.removeEventListener("pageshow", this.hgRefreshBalance);
     window.removeEventListener("focus", this.hgRefreshBalance);
   }
@@ -120,6 +64,7 @@ class HGWalletPage extends React.Component {
    * 使用已有用户资料缓存展示名称，不将展示名称用作订单归属依据。
    */
   getUserDisplayName = () => {
+    // 仅用于展示的本地资料；缺失时使用空对象并回退到“用户”。
     const profile = HGUserProfileStorage.getUserProfile() || {};
     return profile.nickname || profile.username || profile.userName || "用户";
   };
@@ -142,6 +87,7 @@ class HGWalletPage extends React.Component {
 
   /** 渲染钱包页头及返回入口。 */
   renderHeader = () => {
+    // 页头展示名称，不参与订单归属或金额计算。
     const displayName = this.getUserDisplayName();
     return (
       <header className={styles.header}>
@@ -189,7 +135,7 @@ class HGWalletPage extends React.Component {
           <button type="button" className={styles.ghostButton} disabled>
             提现（暂未开放）
           </button>
-          <button type="button" className={styles.ghostButton} onClick={this.hgRefreshBalance}>刷新余额与记录</button>
+          <button type="button" className={styles.ghostButton} onClick={this.hgRefreshWallet}>刷新余额与记录</button>
         </div>
       </section>
     );
@@ -236,58 +182,14 @@ class HGWalletPage extends React.Component {
     );
   };
 
-  /** 将后端状态转成用户可理解的短文案，paid 才显示已入账。 */
-  getRecordStatus = (hgRecord) => ({
-    pending: "待支付", expired: "已过期", paid: "已入账", cancelled: "已取消",
-    processing: "处理中", refunding: "退款中", refunded: "已退款",
-  }[hgRecord?.status] || "状态未知");
-
-  /** 充值记录金额均来自字符串分值，不能先转 Number。 */
-  getRecordAmount = (hgRecord) => formatHGYuanFromFen(hgRecord?.payAmount);
-
-  formatRecordTime = (hgTime) => {
-    const hgDate = new Date(hgTime);
-    return Number.isFinite(hgDate.getTime()) ? hgDate.toLocaleString("zh-CN", { hour12: false }) : "时间未知";
-  };
-
-  /** 渲染充值记录、错误重试和无总数游标分页。 */
+  /** 钱包仅嵌入最近记录预览；“查看全部”通过 Link 跳转到独立记录路由。 */
   renderTransactionRecords = () => {
-    const { hgRecords, hgRecordsMode, hgRecordsLoading, hgRecordsError, hgRecordsPage, hgRecordsHasMore } = this.state;
     return (
-      <section className={styles.recordsSection}>
-        <div className={styles.sectionHeading}>
-          <div>
-            <p className={styles.sectionEyebrow}>ACCOUNT ACTIVITY</p>
-            <h2>充值记录</h2>
-          </div>
-          <button type="button" className={styles.moreButton} onClick={this.hgShowAllRecords}>
-            {hgRecordsMode === "recent" ? "查看全部" : "返回最近记录"} <span aria-hidden="true">›</span>
-          </button>
-        </div>
-        <p className={styles.serviceNotice}>{hgRecordsMode === "recent" ? "最近充值记录，最多 50 条" : "全部充值记录，每页 50 条"}，时间为本地时间</p>
-        {hgRecordsError ? <div className={styles.emptyState}>
-          <strong>充值记录加载失败</strong>
-          <p>{hgRecordsError}</p>
-          <button type="button" className={styles.retryButton} onClick={this.hgRetryRecords}>重新加载</button>
-        </div> : hgRecordsLoading ? <div className={styles.emptyState}><p>正在加载充值记录...</p></div> : hgRecords.length === 0 ? <div className={styles.emptyState}>
-          <div className={styles.emptyIcon} aria-hidden="true">◎</div>
-          <strong>本页暂无充值记录</strong>
-          <p>这里展示充值订单，不代表所有订单均已入账</p>
-        </div> : <>
-          <div className={styles.recordList}>
-            {hgRecords.map((hgRecord) => <article className={styles.recordRow} key={hgRecord.orderId}>
-              <div className={styles.recordMain}><strong>{hgRecord.title || "充值"}</strong><small>订单号：{hgRecord.orderId}</small><small>创建时间：{this.formatRecordTime(hgRecord.createdAt)}</small>{hgRecord.paidAt && <small>支付时间：{this.formatRecordTime(hgRecord.paidAt)}</small>}<small>{hgRecord.paymentMode === "platform_debug" ? "debug 模拟充值，不扣人民币" : "支付渠道不可用"}</small></div>
-              <div className={styles.recordCoin}>订单币数：{typeof hgRecord.totalCoin === "string" && /^\d+$/.test(hgRecord.totalCoin) ? hgRecord.totalCoin : "--"} M币</div>
-              <div className={styles.recordAmount}>{hgRecord.currency === "CNY" ? `¥${this.getRecordAmount(hgRecord)}` : "金额未知"}<small className={hgRecord.status === "paid" ? styles.paidStatus : styles.pendingStatus}>{this.getRecordStatus(hgRecord)}</small></div>
-            </article>)}
-          </div>
-        </>}
-        {hgRecordsMode === "all" && <div className={styles.recordPager}>
-          <button type="button" className={styles.pageButton} disabled={hgRecordsPage <= 1 || hgRecordsLoading} onClick={this.hgLoadPreviousRecords}>上一页</button>
-          <span>第 {hgRecordsPage} 页</span>
-          <button type="button" className={styles.pageButton} disabled={!hgRecordsHasMore || hgRecordsLoading} onClick={this.hgLoadNextRecords}>下一页</button>
-        </div>}
-      </section>
+      <HGWalletRecordsPage
+        hgPreview
+        hgRefreshKey={this.state.hgRecordsRefreshKey}
+        location={this.props.location}
+      />
     );
   };
 

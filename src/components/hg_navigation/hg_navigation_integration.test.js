@@ -80,7 +80,7 @@ test("两个真实 HOC 保留业务 props，并注入导航协议及兼容 navig
   hgAssertInjection(HGWrapped({}), hgHarness);
 });
 
-test("真实路由为 /、/home、wallet/recharge 注入导航，首页和钱包 PAGE 入口使用该适配器", () => {
+test("真实路由为首页、钱包、充值及独立记录页注入导航，并保留鉴权布局", () => {
   const hgHarness = hgCreateHarness();
   const hgPaths = hgLoadSource("./hg_route_path.jsx");
   const hgRegistry = hgLoadSource("./hg_page_registry.jsx", {
@@ -99,6 +99,7 @@ test("真实路由为 /、/home、wallet/recharge 注入导航，首页和钱包
     "../../../storage/hg_user_profile_storage": {},
     "./hg_wallet_page.module.css": {},
     "./hg_wallet_vm.js": {},
+    "./hg_wallet_records_page.jsx": () => null,
   }).default;
   const HGLayout = () => null;
   const HGGuard = ({ children }) => children;
@@ -139,6 +140,7 @@ test("真实路由为 /、/home、wallet/recharge 注入导航，首页和钱包
     ["/home", hgHome],
     ["/account/wallet", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET).component],
     ["/account/wallet/recharge", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_RECHARGE).component],
+    ["/account/wallet/records", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_RECORDS).component],
   ]) {
     const hgRoute = hgMain.children.find((hgValue) => hgValue.path === hgPath);
     assert.ok(hgRoute, `缺少路由 ${hgPath}`);

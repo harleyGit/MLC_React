@@ -20,7 +20,7 @@ async function hgFlushBalance() {
 }
 
 /** 执行真实 JSX 类组件，只替换浏览器依赖、网络和时钟；不复制业务实现。 */
-function hgLoadPage(hgName, hgVM) {
+function hgLoadPage(hgName, hgVM, hgProps = {}) {
   hgVM = { getRechargeRecords: async () => ({ list: [], nextCursor: "", hasMore: false }), errorMessage: HGWalletVM.errorMessage, ...hgVM };
   const hgTimers = new Map();
   const hgEvents = new Map();
@@ -46,7 +46,8 @@ function hgLoadPage(hgName, hgVM) {
       if (hgPath === "react") return React;
       if (hgPath.endsWith("hg_wallet_vm.js")) return { ...HGWalletExports, default: hgVM, __esModule: true };
       if (hgPath === "react-router-dom") return { Link: "a" };
-      if (hgPath.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", WALLET_RECHARGE: "/account/wallet/recharge" } };
+      if (hgPath.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", WALLET_RECHARGE: "/account/wallet/recharge", WALLET_RECORDS: "/account/wallet/records" } };
+      if (hgPath.endsWith("hg_wallet_records_page.jsx")) return "hg-wallet-records";
       if (hgPath.includes("hg_page_registry")) return { PAGE: { WALLET: "WALLET", WALLET_RECHARGE: "WALLET_RECHARGE" } };
       if (hgPath.includes("hg_message_page")) return { hgMessage: { success: (hgMessage) => hgMessages.push(hgMessage) } };
       if (hgPath.includes("hg_user_profile_storage")) return { getUserProfile: () => ({}) };
@@ -54,6 +55,7 @@ function hgLoadPage(hgName, hgVM) {
     },
   });
   const hgPage = new hgModule.exports.default({
+    ...hgModule.exports.default.defaultProps,
     location: { search: "?orderId=order-1" },
     pageNavigation: {
       params: { orderId: "order-1" },
@@ -62,8 +64,9 @@ function hgLoadPage(hgName, hgVM) {
       error: (hgError) => { hgNavigationCalls.push(["error", hgError]); return true; },
     },
     pageNavigator: { open: (hgOptions) => hgNavigationCalls.push(["open", hgOptions]) },
+    ...hgProps,
   });
-  hgPage.setState = (hgState) => { hgPage.state = { ...hgPage.state, ...hgState }; };
+  hgPage.setState = (hgState) => { hgPage.state = { ...hgPage.state, ...(typeof hgState === "function" ? hgState(hgPage.state, hgPage.props) : hgState) }; };
   hgPage.hgGeneration = {};
   hgPage.hgMounted = true;
   hgPage.state.hgOrder = hgPending;
@@ -486,17 +489,15 @@ async function hgFlushRecords() {
   for (let hgIndex = 0; hgIndex < 8; hgIndex++) await Promise.resolve();
 }
 
-test("wallet recent loads only 50, all mode navigates opaque cursors and previous page", async () => {
+test("钱包最近记录最多 50 条，查看全部使用独立路由链接", async () => {
   const hgCalls = [];
   const hgRows = Array.from({ length: 50 }, (_, hgIndex) => ({ ...hgRecord, orderId: `record-${hgIndex}` }));
-  const { hgPage } = hgLoadPage("hg_wallet_page.jsx", {
-    getBalance: async () => ({ balance: "1" }),
+  const { hgPage } = hgLoadPage("hg_wallet_records_page.jsx", {
     getRechargeRecords: async (hgCursor, hgSize) => {
       hgCalls.push([hgCursor, hgSize]);
-      return hgCursor ? { list: [hgRecord], hasMore: false, nextCursor: "" } :
-        { list: hgRows, hasMore: true, nextCursor: "900719925474099312345" };
+      return { list: hgRows, hasMore: true, nextCursor: "900719925474099312345" };
     },
-  });
+  }, { hgPreview: true });
   hgPage.componentDidMount();
   await hgFlushRecords();
   assert.equal(hgPage.state.hgRecords.length, 50);
@@ -505,8 +506,32 @@ test("wallet recent loads only 50, all mode navigates opaque cursors and previou
   assert.match(hgText(hgPage.renderTransactionRecords()), /9007199254740993123.45/);
   assert.match(hgText(hgPage.renderTransactionRecords()), /待支付/);
   assert.doesNotMatch(hgText(hgPage.renderTransactionRecords()), /已入账/);
-  hgPage.hgShowAllRecords();
+  const hgLink = hgPage.renderTransactionRecords().props.children[0].props.children[1];
+  assert.equal(hgLink.type, "a");
+  assert.equal(hgLink.props.to, "/account/wallet/records");
+  assert.match(hgText(hgLink), /查看全部/);
+  assert.equal(hgLink.props.onClick, undefined, "不拦截链接来切换当前钱包模式");
+  hgPage.hgLoadNextRecords();
+  assert.deepEqual(hgCalls, [["", 50]], "预览不在钱包中翻页");
+  hgPage.componentWillUnmount();
+});
+
+test("独立记录页默认显示全部记录，可通过原始游标翻页和返回钱包", async () => {
+  const hgCalls = [];
+  const { hgPage } = hgLoadPage("hg_wallet_records_page.jsx", {
+    getBalance: () => assert.fail("记录页不请求钱包余额"),
+    getRechargeRecords: async (hgCursor, hgSize) => {
+      hgCalls.push([hgCursor, hgSize]);
+      return { list: [hgRecord], hasMore: !hgCursor, nextCursor: hgCursor ? "" : "900719925474099312345" };
+    },
+  });
+  assert.equal(hgPage.props.hgPreview, false);
+  assert.equal(hgPage.props.hgRefreshKey, 0);
+  hgPage.componentDidMount();
   await hgFlushRecords();
+  assert.match(hgText(hgPage.render()), /全部充值记录，每页 50 条/);
+  assert.doesNotMatch(hgText(hgPage.render()), /账户余额|快捷服务|查看全部/);
+  assert.equal(hgPage.renderHeader().props.children[0].props.to, "/account/wallet");
   hgPage.hgLoadNextRecords();
   hgPage.hgLoadNextRecords();
   await hgFlushRecords();
@@ -515,15 +540,14 @@ test("wallet recent loads only 50, all mode navigates opaque cursors and previou
   hgPage.hgLoadPreviousRecords();
   await hgFlushRecords();
   assert.equal(hgPage.state.hgRecordsPage, 1);
-  assert.deepEqual(hgCalls, [["", 50], ["", 50], ["900719925474099312345", 50], ["", 50]]);
+  assert.deepEqual(hgCalls, [["", 50], ["900719925474099312345", 50], ["", 50]]);
   hgPage.componentWillUnmount();
 });
 
-test("wallet failed page retries same cursor, empty pages retain previous navigation", async () => {
+test("记录页失败时重试原游标，空页仍保留分页导航", async () => {
   let hgFail = true;
   const hgCalls = [];
-  const { hgPage } = hgLoadPage("hg_wallet_page.jsx", {
-    getBalance: async () => ({ balance: "1" }),
+  const { hgPage } = hgLoadPage("hg_wallet_records_page.jsx", {
     getRechargeRecords: async (hgCursor) => {
       hgCalls.push(hgCursor);
       if (hgCursor && hgFail) throw new Error("网络失败");
@@ -531,8 +555,6 @@ test("wallet failed page retries same cursor, empty pages retain previous naviga
     },
   });
   hgPage.componentDidMount();
-  await hgFlushRecords();
-  hgPage.hgShowAllRecords();
   await hgFlushRecords();
   assert.match(hgText(hgPage.renderTransactionRecords()), /本页暂无充值记录/);
   assert.match(hgText(hgPage.renderTransactionRecords()), /上一页/);
@@ -543,50 +565,43 @@ test("wallet failed page retries same cursor, empty pages retain previous naviga
   hgFail = false;
   hgPage.hgRetryRecords();
   await hgFlushRecords();
-  assert.deepEqual(hgCalls, ["", "", "opaque", "opaque"]);
+  assert.deepEqual(hgCalls, ["", "opaque", "opaque"]);
   assert.equal(hgPage.state.hgRecordsPage, 2);
   assert.equal(hgPage.state.hgRecordsError, "");
   hgPage.componentWillUnmount();
 });
 
-test("wallet focus resets cursor chain and ignores stale responses and unmounted errors", async () => {
+test("记录页重新获得焦点时重置游标，忽略过期响应及卸载后的错误", async () => {
   const hgPendingRecords = [];
-  let hgBalances = 0;
-  const { hgPage, hgEvents } = hgLoadPage("hg_wallet_page.jsx", {
-    getBalance: async () => ({ balance: String(++hgBalances) }),
+  const { hgPage, hgEvents } = hgLoadPage("hg_wallet_records_page.jsx", {
     getRechargeRecords: (hgCursor) => new Promise((resolve, reject) => hgPendingRecords.push({ resolve, reject, hgCursor })),
   });
   hgPage.componentDidMount();
   hgPendingRecords[0].resolve({ list: [hgRecord], nextCursor: "opaque", hasMore: true });
   await hgFlushRecords();
-  hgPage.hgShowAllRecords();
-  hgPendingRecords[1].resolve({ list: [hgRecord], nextCursor: "opaque", hasMore: true });
-  await hgFlushRecords();
   hgPage.hgLoadNextRecords();
   hgEvents.get("focus")();
-  assert.equal(hgPendingRecords[2].hgCursor, "opaque");
-  assert.equal(hgPendingRecords[3].hgCursor, "");
-  hgPendingRecords[3].resolve({ list: [{ ...hgRecord, orderId: "fresh" }], nextCursor: "new", hasMore: true });
+  assert.equal(hgPendingRecords[1].hgCursor, "opaque");
+  assert.equal(hgPendingRecords[2].hgCursor, "");
+  hgPendingRecords[2].resolve({ list: [{ ...hgRecord, orderId: "fresh" }], nextCursor: "new", hasMore: true });
   await hgFlushRecords();
-  hgPendingRecords[2].resolve({ list: [hgRecord], nextCursor: "stale", hasMore: true });
+  hgPendingRecords[1].resolve({ list: [hgRecord], nextCursor: "stale", hasMore: true });
   await hgFlushRecords();
   assert.equal(hgPage.state.hgRecords[0].orderId, "fresh");
   assert.equal(hgPage.state.hgRecordsPage, 1);
   assert.deepEqual([...hgPage.state.hgRecordsCursorHistory], [""]);
   assert.equal(hgPage.state.hgRecordsNextCursor, "new");
-  assert.equal(hgBalances, 2);
   hgPage.hgLoadNextRecords();
   hgPage.componentWillUnmount();
   hgPage.setState = () => assert.fail("卸载后不应更新记录");
-  hgPendingRecords[4].reject(new Error("late error"));
+  hgPendingRecords[3].reject(new Error("late error"));
   await hgFlushRecords();
   assert.equal(hgEvents.size, 0);
 });
 
-test("wallet unmounted success is ignored and every non-paid status stays non-credited", async () => {
+test("记录卸载后忽略成功响应，非 paid 状态不显示已入账", async () => {
   let hgResolve;
-  const { hgPage } = hgLoadPage("hg_wallet_page.jsx", {
-    getBalance: async () => ({ balance: "1" }),
+  const { hgPage } = hgLoadPage("hg_wallet_records_page.jsx", {
     getRechargeRecords: () => new Promise((resolve) => { hgResolve = resolve; }),
   });
   hgPage.componentDidMount();
@@ -600,4 +615,31 @@ test("wallet unmounted success is ignored and every non-paid status stays non-cr
   hgPage.setState = () => assert.fail("卸载后不应更新记录");
   hgResolve({ list: [hgRecord], nextCursor: "", hasMore: false });
   await hgFlushRecords();
+});
+
+test("钱包刷新同步更新余额与预览刷新版本，预览收到新版本后重读首页", async () => {
+  let hgBalances = 0;
+  const hgCalls = [];
+  const { hgPage: hgWallet } = hgLoadPage("hg_wallet_page.jsx", {
+    getBalance: async () => ({ balance: String(++hgBalances) }),
+  });
+  hgWallet.componentDidMount();
+  const hgPreview = hgWallet.renderTransactionRecords();
+  assert.equal(hgPreview.props.hgPreview, true);
+  assert.equal(hgPreview.props.hgRefreshKey, 0);
+  const { hgPage: hgRecords } = hgLoadPage("hg_wallet_records_page.jsx", {
+    getRechargeRecords: async (hgCursor) => { hgCalls.push(hgCursor); return { list: [], hasMore: false, nextCursor: "" }; },
+  }, hgPreview.props);
+  hgRecords.componentDidMount();
+  await hgFlushRecords();
+  hgWallet.hgRefreshWallet();
+  const hgPrevious = hgRecords.props;
+  hgRecords.props = hgWallet.renderTransactionRecords().props;
+  hgRecords.componentDidUpdate(hgPrevious);
+  await hgFlushRecords();
+  assert.equal(hgWallet.state.hgBalance, "2");
+  assert.equal(hgWallet.state.hgRecordsRefreshKey, 1);
+  assert.deepEqual(hgCalls, ["", ""]);
+  hgWallet.componentWillUnmount();
+  hgRecords.componentWillUnmount();
 });

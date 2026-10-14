@@ -9,6 +9,7 @@ const HG_SIGN_STRIP_PREFIXES = [
   "/api/v1/bilibili",
   "/api/v1/ops",
   "/api/v1/wallet",
+  "/api/v1/recharge",
   "/api/v1/test",
   "/auth",
   "/user",

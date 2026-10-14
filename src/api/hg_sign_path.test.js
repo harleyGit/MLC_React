@@ -35,6 +35,17 @@ test("normalizeSignPath strips the wallet module prefix", () => {
   assert.equal(normalizeSignPath("/api/v1/wallet_extra/recharge/skus"), "/api/v1/wallet_extra/recharge/skus");
 });
 
+// 充值记录属于独立 recharge 模块，只有完整模块边界才允许剥离。
+test("充值记录使用模块内签名路径并保留相似前缀", () => {
+  assert.equal(normalizeSignPath("/api/v1/recharge/records"), "/records");
+  assert.equal(normalizeSignPath("/api/v1/recharge"), "/");
+  assert.equal(normalizeSignPath("/api/v1/recharge_extra/records"), "/api/v1/recharge_extra/records");
+  for (const hgQuery of ["?pageSize=50", "?pageSize=50&cursor=fixture", "?cursor=fixture&pageSize=50"]) {
+    const hgURL = new URL(`/api/v1/recharge/records${hgQuery}`, "http://localhost:5174");
+    assert.equal(normalizeSignPath(hgURL.pathname), "/records");
+  }
+});
+
 // 请求层先取 pathname，查询参数及其顺序不参与现有签名协议。
 test("wallet GET query produces the same module sign path as existing modules", () => {
   for (const hgQuery of ["?pageSize=20&cursor=0", "?cursor=0&pageSize=20", ""]) {
