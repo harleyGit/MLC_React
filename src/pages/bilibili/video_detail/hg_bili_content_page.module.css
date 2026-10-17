@@ -382,3 +382,7 @@
     padding: 22px;
   }
 }
+.hgDescription {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -110,6 +110,13 @@ class HGRecommendationDetailPage extends Component {
 
   getColumns = () => [
     { title: "内容", dataIndex: "title", width: 360, render: this.renderContent },
+	{
+	  title: "视频详情", dataIndex: "contentId", width: 110,
+	  // 使用统一外部内容ID，详情页从自有API读取，不传入不完整的路由摘要。
+	  render: (_, row) => row.platform === "bilibili" ? (
+	    <a className={styles.sourceLink} href={`/bilibili/content/video/${encodeURIComponent(`external:bilibili:${row.contentId}`)}`} target="_blank" rel="noreferrer">查看详情</a>
+	  ) : "-",
+	},
     { title: "播放", dataIndex: "viewCount", width: 100, render: HGRecommendationVM.countText },
     { title: "点赞", dataIndex: "likeCount", width: 100, render: HGRecommendationVM.countText },
     { title: "评论", dataIndex: "commentCount", width: 100, render: HGRecommendationVM.countText },

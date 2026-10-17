@@ -32,6 +32,9 @@ export function normalizeVideoListItem(item) {
     externalContentId: item.externalContentId || "",
     targetUrl: item.targetUrl || "",
     pubDate: item.submitTime || item.createdAt || "",
+	// 详情扩展只由详情API返回，避免把列表摘要误当成完整采集结果。
+	externalDetail: item.externalDetail || null,
+	authorAvatar: item.externalDetail?.authorAvatar || "",
   };
 }
 
