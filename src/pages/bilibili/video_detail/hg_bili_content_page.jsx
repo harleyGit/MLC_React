@@ -6,6 +6,7 @@ import HGVideoPlayerPage from "../../../components/hg_video_player/hg_video_play
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import withRouter from "../../../utils/WithRouter";
 import HGVideoComments from "../../video_commpent/hg_video_comments";
+import HGExternalPlayer from "../../../components/hg_external_player/hg_external_player";
 import {
   getBiliAuthorProfile,
   getVideoDetail,
@@ -364,7 +365,7 @@ class HGBiliContentPage extends React.Component {
 	      <h1 className={styles.videoTitle}>{video.title}</h1>
 	      <div className={styles.videoMeta}>
 	        <span>{formatCount(video.play)}播放</span>
-	        <span>{video.danmaku}弹幕</span>
+	        <span>{video.danmaku}原站弹幕（采集快照）</span>
 	        <span>{video.pubDate}</span>
 	      </div>
 	      {this.renderHGExternalDetail(video)}
@@ -597,9 +598,8 @@ class HGBiliContentPage extends React.Component {
 	if (videoLoading) return <main className={styles.playerState}>视频加载中...</main>;
 	if (videoError || !video) return <main className={styles.playerState}>{videoError || "视频不存在"}</main>;
     const relatedVideos = HGBiliContentPageVM.getRelatedVideos(video);
-	const externalPlayerURL = video.externalContentId
-	  ? `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(video.externalContentId)}&page=${this.state.hgSelectedPage}&high_quality=1&danmaku=1`
-	  : "";
+	const hgPart = video.externalDetail?.parts?.find((hgItem) => hgItem.page === this.state.hgSelectedPage);
+	const hgExternalID = `external:bilibili:${video.externalContentId}`;
 
     return (
       <main className={styles.playerLayout}>
@@ -612,22 +612,15 @@ class HGBiliContentPage extends React.Component {
             ← 返回上一页
           </button>
 	      {video.playbackType === "external_link" ? (
-	        <div className={styles.externalPlayer}>
-	          <iframe
-	            src={externalPlayerURL}
-	            title={video.title}
-	            allow="autoplay; fullscreen; picture-in-picture"
-	            allowFullScreen
-	          />
-	        </div>
+	        <HGExternalPlayer video={video} part={hgPart} />
 	      ) : (
 	        <HGVideoPlayerPage key={String(video.id)} video={video} />
 	      )}
 	      {this.renderVideoInfo(video)}
 	      {this.renderAuthorInfo(video)}
           {/* 接口数据按 submissionId 聚合评论，本地回退视频仅有 id。 */}
-	      {video.playbackType !== "external_link" && (
-	        <HGVideoComments submissionId={video.submissionId || video.id} />
+	      {(video.playbackType !== "external_link" || video.externalDetail?.collectedAt) && (
+	        <HGVideoComments key={video.playbackType === "external_link" ? hgExternalID : video.submissionId || video.id} submissionId={video.playbackType === "external_link" ? hgExternalID : video.submissionId || video.id} />
 	      )}
         </section>
         <aside className={styles.playerSidebar}>
