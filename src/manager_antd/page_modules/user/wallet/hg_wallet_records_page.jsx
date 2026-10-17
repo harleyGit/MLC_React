@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ROUTE_PATH } from "../../../router/hg_router_path";
-import HGWalletVM, { formatHGYuanFromFen } from "./hg_wallet_vm.js";
 import styles from "./hg_wallet_page.module.css";
+import HGWalletVM, { formatHGYuanFromFen } from "./hg_wallet_vm.js";
 
 /**
  * 独立充值记录页；钱包可用 hgPreview 嵌入相同记录预览，避免维护两套请求与金额展示逻辑。
@@ -38,7 +38,10 @@ export default class HGWalletRecordsPage extends React.Component {
 
   /** 路由位置或钱包手动刷新版本改变时，重置到最新记录的首页。 */
   componentDidUpdate(hgPrevious) {
-    if (hgPrevious.hgRefreshKey !== this.props.hgRefreshKey || hgPrevious.location?.key !== this.props.location?.key)
+    if (
+      hgPrevious.hgRefreshKey !== this.props.hgRefreshKey ||
+      hgPrevious.location?.key !== this.props.location?.key
+    )
       this.hgRefreshRecords();
   }
 
@@ -68,61 +71,104 @@ export default class HGWalletRecordsPage extends React.Component {
       hgRecordsNextCursor: "",
       hgRecordsHasMore: false,
     });
-    return HGWalletVM.getRechargeRecords(hgCursor, 50).then((hgResult) => {
-      if (!this.hgMounted || hgRequestId !== this.hgRecordsRequestId) return;
-      if (!Array.isArray(hgResult?.list) || typeof hgResult.hasMore !== "boolean" ||
-          typeof hgResult.nextCursor !== "string" || (hgResult.hasMore &&
-          (!hgResult.nextCursor || hgResult.nextCursor === hgCursor || hgResult.nextCursor === "0")))
-        throw new Error("充值记录响应异常，请重试");
-      this.setState({
-        hgRecords: hgResult.list.slice(0, 50),
-        hgRecordsNextCursor: hgResult.nextCursor,
-        hgRecordsHasMore: hgResult.hasMore,
+    return HGWalletVM.getRechargeRecords(hgCursor, 50)
+      .then((hgResult) => {
+        if (!this.hgMounted || hgRequestId !== this.hgRecordsRequestId) return;
+        if (
+          !Array.isArray(hgResult?.list) ||
+          typeof hgResult.hasMore !== "boolean" ||
+          typeof hgResult.nextCursor !== "string" ||
+          (hgResult.hasMore &&
+            (!hgResult.nextCursor ||
+              hgResult.nextCursor === hgCursor ||
+              hgResult.nextCursor === "0"))
+        )
+          throw new Error("充值记录响应异常，请重试");
+        this.setState({
+          hgRecords: hgResult.list.slice(0, 50),
+          hgRecordsNextCursor: hgResult.nextCursor,
+          hgRecordsHasMore: hgResult.hasMore,
+        });
+      })
+      .catch((hgError) => {
+        if (this.hgMounted && hgRequestId === this.hgRecordsRequestId)
+          this.setState({ hgRecordsError: HGWalletVM.errorMessage(hgError) });
+      })
+      .finally(() => {
+        if (hgRequestId === this.hgRecordsRequestId) this.hgRecordsBusy = false;
+        if (this.hgMounted && hgRequestId === this.hgRecordsRequestId)
+          this.setState({ hgRecordsLoading: false });
       });
-    }).catch((hgError) => {
-      if (this.hgMounted && hgRequestId === this.hgRecordsRequestId)
-        this.setState({ hgRecordsError: HGWalletVM.errorMessage(hgError) });
-    }).finally(() => {
-      if (hgRequestId === this.hgRecordsRequestId) this.hgRecordsBusy = false;
-      if (this.hgMounted && hgRequestId === this.hgRecordsRequestId)
-        this.setState({ hgRecordsLoading: false });
-    });
   };
 
   /** 错误重试沿用失败页的游标，不误跳回首页。 */
-  hgRetryRecords = () => !this.hgRecordsBusy && this.hgLoadRecords(
-    this.state.hgRecordsCursorHistory[this.state.hgRecordsPage - 1] || "",
-    this.state.hgRecordsPage,
-    this.state.hgRecordsCursorHistory
-  );
+  hgRetryRecords = () =>
+    !this.hgRecordsBusy &&
+    this.hgLoadRecords(
+      this.state.hgRecordsCursorHistory[this.state.hgRecordsPage - 1] || "",
+      this.state.hgRecordsPage,
+      this.state.hgRecordsCursorHistory
+    );
 
   /** 下一页仅供独立记录页使用，原样透传服务端游标。 */
   hgLoadNextRecords = () => {
     // 当前页的分页快照；字段语义与 state 定义一致，不把游标转换为数字。
-    const { hgRecordsNextCursor, hgRecordsPage, hgRecordsCursorHistory, hgRecordsLoading } = this.state;
-    if (!this.props.hgPreview && !this.hgRecordsBusy && !hgRecordsLoading && this.state.hgRecordsHasMore && hgRecordsNextCursor)
-      return this.hgLoadRecords(hgRecordsNextCursor, hgRecordsPage + 1, [...hgRecordsCursorHistory, hgRecordsNextCursor]);
+    const {
+      hgRecordsNextCursor,
+      hgRecordsPage,
+      hgRecordsCursorHistory,
+      hgRecordsLoading,
+    } = this.state;
+    if (
+      !this.props.hgPreview &&
+      !this.hgRecordsBusy &&
+      !hgRecordsLoading &&
+      this.state.hgRecordsHasMore &&
+      hgRecordsNextCursor
+    )
+      return this.hgLoadRecords(hgRecordsNextCursor, hgRecordsPage + 1, [
+        ...hgRecordsCursorHistory,
+        hgRecordsNextCursor,
+      ]);
   };
 
   /** 上一页只使用已访问页的游标，并丢弃其后的过期游标链。 */
   hgLoadPreviousRecords = () => {
     // 当前页码及已访问游标，读取同一状态快照以保证回退位置一致。
-    const { hgRecordsPage, hgRecordsCursorHistory, hgRecordsLoading } = this.state;
-    if (!this.props.hgPreview && !this.hgRecordsBusy && !hgRecordsLoading && hgRecordsPage > 1)
-      return this.hgLoadRecords(hgRecordsCursorHistory[hgRecordsPage - 2] || "", hgRecordsPage - 1, hgRecordsCursorHistory.slice(0, -1));
+    const { hgRecordsPage, hgRecordsCursorHistory, hgRecordsLoading } =
+      this.state;
+    if (
+      !this.props.hgPreview &&
+      !this.hgRecordsBusy &&
+      !hgRecordsLoading &&
+      hgRecordsPage > 1
+    )
+      return this.hgLoadRecords(
+        hgRecordsCursorHistory[hgRecordsPage - 2] || "",
+        hgRecordsPage - 1,
+        hgRecordsCursorHistory.slice(0, -1)
+      );
   };
 
   /** paid 才表示已入账，其他订单状态按后端语义展示。 */
-  getRecordStatus = (hgRecord) => ({
-    pending: "待支付", expired: "已过期", paid: "已入账", cancelled: "已取消",
-    processing: "处理中", refunding: "退款中", refunded: "已退款",
-  }[hgRecord?.status] || "状态未知");
+  getRecordStatus = (hgRecord) =>
+    ({
+      pending: "待支付",
+      expired: "已过期",
+      paid: "已入账",
+      cancelled: "已取消",
+      processing: "处理中",
+      refunding: "退款中",
+      refunded: "已退款",
+    }[hgRecord?.status] || "状态未知");
 
   /** 将服务端时间转换为本地时间，非法值明确展示为未知。 */
   formatRecordTime = (hgTime) => {
     // 当前记录时间的日期对象，仅用于展示，不参与排序或游标计算。
     const hgDate = new Date(hgTime);
-    return Number.isFinite(hgDate.getTime()) ? hgDate.toLocaleString("zh-CN", { hour12: false }) : "时间未知";
+    return Number.isFinite(hgDate.getTime())
+      ? hgDate.toLocaleString("zh-CN", { hour12: false })
+      : "时间未知";
   };
 
   /** 单条记录保持金额和币数的字符串精度；订单编号是稳定列表 key。 */
@@ -132,13 +178,36 @@ export default class HGWalletRecordsPage extends React.Component {
         <strong>{hgRecord.title || "充值"}</strong>
         <small>订单号：{hgRecord.orderId}</small>
         <small>创建时间：{this.formatRecordTime(hgRecord.createdAt)}</small>
-        {hgRecord.paidAt && <small>支付时间：{this.formatRecordTime(hgRecord.paidAt)}</small>}
-        <small>{hgRecord.paymentMode === "platform_debug" ? "debug 模拟充值，不扣人民币" : "支付渠道不可用"}</small>
+        {hgRecord.paidAt && (
+          <small>支付时间：{this.formatRecordTime(hgRecord.paidAt)}</small>
+        )}
+        <small>
+          {hgRecord.paymentMode === "platform_debug"
+            ? "debug 模拟充值，不扣人民币"
+            : "支付渠道不可用"}
+        </small>
       </div>
-      <div className={styles.recordCoin}>订单币数：{typeof hgRecord.totalCoin === "string" && /^\d+$/.test(hgRecord.totalCoin) ? hgRecord.totalCoin : "--"} M币</div>
+      <div className={styles.recordCoin}>
+        订单币数：
+        {typeof hgRecord.totalCoin === "string" &&
+        /^\d+$/.test(hgRecord.totalCoin)
+          ? hgRecord.totalCoin
+          : "--"}{" "}
+        M币
+      </div>
       <div className={styles.recordAmount}>
-        {hgRecord.currency === "CNY" ? `¥${formatHGYuanFromFen(hgRecord.payAmount)}` : "金额未知"}
-        <small className={hgRecord.status === "paid" ? styles.paidStatus : styles.pendingStatus}>{this.getRecordStatus(hgRecord)}</small>
+        {hgRecord.currency === "CNY"
+          ? `¥${formatHGYuanFromFen(hgRecord.payAmount)}`
+          : "金额未知"}
+        <small
+          className={
+            hgRecord.status === "paid"
+              ? styles.paidStatus
+              : styles.pendingStatus
+          }
+        >
+          {this.getRecordStatus(hgRecord)}
+        </small>
       </div>
     </article>
   );
@@ -147,16 +216,41 @@ export default class HGWalletRecordsPage extends React.Component {
   renderRecordsContent = () => {
     // 当前记录及请求展示状态，空数组与查询失败分开呈现。
     const { hgRecords, hgRecordsLoading, hgRecordsError } = this.state;
-    if (hgRecordsError) return <div className={styles.emptyState} role="alert">
-      <strong>充值记录加载失败</strong><p>{hgRecordsError}</p>
-      <button type="button" className={styles.retryButton} onClick={this.hgRetryRecords}>重新加载</button>
-    </div>;
-    if (hgRecordsLoading) return <div className={styles.emptyState} role="status"><p>正在加载充值记录...</p></div>;
-    if (hgRecords.length === 0) return <div className={styles.emptyState}>
-      <div className={styles.emptyIcon} aria-hidden="true">◎</div>
-      <strong>本页暂无充值记录</strong><p>这里展示充值订单，不代表所有订单均已入账</p>
-    </div>;
-    return <div className={styles.recordList}>{hgRecords.map(this.renderRecord)}</div>;
+    if (hgRecordsError)
+      return (
+        <div className={styles.emptyState} role="alert">
+          <strong>充值记录加载失败</strong>
+          <p>{hgRecordsError}</p>
+          <button
+            type="button"
+            className={styles.retryButton}
+            onClick={this.hgRetryRecords}
+          >
+            重新加载
+          </button>
+        </div>
+      );
+    if (hgRecordsLoading)
+      return (
+        <div className={styles.emptyState} role="status">
+          <p>正在加载充值记录...</p>
+        </div>
+      );
+    if (hgRecords.length === 0)
+      return (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon} aria-hidden="true">
+            ◎
+          </div>
+          <strong>本页暂无充值记录</strong>
+          <p>这里展示充值订单，不代表所有订单均已入账</p>
+        </div>
+      );
+    return (
+      <div className={styles.recordList}>
+        {hgRecords.map(this.renderRecord)}
+      </div>
+    );
   };
 
   /** 只在独立页展示游标分页，空页也保留可用的上一页与下一页。 */
@@ -164,23 +258,58 @@ export default class HGWalletRecordsPage extends React.Component {
     if (this.props.hgPreview) return null;
     // 分页按钮所需的当前页、更多标志和加载状态，不推算总页数。
     const { hgRecordsPage, hgRecordsHasMore, hgRecordsLoading } = this.state;
-    return <nav className={styles.recordPager} aria-label="充值记录分页">
-      <button type="button" className={styles.pageButton} disabled={hgRecordsPage <= 1 || hgRecordsLoading} onClick={this.hgLoadPreviousRecords}>上一页</button>
-      <span aria-live="polite">第 {hgRecordsPage} 页</span>
-      <button type="button" className={styles.pageButton} disabled={!hgRecordsHasMore || hgRecordsLoading} onClick={this.hgLoadNextRecords}>下一页</button>
-    </nav>;
+    return (
+      <nav className={styles.recordPager} aria-label="充值记录分页">
+        <button
+          type="button"
+          className={styles.pageButton}
+          disabled={hgRecordsPage <= 1 || hgRecordsLoading}
+          onClick={this.hgLoadPreviousRecords}
+        >
+          上一页
+        </button>
+        <span aria-live="polite">第 {hgRecordsPage} 页</span>
+        <button
+          type="button"
+          className={styles.pageButton}
+          disabled={!hgRecordsHasMore || hgRecordsLoading}
+          onClick={this.hgLoadNextRecords}
+        >
+          下一页
+        </button>
+      </nav>
+    );
   };
 
   /** 最近记录的“查看全部”是独立路由链接，保留浏览器后退及修饰键打开能力。 */
   renderTransactionRecords = () => (
     <section className={styles.recordsSection}>
       <div className={styles.sectionHeading}>
-        <div><p className={styles.sectionEyebrow}>ACCOUNT ACTIVITY</p><h2>{this.props.hgPreview ? "充值记录" : "全部充值记录"}</h2></div>
-        {this.props.hgPreview ? <Link className={styles.moreButton} to={ROUTE_PATH.WALLET_RECORDS}>
-          查看全部 <span aria-hidden="true">›</span>
-        </Link> : <button type="button" className={styles.retryButton} disabled={this.state.hgRecordsLoading} onClick={this.hgRefreshRecords}>刷新记录</button>}
+        <div>
+          <p className={styles.sectionEyebrow}>ACCOUNT ACTIVITY</p>
+          <h2>{this.props.hgPreview ? "充值记录" : "全部充值记录"}</h2>
+        </div>
+        {this.props.hgPreview ? (
+          <Link className={styles.moreButton} to={ROUTE_PATH.WALLET_RECORDS}>
+            查看全部 <span aria-hidden="true">›</span>
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className={styles.retryButton}
+            disabled={this.state.hgRecordsLoading}
+            onClick={this.hgRefreshRecords}
+          >
+            刷新记录
+          </button>
+        )}
       </div>
-      <p className={styles.serviceNotice}>{this.props.hgPreview ? "最近充值记录，最多 50 条" : "全部充值记录，每页 50 条"}，时间为本地时间</p>
+      <p className={styles.serviceNotice}>
+        {this.props.hgPreview
+          ? "最近充值记录，最多 50 条"
+          : "全部充值记录，每页 50 条"}
+        ，时间为本地时间
+      </p>
       {this.renderRecordsContent()}
       {this.renderPager()}
     </section>
@@ -189,20 +318,34 @@ export default class HGWalletRecordsPage extends React.Component {
   /** 独立页提供明确的钱包返回链接，直接访问或刷新也可以返回。 */
   renderHeader = () => (
     <header className={styles.header}>
-      <Link className={styles.backButton} to={ROUTE_PATH.WALLET}><span aria-hidden="true">‹</span>我的钱包</Link>
+      <Link className={styles.backButton} to={ROUTE_PATH.WALLET}>
+        <span aria-hidden="true">‹</span>我的钱包
+      </Link>
       <div className={styles.headerInner}>
-        <div className={styles.brandMark} aria-hidden="true">M</div>
-        <div><p className={styles.eyebrow}>MLC PAYMENT CENTER</p><h1>充值记录</h1></div>
+        <div className={styles.brandMark} aria-hidden="true">
+          M
+        </div>
+        <div>
+          <p className={styles.eyebrow}>MLC PAYMENT CENTER</p>
+          <h1>充值记录</h1>
+        </div>
       </div>
     </header>
   );
 
   /** 独立页仅承载记录；钱包余额与充值入口保留在钱包路由。 */
-  renderMainContent = () => <main className={styles.main}>{this.renderTransactionRecords()}</main>;
+  renderMainContent = () => (
+    <main className={styles.main}>{this.renderTransactionRecords()}</main>
+  );
 
   /** 预览作为钱包区块，默认则组合独立页面的页头和主体。 */
   render() {
     if (this.props.hgPreview) return this.renderTransactionRecords();
-    return <div className={styles.page}>{this.renderHeader()}{this.renderMainContent()}</div>;
+    return (
+      <div className={styles.page}>
+        {this.renderHeader()}
+        {this.renderMainContent()}
+      </div>
+    );
   }
 }
