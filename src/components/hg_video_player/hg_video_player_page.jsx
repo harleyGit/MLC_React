@@ -503,6 +503,12 @@ class HGVideoPlayerPage extends React.Component {
     const windowStart = Math.floor(Math.max(0, timeMs) / 60000) * 60000;
     const windowKey = `${videoId}:${windowStart}`;
     if (!videoId || this.loadedDanmakuWindows.has(windowKey)) return;
+    // 最多保留当前及相邻分钟；回退已淘汰窗口时重新查询，防止长视频历史无限增长。
+    const hgCurrentWindow = Math.floor((this.videoRef.current?.currentTime || 0) / 60) * 60000;
+    for (const hgKey of this.loadedDanmakuWindows) {
+      const hgStart = Number(hgKey.slice(hgKey.lastIndexOf(":") + 1));
+      if (Math.abs(hgStart - hgCurrentWindow) > 60000) this.loadedDanmakuWindows.delete(hgKey);
+    }
     this.loadedDanmakuWindows.add(windowKey);
     const sequence = this.danmakuLoadSequence;
     try {
@@ -530,9 +536,10 @@ class HGVideoPlayerPage extends React.Component {
   /** 按服务端 danmakuId 去重，HTTP 历史、发送响应和 WebSocket 广播可安全汇合。 */
   mergeDanmaku = (items) => {
     this.setState((state) => {
-      const byId = new Map(state.danmakuList.map((item) => [item.danmakuId, item]));
-      items.forEach((item) => { if (item?.danmakuId) byId.set(item.danmakuId, item); });
-      return { danmakuList: Array.from(byId.values()).sort((a, b) => a.progressMs - b.progressMs) };
+      const hgTime = (this.videoRef.current?.currentTime || 0) * 1000;
+      const byId = new Map(state.danmakuList.filter((item) => Math.abs(item.progressMs - hgTime) <= 120000).map((item) => [item.danmakuId, item]));
+      items.forEach((item) => { if (item?.danmakuId && Math.abs(item.progressMs - hgTime) <= 120000) byId.set(item.danmakuId, item); });
+      return { danmakuList: Array.from(byId.values()).sort((a, b) => a.progressMs - b.progressMs).slice(0, 6000) };
     });
   };
 
@@ -624,9 +631,9 @@ class HGVideoPlayerPage extends React.Component {
   launchDanmaku = (item) => {
     if (!item?.danmakuId || this.launchedDanmakuIds.has(item.danmakuId)) return;
     this.launchedDanmakuIds.add(item.danmakuId);
+    if (this.launchedDanmakuIds.size > 6000) this.launchedDanmakuIds.delete(this.launchedDanmakuIds.values().next().value);
     const instanceId = `${item.danmakuId}:${Date.now()}:${Math.random()}`;
-    const lane = this.state.activeDanmaku.length % 8;
-    this.setState((state) => ({ activeDanmaku: [...state.activeDanmaku.slice(-49), { ...item, instanceId, lane }] }));
+    this.setState((state) => ({ activeDanmaku: [...state.activeDanmaku.slice(-49), { ...item, instanceId, lane: state.activeDanmaku.length % 8 }] }));
   };
 
   handleDanmakuSubmit = async (event) => {
@@ -634,9 +641,9 @@ class HGVideoPlayerPage extends React.Component {
     const content = this.state.danmakuContent.trim();
     if (!content || this.state.danmakuSubmitting) return;
     if (!this.pendingDanmakuRequest || this.pendingDanmakuRequest.content !== content) {
-      this.pendingDanmakuRequest = { content, requestId: globalThis.crypto?.randomUUID?.() || `dm_${Date.now()}_${Math.random().toString(16).slice(2)}` };
+      this.pendingDanmakuRequest = { content, progressMs: Math.floor((this.videoRef.current?.currentTime || 0) * 1000), requestId: globalThis.crypto?.randomUUID?.() || `dm_${Date.now()}_${Math.random().toString(16).slice(2)}` };
     }
-    const input = { videoId: this.props.video?.id, content, progressMs: Math.floor((this.videoRef.current?.currentTime || 0) * 1000), requestId: this.pendingDanmakuRequest.requestId };
+    const input = { videoId: this.props.video?.id, ...this.pendingDanmakuRequest };
     const body = buildVideoDanmakuCreateBody(input);
     this.setState({ danmakuSubmitting: true, danmakuFeedback: "" });
     try {
@@ -831,6 +838,19 @@ class HGVideoPlayerPage extends React.Component {
       this.launchedDanmakuIds.clear();
       this.setState({ activeDanmaku: [] });
     }
+  };
+
+  /** 无论跳转幅度多小都重置发射去重，重播时零秒弹幕也能再次展示。 */
+  hgHandleSeeking = () => {
+    this.launchedDanmakuIds.clear();
+    this.setState({ activeDanmaku: [] });
+  };
+
+  hgHandleSeeked = () => {
+    const hgMS = Math.floor((this.videoRef.current?.currentTime || 0) * 1000);
+    this.setState({ currentTime: hgMS / 1000 });
+    this.loadDanmakuWindow(hgMS);
+    this.state.danmakuList.filter((hgItem) => hgItem.progressMs >= hgMS && hgItem.progressMs <= hgMS + 250).slice(0, 50).forEach(this.launchDanmaku);
   };
 
   /**
@@ -1389,6 +1409,12 @@ class HGVideoPlayerPage extends React.Component {
               className={styles.videoElement}
               src={video.url || video.filePath}
               onTimeUpdate={this.handleTimeUpdate}
+              onSeeking={this.hgHandleSeeking}
+              onSeeked={this.hgHandleSeeked}
+              onPlaying={() => this.setState({ isPlaying: true })}
+              onPause={() => this.setState({ isPlaying: false })}
+              onWaiting={() => this.setState({ isPlaying: false })}
+              onError={() => this.setState({ isPlaying: false, danmakuFeedback: "视频加载失败，外部视频请刷新播放源" })}
               onProgress={this.handleProgress}
               onEnded={() => this.setState({ isPlaying: false })}
               onLoadedMetadata={() => {
