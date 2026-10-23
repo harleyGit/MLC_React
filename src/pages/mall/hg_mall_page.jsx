@@ -7,9 +7,10 @@ import HGWalletVM, {
 } from "../../manager_antd/page_modules/user/wallet/hg_wallet_vm.js";
 import HGWalletRecordsPage from "../../manager_antd/page_modules/user/wallet/hg_wallet_records_page.jsx";
 import { HGFormatCoin } from "./hg_mall_amount.js";
+import HGMallCatalog from "./hg_mall_catalog.jsx";
 import styles from "./hg_mall_page.module.css";
 
-/** 商城入口只展示服务端可查询的资产、充值档位与本人充值订单；不推算商品价格或支付结果。 */
+/** 商城入口展示服务端商品目录、商家工作台、资产和充值记录；不推算支付结果。 */
 export default class HGMallPage extends React.Component {
   state = {
     hgBalance: null, // 余额原始十进制字符串；null 表示尚未读取，不能当作零余额。
@@ -21,7 +22,7 @@ export default class HGMallPage extends React.Component {
     hgHasMore: false, // 是否可加载下一页，仅以服务端 hasMore 为准。
     hgSKUsLoading: false, // 是否正在读取档位；默认 false，加载中禁止并发翻页。
     hgSKUsError: "", // 目录请求错误；空字符串表示无错误。
-    hgTab: "recharge", // 当前栏目：recharge 或 orders；默认展示充值档位。
+    hgTab: "products", // 当前栏目：products、recharge 或 orders；默认展示真实商品目录。
   };
 
   hgMounted = false; // 挂载标志；卸载后不得提交请求结果。
@@ -114,8 +115,9 @@ export default class HGMallPage extends React.Component {
       <header className={styles.header}>
         <Link className={styles.brand} to={ROUTE_PATH.MALL}><span className={styles.mark}>M</span> MLC 商城</Link>
         <nav aria-label="商城导航" className={styles.nav}>
+          <button type="button" aria-pressed={this.state.hgTab === "products"} onClick={() => this.setState({ hgTab: "products" })}>首页 · 商品</button>
           <button type="button" aria-pressed={this.state.hgTab === "recharge"} onClick={() => this.setState({ hgTab: "recharge" })}>充值中心</button>
-          <button type="button" aria-pressed={this.state.hgTab === "orders"} onClick={() => this.setState({ hgTab: "orders" })}>充值订单</button>
+          <button type="button" aria-pressed={this.state.hgTab === "orders"} onClick={() => this.setState({ hgTab: "orders" })}>我的充值订单</button>
           <Link to={ROUTE_PATH.WALLET}>我的钱包</Link>
         </nav>
         <div className={styles.balance}>
@@ -171,23 +173,20 @@ export default class HGMallPage extends React.Component {
     );
   }
 
-  /** 首页聚焦真实充值能力，并为购买能力展示清晰的不可用状态。 */
+  /** 首页按原型展示商品、充值和账户入口，交易状态只能来自真实接口。 */
   render() {
     return (
       <main className={styles.page}>
         {this.renderHeader()}
         <div className={styles.content}>
           <section className={styles.hero}>
-          <div><p>MLC · ACCOUNT CENTER</p><h1>让每一笔 M币清晰可查</h1><p>1 元 = 100 基础 M币，赠币另计。查看实时余额、充值档位和本人订单；M币不可提现。</p>
-              <Link className={styles.heroButton} to={ROUTE_PATH.WALLET}>查看我的钱包</Link></div>
+           <div><p>MLC · MALL</p><h1>探索 MLC 商城</h1><p>数码影音、家用电器、服饰、美妆与会员商品。商品和价格来自服务端，经管理员审核后展示。</p>
+               <button className={styles.heroButton} type="button" onClick={() => this.setState({ hgTab: "recharge" })}>进入充值中心</button></div>
             <div className={styles.heroBalance}><span>当前可用余额</span><strong>{this.state.hgBalance === null ? "--" : HGFormatCoin(this.state.hgBalance)}</strong><span>M币 · 以服务端余额为准</span></div>
           </section>
           {this.state.hgBalanceError && <p role="alert" className={styles.error}>余额读取失败：{this.state.hgBalanceError} <button type="button" onClick={this.hgRefreshBalance}>重试</button></p>}
-          <p className={styles.notice}>微信、支付宝及商品购买暂未接入。仅后端显式开放的隔离 debug 模拟充值可入账，且不会扣人民币；创建订单不会自动入账。</p>
-          {this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
-          <section className={styles.section} aria-label="商城商品与会员">
-            <h2>会员与商品</h2><p>商品目录、库存、会员履约和 M币 / 现金组合支付服务尚未上线，暂不可下单。</p>
-          </section>
+           <p className={styles.notice}>商品购买、退款、库存与会员权益尚未接入；目前可浏览经审核的真实商品并提交商家入驻与商品发布。微信、支付宝及混合支付不可用。隔离环境模拟充值不会扣人民币。</p>
+           {this.state.hgTab === "products" ? <HGMallCatalog /> : this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
         </div>
       </main>
     );

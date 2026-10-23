@@ -35,6 +35,16 @@ export const HGMANAGER_API = {
   WALLET_RECHARGE_ORDER_DETAIL: "/api/v1/wallet/recharge/orders/detail", // 查询本人充值订单
   WALLET_RECHARGE_PAY: "/api/v1/wallet/recharge/orders/pay", // 充值付款入口
   WALLET_RECHARGE_RECORDS: "/api/v1/recharge/records", // 当前用户充值记录
+  MALL_PRODUCTS: "/api/v1/mall/products", // 审核通过的商品目录
+  MALL_DETAIL: "/api/v1/mall/products/detail", // 商品详情
+  MALL_MINE: "/api/v1/mall/products/mine", // 本店商品草稿及状态
+  MALL_PUBLISH: "/api/v1/mall/products/publish", // 发布待审核的商品草稿
+  MALL_MERCHANT: "/api/v1/mall/merchant", // 本人商家申请状态
+  MALL_APPLY: "/api/v1/mall/merchant/apply", // 提交商家入驻申请
+  MALL_PENDING_MERCHANTS: "/api/v1/mall/review/merchants", // 仅审核员可读取
+  MALL_REVIEW_MERCHANT: "/api/v1/mall/review/merchants/decision", // 审核入驻
+  MALL_PENDING_PRODUCTS: "/api/v1/mall/review/products", // 待审核商品
+  MALL_REVIEW_PRODUCT: "/api/v1/mall/review/products/decision", // 审核商品
   VIDEO_UPLOAD_FILE: "/api/v1/video_upload/upload", // 上传视频文件
   VIDEO_UPLOAD_DRAFT: "/api/v1/video_upload/draft", // 保存视频稿件草稿
   VIDEO_UPLOAD_SUBMIT: "/api/v1/video_upload/submit", // 提交视频稿件审核
