@@ -5,7 +5,7 @@ import {
 } from "./hg_wallet_origin.js";
 export { isHGLocalOnlyOrigin } from "./hg_wallet_origin.js";
 
-export const HG_RECHARGE_EXPIRY_MINUTES = 10;
+export const HG_RECHARGE_EXPIRY_MINUTES = 15;
 
 /** 仅信任订单能力，不从前端模式、域名或金额猜测后端环境。 */
 export function canHGDebugPay(hgOrder) {

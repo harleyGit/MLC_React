@@ -23,6 +23,7 @@ const HGRegisterPage = getHGPageConfig(PAGE.REGISTER).component;
 const HGLoginPage = getHGPageConfig(PAGE.LOGIN).component;
 const HGForgetPasswordPage = getHGPageConfig(PAGE.FORGET_PASSWORD).component;
 const HGProducts = getHGPageConfig(PAGE.PRODUCTS).component;
+const HGMallPage = getHGPageConfig(PAGE.MALL).component;
 const HGEditUserPage = getHGPageConfig(PAGE.EDIT_USER_INFO).component;
 const HGWalletPage = getHGPageConfig(PAGE.WALLET).component;
 const HGWalletRechargePage = getHGPageConfig(PAGE.WALLET_RECHARGE).component;
@@ -70,6 +71,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.PRODUCTS,
         element: hgLazyElement(<HGProducts />),
+      },
+      {
+        path: ROUTE_PATH.MALL,
+        element: hgLazyElement(<HGMallPage />),
       },
       {
         path: ROUTE_PATH.ABOUT,

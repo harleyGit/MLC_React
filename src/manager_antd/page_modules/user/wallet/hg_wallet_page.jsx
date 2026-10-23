@@ -135,6 +135,7 @@ class HGWalletPage extends React.Component {
           <button type="button" className={styles.ghostButton} disabled>
             提现（暂未开放）
           </button>
+          <button type="button" className={styles.ghostButton} onClick={() => this.props.pageNavigator?.open({ page: PAGE.MALL })}>商城入口</button>
           <button type="button" className={styles.ghostButton} onClick={this.hgRefreshWallet}>刷新余额与记录</button>
         </div>
       </section>

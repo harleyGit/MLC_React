@@ -383,10 +383,12 @@ export default class HGWalletRechargePage extends React.Component {
     } = this.state;
     if (this.props.pageNavigation.params.orderId !== undefined)
       return null;
+    // 档位金额和赠送币仅从本次服务端目录计算展示，订单提交仍由服务端重新校验。
+    const hgSelectedSKU = hgSKUs.find((hgSKU) => hgSKU.skuId === hgSelected);
     return (
       <section className={styles.panel}>
         <h2>选择充值档位</h2>
-        <p>金额与到账币数以服务端档位为准，不固定按 1:1 换算。</p>
+        <p>固定汇率：1 元 = 100 基础 M币；赠送币另计，实际到账以服务端订单快照为准。</p>
         <div className={styles.grid}>
           {hgSKUs.map((hgSKU) => (
             <button
@@ -409,6 +411,7 @@ export default class HGWalletRechargePage extends React.Component {
                 <small> M币</small>
               </strong>
               <span>人民币 {formatHGYuanFromFen(hgSKU.payAmount)} 元</span>
+              <span>基础 {hgSKU.coinAmount} M币{hgSKU.bonusCoin > 0 ? ` · 赠 ${hgSKU.bonusCoin} M币` : ""}</span>
               <span>{hgSKU.title}</span>
               {hgSKU.supported !== true && <span>该档位暂不支持</span>}
               {hgSKU.currency !== "CNY" && <span>暂不支持此币种</span>}
@@ -420,13 +423,14 @@ export default class HGWalletRechargePage extends React.Component {
         )}
         {!hgOrder && (
           <div className={styles.actions}>
+            {hgSelectedSKU && <p role="status">应付 ¥{formatHGYuanFromFen(hgSelectedSKU.payAmount)}，预计获得 {hgSelectedSKU.totalCoin} M币（以订单快照为准）</p>}
             <button
               type="button"
               className={styles.primary}
               disabled={!hgSelected || hgBusy || hgLoading}
               onClick={this.hgCreate}
             >
-              {hgBusy ? "正在创建订单..." : "继续 / 生成二维码"}
+              {hgBusy ? "正在创建订单..." : "创建充值订单 / 查看确认页"}
             </button>
             {hgHasMore && (
               <button
@@ -503,7 +507,7 @@ export default class HGWalletRechargePage extends React.Component {
           ) : (
             <>
               <dt>剩余时间</dt>
-              <dd role="timer">{hgCountdown}（订单有效期 10 分钟）</dd>
+              <dd role="timer">{hgCountdown}（新订单有效期 15 分钟；历史订单按原截止时间）</dd>
             </>
           )}
         </dl>
@@ -706,8 +710,8 @@ export default class HGWalletRechargePage extends React.Component {
         <h2>交易须知</h2>
         <p>1. M币为 MLC 平台币，实际金额、币数与赠币以订单快照为准。</p>
         <p>
-          2. 订单自创建起有效 10
-          分钟，过期需重新创建；刷新或扫描链接不会延长有效期。
+          2. 新订单自创建起有效 15
+          分钟（历史订单按原截止时间），过期需重新创建；刷新或扫描链接不会延长有效期。
         </p>
         <p>3. 本人订单仅限同一账号查看与确认，请勿向他人提供登录凭证。</p>
         <p>
@@ -725,6 +729,7 @@ export default class HGWalletRechargePage extends React.Component {
       <main className={styles.page}>
         <header className={styles.header}>
           <Link to={ROUTE_PATH.WALLET} onClick={this.hgBackToWallet}>返回我的钱包</Link>
+          <span> · <Link to={ROUTE_PATH.MALL}>商城</Link> · <Link to={ROUTE_PATH.WALLET_RECORDS}>充值记录</Link></span>
           <p className={styles.eyebrow}>MLC / RECHARGE</p>
           <h1>M币充值中心</h1>
           <p>
