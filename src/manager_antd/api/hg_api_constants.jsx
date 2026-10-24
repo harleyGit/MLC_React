@@ -45,7 +45,9 @@ export const HGMANAGER_API = {
   MALL_REVIEW_MERCHANT: "/api/v1/mall/review/merchants/decision", // 审核入驻
   MALL_PENDING_PRODUCTS: "/api/v1/mall/review/products", // 待审核商品
   MALL_REVIEW_PRODUCT: "/api/v1/mall/review/products/decision", // 审核商品
-  MALL_BUY: "/api/v1/mall/orders/buy", // 实物单 SKU 库存与 M币原子支付
+  MALL_BUY: "/api/v1/mall/orders/buy", // 实物单 SKU 库存预留并创建15分钟待支付订单
+  MALL_PAY: "/api/v1/mall/orders/pay", // 本人待支付订单按服务端快照扣 M币
+  MALL_PENDING_ORDERS: "/api/v1/mall/orders/pending", // 本人待支付及超时取消订单游标页
   MALL_ORDERS: "/api/v1/mall/orders", // 本人实物订单游标页
   MALL_ORDER_DETAIL: "/api/v1/mall/orders/detail", // 本人订单物流与地址快照
   MALL_RECEIVE: "/api/v1/mall/orders/receive", // 确认收货并结算商家

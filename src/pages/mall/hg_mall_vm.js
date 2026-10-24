@@ -19,6 +19,8 @@ export default class HGMallVM {
   static reviewMerchant(merchantId, approve) { return this.request("post", "MALL_REVIEW_MERCHANT", { merchantId, approve }); }
   static reviewProduct(productId, approve) { return this.request("post", "MALL_REVIEW_PRODUCT", { productId, approve }); }
   static buy(hgBody) { return this.request("post", "MALL_BUY", hgBody); }
+  static pay(orderId) { return this.request("post", "MALL_PAY", { orderId }); }
+  static pendingOrders(cursor = "") { return this.request("get", "MALL_PENDING_ORDERS", { cursor }); }
   static orders(cursor = "") { return this.request("get", "MALL_ORDERS", { cursor }); }
   static orderDetail(orderId) { return this.request("get", "MALL_ORDER_DETAIL", { orderId }); }
   static receive(orderId) { return this.request("post", "MALL_RECEIVE", { orderId }); }

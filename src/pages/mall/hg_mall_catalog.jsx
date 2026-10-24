@@ -52,6 +52,10 @@ export default class HGMallCatalog extends React.Component {
     hgOrders: [], // 本人最多 20 笔当前页实物订单，不累计历史页。
     hgOrdersCursor: "", // 本人当前页查询游标；空字符串为第一页。
     hgOrdersNext: "", // 本人订单下一页游标；空字符串表示结束。
+    hgPendingOrders: [], // 本人当前页待支付及已过期取消订单；不跨用户保存收件信息。
+    hgPendingCursor: "", // 待支付记录当前页游标；空字符串代表第一页。
+    hgPendingNext: "", // 待支付记录下一页游标；空字符串表示结束。
+    hgPendingError: "", // 待支付列表独立的加载错误；不覆盖已支付订单的错误提示。
     hgSellerOrders: [], // 本店最多 20 笔当前页订单，商家身份服务端校验。
     hgSellerCursor: "", // 本店当前页查询游标；空字符串为第一页。
     hgSellerNext: "", // 本店订单下一页游标；空字符串表示结束。
@@ -69,6 +73,7 @@ export default class HGMallCatalog extends React.Component {
   hgBuyRequestId = ""; // 当前一次购买尝试的幂等键；失败后保持，修改请求内容时作废。
   hgRefundRequestIds = new Map(); // 各订单退款幂等键；失败后复用，成功后移除。
   hgOrdersSeq = 0; // 本人订单请求序号；后发请求覆盖先发请求。
+  hgPendingSeq = 0; // 待支付订单请求序号；切换视图时使旧响应失效。
   hgSellerSeq = 0; // 本店订单请求序号；切换视图后不提交旧响应。
   hgMerchantSeq = 0; // 本店商品页请求序号；快速翻页只接受最后一次响应。
   hgReviewSeq = 0; // 审核双列表请求序号；不同游标响应不可相互覆盖。
@@ -84,6 +89,7 @@ export default class HGMallCatalog extends React.Component {
     this.hgMounted = false;
     this.hgSeq += 1;
     this.hgOrdersSeq += 1;
+    this.hgPendingSeq += 1;
     this.hgSellerSeq += 1;
     this.hgMerchantSeq += 1;
     this.hgReviewSeq += 1;
@@ -146,6 +152,19 @@ export default class HGMallCatalog extends React.Component {
     }
   };
 
+  /** 仅从服务端读取本人有界待支付页，过期状态和支付权限均由后端确定。 */
+  hgLoadPending = async (hgCursor = "") => {
+    const hgSeq = ++this.hgPendingSeq; // 本次待支付页查询身份，忽略切换视图后的旧响应。
+    try {
+      const hgPage = await HGMallVM.pendingOrders(hgCursor); // 本人订单的收件信息来自鉴权接口。
+      if (!this.hgMounted || this.state.hgView !== "orders" || this.hgPendingSeq !== hgSeq) return;
+      if (!Array.isArray(hgPage?.list) || typeof hgPage.hasMore !== "boolean" || typeof hgPage.nextCursor !== "string") throw new Error("待支付订单响应异常");
+      this.setState({ hgPendingOrders: hgPage.list, hgPendingCursor: hgCursor, hgPendingNext: hgPage.hasMore ? hgPage.nextCursor : "", hgPendingError: "" });
+    } catch (hgError) {
+      if (this.hgMounted && this.state.hgView === "orders" && this.hgPendingSeq === hgSeq) this.setState({ hgPendingError: this.hgMessage(hgError) });
+    }
+  };
+
   /** 审核入口由服务端 RBAC 读接口决定；403 只隐藏入口，不将任意登录者当管理员。 */
   hgLoadReviewAccess = async () => {
     try {
@@ -176,12 +195,13 @@ export default class HGMallCatalog extends React.Component {
   hgSelectView = (hgView) => {
     ++this.hgSeq;
     ++this.hgOrdersSeq;
+    ++this.hgPendingSeq;
     ++this.hgSellerSeq;
     ++this.hgMerchantSeq;
     ++this.hgReviewSeq;
     this.setState({ hgView, hgDetail: null, hgError: "", hgNotice: "" });
     if (hgView === "merchant") { this.hgLoadMerchant(); this.hgLoadOrders("", true); }
-    if (hgView === "orders") this.hgLoadOrders();
+    if (hgView === "orders") { this.hgLoadOrders(); this.hgLoadPending(); }
     if (hgView === "review") this.hgLoadReview();
     if (hgView === "catalog") this.hgLoadCatalog(this.state.hgCategory, "", []);
   };
@@ -195,14 +215,17 @@ export default class HGMallCatalog extends React.Component {
       await hgAction();
       if (this.hgMounted) this.setState({ hgNotice: hgSuccess });
       if (this.hgMounted && this.state.hgView === "merchant") { await this.hgLoadMerchant(); await this.hgLoadOrders("", true); }
-      if (this.hgMounted && this.state.hgView === "orders") await this.hgLoadOrders();
+      if (this.hgMounted && this.state.hgView === "orders") { await this.hgLoadOrders(); await this.hgLoadPending(); }
       if (this.hgMounted && this.state.hgView === "review") await this.hgLoadReview();
     } catch (hgError) {
       if (this.hgMounted && this.state.hgView === "review" && hgError?.status === 409) {
         // 审核条件被其他操作改变时重新取当前页；服务器仍以条件更新防止重复审核。
         this.setState({ hgError: "审核状态已变化，正在刷新待审列表..." });
         await this.hgLoadReview(this.state.hgReviewCursor, this.state.hgProductReviewCursor);
-      } else if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+      } else if (this.hgMounted) {
+        this.setState({ hgError: this.hgMessage(hgError) });
+        if (this.state.hgView === "orders" && hgError?.status === 409) await this.hgLoadPending(this.state.hgPendingCursor);
+      }
     } finally {
       this.hgWriteFlight = false;
       if (this.hgMounted) this.setState({ hgBusy: false });
@@ -262,9 +285,8 @@ export default class HGMallCatalog extends React.Component {
       try { sessionStorage.removeItem(hgPendingBuyKey); } catch { /* 下次页面加载时可查询订单确认。 */ }
       this.hgBuyRequestId = "";
       if (this.hgMounted) {
-        this.props.hgOnBalanceChange?.();
-        this.setState({ hgPendingBuy: false, hgNotice: "订单已支付 M币，请等待商家发货", hgView: "orders", hgDetail: null,
-          hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" } }, () => this.hgLoadOrders());
+        this.setState({ hgPendingBuy: false, hgNotice: "订单已创建，商品库存预留15分钟；请在我的商品订单中完成 M币支付", hgView: "orders", hgDetail: null,
+          hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" } }, () => { this.hgLoadPending(); this.hgLoadOrders(); });
       }
     } catch (hgError) {
       if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
@@ -286,6 +308,12 @@ export default class HGMallCatalog extends React.Component {
       this.props.hgOnBalanceChange?.();
     }, "未发货订单已全额退还 M币并释放库存");
   };
+
+  /** 支付只提交订单 ID，余额、订单价格和15分钟截止时间以服务端为准。 */
+  hgPay = (hgOrderId) => this.hgWrite(async () => {
+    await HGMallVM.pay(hgOrderId);
+    this.props.hgOnBalanceChange?.();
+  }, "订单已支付 M币，请等待商家发货");
 
   renderTabs() {
     return <nav className={styles.categoryNav} aria-label="商城功能">
@@ -309,8 +337,8 @@ export default class HGMallCatalog extends React.Component {
               <label>收件人 <input required maxLength={64} value={this.state.hgBuyForm.receiverName} onChange={(hgEvent) => this.hgUpdateBuy("receiverName", hgEvent.target.value)} /></label>
               <label>手机号 <input required inputMode="tel" maxLength={20} value={this.state.hgBuyForm.receiverPhone} onChange={(hgEvent) => this.hgUpdateBuy("receiverPhone", hgEvent.target.value)} /></label>
               <label>详细收货地址 <textarea required maxLength={512} value={this.state.hgBuyForm.receiverAddress} onChange={(hgEvent) => this.hgUpdateBuy("receiverAddress", hgEvent.target.value)} /></label>
-          <p className={styles.notice}>商品标价含配送费；提交后立即扣除 M币并占用库存。未发货可全额退款，发货后尚未开放退货退款；运单由商家人工录入。</p>
-              <button type="submit" disabled={this.state.hgBusy || hgDetail.available < 1 || hgDetail.amount > 100000}>确认购买并支付 M币</button>
+          <p className={styles.notice}>商品标价含配送费；下单后预留库存15分钟，付款时才扣 M币。到期自动释放库存；已付款未发货可全额退款，运单由商家人工录入。</p>
+              <button type="submit" disabled={this.state.hgBusy || hgDetail.available < 1 || hgDetail.amount > 100000}>创建待支付订单</button>
             </form></> : <p className={styles.notice}>会员权益尚未接入，仅展示商品，暂不可购买。</p>}</div></div>
     </article>;
     return <>
@@ -375,7 +403,23 @@ export default class HGMallCatalog extends React.Component {
         this.hgBuyRequestId = "";
         this.setState({ hgPendingBuy: false });
       }}>我已核对订单，清除待确认请求</button>}
-      {!hgItems.length && <p>当前页暂无订单。</p>}
+      {!hgMerchant && <section aria-label="我的待支付商品">
+        <h3>待支付与超时取消</h3>
+        {this.state.hgPendingError && <p role="alert" className={styles.error}>{this.state.hgPendingError} <button type="button" onClick={() => this.hgLoadPending(this.state.hgPendingCursor)}>重试</button></p>}
+        {!this.state.hgPendingOrders.length && <p>当前页暂无待支付商品。</p>}
+        {this.state.hgPendingOrders.map((hgOrder) => <article className={styles.orderCard} key={hgOrder.orderId}>
+          <h4>{hgOrder.title} · {hgOrder.quantity} 件 · {HGFormatCoin(hgOrder.amount)} M币</h4>
+          <p>订单 {hgOrder.orderId} · {hgOrder.tradeStatus === 1 ? "待支付" : "超时取消，库存已释放"} · 支付截止（UTC）{hgOrder.expiresAt}</p>
+          <p>收件：{hgOrder.receiverName} · {hgOrder.receiverPhone} · {hgOrder.receiverAddress}</p>
+          {hgOrder.tradeStatus === 1 && <button type="button" disabled={this.state.hgBusy} onClick={() => this.hgPay(hgOrder.orderId)}>继续支付 M币</button>}
+        </article>)}
+        <div className={styles.pager}>
+          <button type="button" disabled={!this.state.hgPendingCursor || this.state.hgBusy} onClick={() => this.hgLoadPending()}>最新订单</button>
+          <button type="button" disabled={!this.state.hgPendingNext || this.state.hgBusy} onClick={() => this.hgLoadPending(this.state.hgPendingNext)}>下一页待支付记录</button>
+        </div>
+      </section>}
+      {!hgMerchant && <h3>已支付商品</h3>}
+      {!hgItems.length && <p>当前页暂无已支付订单。</p>}
       {hgItems.map((hgOrder) => <article className={styles.orderCard} key={hgOrder.orderId}>
         <h3>{hgOrder.title} · {hgOrder.quantity} 件 · {HGFormatCoin(hgOrder.amount)} M币</h3>
         <p>订单 {hgOrder.orderId} · {hgOrder.shippingStatus === 3 ? "未发货已退款" : hgOrder.shippingStatus === 2 ? "已确认收货并结算" : hgOrder.shippingStatus === 1 ? "已发货" : "已支付，待发货"}</p>
