@@ -8,10 +8,25 @@ const hgCategories = [
   ["clothing", "服饰"], ["beauty", "美妆个护"], ["membership", "会员"],
 ]; // 与 Go 服务端类目白名单对齐，不从原型构造商品记录。
 
+const hgPendingBuyKey = "mlc.mall.pending-buy"; // 仅在会话内保存幂等键和请求摘要，不落盘收件隐私明文。
+
+/** 摘要绑定同一次购买的商品、数量及地址；失败后的未知结果只能使用原幂等键重试。 */
+async function hgPurchaseDigest(hgRequest) {
+  const { default: hgNet } = await import("../../api/HttpManagerV1.js");
+  return hgNet.sha256Hex(JSON.stringify(hgRequest)); // 复用局域网 HTTP 环境的 SHA-256 降级实现。
+}
+
+/** 用安全随机字节生成可重试的订单请求标识；无随机源时拒绝交易而非退化为 Math.random。 */
+function hgSecureRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  if (!globalThis.crypto?.getRandomValues) throw new Error("浏览器不支持安全随机数，无法发起交易");
+  return Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)), (hgValue) => hgValue.toString(16).padStart(2, "0")).join("");
+}
+
 /** 商城目录和商家工作台；全部商品、审核及发布结果来自服务端。 */
 export default class HGMallCatalog extends React.Component {
   state = {
-    hgView: "catalog", // catalog、merchant、review 三种视图，默认展示已审核目录。
+    hgView: "catalog", // catalog、merchant、orders、review 四种视图，默认展示已审核目录。
     hgCategory: "", // 空字符串为全部类目，其他值必须来自服务端白名单。
     hgItems: [], // 当前目录页，初始为空，不缓存无限历史页面。
     hgCursor: "", // 当前请求游标；空字符串代表第一页。
@@ -30,18 +45,33 @@ export default class HGMallCatalog extends React.Component {
     hgCanReview: false, // 仅审核 API 返回成功才显示审核入口。
     hgShopName: "", // 用户输入的店铺名；提交前无默认值。
     hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", skuTitle: "", amount: "" }, // 商品草稿输入；金额为用户输入的整币文本。
+    hgStock: "", // 新发布实物商品初始库存文本；会员不填，服务端校验 1-100000。
+    hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" }, // 当前商品一次性收货快照；不可当作地址簿复用。
+    hgOrders: [], // 本人最多 20 笔当前页实物订单，不累计历史页。
+    hgOrdersCursor: "", // 本人当前页查询游标；空字符串为第一页。
+    hgOrdersNext: "", // 本人订单下一页游标；空字符串表示结束。
+    hgSellerOrders: [], // 本店最多 20 笔当前页订单，商家身份服务端校验。
+    hgSellerCursor: "", // 本店当前页查询游标；空字符串为第一页。
+    hgSellerNext: "", // 本店订单下一页游标；空字符串表示结束。
+    hgShipping: { orderId: "", carrier: "", trackingNumber: "" }, // 当前填写的待发货运单；未选择订单时 ID 为空。
     hgLoading: false, // 目录或详情请求是否正在加载。
     hgBusy: false, // 审核/申请/发布写操作门闩，防止快速重复提交。
     hgError: "", // 当前请求错误文案；空字符串表示无错误。
     hgNotice: "", // 成功反馈；空字符串表示无需展示。
+    hgPendingBuy: false, // 本会话有结果未知的购买请求时为 true；须核对订单或重试原请求。
   };
 
   hgMounted = false; // 卸载后丢弃异步响应。
   hgSeq = 0; // 目录与详情读操作递增序号，忽略旧请求。
   hgWriteFlight = false; // 同步写入门闩，不依赖异步 setState 生效。
+  hgBuyRequestId = ""; // 当前一次购买尝试的幂等键；失败后保持，修改请求内容时作废。
+  hgRefundRequestIds = new Map(); // 各订单退款幂等键；失败后复用，成功后移除。
+  hgOrdersSeq = 0; // 本人订单请求序号；后发请求覆盖先发请求。
+  hgSellerSeq = 0; // 本店订单请求序号；切换视图后不提交旧响应。
 
   componentDidMount() {
     this.hgMounted = true;
+    try { this.setState({ hgPendingBuy: !!sessionStorage.getItem(hgPendingBuyKey) }); } catch { /* 禁用存储时仍保留当前组件内的幂等键。 */ }
     this.hgLoadCatalog("", "", []);
     this.hgLoadReviewAccess();
   }
@@ -49,6 +79,8 @@ export default class HGMallCatalog extends React.Component {
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgSeq += 1;
+    this.hgOrdersSeq += 1;
+    this.hgSellerSeq += 1;
   }
 
   hgMessage = (hgError) => hgError?.message || "商城请求失败，请重试";
@@ -56,7 +88,7 @@ export default class HGMallCatalog extends React.Component {
   /** 仅加载单个有界游标页，切换类目/翻页时旧响应不可覆盖新结果。 */
   hgLoadCatalog = async (hgCategory, hgCursor, hgHistory) => {
     const hgSeq = ++this.hgSeq;
-    this.setState({ hgLoading: true, hgError: "", hgDetail: null, hgCategory });
+    this.setState({ hgLoading: true, hgError: "", hgDetail: null, hgCategory, hgItems: [], hgNext: "", hgCursor, hgHistory });
     try {
       const hgPage = await HGMallVM.products(hgCategory, hgCursor);
       if (!this.hgMounted || this.hgSeq !== hgSeq) return;
@@ -86,9 +118,24 @@ export default class HGMallCatalog extends React.Component {
   hgLoadMerchant = async (hgCursor = "") => {
     try {
       const [hgMerchant, hgMine] = await Promise.all([HGMallVM.merchant(), HGMallVM.mine(hgCursor)]);
-      if (this.hgMounted) this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgError: "" });
+      if (this.hgMounted && this.state.hgView === "merchant") this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgError: "" });
     } catch (hgError) {
-      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+      if (this.hgMounted && this.state.hgView === "merchant") this.setState({ hgError: this.hgMessage(hgError) });
+    }
+  };
+
+  /** 只替换当前游标页，订单和收货地址不跨用户缓存；商家列表走独立的授权接口。 */
+  hgLoadOrders = async (hgCursor = "", hgMerchant = false) => {
+    const hgSeq = hgMerchant ? ++this.hgSellerSeq : ++this.hgOrdersSeq;
+    try {
+      const hgPage = hgMerchant ? await HGMallVM.merchantOrders(hgCursor) : await HGMallVM.orders(hgCursor);
+      if (!this.hgMounted || this.state.hgView !== (hgMerchant ? "merchant" : "orders") || (hgMerchant ? this.hgSellerSeq : this.hgOrdersSeq) !== hgSeq) return;
+      if (!Array.isArray(hgPage?.list) || typeof hgPage?.hasMore !== "boolean" || typeof hgPage?.nextCursor !== "string") throw new Error("商品订单响应异常");
+      this.setState(hgMerchant
+        ? { hgSellerOrders: hgPage.list, hgSellerCursor: hgCursor, hgSellerNext: hgPage.hasMore ? hgPage.nextCursor : "", hgError: "" }
+        : { hgOrders: hgPage.list, hgOrdersCursor: hgCursor, hgOrdersNext: hgPage.hasMore ? hgPage.nextCursor : "", hgError: "" });
+    } catch (hgError) {
+      if (this.hgMounted && (hgMerchant ? this.hgSellerSeq : this.hgOrdersSeq) === hgSeq) this.setState({ hgError: this.hgMessage(hgError) });
     }
   };
 
@@ -120,8 +167,11 @@ export default class HGMallCatalog extends React.Component {
 
   hgSelectView = (hgView) => {
     ++this.hgSeq;
+    ++this.hgOrdersSeq;
+    ++this.hgSellerSeq;
     this.setState({ hgView, hgDetail: null, hgError: "", hgNotice: "" });
-    if (hgView === "merchant") this.hgLoadMerchant();
+    if (hgView === "merchant") { this.hgLoadMerchant(); this.hgLoadOrders("", true); }
+    if (hgView === "orders") this.hgLoadOrders();
     if (hgView === "review") this.hgLoadReview();
     if (hgView === "catalog") this.hgLoadCatalog(this.state.hgCategory, "", []);
   };
@@ -134,8 +184,9 @@ export default class HGMallCatalog extends React.Component {
     try {
       await hgAction();
       if (this.hgMounted) this.setState({ hgNotice: hgSuccess });
-      if (this.state.hgView === "merchant") await this.hgLoadMerchant();
-      if (this.state.hgView === "review") await this.hgLoadReview();
+      if (this.hgMounted && this.state.hgView === "merchant") { await this.hgLoadMerchant(); await this.hgLoadOrders("", true); }
+      if (this.hgMounted && this.state.hgView === "orders") await this.hgLoadOrders();
+      if (this.hgMounted && this.state.hgView === "review") await this.hgLoadReview();
     } catch (hgError) {
       if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
@@ -152,13 +203,81 @@ export default class HGMallCatalog extends React.Component {
       this.setState({ hgError: "请输入有效的正整数 M币价格" });
       return;
     }
-    this.hgWrite(() => HGMallVM.publish({ ...hgDraft, amount: hgAmount }), "商品草稿已提交审核，通过后进入目录");
+    const hgStock = hgDraft.type === "MEMBERSHIP" ? 0 : Number(this.state.hgStock);
+    if (hgDraft.type === "PHYSICAL_PRODUCT" && (!Number.isSafeInteger(hgStock) || hgStock < 1 || hgStock > 100000)) {
+      this.setState({ hgError: "实物商品初始库存须为 1-100000 件" });
+      return;
+    }
+    this.hgWrite(() => HGMallVM.publish({ ...hgDraft, amount: hgAmount, stock: hgStock }), "商品草稿已提交审核，通过后进入目录");
+  };
+
+  /** 购买响应未知时保持同一 requestId 重试；更改商品或收货信息则生成全新的键。 */
+  hgBuy = async (hgEvent) => {
+    hgEvent.preventDefault();
+    if (this.hgWriteFlight) return;
+    const { hgDetail, hgBuyForm } = this.state;
+    const hgQuantity = Number(hgBuyForm.quantity);
+    if (!hgDetail || hgDetail.type !== "PHYSICAL_PRODUCT" || !Number.isInteger(hgQuantity) || hgQuantity < 1 || hgQuantity > 10 || hgQuantity > hgDetail.available || hgDetail.amount * hgQuantity > 100000) {
+      this.setState({ hgError: "库存不足或订单金额超过 100000 M币，请调整数量" });
+      return;
+    }
+    const hgRequest = { productId: hgDetail.productId, quantity: hgQuantity, receiverName: hgBuyForm.receiverName.trim(),
+      receiverPhone: hgBuyForm.receiverPhone.trim(), receiverAddress: hgBuyForm.receiverAddress.trim() }; // 仅用于本次签名请求，不持久化收件资料。
+    this.hgWriteFlight = true;
+    this.setState({ hgBusy: true, hgError: "" });
+    try {
+      const hgDigest = await hgPurchaseDigest(hgRequest);
+      let hgPending = null;
+      try { hgPending = JSON.parse(sessionStorage.getItem(hgPendingBuyKey)); } catch { /* 会话存储不可用时回退到当前实例。 */ }
+      if (hgPending && hgPending.digest !== hgDigest) throw new Error("存在结果未知的购买请求，请先在商品订单中核对，再清除待确认请求");
+      const hgRequestId = hgPending?.id || this.hgBuyRequestId || hgSecureRequestId();
+      this.hgBuyRequestId = hgRequestId;
+      try { sessionStorage.setItem(hgPendingBuyKey, JSON.stringify({ id: hgRequestId, digest: hgDigest })); } catch { /* 仅保留实例级重试键。 */ }
+      this.setState({ hgPendingBuy: true });
+      try {
+        await HGMallVM.buy({ ...hgRequest, requestId: hgRequestId });
+      } catch (hgError) {
+        // 明确拒绝的 4xx 不会扣款；超时、5xx 与网络断开时绝不替换幂等键。
+        if (hgError?.status >= 400 && hgError.status < 500 && hgError.status !== 429) {
+          try { sessionStorage.removeItem(hgPendingBuyKey); } catch { /* 实例键仍可被复用。 */ }
+          this.setState({ hgPendingBuy: false });
+          this.hgBuyRequestId = "";
+        }
+        throw hgError;
+      }
+      try { sessionStorage.removeItem(hgPendingBuyKey); } catch { /* 下次页面加载时可查询订单确认。 */ }
+      this.hgBuyRequestId = "";
+      if (this.hgMounted) {
+        this.props.hgOnBalanceChange?.();
+        this.setState({ hgPendingBuy: false, hgNotice: "订单已支付 M币，请等待商家发货", hgView: "orders", hgDetail: null,
+          hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" } }, () => this.hgLoadOrders());
+      }
+    } catch (hgError) {
+      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+    } finally {
+      this.hgWriteFlight = false;
+      if (this.hgMounted) this.setState({ hgBusy: false });
+    }
+  };
+
+  hgRefund = (hgOrderId) => {
+    if (!this.hgRefundRequestIds.has(hgOrderId)) {
+      try { this.hgRefundRequestIds.set(hgOrderId, hgSecureRequestId()); }
+      catch (hgError) { this.setState({ hgError: this.hgMessage(hgError) }); return; }
+    }
+    const hgRequestId = this.hgRefundRequestIds.get(hgOrderId);
+    this.hgWrite(async () => {
+      await HGMallVM.refund(hgOrderId, hgRequestId);
+      this.hgRefundRequestIds.delete(hgOrderId);
+      this.props.hgOnBalanceChange?.();
+    }, "未发货订单已全额退还 M币并释放库存");
   };
 
   renderTabs() {
     return <nav className={styles.categoryNav} aria-label="商城功能">
       <button type="button" aria-pressed={this.state.hgView === "catalog"} onClick={() => this.hgSelectView("catalog")}>商品目录</button>
       <button type="button" aria-pressed={this.state.hgView === "merchant"} onClick={() => this.hgSelectView("merchant")}>商家入驻与发布</button>
+      <button type="button" aria-pressed={this.state.hgView === "orders"} onClick={() => this.hgSelectView("orders")}>我的商品订单</button>
       {this.state.hgCanReview && <button type="button" aria-pressed={this.state.hgView === "review"} onClick={() => this.hgSelectView("review")}>商品与商家审核</button>}
     </nav>;
   }
@@ -170,8 +289,15 @@ export default class HGMallCatalog extends React.Component {
       <div className={styles.detailGrid}><div className={styles.imagePlaceholder} aria-label="商品暂未上传图片">{hgCategories.find(([hgCode]) => hgCode === hgDetail.category)?.[1]}</div>
         <div><small>{hgDetail.shopName} · {hgDetail.category === "membership" ? "会员" : "实物商品"}</small><h2>{hgDetail.title}</h2>
           <strong className={styles.coinPrice}>{HGFormatCoin(hgDetail.amount)} M币</strong><p>{hgDetail.summary}</p><p>规格：{hgDetail.skuTitle}</p>
-          <p className={styles.notice}>仅展示已审核的真实商品信息。库存、配送和会员权益尚未接入，目前不可下单。</p>
-          <button type="button" disabled>暂不可购买</button></div></div>
+          {hgDetail.type === "PHYSICAL_PRODUCT" ? <><p>可售库存：{hgDetail.available} 件 · 单笔最高 100000 M币</p>
+            <form className={styles.workspace} onSubmit={this.hgBuy}>
+              <label>购买数量 <input required type="number" min="1" max="10" step="1" value={this.state.hgBuyForm.quantity} onChange={(hgEvent) => this.hgUpdateBuy("quantity", hgEvent.target.value)} /></label>
+              <label>收件人 <input required maxLength={64} value={this.state.hgBuyForm.receiverName} onChange={(hgEvent) => this.hgUpdateBuy("receiverName", hgEvent.target.value)} /></label>
+              <label>手机号 <input required inputMode="tel" maxLength={20} value={this.state.hgBuyForm.receiverPhone} onChange={(hgEvent) => this.hgUpdateBuy("receiverPhone", hgEvent.target.value)} /></label>
+              <label>详细收货地址 <textarea required maxLength={512} value={this.state.hgBuyForm.receiverAddress} onChange={(hgEvent) => this.hgUpdateBuy("receiverAddress", hgEvent.target.value)} /></label>
+          <p className={styles.notice}>商品标价含配送费；提交后立即扣除 M币并占用库存。未发货可全额退款，发货后尚未开放退货退款；运单由商家人工录入。</p>
+              <button type="submit" disabled={this.state.hgBusy || hgDetail.available < 1 || hgDetail.amount > 100000}>确认购买并支付 M币</button>
+            </form></> : <p className={styles.notice}>会员权益尚未接入，仅展示商品，暂不可购买。</p>}</div></div>
     </article>;
     return <>
       <div className={styles.categoryNav} role="group" aria-label="筛选商品类目">{hgCategories.map(([hgCode, hgLabel]) =>
@@ -181,12 +307,17 @@ export default class HGMallCatalog extends React.Component {
       <div className={styles.productGrid}>{hgItems.map((hgItem) => <article key={hgItem.productId} className={styles.product}>
         <div className={styles.productImage}>{hgCategories.find(([hgCode]) => hgCode === hgItem.category)?.[1] || "商品"}</div>
         <div className={styles.productBody}><small>{hgItem.shopName}</small><h3>{hgItem.title}</h3><p>{hgItem.skuTitle}</p>
-          <strong className={styles.coinPrice}>{HGFormatCoin(hgItem.amount)} M币</strong><button type="button" onClick={() => this.hgShowDetail(hgItem.productId)}>查看详情</button></div>
+          <strong className={styles.coinPrice}>{HGFormatCoin(hgItem.amount)} M币</strong><small>{hgItem.type === "MEMBERSHIP" ? "会员仅展示" : `可售 ${hgItem.available} 件`}</small><button type="button" onClick={() => { this.hgBuyRequestId = ""; this.hgShowDetail(hgItem.productId); }}>查看详情</button></div>
       </article>)}</div>
       <div className={styles.pager}><button type="button" disabled={!hgHistory.length || hgLoading} onClick={() => this.hgLoadCatalog(hgCategory, hgHistory[hgHistory.length - 1], hgHistory.slice(0, -1))}>上一页</button>
         <span>第 {hgHistory.length + 1} 页</span><button type="button" disabled={!hgNext || hgLoading} onClick={() => this.hgLoadCatalog(hgCategory, hgNext, [...hgHistory, hgCursor])}>下一页</button></div>
     </>;
   }
+
+  hgUpdateBuy = (hgKey, hgValue) => {
+    this.hgBuyRequestId = "";
+    this.setState((hgState) => ({ hgBuyForm: { ...hgState.hgBuyForm, [hgKey]: hgValue } }));
+  };
 
   renderMerchant() {
     const { hgMerchant, hgMine, hgShopName, hgDraft, hgBusy, hgMerchantNext } = this.state;
@@ -206,11 +337,50 @@ export default class HGMallCatalog extends React.Component {
           <label>商品名称 <input required maxLength={128} value={hgDraft.title} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, title: hgEvent.target.value } })} /></label>
           <label>简介（纯文本） <textarea required maxLength={512} value={hgDraft.summary} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, summary: hgEvent.target.value } })} /></label>
           <label>规格 <input required maxLength={128} value={hgDraft.skuTitle} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, skuTitle: hgEvent.target.value } })} /></label>
-          <label>价格（整数 M币） <input required type="number" min="1" max="9007199254740991" step="1" value={hgDraft.amount} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, amount: hgEvent.target.value } })} /></label>
+          <label>价格（整数 M币；实物不超过100000） <input required type="number" min="1" max={hgDraft.type === "PHYSICAL_PRODUCT" ? "100000" : "9007199254740991"} step="1" value={hgDraft.amount} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, amount: hgEvent.target.value } })} /></label>
+          {hgDraft.type === "PHYSICAL_PRODUCT" && <label>初始可售库存（件） <input required type="number" min="1" max="100000" step="1" value={this.state.hgStock} onChange={(hgEvent) => this.setState({ hgStock: hgEvent.target.value })} /></label>}
           <button type="submit" disabled={hgBusy}>提交商品审核</button>
         </form><h3>我的商品</h3>{hgMine.map((hgItem) => <p key={hgItem.productId}>{hgItem.title} · {HGFormatCoin(hgItem.amount)} M币 · {hgItem.status === 1 ? "已上架" : hgItem.status === 2 ? "未通过" : "待审核"}</p>)}
-        <button type="button" disabled={!hgMerchantNext || hgBusy} onClick={() => this.hgLoadMerchant(hgMerchantNext)}>加载更多</button></section>}
+        <button type="button" disabled={!hgMerchantNext || hgBusy} onClick={() => this.hgLoadMerchant(hgMerchantNext)}>下一页商品</button></section>}
+      {hgMerchant?.status === 1 && this.renderPhysicalOrders(true)}
     </div>;
+  }
+
+  /** 订单、收件信息和人工运单只来自服务端授权的本人/本店列表。 */
+  renderPhysicalOrders(hgMerchant = false) {
+    const hgItems = hgMerchant ? this.state.hgSellerOrders : this.state.hgOrders;
+    const hgNext = hgMerchant ? this.state.hgSellerNext : this.state.hgOrdersNext;
+    return <section className={styles.section} aria-label={hgMerchant ? "本店实物订单" : "我的实物订单"}>
+      <h2>{hgMerchant ? "本店实物订单与发货" : "我的商品订单"}</h2>
+      {!hgMerchant && this.state.hgPendingBuy && <p className={styles.notice}>有一笔购买结果尚未确认；请先核对订单记录。若未出现订单，可用原商品与相同收货信息重试。</p>}
+      {!hgMerchant && this.state.hgPendingBuy && <button type="button" onClick={() => {
+        try { sessionStorage.removeItem(hgPendingBuyKey); } catch { /* 会话存储不可用。 */ }
+        this.hgBuyRequestId = "";
+        this.setState({ hgPendingBuy: false });
+      }}>我已核对订单，清除待确认请求</button>}
+      {!hgItems.length && <p>当前页暂无订单。</p>}
+      {hgItems.map((hgOrder) => <article className={styles.orderCard} key={hgOrder.orderId}>
+        <h3>{hgOrder.title} · {hgOrder.quantity} 件 · {HGFormatCoin(hgOrder.amount)} M币</h3>
+        <p>订单 {hgOrder.orderId} · {hgOrder.shippingStatus === 3 ? "未发货已退款" : hgOrder.shippingStatus === 2 ? "已确认收货并结算" : hgOrder.shippingStatus === 1 ? "已发货" : "已支付，待发货"}</p>
+        <p>收件：{hgOrder.receiverName} · {hgOrder.receiverPhone} · {hgOrder.receiverAddress}</p>
+        {hgOrder.shippingStatus >= 1 && hgOrder.shippingStatus <= 2 && <p>承运商：{hgOrder.carrier} · 运单号：{hgOrder.trackingNumber}（商家录入，非快递轨迹）</p>}
+        {!hgMerchant && hgOrder.shippingStatus === 0 && <button type="button" disabled={this.state.hgBusy} onClick={() => this.hgRefund(hgOrder.orderId)}>未发货全额退款</button>}
+        {!hgMerchant && hgOrder.shippingStatus === 1 && <button type="button" disabled={this.state.hgBusy} onClick={() => this.hgWrite(async () => {
+          await HGMallVM.receive(hgOrder.orderId); this.props.hgOnBalanceChange?.();
+        }, "已确认收货，商家 M币已结算")}>确认收货</button>}
+        {hgMerchant && hgOrder.shippingStatus === 0 && <form className={styles.workspace} onSubmit={(hgEvent) => {
+          hgEvent.preventDefault(); this.hgWrite(() => HGMallVM.ship(hgOrder.orderId, this.state.hgShipping.carrier.trim(), this.state.hgShipping.trackingNumber.trim()), "运单已登记，请等待买家确认收货");
+        }}>
+          <label>承运商 <input required maxLength={64} value={this.state.hgShipping.orderId === hgOrder.orderId ? this.state.hgShipping.carrier : ""} onChange={(hgEvent) => this.setState({ hgShipping: { orderId: hgOrder.orderId, carrier: hgEvent.target.value, trackingNumber: this.state.hgShipping.orderId === hgOrder.orderId ? this.state.hgShipping.trackingNumber : "" } })} /></label>
+          <label>运单号 <input required maxLength={128} value={this.state.hgShipping.orderId === hgOrder.orderId ? this.state.hgShipping.trackingNumber : ""} onChange={(hgEvent) => this.setState({ hgShipping: { orderId: hgOrder.orderId, carrier: this.state.hgShipping.orderId === hgOrder.orderId ? this.state.hgShipping.carrier : "", trackingNumber: hgEvent.target.value } })} /></label>
+          <button type="submit" disabled={this.state.hgBusy}>确认发货</button>
+        </form>}
+      </article>)}
+      <div className={styles.pager}>
+        <button type="button" disabled={!(hgMerchant ? this.state.hgSellerCursor : this.state.hgOrdersCursor) || this.state.hgBusy} onClick={() => this.hgLoadOrders("", hgMerchant)}>回到最新订单</button>
+        <button type="button" disabled={!hgNext || this.state.hgBusy} onClick={() => this.hgLoadOrders(hgNext, hgMerchant)}>下一页订单</button>
+      </div>
+    </section>;
   }
 
   renderReview() {
@@ -234,7 +404,7 @@ export default class HGMallCatalog extends React.Component {
       {this.renderTabs()}
       {this.state.hgError && <p role="alert" className={styles.error}>{this.state.hgError} <button type="button" onClick={() => this.hgSelectView(this.state.hgView)}>重试</button></p>}
       {this.state.hgNotice && <p role="status" className={styles.notice}>{this.state.hgNotice}</p>}
-      {this.state.hgView === "catalog" ? this.renderCatalog() : this.state.hgView === "merchant" ? this.renderMerchant() : this.renderReview()}
+      {this.state.hgView === "catalog" ? this.renderCatalog() : this.state.hgView === "merchant" ? this.renderMerchant() : this.state.hgView === "orders" ? this.renderPhysicalOrders() : this.renderReview()}
     </section>;
   }
 }

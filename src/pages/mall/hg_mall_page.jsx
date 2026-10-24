@@ -167,7 +167,7 @@ export default class HGMallPage extends React.Component {
   renderOrders() {
     return (
       <section className={styles.section}>
-        <p className={styles.notice}>这里仅展示本人充值订单。商品交易和退款接口尚未接入，不会展示虚构订单或付款结果。</p>
+        <p className={styles.notice}>这里仅展示本人充值订单；实物商品订单请前往首页 · 商品中的「我的商品订单」。</p>
         <HGWalletRecordsPage />
       </section>
     );
@@ -185,8 +185,8 @@ export default class HGMallPage extends React.Component {
             <div className={styles.heroBalance}><span>当前可用余额</span><strong>{this.state.hgBalance === null ? "--" : HGFormatCoin(this.state.hgBalance)}</strong><span>M币 · 以服务端余额为准</span></div>
           </section>
           {this.state.hgBalanceError && <p role="alert" className={styles.error}>余额读取失败：{this.state.hgBalanceError} <button type="button" onClick={this.hgRefreshBalance}>重试</button></p>}
-           <p className={styles.notice}>商品购买、退款、库存与会员权益尚未接入；目前可浏览经审核的真实商品并提交商家入驻与商品发布。微信、支付宝及混合支付不可用。隔离环境模拟充值不会扣人民币。</p>
-           {this.state.hgTab === "products" ? <HGMallCatalog /> : this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
+           <p className={styles.notice}>经审核的实物商品可用 M币购买，未发货可全额退币；物流由商家手工录入运单，会员仅展示。微信、支付宝及混合支付尚未接入。隔离环境模拟充值不会扣人民币。</p>
+           {this.state.hgTab === "products" ? <HGMallCatalog hgOnBalanceChange={this.hgRefreshBalance} /> : this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
         </div>
       </main>
     );

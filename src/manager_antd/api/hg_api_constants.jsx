@@ -45,6 +45,14 @@ export const HGMANAGER_API = {
   MALL_REVIEW_MERCHANT: "/api/v1/mall/review/merchants/decision", // 审核入驻
   MALL_PENDING_PRODUCTS: "/api/v1/mall/review/products", // 待审核商品
   MALL_REVIEW_PRODUCT: "/api/v1/mall/review/products/decision", // 审核商品
+  MALL_BUY: "/api/v1/mall/orders/buy", // 实物单 SKU 库存与 M币原子支付
+  MALL_ORDERS: "/api/v1/mall/orders", // 本人实物订单游标页
+  MALL_ORDER_DETAIL: "/api/v1/mall/orders/detail", // 本人订单物流与地址快照
+  MALL_RECEIVE: "/api/v1/mall/orders/receive", // 确认收货并结算商家
+  MALL_REFUND: "/api/v1/mall/orders/refund", // 未发货全额退币及库存返还
+  MALL_MERCHANT_ORDERS: "/api/v1/mall/merchant/orders", // 本店订单游标页
+  MALL_MERCHANT_ORDER_DETAIL: "/api/v1/mall/merchant/orders/detail", // 本店订单详情
+  MALL_SHIP: "/api/v1/mall/merchant/orders/ship", // 商家人工填报运单
   VIDEO_UPLOAD_FILE: "/api/v1/video_upload/upload", // 上传视频文件
   VIDEO_UPLOAD_DRAFT: "/api/v1/video_upload/draft", // 保存视频稿件草稿
   VIDEO_UPLOAD_SUBMIT: "/api/v1/video_upload/submit", // 提交视频稿件审核

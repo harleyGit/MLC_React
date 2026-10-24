@@ -64,6 +64,10 @@
 .workspace button:disabled { background: #e6e8f0; border-color: #e6e8f0; color: #5a6076; }
 .reviewRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #e6e8f0; }
 .reviewRow span { flex: 1; overflow-wrap: anywhere; }
+.orderCard { border: 1px solid #e6e8f0; border-radius: 12px; padding: 16px; margin: 12px 0; overflow-wrap: anywhere; }
+.orderCard h3 { margin: 0 0 12px; }
+.orderCard button { border: 1px solid #6c4cf1; border-radius: 8px; padding: 8px 14px; background: #6c4cf1; color: white; }
+.orderCard button:disabled { opacity: .5; }
 @media (max-width: 860px) { .productGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .detailGrid { grid-template-columns: 1fr; } }
 @media (max-width: 580px) { .productGrid { grid-template-columns: 1fr; } }
 @media (max-width: 860px) { .header { flex-wrap: wrap; } .balance { margin-left: 0; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

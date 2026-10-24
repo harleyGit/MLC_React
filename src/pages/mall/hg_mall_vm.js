@@ -18,4 +18,12 @@ export default class HGMallVM {
   static pendingProducts(cursor = "") { return this.request("get", "MALL_PENDING_PRODUCTS", { cursor }); }
   static reviewMerchant(merchantId, approve) { return this.request("post", "MALL_REVIEW_MERCHANT", { merchantId, approve }); }
   static reviewProduct(productId, approve) { return this.request("post", "MALL_REVIEW_PRODUCT", { productId, approve }); }
+  static buy(hgBody) { return this.request("post", "MALL_BUY", hgBody); }
+  static orders(cursor = "") { return this.request("get", "MALL_ORDERS", { cursor }); }
+  static orderDetail(orderId) { return this.request("get", "MALL_ORDER_DETAIL", { orderId }); }
+  static receive(orderId) { return this.request("post", "MALL_RECEIVE", { orderId }); }
+  static refund(orderId, requestId) { return this.request("post", "MALL_REFUND", { orderId, requestId }); }
+  static merchantOrders(cursor = "") { return this.request("get", "MALL_MERCHANT_ORDERS", { cursor }); }
+  static merchantOrderDetail(orderId) { return this.request("get", "MALL_MERCHANT_ORDER_DETAIL", { orderId }); }
+  static ship(orderId, carrier, trackingNumber) { return this.request("post", "MALL_SHIP", { orderId, carrier, trackingNumber }); }
 }
