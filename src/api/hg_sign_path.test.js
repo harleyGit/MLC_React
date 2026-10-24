@@ -56,6 +56,21 @@ test("wallet GET query produces the same module sign path as existing modules", 
   assert.equal(normalizeSignPath("/api/v1/profile/info"), "/info");
 });
 
+test("商城接口签名使用模块内路径，查询参数不参与签名", () => {
+  for (const [hgURL, hgPath] of [
+    ["/api/v1/mall/products?category=&cursor=", "/products"],
+    ["/api/v1/mall/merchant", "/merchant"],
+    ["/api/v1/mall/merchant/orders?cursor=", "/merchant/orders"],
+    ["/api/v1/mall/products/mine?cursor=", "/products/mine"],
+    ["/api/v1/mall/merchant/apply", "/merchant/apply"],
+    ["/api/v1/mall/orders/buy", "/orders/buy"],
+  ]) {
+    assert.equal(normalizeSignPath(new URL(hgURL, "http://localhost:5174").pathname), hgPath);
+  }
+  assert.equal(normalizeSignPath("/api/v1/mall"), "/");
+  assert.equal(normalizeSignPath("/api/v1/mall_extra/products"), "/api/v1/mall_extra/products");
+});
+
 test("normalizeSignPath preserves paths outside registered module prefixes", () => {
   assert.equal(normalizeSignPath("/health"), "/health");
 });

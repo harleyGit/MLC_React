@@ -76,3 +76,24 @@ test("充值记录签名对齐 Go 模块路径、空 GET body 和 Authorization"
     }
   }
 });
+
+// 商城真实请求层须与 Go StripPrefix 后的路径一致；校验 GET、POST body、登录态和两种加密实现。
+test("商城 GET/POST 签名对齐模块内路径和请求体", async () => {
+  const hgHeaders = {
+    "X-Timestamp": "1700000000", "X-Request-ID": "fixture-request",
+    "X-Device-ID": "fixture-device", "X-Client-Type": "web", "X-Client-Version": "1",
+    "X-API-Version": "v1", "X-Language": "zh-CN", Authorization: "Bearer fixture-invalid-jwt",
+  };
+  for (const [hgMethod, hgURL, hgPath, hgBody] of [
+    ["GET", "http://localhost:5174/api/v1/mall/products?category=&cursor=", "/products", undefined],
+    ["GET", "/api/v1/mall/merchant/orders?cursor=", "/merchant/orders", undefined],
+    ["POST", "/api/v1/mall/merchant/apply", "/merchant/apply", { shopName: "示例店铺" }],
+  ]) {
+    const hgPayload = [hgMethod, hgPath, "1700000000", "fixture-request", "fixture-device", "web", "1", "v1", "zh-CN",
+      createHash("sha256").update(hgBody ? JSON.stringify(hgBody) : "").digest("hex"), hgHeaders.Authorization].join("\n");
+    const hgExpected = `sha256=${createHmac("sha256", "fixture-only-not-a-real-secret").update(hgPayload).digest("hex")}`;
+    for (const hgSigner of [hgCreateSigner(null), hgCreateSigner(webcrypto.subtle)]) {
+      assert.equal(await hgSigner.buildSignature({ url: hgURL, method: hgMethod, headers: hgHeaders, body: hgBody }), hgExpected);
+    }
+  }
+});
