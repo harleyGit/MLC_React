@@ -1,6 +1,7 @@
 import React from "react";
 import HGMallVM from "./hg_mall_vm.js";
 import { HGFormatCoin } from "./hg_mall_amount.js";
+import { HGAdvanceMallPage } from "./hg_mall_cursor.js";
 import styles from "./hg_mall_page.module.css";
 
 const hgCategories = [
@@ -31,7 +32,8 @@ export default class HGMallCatalog extends React.Component {
     hgItems: [], // 当前目录页，初始为空，不缓存无限历史页面。
     hgCursor: "", // 当前请求游标；空字符串代表第一页。
     hgNext: "", // 下一页游标；空字符串意味着不能继续翻页。
-    hgHistory: [], // 当前类目已访问的旧游标，仅保留本次会话的导航历史。
+    hgHistory: [], // 当前类目最近最多 64 页的旧游标，限制亿级目录下前端内存使用。
+    hgHistoryBase: 0, // 被丢弃的更早返回游标数量；换类目时归零，仍可准确显示当前页码。
     hgDetail: null, // 正在查看的商品详情；null 为目录视图。
     hgMerchant: null, // 本人商家申请；null 代表尚未申请或尚未加载。
     hgMine: [], // 本店至多 20 件商品，默认空。
@@ -68,6 +70,8 @@ export default class HGMallCatalog extends React.Component {
   hgRefundRequestIds = new Map(); // 各订单退款幂等键；失败后复用，成功后移除。
   hgOrdersSeq = 0; // 本人订单请求序号；后发请求覆盖先发请求。
   hgSellerSeq = 0; // 本店订单请求序号；切换视图后不提交旧响应。
+  hgMerchantSeq = 0; // 本店商品页请求序号；快速翻页只接受最后一次响应。
+  hgReviewSeq = 0; // 审核双列表请求序号；不同游标响应不可相互覆盖。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -81,20 +85,22 @@ export default class HGMallCatalog extends React.Component {
     this.hgSeq += 1;
     this.hgOrdersSeq += 1;
     this.hgSellerSeq += 1;
+    this.hgMerchantSeq += 1;
+    this.hgReviewSeq += 1;
   }
 
   hgMessage = (hgError) => hgError?.message || "商城请求失败，请重试";
 
   /** 仅加载单个有界游标页，切换类目/翻页时旧响应不可覆盖新结果。 */
-  hgLoadCatalog = async (hgCategory, hgCursor, hgHistory) => {
+  hgLoadCatalog = async (hgCategory, hgCursor, hgHistory, hgHistoryBase = 0) => {
     const hgSeq = ++this.hgSeq;
-    this.setState({ hgLoading: true, hgError: "", hgDetail: null, hgCategory, hgItems: [], hgNext: "", hgCursor, hgHistory });
+    this.setState({ hgLoading: true, hgError: "", hgDetail: null, hgCategory, hgItems: [], hgNext: "", hgCursor, hgHistory, hgHistoryBase });
     try {
       const hgPage = await HGMallVM.products(hgCategory, hgCursor);
       if (!this.hgMounted || this.hgSeq !== hgSeq) return;
       if (!Array.isArray(hgPage?.list) || typeof hgPage.hasMore !== "boolean" || typeof hgPage.nextCursor !== "string" || (hgPage.hasMore && (!hgPage.nextCursor || hgPage.nextCursor === hgCursor)))
         throw new Error("商品目录响应异常，请重试");
-      this.setState({ hgItems: hgPage.list, hgCursor, hgHistory, hgNext: hgPage.hasMore ? hgPage.nextCursor : "" });
+      this.setState({ hgItems: hgPage.list, hgCursor, hgHistory, hgHistoryBase, hgNext: hgPage.hasMore ? hgPage.nextCursor : "" });
     } catch (hgError) {
       if (this.hgMounted && this.hgSeq === hgSeq) this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
@@ -116,11 +122,12 @@ export default class HGMallCatalog extends React.Component {
   };
 
   hgLoadMerchant = async (hgCursor = "") => {
+    const hgSeq = ++this.hgMerchantSeq; // 本次本店商品游标请求身份，过期响应不得覆盖新页。
     try {
       const [hgMerchant, hgMine] = await Promise.all([HGMallVM.merchant(), HGMallVM.mine(hgCursor)]);
-      if (this.hgMounted && this.state.hgView === "merchant") this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgError: "" });
+      if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgError: "" });
     } catch (hgError) {
-      if (this.hgMounted && this.state.hgView === "merchant") this.setState({ hgError: this.hgMessage(hgError) });
+      if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgError: this.hgMessage(hgError) });
     }
   };
 
@@ -135,7 +142,7 @@ export default class HGMallCatalog extends React.Component {
         ? { hgSellerOrders: hgPage.list, hgSellerCursor: hgCursor, hgSellerNext: hgPage.hasMore ? hgPage.nextCursor : "", hgError: "" }
         : { hgOrders: hgPage.list, hgOrdersCursor: hgCursor, hgOrdersNext: hgPage.hasMore ? hgPage.nextCursor : "", hgError: "" });
     } catch (hgError) {
-      if (this.hgMounted && (hgMerchant ? this.hgSellerSeq : this.hgOrdersSeq) === hgSeq) this.setState({ hgError: this.hgMessage(hgError) });
+      if (this.hgMounted && this.state.hgView === (hgMerchant ? "merchant" : "orders") && (hgMerchant ? this.hgSellerSeq : this.hgOrdersSeq) === hgSeq) this.setState({ hgError: this.hgMessage(hgError) });
     }
   };
 
@@ -150,18 +157,19 @@ export default class HGMallCatalog extends React.Component {
   };
 
   hgLoadReview = async (hgMerchantCursor = "", hgProductCursor = "") => {
+    const hgSeq = ++this.hgReviewSeq; // 同一审核视图可并发翻页，只提交最后一组游标结果。
     try {
       const [hgMerchants, hgProducts] = await Promise.all([
         HGMallVM.pendingMerchants(hgMerchantCursor), HGMallVM.pendingProducts(hgProductCursor),
       ]);
-      if (this.hgMounted) this.setState({
+      if (this.hgMounted && this.state.hgView === "review" && hgSeq === this.hgReviewSeq) this.setState({
         hgPendingMerchants: hgMerchants.list, hgPendingProducts: hgProducts.list,
         hgReviewCursor: hgMerchantCursor, hgReviewNext: hgMerchants.hasMore ? hgMerchants.nextCursor : "",
         hgProductReviewCursor: hgProductCursor, hgProductReviewNext: hgProducts.hasMore ? hgProducts.nextCursor : "",
         hgError: "",
       });
     } catch (hgError) {
-      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+      if (this.hgMounted && this.state.hgView === "review" && hgSeq === this.hgReviewSeq) this.setState({ hgError: this.hgMessage(hgError) });
     }
   };
 
@@ -169,6 +177,8 @@ export default class HGMallCatalog extends React.Component {
     ++this.hgSeq;
     ++this.hgOrdersSeq;
     ++this.hgSellerSeq;
+    ++this.hgMerchantSeq;
+    ++this.hgReviewSeq;
     this.setState({ hgView, hgDetail: null, hgError: "", hgNotice: "" });
     if (hgView === "merchant") { this.hgLoadMerchant(); this.hgLoadOrders("", true); }
     if (hgView === "orders") this.hgLoadOrders();
@@ -283,7 +293,7 @@ export default class HGMallCatalog extends React.Component {
   }
 
   renderCatalog() {
-    const { hgCategory, hgItems, hgDetail, hgLoading, hgCursor, hgNext, hgHistory } = this.state;
+    const { hgCategory, hgItems, hgDetail, hgLoading, hgCursor, hgNext, hgHistory, hgHistoryBase } = this.state;
     if (hgDetail) return <article className={styles.detail}>
       <button type="button" className={styles.secondary} onClick={() => this.setState({ hgDetail: null })}>← 返回商品目录</button>
       <div className={styles.detailGrid}><div className={styles.imagePlaceholder} aria-label="商品暂未上传图片">{hgCategories.find(([hgCode]) => hgCode === hgDetail.category)?.[1]}</div>
@@ -309,8 +319,11 @@ export default class HGMallCatalog extends React.Component {
         <div className={styles.productBody}><small>{hgItem.shopName}</small><h3>{hgItem.title}</h3><p>{hgItem.skuTitle}</p>
           <strong className={styles.coinPrice}>{HGFormatCoin(hgItem.amount)} M币</strong><small>{hgItem.type === "MEMBERSHIP" ? "会员仅展示" : `可售 ${hgItem.available} 件`}</small><button type="button" onClick={() => { this.hgBuyRequestId = ""; this.hgShowDetail(hgItem.productId); }}>查看详情</button></div>
       </article>)}</div>
-      <div className={styles.pager}><button type="button" disabled={!hgHistory.length || hgLoading} onClick={() => this.hgLoadCatalog(hgCategory, hgHistory[hgHistory.length - 1], hgHistory.slice(0, -1))}>上一页</button>
-        <span>第 {hgHistory.length + 1} 页</span><button type="button" disabled={!hgNext || hgLoading} onClick={() => this.hgLoadCatalog(hgCategory, hgNext, [...hgHistory, hgCursor])}>下一页</button></div>
+      <div className={styles.pager}><button type="button" disabled={!hgHistory.length || hgLoading} onClick={() => this.hgLoadCatalog(hgCategory, hgHistory[hgHistory.length - 1], hgHistory.slice(0, -1), hgHistoryBase)}>上一页</button>
+        <span>第 {hgHistoryBase + hgHistory.length + 1} 页{hgHistoryBase > 0 && " · 仅可返回最近 64 页"}</span><button type="button" disabled={!hgNext || hgLoading} onClick={() => {
+          const hgPage = HGAdvanceMallPage(hgHistory, hgHistoryBase, hgCursor); // 目录翻页历史保持有界，不影响服务端游标。
+          this.hgLoadCatalog(hgCategory, hgNext, hgPage.history, hgPage.base);
+        }}>下一页</button></div>
     </>;
   }
 
@@ -328,7 +341,7 @@ export default class HGMallCatalog extends React.Component {
           <label>店铺名称 <input required maxLength={128} value={hgShopName} onChange={(hgEvent) => this.setState({ hgShopName: hgEvent.target.value })} /></label>
           <button type="submit" disabled={hgBusy}>提交入驻申请</button></form>}
       </section>
-      {hgMerchant?.status === 1 && <section><h2>发布商品</h2><p>发布后等待审核。本期支持实物及会员目录，不支持付款、库存、自动发货或权益发放。</p>
+      {hgMerchant?.status === 1 && <section><h2>发布商品</h2><p>发布后等待审核；实物商品使用 M币购买并占用库存，由商家手工发货；会员仅展示，不发放权益。</p>
         <form className={styles.draftForm} onSubmit={this.hgPublish}>
           <label>类型 <select value={hgDraft.type} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, type: hgEvent.target.value, category: hgEvent.target.value === "MEMBERSHIP" ? "membership" : "digital" } })}>
             <option value="PHYSICAL_PRODUCT">实物商品</option><option value="MEMBERSHIP">会员卡</option></select></label>
