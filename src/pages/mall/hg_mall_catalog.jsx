@@ -198,7 +198,11 @@ export default class HGMallCatalog extends React.Component {
       if (this.hgMounted && this.state.hgView === "orders") await this.hgLoadOrders();
       if (this.hgMounted && this.state.hgView === "review") await this.hgLoadReview();
     } catch (hgError) {
-      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+      if (this.hgMounted && this.state.hgView === "review" && hgError?.status === 409) {
+        // 审核条件被其他操作改变时重新取当前页；服务器仍以条件更新防止重复审核。
+        this.setState({ hgError: "审核状态已变化，正在刷新待审列表..." });
+        await this.hgLoadReview(this.state.hgReviewCursor, this.state.hgProductReviewCursor);
+      } else if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
       this.hgWriteFlight = false;
       if (this.hgMounted) this.setState({ hgBusy: false });
@@ -399,7 +403,7 @@ export default class HGMallCatalog extends React.Component {
   renderReview() {
     const { hgPendingMerchants, hgPendingProducts, hgReviewNext, hgProductReviewNext, hgBusy } = this.state;
     return <div className={styles.workspace}>
-      <section><h2>待审核商家</h2>{!hgPendingMerchants.length && <p>当前页无待审申请。</p>}
+      <section><h2>待审核商家</h2><p>本人商家申请不可自审，需由其他具有审核权限的管理员处理。</p>{!hgPendingMerchants.length && <p>当前页无可审核申请。</p>}
         {hgPendingMerchants.map((hgItem) => <div className={styles.reviewRow} key={hgItem.merchantId}><span>{hgItem.shopName} · {hgItem.userId}</span>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewMerchant(hgItem.merchantId, true), "商家已通过审核")}>通过</button>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewMerchant(hgItem.merchantId, false), "商家申请已拒绝")}>拒绝</button></div>)}
