@@ -2,6 +2,7 @@ import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
 import { LogOut } from "../../../../logger/hg_logger";
 import HGVerifyCodeInput from "../../../../components/hg_verify_code_input";
+import HGClickCaptchaPage from "../../../../components/hg_click_captcha/hg_click_captcha_page";
 import styles from "./hg_account_security_page.module.css";
 import HGAccountSecurityPageVM from "./hg_account_security_page_vm";
 
@@ -19,6 +20,8 @@ class HGAccountSecurityPage extends React.Component {
     this.state = HGAccountSecurityPageVM.createInitialState(props.userProfile);
     this.countdownTimer = null;
     this.isUnmounted = false;
+    this.captchaPhoneTarget = ""; // 本轮点选验证码对应的手机号；关闭弹窗、离开安全项或使用凭证后立即清空。
+    this.codeRequestSeq = 0; // 验证码发送请求序号；切换安全项后丢弃旧请求的界面结果。
   }
 
   /**
@@ -58,6 +61,8 @@ class HGAccountSecurityPage extends React.Component {
    */
   componentWillUnmount() {
     this.isUnmounted = true;
+    this.captchaPhoneTarget = "";
+    this.codeRequestSeq += 1;
     if (this.countdownTimer) {
       clearInterval(this.countdownTimer);
     }
@@ -105,8 +110,17 @@ class HGAccountSecurityPage extends React.Component {
       return;
     }
 
+    this.captchaPhoneTarget = "";
+    this.codeRequestSeq += 1;
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+      this.countdownTimer = null;
+    }
     this.setState({
       activeSecurityKey: itemKey,
+      captchaVisible: false,
+      codeLoading: false,
+      countdown: 0,
       securityForm: HGAccountSecurityPageVM.createSecurityForm(
         itemKey,
         this.state.userProfile
@@ -120,6 +134,8 @@ class HGAccountSecurityPage extends React.Component {
    * 约束：返回时清理详情表单和倒计时，避免旧验证码影响下一次设置。
    */
   handleBackSecurityList = () => {
+    this.captchaPhoneTarget = "";
+    this.codeRequestSeq += 1;
     if (this.countdownTimer) {
       clearInterval(this.countdownTimer);
       this.countdownTimer = null;
@@ -130,6 +146,7 @@ class HGAccountSecurityPage extends React.Component {
       codeLoading: false,
       saving: false,
       countdown: 0,
+      captchaVisible: false,
       tips: "",
     });
   };
@@ -183,10 +200,11 @@ class HGAccountSecurityPage extends React.Component {
 
   /**
    * 获取账号安全验证码。
-   * 约束：仅手机号/邮箱需要验证码；发送前先校验目标账号格式。
+   * 约束：手机号必须先完成点选验证；邮箱沿用现有安全验证码接口。
    */
-  handleSendSecurityCode = async () => {
-    const { activeSecurityKey, securityForm } = this.state;
+  handleSendSecurityCode = () => {
+    const { activeSecurityKey, securityForm, codeLoading, countdown } = this.state;
+    if (codeLoading || countdown > 0) return;
     const validateResult = HGAccountSecurityPageVM.validateSecurityTarget(
       activeSecurityKey,
       securityForm
@@ -196,19 +214,51 @@ class HGAccountSecurityPage extends React.Component {
       return;
     }
 
+    const targetValue = securityForm.targetValue.trim(); // 本轮待发送的联系方式；点选完成前不允许切换目标。
+    if (activeSecurityKey === "phone") {
+      this.captchaPhoneTarget = targetValue;
+      this.setState({ captchaVisible: true, tips: "" });
+      return;
+    }
+    this.sendSecurityCode(activeSecurityKey, targetValue);
+  };
+
+  /** 点选成功后仅用当轮手机号和一次性凭证发送短信，绝不在请求失败时启动倒计时。 */
+  handleCaptchaSuccess = (verifyToken) => {
+    if (this.isUnmounted || this.state.activeSecurityKey !== "phone" || !this.captchaPhoneTarget) return;
+    const targetValue = this.captchaPhoneTarget; // 已验证轮次的目标；随后立即释放实例引用。
+    this.captchaPhoneTarget = "";
+    this.setState({ captchaVisible: false });
+    if (!verifyToken || !targetValue || this.state.activeSecurityKey !== "phone" || this.state.securityForm.targetValue.trim() !== targetValue) {
+      this.setState({ tips: "手机号已变化或点选验证失效，请重新获取验证码。" });
+      return;
+    }
+    this.sendSecurityCode("phone", targetValue, verifyToken);
+  };
+
+  /** 关闭弹窗时丢弃待验证的联系方式，下一次发送必须重新完成点选。 */
+  handleCaptchaClose = () => {
+    this.captchaPhoneTarget = "";
+    this.setState({ captchaVisible: false });
+  };
+
+  /** 仅请求成功且仍停留在同一联系方式时提示发送成功，避免旧异步响应污染新表单。 */
+  sendSecurityCode = async (itemKey, targetValue, verifyToken) => {
+    const codeRequestSeq = ++this.codeRequestSeq; // 仅本轮发送结果可以更新倒计时与错误提示。
     this.setState({ codeLoading: true, tips: "" });
     try {
       await HGAccountSecurityPageVM.requestSecurityVerifyCode({
-        itemKey: activeSecurityKey,
-        targetValue: securityForm.targetValue.trim(),
+        itemKey, targetValue, verifyToken,
       });
+      if (this.isUnmounted || this.codeRequestSeq !== codeRequestSeq || this.state.activeSecurityKey !== itemKey || this.state.securityForm.targetValue.trim() !== targetValue) return;
       this.startCountdown();
       this.setState({ tips: "验证码已发送，请注意查收。" });
     } catch (error) {
+      if (this.isUnmounted || this.codeRequestSeq !== codeRequestSeq || this.state.activeSecurityKey !== itemKey || this.state.securityForm.targetValue.trim() !== targetValue) return;
       handleError(error);
       this.setState({ tips: "验证码发送失败，请稍后重试。" });
     } finally {
-      this.setState({ codeLoading: false });
+      if (!this.isUnmounted && this.codeRequestSeq === codeRequestSeq && this.state.activeSecurityKey === itemKey) this.setState({ codeLoading: false });
     }
   };
 
@@ -468,11 +518,12 @@ class HGAccountSecurityPage extends React.Component {
    * @returns {React.ReactNode} 账号安全模块内容。
    */
   render() {
-    const { activeSecurityKey, tips } = this.state;
+    const { activeSecurityKey, tips, captchaVisible } = this.state;
     return (
       <>
         {tips ? <div className={styles.operationTips}>{tips}</div> : null}
         {activeSecurityKey ? this.renderDetailContent() : this.renderListContent()}
+        <HGClickCaptchaPage visible={captchaVisible} onClose={this.handleCaptchaClose} onSuccess={this.handleCaptchaSuccess} />
       </>
     );
   }

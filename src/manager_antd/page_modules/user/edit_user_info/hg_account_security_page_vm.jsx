@@ -76,7 +76,7 @@ export default class HGAccountSecurityPageVM {
   /**
    * 创建账号安全模块初始状态。
    * @param {Object} userProfile 当前用户资料快照。
-   * @returns {{userProfile: Object, securityItems: Array, activeSecurityKey: string, securityForm: Object, codeLoading: boolean, saving: boolean, countdown: number, tips: string}}
+   * @returns {{userProfile: Object, securityItems: Array, activeSecurityKey: string, securityForm: Object, codeLoading: boolean, saving: boolean, countdown: number, captchaVisible: boolean, tips: string}}
    * 约束：状态只服务账号安全子模块，不反向修改父页面其他状态。
    */
   static createInitialState(userProfile = {}) {
@@ -89,6 +89,7 @@ export default class HGAccountSecurityPageVM {
       codeLoading: false,
       saving: false,
       countdown: 0,
+      captchaVisible: false, // 手机发送验证码前的点选弹窗；默认关闭，验证后的一次性凭证不存入状态。
       tips: "",
     };
   }
@@ -345,11 +346,13 @@ export default class HGAccountSecurityPageVM {
    * @param {Object} params 请求参数。
    * @param {string} params.itemKey 安全项 key。
    * @param {string} params.targetValue 手机号或邮箱。
+   * @param {string} [params.verifyToken] 手机点选验证后的一次性凭证；邮箱安全项不使用。
    * @returns {Promise<Object>} 接口响应结果。
    */
-  static requestSecurityVerifyCode({ itemKey, targetValue }) {
+  static requestSecurityVerifyCode({ itemKey, targetValue, verifyToken }) {
     if (itemKey === "phone") {
-      return HGNet.sendCode({ phone: targetValue });
+      if (!verifyToken) return Promise.reject(new Error("请先完成点选验证码"));
+      return HGNet.sendCode({ phone: targetValue, verifyToken });
     }
     return HGNet.post(HGMANAGER_API.SECURITY_CODE_API_PATH, {
       security_type: itemKey,
