@@ -15,9 +15,11 @@ import { ROUTE_PATH } from "../../router/hg_router_path";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
 import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
+import { hgGetAdminStatus } from "../../auth/hg_admin_status";
 import styles from "./hg_top_nav_layout.module.css";
 
 class HGTopNavLayout extends Component {
+  hgMounted = false; // 页面挂载标记；卸载后忽略延迟返回的管理员状态。
   /**
    * 构造函数：初始化当前导航选中态和头像浮层状态，并创建浮层容器引用。
    */
@@ -26,6 +28,7 @@ class HGTopNavLayout extends Component {
     this.state = {
       current: this.getCurrentPage(),
       showUserDropdown: false,
+      hgIsAdmin: false, // 后端确认有效管理员前一律隐藏运维和采集入口。
     };
     this.avatarMenuRef = React.createRef();
   }
@@ -37,6 +40,8 @@ class HGTopNavLayout extends Component {
     // 监听路由变化（通过 props.location 由 HOC 提供）
     this.updateCurrentPage();
     document.addEventListener("mousedown", this.handleDocumentClick);
+    this.hgMounted = true;
+    hgGetAdminStatus().then((hgIsAdmin) => { if (this.hgMounted) this.setState({ hgIsAdmin }); }).catch(() => {});
   }
 
   /**
@@ -54,6 +59,7 @@ class HGTopNavLayout extends Component {
    * 生命周期卸载：移除全局点击监听，避免事件泄漏。
    */
   componentWillUnmount() {
+    this.hgMounted = false;
     document.removeEventListener("mousedown", this.handleDocumentClick);
   }
 
@@ -226,11 +232,13 @@ class HGTopNavLayout extends Component {
         className={styles.topMenu}
         items={[
           { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>首页</Link> },
-          { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>产品</Link> },
+          { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>商品</Link> },
           { key: "mall", label: <Link to={ROUTE_PATH.MALL} className={styles.menuLink}>M币商城</Link> },
           { key: "about", label: <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>我们</Link> },
-          { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
-          { key: "crawler", label: <Link to={ROUTE_PATH.CRAWLER_PLATFORM} className={styles.menuLink}>采集平台</Link> },
+          ...(this.state.hgIsAdmin ? [
+            { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
+            { key: "crawler", label: <Link to={ROUTE_PATH.CRAWLER_PLATFORM} className={styles.menuLink}>采集平台</Link> },
+          ] : []),
           { key: "test_module", label: <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>测试模块</Link> },
           { key: "bili_douga", label: <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>B站动画</Link> },
           { key: "profile", label: <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>我的信息</Link> },

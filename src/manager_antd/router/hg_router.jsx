@@ -10,6 +10,7 @@ import React, { Suspense } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import HGLoading from "../../components/hg_loading";
 import HGAuthGuard from "../auth/hg_auth_guard";
+import HGAdminGuard from "../auth/hg_admin_guard";
 import HGHomePage from "../page_modules/home/hg_home_page";
 import HGTopNavLayout from "../page_modules/home/hg_top_nav_layout";
 import { WithNavigation } from "./hg_naviagion_hook";
@@ -132,13 +133,13 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.OPERATION_MANAGEMENT,
         element: hgLazyElement(
-          <HGOperationManagementPage />,
+          <HGAdminGuard><HGOperationManagementPage /></HGAdminGuard>,
           "正在加载运维管理..."
         ),
       },
       {
         path: ROUTE_PATH.CRAWLER_PLATFORM,
-        element: hgLazyElement(<HGCrawlerPlatformPage />, "正在加载采集平台..."),
+        element: hgLazyElement(<HGAdminGuard><HGCrawlerPlatformPage /></HGAdminGuard>, "正在加载采集平台..."),
       },
       {
         path: ROUTE_PATH.TEST_MODULE,

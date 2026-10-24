@@ -22,7 +22,7 @@ export default class HGMallPage extends React.Component {
     hgHasMore: false, // 是否可加载下一页，仅以服务端 hasMore 为准。
     hgSKUsLoading: false, // 是否正在读取档位；默认 false，加载中禁止并发翻页。
     hgSKUsError: "", // 目录请求错误；空字符串表示无错误。
-    hgTab: "products", // 当前栏目：products、recharge 或 orders；默认展示真实商品目录。
+    hgTab: "products", // 当前栏目：products、recharge 或 orders；默认展示商家工作台。
   };
 
   hgMounted = false; // 挂载标志；卸载后不得提交请求结果。
@@ -115,7 +115,8 @@ export default class HGMallPage extends React.Component {
       <header className={styles.header}>
         <Link className={styles.brand} to={ROUTE_PATH.MALL}><span className={styles.mark}>M</span> MLC 商城</Link>
         <nav aria-label="商城导航" className={styles.nav}>
-          <button type="button" aria-pressed={this.state.hgTab === "products"} onClick={() => this.setState({ hgTab: "products" })}>首页 · 商品</button>
+          <Link to={ROUTE_PATH.PRODUCTS}>商品目录</Link>
+          <button type="button" aria-pressed={this.state.hgTab === "products"} onClick={() => this.setState({ hgTab: "products" })}>商家与商品订单</button>
           <button type="button" aria-pressed={this.state.hgTab === "recharge"} onClick={() => this.setState({ hgTab: "recharge" })}>充值中心</button>
           <button type="button" aria-pressed={this.state.hgTab === "orders"} onClick={() => this.setState({ hgTab: "orders" })}>我的充值订单</button>
           <Link to={ROUTE_PATH.WALLET}>我的钱包</Link>
@@ -167,7 +168,7 @@ export default class HGMallPage extends React.Component {
   renderOrders() {
     return (
       <section className={styles.section}>
-        <p className={styles.notice}>这里仅展示本人充值订单；实物商品订单请前往首页 · 商品中的「我的商品订单」。</p>
+        <p className={styles.notice}>这里仅展示本人充值订单；实物商品订单请前往「商家与商品订单」。</p>
         <HGWalletRecordsPage />
       </section>
     );
@@ -186,7 +187,7 @@ export default class HGMallPage extends React.Component {
           </section>
           {this.state.hgBalanceError && <p role="alert" className={styles.error}>余额读取失败：{this.state.hgBalanceError} <button type="button" onClick={this.hgRefreshBalance}>重试</button></p>}
            <p className={styles.notice}>经审核的实物商品可用 M币购买，未发货可全额退币；物流由商家手工录入运单，会员仅展示。微信、支付宝及混合支付尚未接入。隔离环境模拟充值不会扣人民币。</p>
-            {this.state.hgTab === "products" ? <HGMallCatalog hgInitialView={["?view=orders", "?view=merchant"].includes(this.props.location?.search) ? this.props.location.search.slice(6) : "catalog"} hgOnBalanceChange={this.hgRefreshBalance} /> : this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
+             {this.state.hgTab === "products" ? <HGMallCatalog hgInitialView={this.props.location?.search === "?view=orders" ? "orders" : "merchant"} hgOnBalanceChange={this.hgRefreshBalance} /> : this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
         </div>
       </main>
     );

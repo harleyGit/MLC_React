@@ -36,6 +36,10 @@ export const HGMANAGER_API = {
   WALLET_RECHARGE_PAY: "/api/v1/wallet/recharge/orders/pay", // 充值付款入口
   WALLET_RECHARGE_RECORDS: "/api/v1/recharge/records", // 当前用户充值记录
   MALL_PRODUCTS: "/api/v1/mall/products", // 审核通过的商品目录
+  MALL_ADMIN_STATUS: "/api/v1/mall/admin-status", // 服务端当前有效管理员身份
+  MALL_PRODUCT_IMAGE: "/api/v1/mall/products/image", // 本人商家上传展示图片
+  MALL_PRODUCT_IMAGE_DELETE: "/api/v1/mall/products/image/delete", // 清理本人未发布图片
+  MALL_UNUSED_IMAGES: "/api/v1/mall/products/images/unused", // 本人未绑定商品的图片
   MALL_DETAIL: "/api/v1/mall/products/detail", // 商品详情
   MALL_MINE: "/api/v1/mall/products/mine", // 本店商品草稿及状态
   MALL_PUBLISH: "/api/v1/mall/products/publish", // 发布待审核的商品草稿

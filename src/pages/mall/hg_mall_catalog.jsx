@@ -4,6 +4,7 @@ import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
 import HGMallVM from "./hg_mall_vm.js";
 import { HGFormatCoin } from "./hg_mall_amount.js";
 import { HGAdvanceMallPage } from "./hg_mall_cursor.js";
+import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import styles from "./hg_mall_page.module.css";
 
 const hgCategories = [
@@ -29,7 +30,7 @@ function hgSecureRequestId() {
 /** 商城目录和商家工作台；全部商品、审核及发布结果来自服务端。 */
 export default class HGMallCatalog extends React.Component {
   state = {
-    hgView: ["orders", "merchant"].includes(this.props.hgInitialView) ? this.props.hgInitialView : "catalog", // 默认目录；从详情页返回时恢复本人订单或商家视图。
+    hgView: this.props.hgCatalogOnly ? "catalog" : this.props.hgInitialView === "orders" ? "orders" : "merchant", // 商品路由仅目录；商城默认商家工作台。
     hgCategory: "", // 空字符串为全部类目，其他值必须来自服务端白名单。
     hgItems: [], // 当前目录页，初始为空，不缓存无限历史页面。
     hgCursor: "", // 当前请求游标；空字符串代表第一页。
@@ -48,7 +49,10 @@ export default class HGMallCatalog extends React.Component {
     hgProductReviewNext: "", // 待审商品下一页游标。
     hgCanReview: false, // 仅审核 API 返回成功才显示审核入口。
     hgShopName: "", // 用户输入的店铺名；提交前无默认值。
-    hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", skuTitle: "", amount: "" }, // 商品草稿输入；金额为用户输入的整币文本。
+    hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", description: "", skuTitle: "", amount: "" }, // 商品草稿；介绍为纯文本，金额为整币文本。
+    hgSelectedImages: [], // 待上传的最多5张本地图片；只保留 File 于当前页面，不持久化。
+    hgUploadedImages: [], // 本次草稿已成功上传的图片 URL，失败重试不重复上传。
+    hgUnusedImages: [], // 本人历史上传但未发布的有界图片列表，可手动清除释放限额。
     hgStock: "", // 新发布实物商品初始库存文本；会员不填，服务端校验 1-100000。
     hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" }, // 当前商品一次性收货快照；不可当作地址簿复用。
     hgOrders: [], // 本人最多 20 笔当前页实物订单，不累计历史页。
@@ -86,7 +90,7 @@ export default class HGMallCatalog extends React.Component {
     if (this.state.hgView === "orders") { this.hgLoadOrders(); this.hgLoadPending(); }
     else if (this.state.hgView === "merchant") { this.hgLoadMerchant(); this.hgLoadOrders("", true); }
     else this.hgLoadCatalog("", "", []);
-    this.hgLoadReviewAccess();
+    if (!this.props.hgCatalogOnly) this.hgLoadReviewAccess();
   }
 
   componentWillUnmount() {
@@ -134,8 +138,8 @@ export default class HGMallCatalog extends React.Component {
   hgLoadMerchant = async (hgCursor = "") => {
     const hgSeq = ++this.hgMerchantSeq; // 本次本店商品游标请求身份，过期响应不得覆盖新页。
     try {
-      const [hgMerchant, hgMine] = await Promise.all([HGMallVM.merchant(), HGMallVM.mine(hgCursor)]);
-      if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgError: "" });
+      const [hgMerchant, hgMine, hgUnused] = await Promise.all([HGMallVM.merchant(), HGMallVM.mine(hgCursor), HGMallVM.unusedImages()]);
+      if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgUnusedImages: hgUnused.imageURLs || [], hgError: "" });
     } catch (hgError) {
       if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgError: this.hgMessage(hgError) });
     }
@@ -249,8 +253,57 @@ export default class HGMallCatalog extends React.Component {
       this.setState({ hgError: "实物商品初始库存须为 1-100000 件" });
       return;
     }
-    this.hgWrite(() => HGMallVM.publish({ ...hgDraft, amount: hgAmount, stock: hgStock }), "商品草稿已提交审核，通过后进入目录");
+    this.hgWrite(async () => {
+      const hgImages = [...this.state.hgUploadedImages]; // 本次草稿已上传的 URL，按选择顺序提交。
+      for (let hgIndex = hgImages.length; hgIndex < this.state.hgSelectedImages.length; hgIndex += 1) {
+        const hgResult = await HGMallVM.uploadImage(this.state.hgSelectedImages[hgIndex]);
+        if (!hgResult?.imageURL) throw new Error("图片上传响应异常，请重试");
+        hgImages.push(hgResult.imageURL);
+        if (this.hgMounted) this.setState((hgState) => ({ hgUploadedImages: [...hgImages], hgUnusedImages: [...hgState.hgUnusedImages, hgResult.imageURL] }));
+      }
+      await HGMallVM.publish({ ...hgDraft, amount: hgAmount, stock: hgStock, imageURLs: hgImages });
+      if (this.hgMounted) this.setState({ hgSelectedImages: [], hgUploadedImages: [], hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", description: "", skuTitle: "", amount: "" }, hgStock: "" });
+    }, "商品草稿已提交审核，通过后进入目录");
   };
+
+  /** 限制每个草稿的文件数、类型和大小；不把 blob URL 当作可发布的图片地址。 */
+  hgChooseImages = (hgEvent) => {
+    const hgFiles = Array.from(hgEvent.target.files || []);
+    hgEvent.target.value = "";
+    if (hgFiles.length > 5 || hgFiles.some((hgFile) => !["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) || hgFile.size < 1 || hgFile.size > 5 * 1024 * 1024)) {
+      this.setState({ hgError: "最多选择5张 JPG、PNG 或 WebP 图片，每张不超过5 MiB" });
+      return;
+    }
+    if (this.state.hgUploadedImages.length) {
+      this.setState({ hgError: "部分图片已上传，请先提交当前草稿，失败时可直接重试" });
+      return;
+    }
+    this.setState({ hgSelectedImages: hgFiles, hgError: "" });
+  };
+
+  /** 仅清理本次草稿已上传且尚未发布的图片；每张由服务端按本人和未绑定状态再次核验。 */
+  hgDiscardImages = async () => {
+    if (this.hgWriteFlight) return;
+    this.hgWriteFlight = true;
+    this.setState({ hgBusy: true, hgError: "" });
+    try {
+      for (const hgURL of this.state.hgUploadedImages) {
+        await HGMallVM.deleteImage(hgURL);
+        if (this.hgMounted) this.setState((hgState) => ({ hgUploadedImages: hgState.hgUploadedImages.filter((hgImage) => hgImage !== hgURL), hgUnusedImages: hgState.hgUnusedImages.filter((hgImage) => hgImage !== hgURL) }));
+      }
+      if (this.hgMounted) this.setState({ hgSelectedImages: [] });
+    } catch (hgError) {
+      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+    } finally {
+      this.hgWriteFlight = false;
+      if (this.hgMounted) this.setState({ hgBusy: false });
+    }
+  };
+
+  hgRemoveUnusedImage = (hgURL) => this.hgWrite(async () => {
+    await HGMallVM.deleteImage(hgURL);
+    if (this.hgMounted) this.setState((hgState) => ({ hgUnusedImages: hgState.hgUnusedImages.filter((hgImage) => hgImage !== hgURL) }));
+  }, "未发布图片已清除");
 
   /** 购买响应未知时保持同一 requestId 重试；更改商品或收货信息则生成全新的键。 */
   hgBuy = async (hgEvent) => {
@@ -321,7 +374,7 @@ export default class HGMallCatalog extends React.Component {
 
   renderTabs() {
     return <nav className={styles.categoryNav} aria-label="商城功能">
-      <button type="button" aria-pressed={this.state.hgView === "catalog"} onClick={() => this.hgSelectView("catalog")}>商品目录</button>
+      <Link to={ROUTE_PATH.PRODUCTS}>商品目录</Link>
       <button type="button" aria-pressed={this.state.hgView === "merchant"} onClick={() => this.hgSelectView("merchant")}>商家入驻与发布</button>
       <button type="button" aria-pressed={this.state.hgView === "orders"} onClick={() => this.hgSelectView("orders")}>我的商品订单</button>
       {this.state.hgCanReview && <button type="button" aria-pressed={this.state.hgView === "review"} onClick={() => this.hgSelectView("review")}>商品与商家审核</button>}
@@ -332,9 +385,9 @@ export default class HGMallCatalog extends React.Component {
     const { hgCategory, hgItems, hgDetail, hgLoading, hgCursor, hgNext, hgHistory, hgHistoryBase } = this.state;
     if (hgDetail) return <article className={styles.detail}>
       <button type="button" className={styles.secondary} onClick={() => this.setState({ hgDetail: null })}>← 返回商品目录</button>
-      <div className={styles.detailGrid}><div className={styles.imagePlaceholder} aria-label="商品暂未上传图片">{hgCategories.find(([hgCode]) => hgCode === hgDetail.category)?.[1]}</div>
+      <div className={styles.detailGrid}><div>{hgDetail.imageURLs?.length ? <div className={styles.imageGallery}>{hgDetail.imageURLs.map((hgURL, hgIndex) => <img key={hgURL} src={normalizeVideoCoverUrl(hgURL)} alt={`${hgDetail.title} · 展示图 ${hgIndex + 1}`} loading="lazy" />)}</div> : <div className={styles.imagePlaceholder} aria-label="商品暂未上传图片">{hgCategories.find(([hgCode]) => hgCode === hgDetail.category)?.[1]}</div>}</div>
         <div><small>{hgDetail.shopName} · {hgDetail.category === "membership" ? "会员" : "实物商品"}</small><h2>{hgDetail.title}</h2>
-          <strong className={styles.coinPrice}>{HGFormatCoin(hgDetail.amount)} M币</strong><p>{hgDetail.summary}</p><p>规格：{hgDetail.skuTitle}</p>
+          <strong className={styles.coinPrice}>{HGFormatCoin(hgDetail.amount)} M币</strong><p>{hgDetail.summary}</p><h3>商品介绍</h3><p className={styles.description}>{hgDetail.description || hgDetail.summary}</p><p>规格：{hgDetail.skuTitle}</p>
           {hgDetail.type === "PHYSICAL_PRODUCT" ? <><p>可售库存：{hgDetail.available} 件 · 单笔最高 100000 M币</p>
             <form className={styles.workspace} onSubmit={this.hgBuy}>
               <label>购买数量 <input required type="number" min="1" max="10" step="1" value={this.state.hgBuyForm.quantity} onChange={(hgEvent) => this.hgUpdateBuy("quantity", hgEvent.target.value)} /></label>
@@ -351,7 +404,7 @@ export default class HGMallCatalog extends React.Component {
       {hgLoading && <p role="status">正在加载商品...</p>}
       {!hgLoading && !hgItems.length && <p>该类目暂无已审核商品。</p>}
       <div className={styles.productGrid}>{hgItems.map((hgItem) => <article key={hgItem.productId} className={styles.product}>
-        <div className={styles.productImage}>{hgCategories.find(([hgCode]) => hgCode === hgItem.category)?.[1] || "商品"}</div>
+        <div className={styles.productImage}>{hgItem.imageURLs?.length ? <img src={normalizeVideoCoverUrl(hgItem.imageURLs[0])} alt={`${hgItem.title} 展示图`} loading="lazy" /> : hgCategories.find(([hgCode]) => hgCode === hgItem.category)?.[1] || "商品"}</div>
         <div className={styles.productBody}><small>{hgItem.shopName}</small><h3>{hgItem.title}</h3><p>{hgItem.skuTitle}</p>
           <strong className={styles.coinPrice}>{HGFormatCoin(hgItem.amount)} M币</strong><small>{hgItem.type === "MEMBERSHIP" ? "会员仅展示" : `可售 ${hgItem.available} 件`}</small><button type="button" onClick={() => { this.hgBuyRequestId = ""; this.hgShowDetail(hgItem.productId); }}>查看详情</button></div>
       </article>)}</div>
@@ -385,11 +438,16 @@ export default class HGMallCatalog extends React.Component {
             {hgCategories.filter(([hgCode]) => hgCode && (hgDraft.type === "MEMBERSHIP" ? hgCode === "membership" : hgCode !== "membership")).map(([hgCode, hgLabel]) => <option key={hgCode} value={hgCode}>{hgLabel}</option>)}</select></label>
           <label>商品名称 <input required maxLength={128} value={hgDraft.title} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, title: hgEvent.target.value } })} /></label>
           <label>简介（纯文本） <textarea required maxLength={512} value={hgDraft.summary} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, summary: hgEvent.target.value } })} /></label>
+          <label>商品介绍（纯文本） <textarea maxLength={4096} value={hgDraft.description} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, description: hgEvent.target.value } })} /></label>
+          <label>展示图片（最多5张，每张不超过5 MiB） <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={hgBusy} onChange={this.hgChooseImages} /></label>
+          {!!this.state.hgSelectedImages.length && <p>已选：{this.state.hgSelectedImages.map((hgFile) => hgFile.name).join("、")}</p>}
+          {!!this.state.hgUploadedImages.length && <button type="button" disabled={hgBusy} onClick={this.hgDiscardImages}>清除已上传的图片</button>}
           <label>规格 <input required maxLength={128} value={hgDraft.skuTitle} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, skuTitle: hgEvent.target.value } })} /></label>
           <label>价格（整数 M币；实物不超过100000） <input required type="number" min="1" max={hgDraft.type === "PHYSICAL_PRODUCT" ? "100000" : "9007199254740991"} step="1" value={hgDraft.amount} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, amount: hgEvent.target.value } })} /></label>
           {hgDraft.type === "PHYSICAL_PRODUCT" && <label>初始可售库存（件） <input required type="number" min="1" max="100000" step="1" value={this.state.hgStock} onChange={(hgEvent) => this.setState({ hgStock: hgEvent.target.value })} /></label>}
           <button type="submit" disabled={hgBusy}>提交商品审核</button>
-        </form><h3>我的商品</h3>{hgMine.map((hgItem) => <p key={hgItem.productId}>{hgItem.title} · {HGFormatCoin(hgItem.amount)} M币 · {hgItem.status === 1 ? "已上架" : hgItem.status === 2 ? "未通过" : "待审核"}</p>)}
+        </form>{!!this.state.hgUnusedImages.length && <div><h3>未发布图片</h3><p>最多保留20张；离开页面后可在此清理未绑定商品的图片。</p>{this.state.hgUnusedImages.map((hgURL) => <span key={hgURL} className={styles.unusedImage}><img src={normalizeVideoCoverUrl(hgURL)} alt="未发布的商品图片" loading="lazy" /><button type="button" disabled={hgBusy || this.state.hgUploadedImages.includes(hgURL)} onClick={() => this.hgRemoveUnusedImage(hgURL)}>删除</button></span>)}</div>}
+        <h3>我的商品</h3>{hgMine.map((hgItem) => <p key={hgItem.productId}>{hgItem.title} · {HGFormatCoin(hgItem.amount)} M币 · {hgItem.status === 1 ? "已上架" : hgItem.status === 2 ? "未通过" : "待审核"}</p>)}
         <button type="button" disabled={!hgMerchantNext || hgBusy} onClick={() => this.hgLoadMerchant(hgMerchantNext)}>下一页商品</button></section>}
       {hgMerchant?.status === 1 && this.renderPhysicalOrders(true)}
     </div>;
@@ -459,7 +517,7 @@ export default class HGMallCatalog extends React.Component {
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewMerchant(hgItem.merchantId, false), "商家申请已拒绝")}>拒绝</button></div>)}
         <button type="button" disabled={!hgReviewNext || hgBusy} onClick={() => this.hgLoadReview(hgReviewNext, this.state.hgProductReviewCursor)}>下一页商家</button></section>
       <section><h2>待审核商品</h2>{!hgPendingProducts.length && <p>当前页无待审商品。</p>}
-        {hgPendingProducts.map((hgItem) => <div className={styles.reviewRow} key={hgItem.productId}><span>{hgItem.title} · {hgItem.shopName} · {hgItem.summary} · {HGFormatCoin(hgItem.amount)} M币</span>
+         {hgPendingProducts.map((hgItem) => <div className={styles.reviewRow} key={hgItem.productId}><span>{hgItem.title} · {hgItem.shopName} · {hgItem.summary} · {hgItem.description} · {HGFormatCoin(hgItem.amount)} M币{hgItem.imageURLs?.map((hgURL) => <img className={styles.reviewImage} src={normalizeVideoCoverUrl(hgURL)} key={hgURL} alt={`${hgItem.title} 待审图`} />)}</span>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewProduct(hgItem.productId, true), "商品已上架")}>通过</button>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewProduct(hgItem.productId, false), "商品已拒绝")}>拒绝</button></div>)}
         <button type="button" disabled={!hgProductReviewNext || hgBusy} onClick={() => this.hgLoadReview(this.state.hgReviewCursor, hgProductReviewNext)}>下一页商品</button></section>
@@ -468,7 +526,7 @@ export default class HGMallCatalog extends React.Component {
 
   render() {
     return <section className={styles.section} aria-label="商城商品与商家工作台">
-      {this.renderTabs()}
+      {!this.props.hgCatalogOnly && this.renderTabs()}
       {this.state.hgError && <p role="alert" className={styles.error}>{this.state.hgError} <button type="button" onClick={() => this.hgSelectView(this.state.hgView)}>重试</button></p>}
       {this.state.hgNotice && <p role="status" className={styles.notice}>{this.state.hgNotice}</p>}
       {this.state.hgView === "catalog" ? this.renderCatalog() : this.state.hgView === "merchant" ? this.renderMerchant() : this.state.hgView === "orders" ? this.renderPhysicalOrders() : this.renderReview()}
