@@ -24,11 +24,13 @@ const HGLoginPage = getHGPageConfig(PAGE.LOGIN).component;
 const HGForgetPasswordPage = getHGPageConfig(PAGE.FORGET_PASSWORD).component;
 const HGProducts = getHGPageConfig(PAGE.PRODUCTS).component;
 const HGMallPage = getHGPageConfig(PAGE.MALL).component;
+const HGMallOrderPage = getHGPageConfig(PAGE.MALL_ORDER_DETAIL).component;
 const HGEditUserPage = getHGPageConfig(PAGE.EDIT_USER_INFO).component;
 const HGWalletPage = getHGPageConfig(PAGE.WALLET).component;
 const HGWalletRechargePage = getHGPageConfig(PAGE.WALLET_RECHARGE).component;
 // 全部充值记录的稳定 lazy 页面，使用独立 URL 并沿用主布局鉴权。
 const HGWalletRecordsPage = getHGPageConfig(PAGE.WALLET_RECORDS).component;
+const HGWalletSpendingPage = getHGPageConfig(PAGE.WALLET_SPENDING).component;
 const HGVideoUploadEditPage = getHGPageConfig(PAGE.VIDEO_UPLOAD_EDIT).component;
 const HGUpdateUserProfilePage = getHGPageConfig(PAGE.UPDATE_USER_PROIFE).component;
 const HGUserProfilePage = getHGPageConfig(PAGE.USER_PROFILE).component;
@@ -55,6 +57,9 @@ const WrappedHGWalletPage = WithNavigation(HGWalletPage);
 const WrappedHGWalletRechargePage = WithNavigation(HGWalletRechargePage);
 // 为记录页注入 location，浏览器后退或路由重新进入时刷新记录。
 const WrappedHGWalletRecordsPage = WithNavigation(HGWalletRecordsPage);
+const WrappedHGMallPage = WithNavigation(HGMallPage);
+const WrappedHGMallOrderPage = WithNavigation(HGMallOrderPage);
+const WrappedHGWalletSpendingPage = WithNavigation(HGWalletSpendingPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
 const WrappedHGBiliAuthorSpacePage = WithNavigation(HGBiliAuthorSpacePage);
@@ -74,7 +79,11 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.MALL,
-        element: hgLazyElement(<HGMallPage />),
+        element: hgLazyElement(<WrappedHGMallPage />),
+      },
+      {
+        path: ROUTE_PATH.MALL_ORDER_DETAIL,
+        element: hgLazyElement(<WrappedHGMallOrderPage />),
       },
       {
         path: ROUTE_PATH.ABOUT,
@@ -111,6 +120,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.WALLET_RECORDS,
         element: hgLazyElement(<WrappedHGWalletRecordsPage />),
+      },
+      {
+        path: ROUTE_PATH.WALLET_SPENDING,
+        element: hgLazyElement(<WrappedHGWalletSpendingPage />),
       },
       {
         path: ROUTE_PATH.VIDEO_UPLOAD_EDIT,

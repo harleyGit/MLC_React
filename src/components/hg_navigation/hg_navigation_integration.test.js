@@ -80,7 +80,7 @@ test("两个真实 HOC 保留业务 props，并注入导航协议及兼容 navig
   hgAssertInjection(HGWrapped({}), hgHarness);
 });
 
-test("真实路由为首页、钱包、充值及独立记录页注入导航，并保留鉴权布局", () => {
+test("真实路由为首页、商城、钱包及独立记录页注入导航，并保留鉴权布局", () => {
   const hgHarness = hgCreateHarness();
   const hgPaths = hgLoadSource("./hg_route_path.jsx");
   const hgRegistry = hgLoadSource("./hg_page_registry.jsx", {
@@ -94,7 +94,9 @@ test("真实路由为首页、钱包、充值及独立记录页注入导航，�
     "../../../components/hg_navigation/hg_page_registry": hgRegistry,
   }).default;
   const hgWallet = hgLoadSource("../../manager_antd/page_modules/user/wallet/hg_wallet_page.jsx", {
+    "react-router-dom": { Link: "a" },
     "../../../../components/hg_navigation/hg_page_registry": hgRegistry,
+    "../../../router/hg_router_path": { ROUTE_PATH: hgPaths.ROUTE_PATH },
     "../../../../components/hg_message/hg_message_page": { hgMessage: {} },
     "../../../storage/hg_user_profile_storage": {},
     "./hg_wallet_page.module.css": {},
@@ -138,9 +140,12 @@ test("真实路由为首页、钱包、充值及独立记录页注入导航，�
   for (const [hgPath, hgExpected] of [
     ["/", hgHome],
     ["/home", hgHome],
+    ["/mall", hgRegistry.getHGPageConfig(hgRegistry.PAGE.MALL).component],
+    ["/mall/orders/:orderId", hgRegistry.getHGPageConfig(hgRegistry.PAGE.MALL_ORDER_DETAIL).component],
     ["/account/wallet", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET).component],
     ["/account/wallet/recharge", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_RECHARGE).component],
     ["/account/wallet/records", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_RECORDS).component],
+    ["/account/wallet/spending", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_SPENDING).component],
   ]) {
     const hgRoute = hgMain.children.find((hgValue) => hgValue.path === hgPath);
     assert.ok(hgRoute, `缺少路由 ${hgPath}`);

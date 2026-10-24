@@ -46,7 +46,7 @@ function hgLoadPage(hgName, hgVM, hgProps = {}) {
       if (hgPath === "react") return React;
       if (hgPath.endsWith("hg_wallet_vm.js")) return { ...HGWalletExports, default: hgVM, __esModule: true };
       if (hgPath === "react-router-dom") return { Link: "a" };
-      if (hgPath.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", WALLET_RECHARGE: "/account/wallet/recharge", WALLET_RECORDS: "/account/wallet/records" } };
+      if (hgPath.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", WALLET_RECHARGE: "/account/wallet/recharge", WALLET_RECORDS: "/account/wallet/records", WALLET_SPENDING: "/account/wallet/spending" } };
       if (hgPath.endsWith("hg_wallet_records_page.jsx")) return "hg-wallet-records";
       if (hgPath.includes("hg_page_registry")) return { PAGE: { WALLET: "WALLET", WALLET_RECHARGE: "WALLET_RECHARGE" } };
       if (hgPath.includes("hg_message_page")) return { hgMessage: { success: (hgMessage) => hgMessages.push(hgMessage) } };
@@ -483,6 +483,17 @@ const hgRecord = {
   totalCoin: "900719925474099312345", status: "pending", paymentMode: "platform_debug",
   createdAt: "2026-01-01T00:00:00Z",
 };
+
+test("充值记录的待支付订单可直达原订单详情；钱包消费记录进入独立页面", () => {
+  const { hgPage: hgRecords } = hgLoadPage("hg_wallet_records_page.jsx", {});
+  const hgPendingLink = hgRecords.renderRecord({ ...hgRecord, orderId: "order/1" }).props.children[0].props.children.at(-1);
+  assert.equal(hgPendingLink.props.to, "/account/wallet/recharge?orderId=order%2F1");
+  assert.match(hgText(hgPendingLink), /继续支付/);
+  const { hgPage: hgWallet } = hgLoadPage("hg_wallet_page.jsx", {});
+  const hgSpendingLink = hgWallet.renderQuickServices().props.children[1].props.children[1];
+  assert.equal(hgSpendingLink.props.to, "/account/wallet/spending");
+  assert.match(hgText(hgSpendingLink), /消费记录/);
+});
 
 /** 等待包含 then/catch/finally 的记录请求完成。 */
 async function hgFlushRecords() {

@@ -1,4 +1,6 @@
 import React from "react";
+import { Link } from "react-router-dom";
+import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
 import HGMallVM from "./hg_mall_vm.js";
 import { HGFormatCoin } from "./hg_mall_amount.js";
 import { HGAdvanceMallPage } from "./hg_mall_cursor.js";
@@ -27,7 +29,7 @@ function hgSecureRequestId() {
 /** 商城目录和商家工作台；全部商品、审核及发布结果来自服务端。 */
 export default class HGMallCatalog extends React.Component {
   state = {
-    hgView: "catalog", // catalog、merchant、orders、review 四种视图，默认展示已审核目录。
+    hgView: ["orders", "merchant"].includes(this.props.hgInitialView) ? this.props.hgInitialView : "catalog", // 默认目录；从详情页返回时恢复本人订单或商家视图。
     hgCategory: "", // 空字符串为全部类目，其他值必须来自服务端白名单。
     hgItems: [], // 当前目录页，初始为空，不缓存无限历史页面。
     hgCursor: "", // 当前请求游标；空字符串代表第一页。
@@ -81,7 +83,9 @@ export default class HGMallCatalog extends React.Component {
   componentDidMount() {
     this.hgMounted = true;
     try { this.setState({ hgPendingBuy: !!sessionStorage.getItem(hgPendingBuyKey) }); } catch { /* 禁用存储时仍保留当前组件内的幂等键。 */ }
-    this.hgLoadCatalog("", "", []);
+    if (this.state.hgView === "orders") { this.hgLoadOrders(); this.hgLoadPending(); }
+    else if (this.state.hgView === "merchant") { this.hgLoadMerchant(); this.hgLoadOrders("", true); }
+    else this.hgLoadCatalog("", "", []);
     this.hgLoadReviewAccess();
   }
 
@@ -411,6 +415,7 @@ export default class HGMallCatalog extends React.Component {
           <h4>{hgOrder.title} · {hgOrder.quantity} 件 · {HGFormatCoin(hgOrder.amount)} M币</h4>
           <p>订单 {hgOrder.orderId} · {hgOrder.tradeStatus === 1 ? "待支付" : "超时取消，库存已释放"} · 支付截止（UTC）{hgOrder.expiresAt}</p>
           <p>收件：{hgOrder.receiverName} · {hgOrder.receiverPhone} · {hgOrder.receiverAddress}</p>
+          <Link to={ROUTE_PATH.MALL_ORDER_DETAIL.replace(":orderId", encodeURIComponent(hgOrder.orderId))}>查看订单详情</Link>
           {hgOrder.tradeStatus === 1 && <button type="button" disabled={this.state.hgBusy} onClick={() => this.hgPay(hgOrder.orderId)}>继续支付 M币</button>}
         </article>)}
         <div className={styles.pager}>
@@ -424,6 +429,7 @@ export default class HGMallCatalog extends React.Component {
         <h3>{hgOrder.title} · {hgOrder.quantity} 件 · {HGFormatCoin(hgOrder.amount)} M币</h3>
         <p>订单 {hgOrder.orderId} · {hgOrder.shippingStatus === 3 ? "未发货已退款" : hgOrder.shippingStatus === 2 ? "已确认收货并结算" : hgOrder.shippingStatus === 1 ? "已发货" : "已支付，待发货"}</p>
         <p>收件：{hgOrder.receiverName} · {hgOrder.receiverPhone} · {hgOrder.receiverAddress}</p>
+        <Link to={`${ROUTE_PATH.MALL_ORDER_DETAIL.replace(":orderId", encodeURIComponent(hgOrder.orderId))}${hgMerchant ? "?merchant=1" : ""}`}>查看订单详情</Link>
         {hgOrder.shippingStatus >= 1 && hgOrder.shippingStatus <= 2 && <p>承运商：{hgOrder.carrier} · 运单号：{hgOrder.trackingNumber}（商家录入，非快递轨迹）</p>}
         {!hgMerchant && hgOrder.shippingStatus === 0 && <button type="button" disabled={this.state.hgBusy} onClick={() => this.hgRefund(hgOrder.orderId)}>未发货全额退款</button>}
         {!hgMerchant && hgOrder.shippingStatus === 1 && <button type="button" disabled={this.state.hgBusy} onClick={() => this.hgWrite(async () => {

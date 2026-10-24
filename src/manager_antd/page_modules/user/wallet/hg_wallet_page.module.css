@@ -267,6 +267,7 @@
   color: #17223b;
   text-align: left;
   cursor: pointer;
+  text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .quickCard:hover {
@@ -386,6 +387,7 @@
 .recordMain small,
 .recordAmount small { margin-top: 5px; color: #9aa4b6; font-size: 11px; }
 .recordRow > div { min-width: 0; overflow-wrap: anywhere; }
+.recordLink { display: inline-block; margin-top: 8px; color: #326fdc; font-size: 12px; }
 .recordCoin { color: #2b6edc; font-size: 13px; }
 .recordAmount { color: #17223b; font-size: 14px; text-align: right; }
 .paidStatus { color: #2aa27d !important; }

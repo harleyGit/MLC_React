@@ -1,5 +1,7 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
+import { ROUTE_PATH } from "../../../router/hg_router_path";
 import { hgMessage } from "../../../../components/hg_message/hg_message_page";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_wallet_page.module.css";
@@ -162,14 +164,14 @@ class HGWalletPage extends React.Component {
             </span>
             <span className={styles.arrow} aria-hidden="true">›</span>
           </button>
-          <button type="button" className={styles.quickCard} disabled>
+          <Link to={ROUTE_PATH.WALLET_SPENDING} className={styles.quickCard}>
             <span className={`${styles.quickIcon} ${styles.purpleIcon}`}>↗</span>
             <span>
               <strong>消费记录</strong>
-              <small>暂不可查询</small>
+              <small>查看已支付商品订单</small>
             </span>
             <span className={styles.arrow} aria-hidden="true">›</span>
-          </button>
+          </Link>
           <button type="button" className={styles.quickCard} disabled>
             <span className={`${styles.quickIcon} ${styles.orangeIcon}`}>?</span>
             <span>
@@ -198,7 +200,7 @@ class HGWalletPage extends React.Component {
   renderMainContent = () => {
     return (
       <main className={styles.main}>
-        <p className={styles.serviceNotice}>可查看余额、创建充值订单和充值记录。微信、支付宝未接入；仅后端显式开放的 debug 模拟充值会写入真实平台币，不扣人民币，仅限隔离测试。</p>
+        <p className={styles.serviceNotice}>可查看余额、充值记录及已支付商品的消费记录。微信、支付宝未接入；仅后端显式开放的 debug 模拟充值会写入真实平台币，不扣人民币，仅限隔离测试。</p>
         {this.renderBalanceCard()}
         {this.renderQuickServices()}
         {this.renderTransactionRecords()}

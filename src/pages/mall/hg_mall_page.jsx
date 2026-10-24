@@ -186,7 +186,7 @@ export default class HGMallPage extends React.Component {
           </section>
           {this.state.hgBalanceError && <p role="alert" className={styles.error}>余额读取失败：{this.state.hgBalanceError} <button type="button" onClick={this.hgRefreshBalance}>重试</button></p>}
            <p className={styles.notice}>经审核的实物商品可用 M币购买，未发货可全额退币；物流由商家手工录入运单，会员仅展示。微信、支付宝及混合支付尚未接入。隔离环境模拟充值不会扣人民币。</p>
-           {this.state.hgTab === "products" ? <HGMallCatalog hgOnBalanceChange={this.hgRefreshBalance} /> : this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
+            {this.state.hgTab === "products" ? <HGMallCatalog hgInitialView={["?view=orders", "?view=merchant"].includes(this.props.location?.search) ? this.props.location.search.slice(6) : "catalog"} hgOnBalanceChange={this.hgRefreshBalance} /> : this.state.hgTab === "recharge" ? this.renderSKUs() : this.renderOrders()}
         </div>
       </main>
     );

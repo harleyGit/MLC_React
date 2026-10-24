@@ -68,6 +68,7 @@
 .orderCard h3 { margin: 0 0 12px; }
 .orderCard button { border: 1px solid #6c4cf1; border-radius: 8px; padding: 8px 14px; background: #6c4cf1; color: white; }
 .orderCard button:disabled { opacity: .5; }
+.orderCard a { display: inline-block; margin-right: 12px; color: #6c4cf1; }
 @media (max-width: 860px) { .productGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .detailGrid { grid-template-columns: 1fr; } }
 @media (max-width: 580px) { .productGrid { grid-template-columns: 1fr; } }
 @media (max-width: 860px) { .header { flex-wrap: wrap; } .balance { margin-left: 0; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

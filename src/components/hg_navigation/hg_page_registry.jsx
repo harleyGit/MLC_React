@@ -16,6 +16,7 @@ const components = {
   ABOUT: lazy(() => import("../../manager_antd/page_modules/about/hg_about_page")),
   PRODUCTS: lazy(() => import("../../manager_antd/page_modules/product/hg_ products_page")),
   MALL: lazy(() => import("../../pages/mall/hg_mall_page.jsx")),
+  MALL_ORDER_DETAIL: lazy(() => import("../../pages/mall/hg_mall_order_page.jsx")), // 商品订单详情独立路由。
   DEFAULT: HGHomePage,
   HOME: HGHomePage,
   USER_PROFILE: lazy(() => import("../../manager_antd/page_modules/user/hg_user_profile_page")),
@@ -24,6 +25,7 @@ const components = {
   WALLET: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_page")),
   WALLET_RECHARGE: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_recharge_page")),
   WALLET_RECORDS: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_records_page")), // 全部充值记录的独立页面。
+  WALLET_SPENDING: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_spending_page.jsx")), // 本人商品消费记录。
   VIDEO_UPLOAD_EDIT: lazy(() => import("../../manager_antd/page_modules/hg_video_upload/hg_video_upload_edit_page")),
   OPERATION_MANAGEMENT: lazy(() => import("../../manager_antd/page_modules/operation_management/hg_operation_management_page")),
   TEST_MODULE: lazy(() => import("../../manager_antd/page_modules/test_module/hg_test_module_page")),

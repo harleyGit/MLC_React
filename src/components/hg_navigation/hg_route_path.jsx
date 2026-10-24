@@ -11,6 +11,7 @@ export const ROUTE_PATH = Object.freeze({
   ABOUT: "/about", //关于我们
   PRODUCTS: "/products", //产品
   MALL: "/mall", // 商城充值与本人订单入口
+  MALL_ORDER_DETAIL: "/mall/orders/:orderId", // 本人商品订单详情；商家查询由独立权限接口处理
   DEFAULT: "/", //默认路由
   HOME: "/home", //首页
   USER_PROFILE: "/profile", //用户信息
@@ -19,6 +20,7 @@ export const ROUTE_PATH = Object.freeze({
   WALLET: "/account/wallet", //我的钱包
   WALLET_RECHARGE: "/account/wallet/recharge", //充值及订单详情
   WALLET_RECORDS: "/account/wallet/records", //独立充值记录页，支持游标分页
+  WALLET_SPENDING: "/account/wallet/spending", // 本人已支付商品的有界消费记录
   VIDEO_UPLOAD_EDIT: "/platform/upload/video/frame", //视频投稿上传后编辑页
   OPERATION_MANAGEMENT: "/operation", //运维管理
   TEST_MODULE: "/test", //测试模块

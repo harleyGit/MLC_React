@@ -186,6 +186,9 @@ export default class HGWalletRecordsPage extends React.Component {
             ? "debug 模拟充值，不扣人民币"
             : "支付渠道不可用"}
         </small>
+        <Link className={styles.recordLink} to={`${ROUTE_PATH.WALLET_RECHARGE}?orderId=${encodeURIComponent(hgRecord.orderId)}`}>
+          {hgRecord.status === "pending" ? "查看详情并继续支付" : "查看订单详情"}
+        </Link>
       </div>
       <div className={styles.recordCoin}>
         订单币数：

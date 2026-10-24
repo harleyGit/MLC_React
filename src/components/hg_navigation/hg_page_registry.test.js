@@ -47,6 +47,14 @@ test("具体内容路由优先，路径解码一次并保留重复查询和 hash
   assert.equal(getHGPageTarget("/home").hash, "");
 });
 
+test("商品详情和钱包消费记录可通过独立 URL 解析并保留订单号", () => {
+  const hgDetail = getHGPageTarget("/mall/orders/MORD_1?merchant=1");
+  assert.equal(hgDetail.page, PAGE.MALL_ORDER_DETAIL);
+  assert.equal(hgDetail.pathParams.orderId, "MORD_1");
+  assert.equal(hgDetail.params.get("merchant"), "1");
+  assert.equal(getHGPageTarget("/account/wallet/spending").page, PAGE.WALLET_SPENDING);
+});
+
 test("拒绝外部、非法、缺少参数及未知路由", () => {
   for (const url of [null, {}, "", "home", "https://example.com/home", "//example.com/home",
     "/\\example.com/home", "/\nhome", "/unknown", "/home/extra", "/space",
