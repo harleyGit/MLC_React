@@ -13,6 +13,7 @@ export default class HGMallVM {
   static merchant() { return this.request("get", "MALL_MERCHANT"); }
   static apply(shopName) { return this.request("post", "MALL_APPLY", { shopName }); }
   static publish(draft) { return this.request("post", "MALL_PUBLISH", draft); }
+  static stageMedia(productId, imageURLs) { return this.request("post", "MALL_MEDIA_STAGE", { productId, imageURLs }); }
   /** 图片直接上传原始二进制，复用签名与 JWT；服务端检查 MIME 魔数、尺寸及店铺归属。 */
   static async uploadImage(file) {
     const [{ default: HGNet }, { HGMANAGER_API }] = await Promise.all([
@@ -27,10 +28,17 @@ export default class HGMallVM {
   static deleteImage(imageURL) { return this.request("post", "MALL_PRODUCT_IMAGE_DELETE", { imageURL }); }
   static unusedImages() { return this.request("get", "MALL_UNUSED_IMAGES"); }
   static mine(cursor = "") { return this.request("get", "MALL_MINE", { cursor }); }
+  static mineDetail(productId) { return this.request("get", "MALL_MINE_DETAIL", { productId }); }
+  static archive(productId) { return this.request("post", "MALL_ARCHIVE", { productId }); }
+  static stageEdit(edit) { return this.request("post", "MALL_EDIT", edit); }
   static pendingMerchants(cursor = "") { return this.request("get", "MALL_PENDING_MERCHANTS", { cursor }); }
   static pendingProducts(cursor = "") { return this.request("get", "MALL_PENDING_PRODUCTS", { cursor }); }
   static reviewMerchant(merchantId, approve) { return this.request("post", "MALL_REVIEW_MERCHANT", { merchantId, approve }); }
   static reviewProduct(productId, approve) { return this.request("post", "MALL_REVIEW_PRODUCT", { productId, approve }); }
+  static pendingMedia(cursor = "") { return this.request("get", "MALL_PENDING_MEDIA", { cursor }); }
+  static reviewMedia(imageURL, approve) { return this.request("post", "MALL_REVIEW_MEDIA", { imageURL, approve }); }
+  static pendingEdits(cursor = "") { return this.request("get", "MALL_PENDING_EDITS", { cursor }); }
+  static reviewEdit(productId, approve) { return this.request("post", "MALL_REVIEW_EDIT", { productId, approve }); }
   static buy(hgBody) { return this.request("post", "MALL_BUY", hgBody); }
   static pay(orderId) { return this.request("post", "MALL_PAY", { orderId }); }
   static pendingOrders(cursor = "") { return this.request("get", "MALL_PENDING_ORDERS", { cursor }); }

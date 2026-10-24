@@ -11,7 +11,7 @@ import HGMallCatalog from "../../../pages/mall/hg_mall_catalog.jsx";
 
 class HGProducts extends Component {
   render() {
-    return <main><h1>商品目录</h1><HGMallCatalog hgCatalogOnly /></main>;
+    return <main><h1>商品</h1><HGMallCatalog hgInitialView="catalog" hgShowCatalogTab /></main>;
   }
 }
 

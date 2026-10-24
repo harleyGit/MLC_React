@@ -42,13 +42,21 @@ export const HGMANAGER_API = {
   MALL_UNUSED_IMAGES: "/api/v1/mall/products/images/unused", // 本人未绑定商品的图片
   MALL_DETAIL: "/api/v1/mall/products/detail", // 商品详情
   MALL_MINE: "/api/v1/mall/products/mine", // 本店商品草稿及状态
+  MALL_MINE_DETAIL: "/api/v1/mall/products/mine/detail", // 精确查询本人商品
+  MALL_ARCHIVE: "/api/v1/mall/products/archive", // 本人商品软归档
+  MALL_EDIT: "/api/v1/mall/products/edit", // 已上架商品文字编辑审核
   MALL_PUBLISH: "/api/v1/mall/products/publish", // 发布待审核的商品草稿
+  MALL_MEDIA_STAGE: "/api/v1/mall/products/images/stage", // 已上架商品补图待审
   MALL_MERCHANT: "/api/v1/mall/merchant", // 本人商家申请状态
   MALL_APPLY: "/api/v1/mall/merchant/apply", // 提交商家入驻申请
   MALL_PENDING_MERCHANTS: "/api/v1/mall/review/merchants", // 仅审核员可读取
   MALL_REVIEW_MERCHANT: "/api/v1/mall/review/merchants/decision", // 审核入驻
   MALL_PENDING_PRODUCTS: "/api/v1/mall/review/products", // 待审核商品
   MALL_REVIEW_PRODUCT: "/api/v1/mall/review/products/decision", // 审核商品
+  MALL_PENDING_MEDIA: "/api/v1/mall/review/images", // 待审商品补图
+  MALL_REVIEW_MEDIA: "/api/v1/mall/review/images/decision", // 补图审核决定
+  MALL_PENDING_EDITS: "/api/v1/mall/review/edits", // 待审商品文字编辑
+  MALL_REVIEW_EDIT: "/api/v1/mall/review/edits/decision", // 审核商品文字编辑
   MALL_BUY: "/api/v1/mall/orders/buy", // 实物单 SKU 库存预留并创建15分钟待支付订单
   MALL_PAY: "/api/v1/mall/orders/pay", // 本人待支付订单按服务端快照扣 M币
   MALL_PENDING_ORDERS: "/api/v1/mall/orders/pending", // 本人待支付及超时取消订单游标页

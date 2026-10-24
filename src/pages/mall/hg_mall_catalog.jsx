@@ -30,7 +30,7 @@ function hgSecureRequestId() {
 /** 商城目录和商家工作台；全部商品、审核及发布结果来自服务端。 */
 export default class HGMallCatalog extends React.Component {
   state = {
-    hgView: this.props.hgCatalogOnly ? "catalog" : this.props.hgInitialView === "orders" ? "orders" : "merchant", // 商品路由仅目录；商城默认商家工作台。
+    hgView: ["catalog", "orders"].includes(this.props.hgInitialView) ? this.props.hgInitialView : "merchant", // 商品页默认目录；商城默认商家工作台。
     hgCategory: "", // 空字符串为全部类目，其他值必须来自服务端白名单。
     hgItems: [], // 当前目录页，初始为空，不缓存无限历史页面。
     hgCursor: "", // 当前请求游标；空字符串代表第一页。
@@ -40,19 +40,36 @@ export default class HGMallCatalog extends React.Component {
     hgDetail: null, // 正在查看的商品详情；null 为目录视图。
     hgMerchant: null, // 本人商家申请；null 代表尚未申请或尚未加载。
     hgMine: [], // 本店至多 20 件商品，默认空。
+    hgMerchantCursor: "", // 本店商品当前页请求游标；空为第一页。
+    hgMerchantHistory: [], // 本店商品最近最多64页游标，用于上一页。
     hgMerchantNext: "", // 本店下页游标；空为没有后续页。
+    hgMerchantQuery: "", // 按商品业务 ID 精确查找的输入值；空时展示本人列表。
+    hgFoundProduct: null, // 本人查找结果；null 表示没有进行有效查找。
+    hgMerchantSearching: false, // 单件商品查找请求状态，防止重复提交。
+    hgMerchantLoading: false, // 本店商品页读取中；尚未获取时不显示空态。
+    hgEditProductId: "", // 当前编辑文字信息的已上架商品 ID；空为未编辑。
+    hgEditForm: { title: "", summary: "", description: "" }, // 待审文字资料副本；不覆盖公开商品。
     hgPendingMerchants: [], // 审核员当前页商家申请，未授权时为空。
     hgPendingProducts: [], // 审核员当前页商品，未授权时为空。
+    hgPendingMedia: [], // 审核员当前页待审补图，按图片独立审核。
+    hgPendingEdits: [], // 审核员当前页已上架商品文字编辑申请。
     hgReviewCursor: "", // 待审商家当前页游标。
     hgReviewNext: "", // 待审商家下一页游标。
     hgProductReviewCursor: "", // 待审商品当前页游标。
     hgProductReviewNext: "", // 待审商品下一页游标。
+    hgMediaReviewCursor: "", // 待审补图当前页游标；空为第一页。
+    hgMediaReviewNext: "", // 待审补图下一页游标；空表示结束。
+    hgEditReviewCursor: "", // 文字编辑审核当前页游标；空为第一页。
+    hgEditReviewNext: "", // 文字编辑审核下一页游标；空表示结束。
     hgCanReview: false, // 仅审核 API 返回成功才显示审核入口。
     hgShopName: "", // 用户输入的店铺名；提交前无默认值。
     hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", description: "", skuTitle: "", amount: "" }, // 商品草稿；介绍为纯文本，金额为整币文本。
     hgSelectedImages: [], // 待上传的最多5张本地图片；只保留 File 于当前页面，不持久化。
     hgUploadedImages: [], // 本次草稿已成功上传的图片 URL，失败重试不重复上传。
     hgUnusedImages: [], // 本人历史上传但未发布的有界图片列表，可手动清除释放限额。
+    hgMediaProductId: "", // 当前准备补图的本人已上架商品 ID；空表示未选择商品。
+    hgMediaFiles: [], // 当前补图选中的文件，最多5张；仅保存在页面内。
+    hgMediaURLs: [], // 当前补图已上传的 URL；失败重试时避免重复上传。
     hgStock: "", // 新发布实物商品初始库存文本；会员不填，服务端校验 1-100000。
     hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" }, // 当前商品一次性收货快照；不可当作地址簿复用。
     hgOrders: [], // 本人最多 20 笔当前页实物订单，不累计历史页。
@@ -90,7 +107,7 @@ export default class HGMallCatalog extends React.Component {
     if (this.state.hgView === "orders") { this.hgLoadOrders(); this.hgLoadPending(); }
     else if (this.state.hgView === "merchant") { this.hgLoadMerchant(); this.hgLoadOrders("", true); }
     else this.hgLoadCatalog("", "", []);
-    if (!this.props.hgCatalogOnly) this.hgLoadReviewAccess();
+    this.hgLoadReviewAccess();
   }
 
   componentWillUnmount() {
@@ -135,14 +152,52 @@ export default class HGMallCatalog extends React.Component {
     }
   };
 
-  hgLoadMerchant = async (hgCursor = "") => {
+  hgLoadMerchant = async (hgCursor = "", hgHistory = []) => {
     const hgSeq = ++this.hgMerchantSeq; // 本次本店商品游标请求身份，过期响应不得覆盖新页。
+    this.setState({ hgMerchantLoading: true });
     try {
-      const [hgMerchant, hgMine, hgUnused] = await Promise.all([HGMallVM.merchant(), HGMallVM.mine(hgCursor), HGMallVM.unusedImages()]);
-      if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgUnusedImages: hgUnused.imageURLs || [], hgError: "" });
+      const [hgMerchant, hgMine, hgUnused] = await Promise.all([HGMallVM.merchant(), HGMallVM.mine(hgCursor), HGMallVM.unusedImages().catch(() => null)]);
+      if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgMerchant, hgMine: hgMine.list, hgMerchantCursor: hgCursor, hgMerchantHistory: hgHistory, hgMerchantNext: hgMine.hasMore ? hgMine.nextCursor : "", hgUnusedImages: hgUnused?.imageURLs || [], hgError: "" });
     } catch (hgError) {
       if (this.hgMounted && this.state.hgView === "merchant" && hgSeq === this.hgMerchantSeq) this.setState({ hgError: this.hgMessage(hgError) });
+    } finally {
+      if (this.hgMounted && hgSeq === this.hgMerchantSeq) this.setState({ hgMerchantLoading: false });
     }
+  };
+
+  /** 商品 ID 唯一索引精确查本人记录，避免深分页遍历或无索引标题模糊查询。 */
+  hgFindMerchantProduct = async (hgEvent) => {
+    hgEvent?.preventDefault();
+    const hgProductId = this.state.hgMerchantQuery.trim();
+    if (!hgProductId) { this.setState({ hgFoundProduct: null, hgError: "" }); return; }
+    if (this.state.hgMerchantSearching) return;
+    this.setState({ hgMerchantSearching: true, hgError: "", hgFoundProduct: null });
+    try {
+      const hgItem = await HGMallVM.mineDetail(hgProductId);
+      if (this.hgMounted) this.setState({ hgFoundProduct: hgItem });
+    } catch (hgError) {
+      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+    } finally {
+      if (this.hgMounted) this.setState({ hgMerchantSearching: false });
+    }
+  };
+
+  /** 文字变更提交审核，保留旧商品展示直到其他审核员批准。 */
+  hgSubmitEdit = (hgEvent) => {
+    hgEvent.preventDefault();
+    this.hgWrite(async () => {
+      await HGMallVM.stageEdit({ productId: this.state.hgEditProductId, ...this.state.hgEditForm });
+      if (this.hgMounted) this.setState({ hgEditProductId: "" });
+    }, "商品资料修改已提交审核，审核前原资料继续展示");
+  };
+
+  /** 商品归档是受限单行软删除；现有订单仍按交易快照履约。 */
+  hgArchiveProduct = (hgProductId) => {
+    if (!window.confirm("归档后商品将从目录下架，不能再产生新订单；已有订单仍可继续处理。确认归档？")) return;
+    this.hgWrite(async () => {
+      await HGMallVM.archive(hgProductId);
+      if (this.hgMounted) this.setState((hgState) => ({ hgFoundProduct: hgState.hgFoundProduct?.productId === hgProductId ? { ...hgState.hgFoundProduct, lifecycleStatus: 2 } : hgState.hgFoundProduct, hgEditProductId: hgState.hgEditProductId === hgProductId ? "" : hgState.hgEditProductId }));
+    }, "商品已归档，不再进入公开目录");
   };
 
   /** 只替换当前游标页，订单和收货地址不跨用户缓存；商家列表走独立的授权接口。 */
@@ -183,14 +238,16 @@ export default class HGMallCatalog extends React.Component {
     }
   };
 
-  hgLoadReview = async (hgMerchantCursor = "", hgProductCursor = "") => {
+  hgLoadReview = async (hgMerchantCursor = "", hgProductCursor = "", hgMediaCursor = "", hgEditCursor = "") => {
     const hgSeq = ++this.hgReviewSeq; // 同一审核视图可并发翻页，只提交最后一组游标结果。
     try {
-      const [hgMerchants, hgProducts] = await Promise.all([
-        HGMallVM.pendingMerchants(hgMerchantCursor), HGMallVM.pendingProducts(hgProductCursor),
+      const [hgMerchants, hgProducts, hgMedia, hgEdits] = await Promise.all([
+        HGMallVM.pendingMerchants(hgMerchantCursor), HGMallVM.pendingProducts(hgProductCursor), HGMallVM.pendingMedia(hgMediaCursor), HGMallVM.pendingEdits(hgEditCursor),
       ]);
       if (this.hgMounted && this.state.hgView === "review" && hgSeq === this.hgReviewSeq) this.setState({
         hgPendingMerchants: hgMerchants.list, hgPendingProducts: hgProducts.list,
+        hgPendingMedia: hgMedia.list, hgMediaReviewCursor: hgMediaCursor, hgMediaReviewNext: hgMedia.hasMore ? hgMedia.nextCursor : "",
+        hgPendingEdits: hgEdits.list, hgEditReviewCursor: hgEditCursor, hgEditReviewNext: hgEdits.hasMore ? hgEdits.nextCursor : "",
         hgReviewCursor: hgMerchantCursor, hgReviewNext: hgMerchants.hasMore ? hgMerchants.nextCursor : "",
         hgProductReviewCursor: hgProductCursor, hgProductReviewNext: hgProducts.hasMore ? hgProducts.nextCursor : "",
         hgError: "",
@@ -229,7 +286,7 @@ export default class HGMallCatalog extends React.Component {
       if (this.hgMounted && this.state.hgView === "review" && hgError?.status === 409) {
         // 审核条件被其他操作改变时重新取当前页；服务器仍以条件更新防止重复审核。
         this.setState({ hgError: "审核状态已变化，正在刷新待审列表..." });
-        await this.hgLoadReview(this.state.hgReviewCursor, this.state.hgProductReviewCursor);
+        await this.hgLoadReview(this.state.hgReviewCursor, this.state.hgProductReviewCursor, this.state.hgMediaReviewCursor, this.state.hgEditReviewCursor);
       } else if (this.hgMounted) {
         this.setState({ hgError: this.hgMessage(hgError) });
         if (this.state.hgView === "orders" && hgError?.status === 409) await this.hgLoadPending(this.state.hgPendingCursor);
@@ -305,6 +362,35 @@ export default class HGMallCatalog extends React.Component {
     if (this.hgMounted) this.setState((hgState) => ({ hgUnusedImages: hgState.hgUnusedImages.filter((hgImage) => hgImage !== hgURL) }));
   }, "未发布图片已清除");
 
+  /** 旧商品补图先上传至本人临时资产，再提交给审核员；批准前不修改公开目录。 */
+  hgStageMedia = (hgEvent) => {
+    hgEvent.preventDefault();
+    const { hgMediaProductId, hgMediaFiles, hgMediaURLs } = this.state;
+    if (!hgMediaProductId || !hgMediaFiles.length) { this.setState({ hgError: "请先选择商品与图片" }); return; }
+    this.hgWrite(async () => {
+      const hgURLs = [...hgMediaURLs]; // 当前批次已成功上传的 URL；失败重试从下一张继续。
+      for (let hgIndex = hgURLs.length; hgIndex < hgMediaFiles.length; hgIndex += 1) {
+        const hgResult = await HGMallVM.uploadImage(hgMediaFiles[hgIndex]);
+        if (!hgResult?.imageURL) throw new Error("图片上传响应异常，请重试");
+        hgURLs.push(hgResult.imageURL);
+        if (this.hgMounted) this.setState((hgState) => ({ hgMediaURLs: [...hgURLs], hgUnusedImages: [...hgState.hgUnusedImages, hgResult.imageURL] }));
+      }
+      await HGMallVM.stageMedia(hgMediaProductId, hgURLs);
+      if (this.hgMounted) this.setState({ hgMediaProductId: "", hgMediaFiles: [], hgMediaURLs: [] });
+    }, "补图已提交审核，通过后将在原商品目录和详情中展示");
+  };
+
+  hgChooseMedia = (hgEvent) => {
+    const hgFiles = Array.from(hgEvent.target.files || []);
+    hgEvent.target.value = "";
+    const hgItem = this.state.hgMine.find((hgProduct) => hgProduct.productId === this.state.hgMediaProductId) || (this.state.hgFoundProduct?.productId === this.state.hgMediaProductId ? this.state.hgFoundProduct : null);
+    if (!hgFiles.length || hgFiles.length + (hgItem?.imageURLs?.length || 0) > 5 || hgFiles.some((hgFile) => !["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) || hgFile.size < 1 || hgFile.size > 5 * 1024 * 1024)) {
+      this.setState({ hgError: "请选择1-5张 JPG、PNG 或 WebP 图片，每张不超过5 MiB" }); return;
+    }
+    if (this.state.hgMediaURLs.length) { this.setState({ hgError: "图片已部分上传，请重试提交当前补图" }); return; }
+    this.setState({ hgMediaFiles: hgFiles, hgError: "" });
+  };
+
   /** 购买响应未知时保持同一 requestId 重试；更改商品或收货信息则生成全新的键。 */
   hgBuy = async (hgEvent) => {
     hgEvent.preventDefault();
@@ -374,8 +460,8 @@ export default class HGMallCatalog extends React.Component {
 
   renderTabs() {
     return <nav className={styles.categoryNav} aria-label="商城功能">
-      <Link to={ROUTE_PATH.PRODUCTS}>商品目录</Link>
-      <button type="button" aria-pressed={this.state.hgView === "merchant"} onClick={() => this.hgSelectView("merchant")}>商家入驻与发布</button>
+      {this.props.hgShowCatalogTab ? <button type="button" aria-pressed={this.state.hgView === "catalog"} onClick={() => this.hgSelectView("catalog")}>全部商品</button> : <Link to={ROUTE_PATH.PRODUCTS}>全部商品</Link>}
+      <button type="button" aria-pressed={this.state.hgView === "merchant"} onClick={() => this.hgSelectView("merchant")}>我的商品 · 管理</button>
       <button type="button" aria-pressed={this.state.hgView === "orders"} onClick={() => this.hgSelectView("orders")}>我的商品订单</button>
       {this.state.hgCanReview && <button type="button" aria-pressed={this.state.hgView === "review"} onClick={() => this.hgSelectView("review")}>商品与商家审核</button>}
     </nav>;
@@ -421,16 +507,50 @@ export default class HGMallCatalog extends React.Component {
     this.setState((hgState) => ({ hgBuyForm: { ...hgState.hgBuyForm, [hgKey]: hgValue } }));
   };
 
+  /** 当前商家的有界商品管理列表与精确查询；已归档商品保留可核对的历史信息。 */
+  renderMerchantProducts() {
+    const { hgMine, hgMerchantQuery, hgFoundProduct, hgMerchantNext, hgMerchantHistory, hgMerchantCursor, hgMerchantLoading, hgBusy } = this.state;
+    const hgItems = hgFoundProduct ? [hgFoundProduct] : hgMine; // 已查询时只显示命中的本人商品，否则显示当前游标页。
+    return <section aria-label="我的商品管理"><h2>我的商品 · 管理</h2>
+      <form onSubmit={this.hgFindMerchantProduct}><label>按商品编号查找 <input value={hgMerchantQuery} maxLength={64} placeholder="例如 PRD_..." onChange={(hgEvent) => this.setState({ hgMerchantQuery: hgEvent.target.value })} /></label>
+        <button type="submit" disabled={this.state.hgMerchantSearching}>查询</button><button type="button" disabled={hgMerchantLoading} onClick={() => this.setState({ hgMerchantQuery: "", hgFoundProduct: null, hgError: "" })}>清除查询</button></form>
+      {hgMerchantLoading && <p role="status">正在加载本人商品...</p>}
+      {!hgMerchantLoading && !hgItems.length && <p>当前页暂无商品；可在下方发布新商品。</p>}
+      <div className={styles.manageGrid}>{hgItems.map((hgItem) => <article className={styles.manageCard} key={hgItem.productId}>
+        {hgItem.imageURLs?.length ? <img className={styles.manageCover} src={normalizeVideoCoverUrl(hgItem.imageURLs[0])} alt={`${hgItem.title} 展示图`} loading="lazy" /> : <div className={styles.productImage}>暂无展示图</div>}
+        <div className={styles.manageBody}><h3>{hgItem.title}</h3><small>{hgItem.productId}</small><p>{hgItem.summary}</p>
+          <p>{HGFormatCoin(hgItem.amount)} M币 · {hgItem.lifecycleStatus === 2 ? "已归档" : hgItem.status === 1 ? "已上架" : hgItem.status === 2 ? "审核未通过" : "待审核"} · {hgItem.imageURLs?.length || 0}/5 张图片</p>
+          <div className={styles.manageActions}>
+            {hgItem.lifecycleStatus === 1 && hgItem.status === 1 && <><button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => this.setState({ hgEditProductId: hgItem.productId, hgEditForm: { title: hgItem.title, summary: hgItem.summary, description: hgItem.description || "" }, hgMediaProductId: "", hgMediaFiles: [] })}>编辑资料</button>
+              {(hgItem.imageURLs?.length || 0) < 5 && <button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => this.setState({ hgMediaProductId: hgItem.productId, hgMediaFiles: [], hgEditProductId: "" })}>增添图片</button>}</>}
+            {hgItem.lifecycleStatus !== 2 && <button type="button" disabled={hgBusy} onClick={() => this.hgArchiveProduct(hgItem.productId)}>归档商品</button>}
+          </div></div>
+      </article>)}</div>
+      {!hgFoundProduct && <div className={styles.pager}><button type="button" disabled={!hgMerchantHistory.length || hgMerchantLoading} onClick={() => this.hgLoadMerchant(hgMerchantHistory[hgMerchantHistory.length - 1], hgMerchantHistory.slice(0, -1))}>上一页</button>
+        <button type="button" disabled={!hgMerchantNext || hgMerchantLoading} onClick={() => this.hgLoadMerchant(hgMerchantNext, [...hgMerchantHistory, hgMerchantCursor].slice(-64))}>下一页</button></div>}
+      {!!this.state.hgEditProductId && <form onSubmit={this.hgSubmitEdit}><h3>编辑商品资料</h3><p>审核通过前沿用当前资料；商品价格、库存和订单快照不会改变。</p>
+        <label>商品名称 <input required maxLength={128} value={this.state.hgEditForm.title} onChange={(hgEvent) => this.setState((hgState) => ({ hgEditForm: { ...hgState.hgEditForm, title: hgEvent.target.value } }))} /></label>
+        <label>简介（纯文本） <textarea required maxLength={512} value={this.state.hgEditForm.summary} onChange={(hgEvent) => this.setState((hgState) => ({ hgEditForm: { ...hgState.hgEditForm, summary: hgEvent.target.value } }))} /></label>
+        <label>介绍（纯文本） <textarea maxLength={4096} value={this.state.hgEditForm.description} onChange={(hgEvent) => this.setState((hgState) => ({ hgEditForm: { ...hgState.hgEditForm, description: hgEvent.target.value } }))} /></label>
+        <div className={styles.manageActions}><button type="submit" disabled={hgBusy}>提交修改审核</button><button type="button" onClick={() => this.setState({ hgEditProductId: "" })}>取消</button></div></form>}
+      {!!this.state.hgMediaProductId && <form onSubmit={this.hgStageMedia}><h3>为商品增添图片</h3><p>仅本人已上架商品可补图；审核期间原商品保持上架，图片审核通过后出现在目录和详情。</p>
+        <label>选择展示图（总计最多5张） <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={hgBusy || !!this.state.hgMediaURLs.length} onChange={this.hgChooseMedia} /></label>
+        {!!this.state.hgMediaFiles.length && <p>已选：{this.state.hgMediaFiles.map((hgFile) => hgFile.name).join("、")}</p>}
+        <div className={styles.manageActions}><button type="submit" disabled={hgBusy || !this.state.hgMediaFiles.length}>提交补图审核</button><button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => this.setState({ hgMediaProductId: "", hgMediaFiles: [] })}>取消</button></div></form>}
+    </section>;
+  }
+
   renderMerchant() {
-    const { hgMerchant, hgMine, hgShopName, hgDraft, hgBusy, hgMerchantNext } = this.state;
+    const { hgMerchant, hgShopName, hgDraft, hgBusy } = this.state;
     return <div className={styles.workspace}>
       <section><h2>商家入驻</h2><p>申请由管理员审核，通过后可发布单规格商品；商品再次审核通过才公开。</p>
-        {hgMerchant ? <p>店铺：<strong>{hgMerchant.shopName}</strong> · {hgMerchant.status === 1 ? "审核通过" : hgMerchant.status === 2 ? "审核未通过，可重新提交" : "等待审核"}</p> : <p>尚未提交申请。</p>}
-        {(!hgMerchant || hgMerchant.status === 2) && <form onSubmit={(hgEvent) => { hgEvent.preventDefault(); this.hgWrite(() => HGMallVM.apply(hgShopName.trim()), "申请已提交，请等待审核"); }}>
+        {this.state.hgMerchantLoading ? <p role="status">正在读取店铺与商品...</p> : hgMerchant ? <p>店铺：<strong>{hgMerchant.shopName}</strong> · {hgMerchant.status === 1 ? "审核通过" : hgMerchant.status === 2 ? "审核未通过，可重新提交" : "等待审核"}</p> : <p>尚未提交申请。</p>}
+        {!this.state.hgMerchantLoading && (!hgMerchant || hgMerchant.status === 2) && <form onSubmit={(hgEvent) => { hgEvent.preventDefault(); this.hgWrite(() => HGMallVM.apply(hgShopName.trim()), "申请已提交，请等待审核"); }}>
           <label>店铺名称 <input required maxLength={128} value={hgShopName} onChange={(hgEvent) => this.setState({ hgShopName: hgEvent.target.value })} /></label>
           <button type="submit" disabled={hgBusy}>提交入驻申请</button></form>}
       </section>
-      {hgMerchant?.status === 1 && <section><h2>发布商品</h2><p>发布后等待审核；实物商品使用 M币购买并占用库存，由商家手工发货；会员仅展示，不发放权益。</p>
+      {hgMerchant?.status === 1 && this.renderMerchantProducts()}
+      {hgMerchant?.status === 1 && <section><h2>新增商品</h2><p>发布后等待审核；实物商品使用 M币购买并占用库存，由商家手工发货；会员仅展示，不发放权益。</p>
         <form className={styles.draftForm} onSubmit={this.hgPublish}>
           <label>类型 <select value={hgDraft.type} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, type: hgEvent.target.value, category: hgEvent.target.value === "MEMBERSHIP" ? "membership" : "digital" } })}>
             <option value="PHYSICAL_PRODUCT">实物商品</option><option value="MEMBERSHIP">会员卡</option></select></label>
@@ -446,9 +566,7 @@ export default class HGMallCatalog extends React.Component {
           <label>价格（整数 M币；实物不超过100000） <input required type="number" min="1" max={hgDraft.type === "PHYSICAL_PRODUCT" ? "100000" : "9007199254740991"} step="1" value={hgDraft.amount} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, amount: hgEvent.target.value } })} /></label>
           {hgDraft.type === "PHYSICAL_PRODUCT" && <label>初始可售库存（件） <input required type="number" min="1" max="100000" step="1" value={this.state.hgStock} onChange={(hgEvent) => this.setState({ hgStock: hgEvent.target.value })} /></label>}
           <button type="submit" disabled={hgBusy}>提交商品审核</button>
-        </form>{!!this.state.hgUnusedImages.length && <div><h3>未发布图片</h3><p>最多保留20张；离开页面后可在此清理未绑定商品的图片。</p>{this.state.hgUnusedImages.map((hgURL) => <span key={hgURL} className={styles.unusedImage}><img src={normalizeVideoCoverUrl(hgURL)} alt="未发布的商品图片" loading="lazy" /><button type="button" disabled={hgBusy || this.state.hgUploadedImages.includes(hgURL)} onClick={() => this.hgRemoveUnusedImage(hgURL)}>删除</button></span>)}</div>}
-        <h3>我的商品</h3>{hgMine.map((hgItem) => <p key={hgItem.productId}>{hgItem.title} · {HGFormatCoin(hgItem.amount)} M币 · {hgItem.status === 1 ? "已上架" : hgItem.status === 2 ? "未通过" : "待审核"}</p>)}
-        <button type="button" disabled={!hgMerchantNext || hgBusy} onClick={() => this.hgLoadMerchant(hgMerchantNext)}>下一页商品</button></section>}
+        </form>{!!this.state.hgUnusedImages.length && <div><h3>未使用图片</h3><p>最多保留20张；离开页面后可在此清理未绑定商品的图片。</p>{this.state.hgUnusedImages.map((hgURL) => <span key={hgURL} className={styles.unusedImage}><img src={normalizeVideoCoverUrl(hgURL)} alt="未使用的商品图片" loading="lazy" /><button type="button" disabled={hgBusy || this.state.hgUploadedImages.includes(hgURL) || this.state.hgMediaURLs.includes(hgURL)} onClick={() => this.hgRemoveUnusedImage(hgURL)}>删除</button></span>)}</div>}</section>}
       {hgMerchant?.status === 1 && this.renderPhysicalOrders(true)}
     </div>;
   }
@@ -509,24 +627,34 @@ export default class HGMallCatalog extends React.Component {
   }
 
   renderReview() {
-    const { hgPendingMerchants, hgPendingProducts, hgReviewNext, hgProductReviewNext, hgBusy } = this.state;
+    const { hgPendingMerchants, hgPendingProducts, hgPendingMedia, hgPendingEdits, hgReviewNext, hgProductReviewNext, hgMediaReviewNext, hgEditReviewNext, hgBusy } = this.state;
     return <div className={styles.workspace}>
       <section><h2>待审核商家</h2><p>本人商家申请不可自审，需由其他具有审核权限的管理员处理。</p>{!hgPendingMerchants.length && <p>当前页无可审核申请。</p>}
         {hgPendingMerchants.map((hgItem) => <div className={styles.reviewRow} key={hgItem.merchantId}><span>{hgItem.shopName} · {hgItem.userId}</span>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewMerchant(hgItem.merchantId, true), "商家已通过审核")}>通过</button>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewMerchant(hgItem.merchantId, false), "商家申请已拒绝")}>拒绝</button></div>)}
-        <button type="button" disabled={!hgReviewNext || hgBusy} onClick={() => this.hgLoadReview(hgReviewNext, this.state.hgProductReviewCursor)}>下一页商家</button></section>
+        <button type="button" disabled={!hgReviewNext || hgBusy} onClick={() => this.hgLoadReview(hgReviewNext, this.state.hgProductReviewCursor, this.state.hgMediaReviewCursor, this.state.hgEditReviewCursor)}>下一页商家</button></section>
       <section><h2>待审核商品</h2>{!hgPendingProducts.length && <p>当前页无待审商品。</p>}
          {hgPendingProducts.map((hgItem) => <div className={styles.reviewRow} key={hgItem.productId}><span>{hgItem.title} · {hgItem.shopName} · {hgItem.summary} · {hgItem.description} · {HGFormatCoin(hgItem.amount)} M币{hgItem.imageURLs?.map((hgURL) => <img className={styles.reviewImage} src={normalizeVideoCoverUrl(hgURL)} key={hgURL} alt={`${hgItem.title} 待审图`} />)}</span>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewProduct(hgItem.productId, true), "商品已上架")}>通过</button>
           <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewProduct(hgItem.productId, false), "商品已拒绝")}>拒绝</button></div>)}
-        <button type="button" disabled={!hgProductReviewNext || hgBusy} onClick={() => this.hgLoadReview(this.state.hgReviewCursor, hgProductReviewNext)}>下一页商品</button></section>
+        <button type="button" disabled={!hgProductReviewNext || hgBusy} onClick={() => this.hgLoadReview(this.state.hgReviewCursor, hgProductReviewNext, this.state.hgMediaReviewCursor, this.state.hgEditReviewCursor)}>下一页商品</button></section>
+      <section><h2>已上架商品补图审核</h2><p>每张图片单独审核；通过后才会加入公开商品目录，不改变商品上架与订单状态。</p>{!hgPendingMedia.length && <p>当前页暂无待审补图。</p>}
+        {hgPendingMedia.map((hgItem) => <div className={styles.reviewRow} key={hgItem.imageURL}><span>{hgItem.title} · {hgItem.shopName}<img className={styles.reviewImage} src={normalizeVideoCoverUrl(hgItem.imageURL)} alt={`${hgItem.title} 待审补图`} /></span>
+          <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewMedia(hgItem.imageURL, true), "商品补图已公开")}>通过</button>
+          <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewMedia(hgItem.imageURL, false), "商品补图已拒绝")}>拒绝</button></div>)}
+        <button type="button" disabled={!hgMediaReviewNext || hgBusy} onClick={() => this.hgLoadReview(this.state.hgReviewCursor, this.state.hgProductReviewCursor, hgMediaReviewNext, this.state.hgEditReviewCursor)}>下一页补图</button></section>
+      <section><h2>已上架商品资料修改审核</h2><p>审核后才更新公开目录；拒绝不会修改原商品或历史订单。</p>{!hgPendingEdits.length && <p>当前页暂无待审资料修改。</p>}
+        {hgPendingEdits.map((hgItem) => <div className={styles.reviewRow} key={hgItem.productId}><span>{hgItem.shopName} · {hgItem.productId}<br />商品名称：{hgItem.title}<br />简介：{hgItem.summary}<br />介绍：{hgItem.description}</span>
+          <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewEdit(hgItem.productId, true), "商品资料修改已公开")}>通过</button>
+          <button type="button" disabled={hgBusy} onClick={() => this.hgWrite(() => HGMallVM.reviewEdit(hgItem.productId, false), "商品资料修改已拒绝")}>拒绝</button></div>)}
+        <button type="button" disabled={!hgEditReviewNext || hgBusy} onClick={() => this.hgLoadReview(this.state.hgReviewCursor, this.state.hgProductReviewCursor, this.state.hgMediaReviewCursor, hgEditReviewNext)}>下一页资料修改</button></section>
     </div>;
   }
 
   render() {
     return <section className={styles.section} aria-label="商城商品与商家工作台">
-      {!this.props.hgCatalogOnly && this.renderTabs()}
+      {this.renderTabs()}
       {this.state.hgError && <p role="alert" className={styles.error}>{this.state.hgError} <button type="button" onClick={() => this.hgSelectView(this.state.hgView)}>重试</button></p>}
       {this.state.hgNotice && <p role="status" className={styles.notice}>{this.state.hgNotice}</p>}
       {this.state.hgView === "catalog" ? this.renderCatalog() : this.state.hgView === "merchant" ? this.renderMerchant() : this.state.hgView === "orders" ? this.renderPhysicalOrders() : this.renderReview()}
