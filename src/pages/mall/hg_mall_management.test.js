@@ -90,6 +90,81 @@ test("发布与补图可分次多选并预览，移除和卸载会释放 blob UR
   assert.deepEqual(hgRevoked.sort(), ["blob:mall-1", "blob:mall-2", "blob:mall-3", "blob:mall-4", "blob:mall-5", "blob:mall-6"].sort());
 });
 
+test("补图只使用一个图片选择框，单选和多选后一次提交全部图片", async () => {
+  const hgUploaded = []; // 本次上传的文件名，初始为空。
+  let hgStaged = null; // 提交审核的图片 URL；未提交前为 null。
+  const hgInstance = hgMerchantPage({
+    uploadImage: async (hgFile) => {
+      hgUploaded.push(hgFile.name);
+      return { imageURL: `/uploads/${hgFile.name}` };
+    },
+    stageMedia: async (hgProductId, hgURLs) => {
+      assert.equal(hgProductId, "PRD_OLD");
+      hgStaged = Array.from(hgURLs);
+    },
+  }, { hgInitialView: "merchant" }); // 替换上传接口，不访问真实服务。
+  hgInstance.state.hgMediaProductId = "PRD_OLD";
+  hgInstance.state.hgFoundProduct = { productId: "PRD_OLD", imageURLs: ["/uploads/one.png"] };
+  const hgFindMediaInputs = (hgNode) => {
+    if (Array.isArray(hgNode)) return hgNode.flatMap(hgFindMediaInputs);
+    if (!React.isValidElement(hgNode)) return [];
+    return [...(hgNode.type === "input" && hgNode.props.type === "file" ? [hgNode] : []), ...hgFindMediaInputs(hgNode.props.children)];
+  }; // 只查真实补图表单中的图片选择框。
+  const hgInputs = hgFindMediaInputs(hgInstance.renderMerchantProducts());
+  assert.equal(hgInputs.length, 1);
+  assert.equal(hgInputs[0].props.multiple, true);
+  assert.equal(hgInputs[0].props.webkitdirectory, undefined);
+  const hgFile = (hgName) => ({ name: hgName, type: "image/png", size: 128 });
+  const hgTarget = { files: [hgFile("补图1.png")], value: "chosen" };
+  hgInputs[0].props.onChange({ target: hgTarget });
+  assert.equal(hgTarget.value, "");
+  hgInputs[0].props.onChange({ target: { files: [hgFile("补图2.png"), hgFile("补图3.png")], value: "chosen" } });
+  assert.deepEqual(Array.from(hgInstance.state.hgMediaFiles, (hgImage) => hgImage.name), ["补图1.png", "补图2.png", "补图3.png"]);
+  let hgSubmission; // 捕获表单写操作完成时机，不依赖固定等待时间。
+  hgInstance.hgWrite = (hgAction) => { hgSubmission = hgAction(); };
+  hgInstance.hgLoadOwnMedia = () => {};
+  hgInstance.hgStageMedia({ preventDefault() {} });
+  await hgSubmission;
+  assert.deepEqual(hgUploaded, ["补图1.png", "补图2.png", "补图3.png"]);
+  assert.deepEqual(hgStaged, ["/uploads/补图1.png", "/uploads/补图2.png", "/uploads/补图3.png"]);
+  assert.equal(hgInstance.state.hgMediaFiles.length, 0);
+});
+
+test("Shift 一次选中5张或更多时接收剩余名额，并只提交预览中的图片", async () => {
+  const hgCases = [
+    { existing: 0, chosen: 5, accepted: 5 }, // 尚无图片时一次选满5张。
+    { existing: 0, chosen: 7, accepted: 5 }, // 超额选择只接收前5张。
+    { existing: 1, chosen: 5, accepted: 4 }, // 旧图占用1张名额时仍可一次多选。
+  ];
+  for (const hgCase of hgCases) {
+    const hgUploaded = []; // 当前用例实际上传的图片名，初始为空。
+    let hgStaged = null; // 当前用例提交审核的 URL；未提交时为 null。
+    const hgInstance = hgMerchantPage({
+      uploadImage: async (hgFile) => {
+        hgUploaded.push(hgFile.name);
+        return { imageURL: `/uploads/${hgFile.name}` };
+      },
+      stageMedia: async (_, hgURLs) => { hgStaged = Array.from(hgURLs); },
+    }, { hgInitialView: "merchant" });
+    hgInstance.state.hgMediaProductId = "PRD_OLD";
+    hgInstance.state.hgFoundProduct = { productId: "PRD_OLD", imageURLs: Array.from({ length: hgCase.existing }, () => "/uploads/old.png") };
+    const hgTarget = { files: Array.from({ length: hgCase.chosen }, (_, hgIndex) => ({ name: `补图${hgIndex + 1}.png`, type: "image/png", size: 128 })), value: "chosen" };
+    hgInstance.hgChooseMedia({ target: hgTarget });
+    assert.equal(hgTarget.value, "");
+    assert.equal(hgInstance.state.hgMediaFiles.length, hgCase.accepted);
+    assert.equal(hgInstance.state.hgMediaPreviews.length, hgCase.accepted);
+    if (hgCase.chosen > hgCase.accepted)
+      assert.match(hgInstance.state.hgError, new RegExp(`其余${hgCase.chosen - hgCase.accepted}张.*未加入`));
+    let hgSubmission; // 等待本次表单动作全部上传和提交完成。
+    hgInstance.hgWrite = (hgAction) => { hgSubmission = hgAction(); };
+    hgInstance.hgLoadOwnMedia = () => {};
+    hgInstance.hgStageMedia({ preventDefault() {} });
+    await hgSubmission;
+    assert.deepEqual(hgUploaded, Array.from({ length: hgCase.accepted }, (_, hgIndex) => `补图${hgIndex + 1}.png`));
+    assert.deepEqual(hgStaged, hgUploaded.map((hgName) => `/uploads/${hgName}`));
+  }
+});
+
 test("按商品编号精确读取旧商品并从列表归档后仍能查询历史", async () => {
   const hgArchived = []; // 捕获真实页面提交的商品编号，初始为空。
   const hgItem = { productId: "PRD_OLD", title: "旧商品", summary: "展示", amount: 12, status: 1, lifecycleStatus: 1, imageURLs: [] }; // 本人商品快照。
