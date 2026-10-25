@@ -47,9 +47,11 @@ export const HGMANAGER_API = {
   MALL_EDIT: "/api/v1/mall/products/edit", // 已上架商品文字编辑审核
   MALL_PUBLISH: "/api/v1/mall/products/publish", // 发布待审核的商品草稿
   MALL_MEDIA_STAGE: "/api/v1/mall/products/images/stage", // 已上架商品补图待审
+  MALL_OWN_PENDING_MEDIA: "/api/v1/mall/products/images/pending", // 本人商品补图审核状态
   MALL_MERCHANT: "/api/v1/mall/merchant", // 本人商家申请状态
   MALL_APPLY: "/api/v1/mall/merchant/apply", // 提交商家入驻申请
   MALL_PENDING_MERCHANTS: "/api/v1/mall/review/merchants", // 仅审核员可读取
+  MALL_REVIEW_ACCESS: "/api/v1/mall/review/access", // 本人商城审核 RBAC 状态
   MALL_REVIEW_MERCHANT: "/api/v1/mall/review/merchants/decision", // 审核入驻
   MALL_PENDING_PRODUCTS: "/api/v1/mall/review/products", // 待审核商品
   MALL_REVIEW_PRODUCT: "/api/v1/mall/review/products/decision", // 审核商品

@@ -14,6 +14,7 @@ export default class HGMallVM {
   static apply(shopName) { return this.request("post", "MALL_APPLY", { shopName }); }
   static publish(draft) { return this.request("post", "MALL_PUBLISH", draft); }
   static stageMedia(productId, imageURLs) { return this.request("post", "MALL_MEDIA_STAGE", { productId, imageURLs }); }
+  static ownPendingMedia(productId) { return this.request("get", "MALL_OWN_PENDING_MEDIA", { productId }); }
   /** 图片直接上传原始二进制，复用签名与 JWT；服务端检查 MIME 魔数、尺寸及店铺归属。 */
   static async uploadImage(file) {
     const [{ default: HGNet }, { HGMANAGER_API }] = await Promise.all([
@@ -32,6 +33,7 @@ export default class HGMallVM {
   static archive(productId) { return this.request("post", "MALL_ARCHIVE", { productId }); }
   static stageEdit(edit) { return this.request("post", "MALL_EDIT", edit); }
   static pendingMerchants(cursor = "") { return this.request("get", "MALL_PENDING_MERCHANTS", { cursor }); }
+  static reviewAccess() { return this.request("get", "MALL_REVIEW_ACCESS"); }
   static pendingProducts(cursor = "") { return this.request("get", "MALL_PENDING_PRODUCTS", { cursor }); }
   static reviewMerchant(merchantId, approve) { return this.request("post", "MALL_REVIEW_MERCHANT", { merchantId, approve }); }
   static reviewProduct(productId, approve) { return this.request("post", "MALL_REVIEW_PRODUCT", { productId, approve }); }

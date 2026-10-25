@@ -65,11 +65,16 @@ export default class HGMallCatalog extends React.Component {
     hgShopName: "", // 用户输入的店铺名；提交前无默认值。
     hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", description: "", skuTitle: "", amount: "" }, // 商品草稿；介绍为纯文本，金额为整币文本。
     hgSelectedImages: [], // 待上传的最多5张本地图片；只保留 File 于当前页面，不持久化。
+    hgSelectedPreviews: [], // 新商品图片本地 blob URL，与 hgSelectedImages 同序；移除、发布或卸载时释放。
     hgUploadedImages: [], // 本次草稿已成功上传的图片 URL，失败重试不重复上传。
     hgUnusedImages: [], // 本人历史上传但未发布的有界图片列表，可手动清除释放限额。
     hgMediaProductId: "", // 当前准备补图的本人已上架商品 ID；空表示未选择商品。
     hgMediaFiles: [], // 当前补图选中的文件，最多5张；仅保存在页面内。
+    hgMediaPreviews: [], // 旧商品补图的本地 blob URL，与 hgMediaFiles 同序；不作为发布地址。
     hgMediaURLs: [], // 当前补图已上传的 URL；失败重试时避免重复上传。
+    hgInspectMediaProductId: "", // 当前查看补图审核状态的本人商品 ID；空表示未选中。
+    hgPendingOwnMedia: [], // 本商品待审核图片，最多5张；不可当作已公开目录图片。
+    hgOwnMediaLoading: false, // 本人补图审核状态读取中；初始没有查询。
     hgStock: "", // 新发布实物商品初始库存文本；会员不填，服务端校验 1-100000。
     hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" }, // 当前商品一次性收货快照；不可当作地址簿复用。
     hgOrders: [], // 本人最多 20 笔当前页实物订单，不累计历史页。
@@ -100,6 +105,7 @@ export default class HGMallCatalog extends React.Component {
   hgSellerSeq = 0; // 本店订单请求序号；切换视图后不提交旧响应。
   hgMerchantSeq = 0; // 本店商品页请求序号；快速翻页只接受最后一次响应。
   hgReviewSeq = 0; // 审核双列表请求序号；不同游标响应不可相互覆盖。
+  hgOwnMediaSeq = 0; // 补图状态请求序号；切换商品后忽略旧响应。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -112,12 +118,15 @@ export default class HGMallCatalog extends React.Component {
 
   componentWillUnmount() {
     this.hgMounted = false;
+    this.hgReleasePreviews(this.state.hgSelectedPreviews);
+    this.hgReleasePreviews(this.state.hgMediaPreviews);
     this.hgSeq += 1;
     this.hgOrdersSeq += 1;
     this.hgPendingSeq += 1;
     this.hgSellerSeq += 1;
     this.hgMerchantSeq += 1;
     this.hgReviewSeq += 1;
+    this.hgOwnMediaSeq += 1;
   }
 
   hgMessage = (hgError) => hgError?.message || "商城请求失败，请重试";
@@ -228,13 +237,27 @@ export default class HGMallCatalog extends React.Component {
     }
   };
 
-  /** 审核入口由服务端 RBAC 读接口决定；403 只隐藏入口，不将任意登录者当管理员。 */
+  /** 审核入口由服务端 RBAC 状态决定；普通商家收到 false，不探测受限审核列表。 */
   hgLoadReviewAccess = async () => {
     try {
-      await HGMallVM.pendingMerchants();
-      if (this.hgMounted) this.setState({ hgCanReview: true });
+      const hgAccess = await HGMallVM.reviewAccess(); // 普通商家返回 false，不探测受限的审核列表。
+      if (this.hgMounted) this.setState({ hgCanReview: hgAccess?.canReview === true });
     } catch {
       if (this.hgMounted) this.setState({ hgCanReview: false });
+    }
+  };
+
+  /** 本人商品补图状态来自授权读接口，待审图片不参与公开目录 imageURLs。 */
+  hgLoadOwnMedia = async (hgProductId) => {
+    const hgSeq = ++this.hgOwnMediaSeq; // 本次查询身份，防止快速切换商品后旧照片覆盖新照片。
+    this.setState({ hgInspectMediaProductId: hgProductId, hgPendingOwnMedia: [], hgOwnMediaLoading: true });
+    try {
+      const hgResult = await HGMallVM.ownPendingMedia(hgProductId);
+      if (this.hgMounted && hgSeq === this.hgOwnMediaSeq) this.setState({ hgPendingOwnMedia: Array.isArray(hgResult?.imageURLs) ? hgResult.imageURLs : [], hgError: "" });
+    } catch (hgError) {
+      if (this.hgMounted && hgSeq === this.hgOwnMediaSeq) this.setState({ hgError: this.hgMessage(hgError) });
+    } finally {
+      if (this.hgMounted && hgSeq === this.hgOwnMediaSeq) this.setState({ hgOwnMediaLoading: false });
     }
   };
 
@@ -319,7 +342,10 @@ export default class HGMallCatalog extends React.Component {
         if (this.hgMounted) this.setState((hgState) => ({ hgUploadedImages: [...hgImages], hgUnusedImages: [...hgState.hgUnusedImages, hgResult.imageURL] }));
       }
       await HGMallVM.publish({ ...hgDraft, amount: hgAmount, stock: hgStock, imageURLs: hgImages });
-      if (this.hgMounted) this.setState({ hgSelectedImages: [], hgUploadedImages: [], hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", description: "", skuTitle: "", amount: "" }, hgStock: "" });
+      if (this.hgMounted) {
+        this.hgReleasePreviews(this.state.hgSelectedPreviews);
+        this.setState({ hgSelectedImages: [], hgSelectedPreviews: [], hgUploadedImages: [], hgDraft: { type: "PHYSICAL_PRODUCT", category: "digital", title: "", summary: "", description: "", skuTitle: "", amount: "" }, hgStock: "" });
+      }
     }, "商品草稿已提交审核，通过后进入目录");
   };
 
@@ -327,7 +353,7 @@ export default class HGMallCatalog extends React.Component {
   hgChooseImages = (hgEvent) => {
     const hgFiles = Array.from(hgEvent.target.files || []);
     hgEvent.target.value = "";
-    if (hgFiles.length > 5 || hgFiles.some((hgFile) => !["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) || hgFile.size < 1 || hgFile.size > 5 * 1024 * 1024)) {
+    if (this.state.hgSelectedImages.length + hgFiles.length > 5 || hgFiles.some((hgFile) => !["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) || hgFile.size < 1 || hgFile.size > 5 * 1024 * 1024)) {
       this.setState({ hgError: "最多选择5张 JPG、PNG 或 WebP 图片，每张不超过5 MiB" });
       return;
     }
@@ -335,7 +361,23 @@ export default class HGMallCatalog extends React.Component {
       this.setState({ hgError: "部分图片已上传，请先提交当前草稿，失败时可直接重试" });
       return;
     }
-    this.setState({ hgSelectedImages: hgFiles, hgError: "" });
+    if (!hgFiles.length) return;
+    const hgPreviews = hgFiles.map((hgFile) => URL.createObjectURL(hgFile)); // 浏览器本地预览，绝不作为接口 imageURLs 提交。
+    this.setState((hgState) => ({ hgSelectedImages: [...hgState.hgSelectedImages, ...hgFiles], hgSelectedPreviews: [...hgState.hgSelectedPreviews, ...hgPreviews], hgError: "" }));
+  };
+
+  /** 浏览器预览 URL 仅在本次选择期间有效；释放时不影响已经提交的服务端图片。 */
+  hgReleasePreviews = (hgPreviews) => hgPreviews.forEach((hgURL) => URL.revokeObjectURL(hgURL));
+
+  /** 未开始上传时可逐张移除选择；上传成功的图片只能走服务端未使用图片清理。 */
+  hgRemovePreview = (hgIndex, hgMedia = false) => {
+    if (this.state.hgBusy || (hgMedia ? this.state.hgMediaURLs.length : this.state.hgUploadedImages.length)) return;
+    const hgFilesKey = hgMedia ? "hgMediaFiles" : "hgSelectedImages"; // 两组表单分别保存选择的 File。
+    const hgPreviewsKey = hgMedia ? "hgMediaPreviews" : "hgSelectedPreviews"; // URL 与 File 索引严格一致。
+    const hgURL = this.state[hgPreviewsKey][hgIndex]; // 要释放的单张预览；无效索引时为空。
+    if (!hgURL) return;
+    URL.revokeObjectURL(hgURL);
+    this.setState((hgState) => ({ [hgFilesKey]: hgState[hgFilesKey].filter((_, hgPosition) => hgPosition !== hgIndex), [hgPreviewsKey]: hgState[hgPreviewsKey].filter((_, hgPosition) => hgPosition !== hgIndex), hgError: "" }));
   };
 
   /** 仅清理本次草稿已上传且尚未发布的图片；每张由服务端按本人和未绑定状态再次核验。 */
@@ -344,16 +386,18 @@ export default class HGMallCatalog extends React.Component {
     this.hgWriteFlight = true;
     this.setState({ hgBusy: true, hgError: "" });
     try {
-      for (const hgURL of this.state.hgUploadedImages) {
+      for (const hgURL of [...this.state.hgUploadedImages]) {
         await HGMallVM.deleteImage(hgURL);
         if (this.hgMounted) this.setState((hgState) => ({ hgUploadedImages: hgState.hgUploadedImages.filter((hgImage) => hgImage !== hgURL), hgUnusedImages: hgState.hgUnusedImages.filter((hgImage) => hgImage !== hgURL) }));
       }
-      if (this.hgMounted) this.setState({ hgSelectedImages: [] });
     } catch (hgError) {
       if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
       this.hgWriteFlight = false;
-      if (this.hgMounted) this.setState({ hgBusy: false });
+      if (this.hgMounted) {
+        this.hgReleasePreviews(this.state.hgSelectedPreviews);
+        this.setState({ hgBusy: false, hgSelectedImages: [], hgSelectedPreviews: [], hgUploadedImages: [] });
+      }
     }
   };
 
@@ -376,7 +420,11 @@ export default class HGMallCatalog extends React.Component {
         if (this.hgMounted) this.setState((hgState) => ({ hgMediaURLs: [...hgURLs], hgUnusedImages: [...hgState.hgUnusedImages, hgResult.imageURL] }));
       }
       await HGMallVM.stageMedia(hgMediaProductId, hgURLs);
-      if (this.hgMounted) this.setState({ hgMediaProductId: "", hgMediaFiles: [], hgMediaURLs: [] });
+      if (this.hgMounted) {
+        this.hgReleasePreviews(this.state.hgMediaPreviews);
+        this.setState({ hgMediaProductId: "", hgMediaFiles: [], hgMediaPreviews: [], hgMediaURLs: [] });
+        this.hgLoadOwnMedia(hgMediaProductId); // 提交成功后立即展示服务端待审照片，避免误以为上传丢失。
+      }
     }, "补图已提交审核，通过后将在原商品目录和详情中展示");
   };
 
@@ -384,12 +432,58 @@ export default class HGMallCatalog extends React.Component {
     const hgFiles = Array.from(hgEvent.target.files || []);
     hgEvent.target.value = "";
     const hgItem = this.state.hgMine.find((hgProduct) => hgProduct.productId === this.state.hgMediaProductId) || (this.state.hgFoundProduct?.productId === this.state.hgMediaProductId ? this.state.hgFoundProduct : null);
-    if (!hgFiles.length || hgFiles.length + (hgItem?.imageURLs?.length || 0) > 5 || hgFiles.some((hgFile) => !["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) || hgFile.size < 1 || hgFile.size > 5 * 1024 * 1024)) {
+    if (!hgFiles.length) return;
+    if (this.state.hgMediaFiles.length + hgFiles.length + (hgItem?.imageURLs?.length || 0) > 5 || hgFiles.some((hgFile) => !["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) || hgFile.size < 1 || hgFile.size > 5 * 1024 * 1024)) {
       this.setState({ hgError: "请选择1-5张 JPG、PNG 或 WebP 图片，每张不超过5 MiB" }); return;
     }
     if (this.state.hgMediaURLs.length) { this.setState({ hgError: "图片已部分上传，请重试提交当前补图" }); return; }
-    this.setState({ hgMediaFiles: hgFiles, hgError: "" });
+    const hgPreviews = hgFiles.map((hgFile) => URL.createObjectURL(hgFile)); // 仅预览，实际补图仍按文件上传并等待审核。
+    this.setState((hgState) => ({ hgMediaFiles: [...hgState.hgMediaFiles, ...hgFiles], hgMediaPreviews: [...hgState.hgMediaPreviews, ...hgPreviews], hgError: "" }));
   };
+
+  /** 切换或取消补图时释放旧预览；已有上传结果须先提交审核，不允许无意丢失重试状态。 */
+  hgCloseMedia = () => {
+    if (this.state.hgBusy || this.state.hgMediaURLs.length) return;
+    this.hgReleasePreviews(this.state.hgMediaPreviews);
+    this.setState({ hgMediaProductId: "", hgMediaFiles: [], hgMediaPreviews: [] });
+  };
+
+  /** 明确放弃补图时逐张清理已上传的临时资产；清理失败的记录仍能在「未使用图片」手动处理。 */
+  hgDiscardMedia = async () => {
+    if (this.hgWriteFlight) return;
+    this.hgWriteFlight = true;
+    this.setState({ hgBusy: true, hgError: "" });
+    try {
+      for (const hgURL of [...this.state.hgMediaURLs]) {
+        await HGMallVM.deleteImage(hgURL);
+        if (this.hgMounted) this.setState((hgState) => ({ hgUnusedImages: hgState.hgUnusedImages.filter((hgItem) => hgItem !== hgURL) }));
+      }
+    } catch (hgError) {
+      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+    } finally {
+      this.hgWriteFlight = false;
+      if (this.hgMounted) {
+        this.hgReleasePreviews(this.state.hgMediaPreviews);
+        this.setState({ hgBusy: false, hgMediaProductId: "", hgMediaFiles: [], hgMediaPreviews: [], hgMediaURLs: [] });
+      }
+    }
+  };
+
+  hgChooseMediaProduct = (hgProductId) => {
+    if (this.state.hgBusy || this.state.hgMediaURLs.length) return;
+    this.hgReleasePreviews(this.state.hgMediaPreviews);
+    this.setState({ hgMediaProductId: hgProductId, hgMediaFiles: [], hgMediaPreviews: [], hgEditProductId: "" });
+  };
+
+  /** 两个发布表单共用缩略图预览，预览不等于已上传或已公开。 */
+  renderImagePreviews(hgFiles, hgPreviews, hgMedia = false) {
+    if (!hgFiles.length) return null;
+    return <div className={styles.draftPreviews} aria-label="已选择的商品图片预览">{hgFiles.map((hgFile, hgIndex) => <figure className={styles.draftPreview} key={hgPreviews[hgIndex]}>
+      <img src={hgPreviews[hgIndex]} alt={`${hgFile.name} 预览`} />
+      <figcaption>{hgFile.name}</figcaption>
+      <button type="button" disabled={this.state.hgBusy || !!(hgMedia ? this.state.hgMediaURLs.length : this.state.hgUploadedImages.length)} onClick={() => this.hgRemovePreview(hgIndex, hgMedia)}>移除</button>
+    </figure>)}</div>;
+  }
 
   /** 购买响应未知时保持同一 requestId 重试；更改商品或收货信息则生成全新的键。 */
   hgBuy = async (hgEvent) => {
@@ -521,11 +615,16 @@ export default class HGMallCatalog extends React.Component {
         <div className={styles.manageBody}><h3>{hgItem.title}</h3><small>{hgItem.productId}</small><p>{hgItem.summary}</p>
           <p>{HGFormatCoin(hgItem.amount)} M币 · {hgItem.lifecycleStatus === 2 ? "已归档" : hgItem.status === 1 ? "已上架" : hgItem.status === 2 ? "审核未通过" : "待审核"} · {hgItem.imageURLs?.length || 0}/5 张图片</p>
           <div className={styles.manageActions}>
-            {hgItem.lifecycleStatus === 1 && hgItem.status === 1 && <><button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => this.setState({ hgEditProductId: hgItem.productId, hgEditForm: { title: hgItem.title, summary: hgItem.summary, description: hgItem.description || "" }, hgMediaProductId: "", hgMediaFiles: [] })}>编辑资料</button>
-              {(hgItem.imageURLs?.length || 0) < 5 && <button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => this.setState({ hgMediaProductId: hgItem.productId, hgMediaFiles: [], hgEditProductId: "" })}>增添图片</button>}</>}
+            {hgItem.lifecycleStatus === 1 && hgItem.status === 1 && <><button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => { this.hgCloseMedia(); this.setState({ hgEditProductId: hgItem.productId, hgEditForm: { title: hgItem.title, summary: hgItem.summary, description: hgItem.description || "" } }); }}>编辑资料</button>
+              {(hgItem.imageURLs?.length || 0) < 5 && <button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => this.hgChooseMediaProduct(hgItem.productId)}>增添图片</button>}</>}
+            {hgItem.lifecycleStatus === 1 && <button type="button" disabled={hgBusy} onClick={() => this.hgLoadOwnMedia(hgItem.productId)}>查看待审图片</button>}
             {hgItem.lifecycleStatus !== 2 && <button type="button" disabled={hgBusy} onClick={() => this.hgArchiveProduct(hgItem.productId)}>归档商品</button>}
           </div></div>
       </article>)}</div>
+      {!!this.state.hgInspectMediaProductId && <div className={styles.pendingMedia} role="status"><h3>商品 {this.state.hgInspectMediaProductId} 的待审图片</h3>
+        {this.state.hgOwnMediaLoading ? <p>正在读取补图审核状态...</p> : this.state.hgPendingOwnMedia.length ? <><p>以下图片已上传，尚未审核公开；需由其他具备商城审核权限的管理员在「商品与商家审核」通过。</p>
+          <div className={styles.draftPreviews}>{this.state.hgPendingOwnMedia.map((hgURL, hgIndex) => <figure className={styles.draftPreview} key={hgURL}><img src={normalizeVideoCoverUrl(hgURL)} alt={`待审核补图 ${hgIndex + 1}`} /><figcaption>待审图片 {hgIndex + 1}</figcaption></figure>)}</div></> : <p>暂无待审补图；已公开图片显示在上方商品卡片和商品详情。</p>}
+      </div>}
       {!hgFoundProduct && <div className={styles.pager}><button type="button" disabled={!hgMerchantHistory.length || hgMerchantLoading} onClick={() => this.hgLoadMerchant(hgMerchantHistory[hgMerchantHistory.length - 1], hgMerchantHistory.slice(0, -1))}>上一页</button>
         <button type="button" disabled={!hgMerchantNext || hgMerchantLoading} onClick={() => this.hgLoadMerchant(hgMerchantNext, [...hgMerchantHistory, hgMerchantCursor].slice(-64))}>下一页</button></div>}
       {!!this.state.hgEditProductId && <form onSubmit={this.hgSubmitEdit}><h3>编辑商品资料</h3><p>审核通过前沿用当前资料；商品价格、库存和订单快照不会改变。</p>
@@ -534,9 +633,9 @@ export default class HGMallCatalog extends React.Component {
         <label>介绍（纯文本） <textarea maxLength={4096} value={this.state.hgEditForm.description} onChange={(hgEvent) => this.setState((hgState) => ({ hgEditForm: { ...hgState.hgEditForm, description: hgEvent.target.value } }))} /></label>
         <div className={styles.manageActions}><button type="submit" disabled={hgBusy}>提交修改审核</button><button type="button" onClick={() => this.setState({ hgEditProductId: "" })}>取消</button></div></form>}
       {!!this.state.hgMediaProductId && <form onSubmit={this.hgStageMedia}><h3>为商品增添图片</h3><p>仅本人已上架商品可补图；审核期间原商品保持上架，图片审核通过后出现在目录和详情。</p>
-        <label>选择展示图（总计最多5张） <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={hgBusy || !!this.state.hgMediaURLs.length} onChange={this.hgChooseMedia} /></label>
-        {!!this.state.hgMediaFiles.length && <p>已选：{this.state.hgMediaFiles.map((hgFile) => hgFile.name).join("、")}</p>}
-        <div className={styles.manageActions}><button type="submit" disabled={hgBusy || !this.state.hgMediaFiles.length}>提交补图审核</button><button type="button" disabled={hgBusy || !!this.state.hgMediaURLs.length} onClick={() => this.setState({ hgMediaProductId: "", hgMediaFiles: [] })}>取消</button></div></form>}
+        <label>选择展示图（已选 {this.state.hgMediaFiles.length} 张，总计最多5张） <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={hgBusy || !!this.state.hgMediaURLs.length || this.state.hgMediaFiles.length >= 5} onChange={this.hgChooseMedia} /></label>
+        {this.renderImagePreviews(this.state.hgMediaFiles, this.state.hgMediaPreviews, true)}
+        <div className={styles.manageActions}><button type="submit" disabled={hgBusy || !this.state.hgMediaFiles.length}>提交补图审核</button><button type="button" disabled={hgBusy} onClick={this.state.hgMediaURLs.length ? this.hgDiscardMedia : this.hgCloseMedia}>取消并清理</button></div></form>}
     </section>;
   }
 
@@ -559,8 +658,8 @@ export default class HGMallCatalog extends React.Component {
           <label>商品名称 <input required maxLength={128} value={hgDraft.title} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, title: hgEvent.target.value } })} /></label>
           <label>简介（纯文本） <textarea required maxLength={512} value={hgDraft.summary} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, summary: hgEvent.target.value } })} /></label>
           <label>商品介绍（纯文本） <textarea maxLength={4096} value={hgDraft.description} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, description: hgEvent.target.value } })} /></label>
-          <label>展示图片（最多5张，每张不超过5 MiB） <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={hgBusy} onChange={this.hgChooseImages} /></label>
-          {!!this.state.hgSelectedImages.length && <p>已选：{this.state.hgSelectedImages.map((hgFile) => hgFile.name).join("、")}</p>}
+          <label>展示图片（已选 {this.state.hgSelectedImages.length} 张，最多5张，每张不超过5 MiB） <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={hgBusy || !!this.state.hgUploadedImages.length || this.state.hgSelectedImages.length >= 5} onChange={this.hgChooseImages} /></label>
+          {this.renderImagePreviews(this.state.hgSelectedImages, this.state.hgSelectedPreviews)}
           {!!this.state.hgUploadedImages.length && <button type="button" disabled={hgBusy} onClick={this.hgDiscardImages}>清除已上传的图片</button>}
           <label>规格 <input required maxLength={128} value={hgDraft.skuTitle} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, skuTitle: hgEvent.target.value } })} /></label>
           <label>价格（整数 M币；实物不超过100000） <input required type="number" min="1" max={hgDraft.type === "PHYSICAL_PRODUCT" ? "100000" : "9007199254740991"} step="1" value={hgDraft.amount} onChange={(hgEvent) => this.setState({ hgDraft: { ...hgDraft, amount: hgEvent.target.value } })} /></label>
