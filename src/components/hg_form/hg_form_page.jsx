@@ -244,11 +244,17 @@ class HGFormPage extends React.Component {
    * @returns {React.ReactNode} 表单节点。
    */
   render() {
-    const { children, style } = this.props;
+    const { children, style, autoComplete } = this.props;
 
     return (
       <FormContext.Provider value={this.getContextValue()}>
-        <form className={this.getFormClassName()} style={style} onSubmit={this.handleSubmit} noValidate>
+        <form
+          className={this.getFormClassName()}
+          style={style}
+          autoComplete={autoComplete}
+          onSubmit={this.handleSubmit}
+          noValidate
+        >
           {children}
         </form>
       </FormContext.Provider>

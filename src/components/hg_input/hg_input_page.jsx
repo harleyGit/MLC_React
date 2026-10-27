@@ -28,7 +28,7 @@ class HGInputPage extends React.PureComponent {
   /**
    * 受控模式下同步 innerValue。
    */
-  static getDerivedStateFromProps(nextProps, prevState) {
+  static getDerivedStateFromProps(nextProps) {
     if (nextProps.value !== undefined) {
       return { innerValue: nextProps.value };
     }
@@ -80,6 +80,26 @@ class HGInputPage extends React.PureComponent {
   };
 
   /**
+   * 同步输入框聚焦状态，并把原生事件继续交给业务组件。
+   * @param {React.FocusEvent} e - 输入框聚焦事件。
+   * @returns {void}
+   */
+  handleFocus = (e) => {
+    this.setState({ focused: true });
+    this.props.onFocus?.(e);
+  };
+
+  /**
+   * 同步输入框失焦状态，并把原生事件继续交给业务组件。
+   * @param {React.FocusEvent} e - 输入框失焦事件。
+   * @returns {void}
+   */
+  handleBlur = (e) => {
+    this.setState({ focused: false });
+    this.props.onBlur?.(e);
+  };
+
+  /**
    * 渲染前缀图标/文本。
    * @returns {React.ReactNode} prefix 节点或 null。
    */
@@ -128,7 +148,17 @@ class HGInputPage extends React.PureComponent {
    * 约束：受控/非受控模式均支持；maxLength 限制输入长度。
    */
   render() {
-    const { placeholder, disabled, className = "", style, prefix } = this.props;
+    const {
+      placeholder,
+      disabled,
+      className = "",
+      style,
+      prefix,
+      name,
+      autoComplete,
+      onKeyDown,
+      role,
+    } = this.props;
     const { focused } = this.state;
     const val = this.getValue();
 
@@ -149,11 +179,19 @@ class HGInputPage extends React.PureComponent {
           ref={this.inputRef}
           className={styles.input}
           value={val}
+          name={name}
           placeholder={placeholder}
           disabled={disabled}
+          autoComplete={autoComplete}
+          role={role}
+          aria-autocomplete={this.props["aria-autocomplete"]}
+          aria-controls={this.props["aria-controls"]}
+          aria-expanded={this.props["aria-expanded"]}
+          aria-activedescendant={this.props["aria-activedescendant"]}
           onChange={this.handleChange}
-          onFocus={() => this.setState({ focused: true })}
-          onBlur={() => this.setState({ focused: false })}
+          onFocus={this.handleFocus}
+          onBlur={this.handleBlur}
+          onKeyDown={onKeyDown}
         />
         {this.renderClearIcon()}
         {this.renderCount()}
@@ -208,6 +246,14 @@ class HGInputPassword extends React.PureComponent {
   };
 
   /**
+   * 把焦点移入原生密码输入框，供账号切换后触发浏览器密码管理器。
+   * @returns {void}
+   */
+  focus = () => {
+    this.inputRef.current?.focus();
+  };
+
+  /**
    * 渲染密码可见性切换按钮。
    * @returns {React.ReactNode} 切换按钮。
    */
@@ -228,7 +274,15 @@ class HGInputPassword extends React.PureComponent {
    * 约束：受控/非受控模式均支持；通过 visible 状态控制 input type。
    */
   render() {
-    const { placeholder, disabled, prefix, className = "", style } = this.props;
+    const {
+      placeholder,
+      disabled,
+      prefix,
+      className = "",
+      style,
+      name,
+      autoComplete,
+    } = this.props;
     const { visible, focused } = this.state;
     const val = this.getValue();
 
@@ -250,8 +304,10 @@ class HGInputPassword extends React.PureComponent {
           className={styles.input}
           type={visible ? "text" : "password"}
           value={val}
+          name={name}
           placeholder={placeholder}
           disabled={disabled}
+          autoComplete={autoComplete}
           onChange={this.handleChange}
           onFocus={() => this.setState({ focused: true })}
           onBlur={() => this.setState({ focused: false })}
@@ -353,7 +409,7 @@ class HGInputSearch extends React.PureComponent {
    * 约束：回车触发 onSearch；allowClear 为 true 时显示清除按钮。
    */
   render() {
-    const { placeholder, disabled, allowClear, className = "", style, enterButton } = this.props;
+    const { placeholder, disabled, allowClear, className = "", style } = this.props;
     const { focused } = this.state;
     const val = this.getValue();
 

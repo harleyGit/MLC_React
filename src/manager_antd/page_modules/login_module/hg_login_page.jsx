@@ -1,8 +1,8 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-25 22:27:11
- * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-02-01 22:41:26
+ * @LastEditors: Harley harelysoa@qq.com
+ * @LastEditTime: 2026-10-27 22:08:23
  * @FilePath: /MLC_React/src/manager_antd/login_module/hglogin_page.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -22,6 +22,7 @@ import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_f
 import HGInputPage, { HGInputPassword } from "../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGIconPage from "../../../components/hg_icon/hg_icon_page";
+import HGLoginHistoryStorage from "../../storage/hg_login_history_storage";
 
 /**
  * 用户登录页面
@@ -31,11 +32,23 @@ import HGIconPage from "../../../components/hg_icon/hg_icon_page";
  */
 class HGLoginPage extends Component {
   formRef = React.createRef();
+  passwordInputRef = React.createRef();
 
   state = {
     loading: false,
     userName: "",
+    recentAccounts: [],
+    recentAccountsVisible: false,
+    activeAccountIndex: -1,
   };
+
+  /**
+   * 页面挂载后读取本机成功登录历史；历史仅包含账号和登录时间。
+   * @returns {void}
+   */
+  componentDidMount() {
+    this.setState({ recentAccounts: HGLoginHistoryStorage.getRecentAccounts() });
+  }
 
   /**
    * 提交登录表单，调用登录接口并获取用户资料，成功后跳转至来源页。
@@ -52,6 +65,8 @@ class HGLoginPage extends Component {
     })
       .then((data) => {
         LogOut("data:", data);
+        const recentAccounts = HGLoginHistoryStorage.recordSuccessfulLogin(values.username);
+        this.setState({ recentAccounts });
         return HGEditUserPageVM.getUserProfile();
       })
       .then(() => {
@@ -105,12 +120,202 @@ class HGLoginPage extends Component {
    */
   handleUserNameInputChange = (e) => {
     const value = e.target.value;
-    // 此时 inputValue 是实时的输入值
     this.setState({
       userName: value,
+      recentAccountsVisible: true,
+      activeAccountIndex: -1,
     });
-    console.log("当前输入值：", value);
   };
+
+  /**
+   * 打开最近登录账号列表。
+   * @returns {void}
+   */
+  handleUserNameFocus = () => {
+    this.setState({ recentAccountsVisible: true, activeAccountIndex: -1 });
+  };
+
+  /**
+   * 输入框失焦后关闭列表，为列表按钮点击保留一个事件周期。
+   * @returns {void}
+   */
+  handleUserNameBlur = () => {
+    window.setTimeout(() => {
+      this.setState({ recentAccountsVisible: false, activeAccountIndex: -1 });
+    }, 0);
+  };
+
+  /**
+   * 选择历史账号并清空旧密码，随后聚焦密码框供浏览器密码管理器自动填充。
+   * @param {string} userName - 被选择的历史账号。
+   * @returns {void}
+   */
+  handleSelectRecentAccount = (userName) => {
+    this.formRef.current?.setFieldsValue({ username: userName, password: "" });
+    this.setState(
+      {
+        userName,
+        recentAccountsVisible: false,
+        activeAccountIndex: -1,
+      },
+      () => this.passwordInputRef.current?.focus()
+    );
+  };
+
+  /**
+   * 支持通过方向键、回车和 Escape 操作最近账号列表。
+   * @param {React.KeyboardEvent} event - 用户名输入框键盘事件。
+   * @returns {void}
+   */
+  handleUserNameKeyDown = (event) => {
+    const { recentAccounts, recentAccountsVisible, activeAccountIndex } = this.state;
+    if (recentAccounts.length === 0) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      this.setState({ recentAccountsVisible: false, activeAccountIndex: -1 });
+      return;
+    }
+
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter") {
+      return;
+    }
+
+    if (event.key === "Enter" && (!recentAccountsVisible || activeAccountIndex < 0)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.key === "Enter") {
+      this.handleSelectRecentAccount(recentAccounts[activeAccountIndex].userName);
+      return;
+    }
+
+    const direction = event.key === "ArrowDown" ? 1 : -1;
+    const startIndex = activeAccountIndex < 0 ? (direction > 0 ? -1 : 0) : activeAccountIndex;
+    const nextIndex = (startIndex + direction + recentAccounts.length) % recentAccounts.length;
+    this.setState({ recentAccountsVisible: true, activeAccountIndex: nextIndex });
+  };
+
+  /**
+   * 渲染最近成功登录的账号列表，列表顺序由成功登录时间决定。
+   * @returns {React.ReactNode} 最近账号列表或 null。
+   */
+  renderRecentAccounts = () => {
+    const { recentAccounts, recentAccountsVisible, activeAccountIndex } = this.state;
+    if (!recentAccountsVisible || recentAccounts.length === 0) {
+      return null;
+    }
+
+    return (
+      <div id="recent-login-accounts" className={styles.recentAccounts} role="listbox">
+        <div className={styles.recentAccountsTitle}>最近登录</div>
+        {recentAccounts.map((account, index) => {
+          const isActive = index === activeAccountIndex;
+          return (
+            <button
+              id={`recent-login-account-${index}`}
+              key={account.userName}
+              className={`${styles.recentAccountItem} ${isActive ? styles.recentAccountItemActive : ""}`}
+              type="button"
+              role="option"
+              aria-selected={isActive}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => this.handleSelectRecentAccount(account.userName)}
+            >
+              <HGIconPage type="user" />
+              <span>{account.userName}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  /**
+   * 渲染带最近账号选择器的用户名字段。
+   * @returns {React.ReactNode} 用户名表单区域。
+   */
+  renderUserNameField = () => {
+    const { recentAccountsVisible, activeAccountIndex } = this.state;
+    const activeDescendant =
+      recentAccountsVisible && activeAccountIndex >= 0
+        ? `recent-login-account-${activeAccountIndex}`
+        : undefined;
+
+    return (
+      <div className={styles.accountField}>
+        <Item
+          name="username"
+          rules={[{ required: true, message: "请输入邮箱/手机号码" }]}
+          style={{ marginBottom: 0 }}
+        >
+          <HGInputPage
+            prefix={<HGIconPage type="user" />}
+            placeholder="用户名"
+            autoComplete="username"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="recent-login-accounts"
+            aria-expanded={recentAccountsVisible}
+            aria-activedescendant={activeDescendant}
+            onChange={this.handleUserNameInputChange}
+            onFocus={this.handleUserNameFocus}
+            onBlur={this.handleUserNameBlur}
+            onKeyDown={this.handleUserNameKeyDown}
+          />
+        </Item>
+        {this.renderRecentAccounts()}
+      </div>
+    );
+  };
+
+  /**
+   * 渲染登录表单，保留标准自动填充语义供浏览器密码管理器识别。
+   * @returns {React.ReactNode} 登录表单。
+   */
+  renderLoginForm = () => {
+    return (
+      <Form
+        ref={this.formRef}
+        name="login"
+        autoComplete="on"
+        onFinish={this.handleSubmit}
+        size="large"
+        initialValues={{
+          username: DEBUG_MAP.userName,
+          password: DEBUG_MAP.password,
+        }}
+      >
+        {this.renderUserNameField()}
+
+        <Item
+          name="password"
+          rules={[{ required: true, message: "请输入密码" }]}
+        >
+          <HGInputPassword
+            ref={this.passwordInputRef}
+            prefix={<HGIconPage type="lock" />}
+            placeholder="密码"
+            autoComplete="current-password"
+          />
+        </Item>
+
+        <Item>
+          <HGButtonPage
+            type="primary"
+            htmlType="submit"
+            loading={this.state.loading}
+            block
+          >
+            登录
+          </HGButtonPage>
+        </Item>
+      </Form>
+    );
+  };
+
   render() {
     return (
       <div className={styles.page}>
@@ -122,45 +327,7 @@ class HGLoginPage extends Component {
         <div className={styles.card}>
           <h2 className={styles.title}>用户登录</h2>
 
-          <Form
-            name="login"
-            onFinish={this.handleSubmit}
-            size="large"
-            initialValues={{
-              //默认值
-              username: DEBUG_MAP.userName, //"admin",
-              password: DEBUG_MAP.password, //"123456",
-            }}
-          >
-            <Item
-              name="username"
-              rules={[{ required: true, message: "请输入邮箱/手机号码" }]}
-            >
-              <HGInputPage
-                prefix={<HGIconPage type="user" />}
-                placeholder="用户名"
-                onChange={this.handleUserNameInputChange}
-              />
-            </Item>
-
-            <Item
-              name="password"
-              rules={[{ required: true, message: "请输入密码" }]}
-            >
-              <HGInputPassword prefix={<HGIconPage type="lock" />} placeholder="密码" />
-            </Item>
-
-            <Item>
-              <HGButtonPage
-                type="primary"
-                htmlType="submit"
-                loading={this.state.loading}
-                block
-              >
-                登录
-              </HGButtonPage>
-            </Item>
-          </Form>
+          {this.renderLoginForm()}
 
           <div className={styles.actions}>
             <span className={styles.link} onClick={() => this.handleRegister(HGRegisterType.PHONE)}>
