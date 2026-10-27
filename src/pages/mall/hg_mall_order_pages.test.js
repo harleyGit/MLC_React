@@ -17,10 +17,14 @@ function hgPage(hgPath, hgVM, hgProps = {}) {
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
       if (hgDependency === "react-router-dom") return { Link: "a" };
-      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", MALL: "/mall", MALL_ORDER_DETAIL: "/mall/orders/:orderId", EDIT_USER_INFO: "/account/setting" } };
+      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", MALL: "/mall", MALL_ORDER_DETAIL: "/mall/orders/:orderId", EDIT_USER_INFO: "/account/setting", USER_CENTER: "/account/center" } };
       if (hgDependency.endsWith("hg_mall_vm.js")) return { default: hgVM, __esModule: true };
       if (hgDependency.endsWith("hg_mall_amount.js")) return { HGFormatCoin };
       if (hgDependency.endsWith("hg_mall_security.js")) return { hgSecureRequestId: () => "test-request-id" };
+      if (hgDependency.includes("hg_side_menu_page")) return { default: "HGSideMenuPage", __esModule: true };
+      if (hgDependency.includes("hg_side_menu_vm")) return { default: { findPathToKey: () => [] }, __esModule: true };
+      if (hgDependency.includes("hg_mall_orders_panel")) return { default: "HGMallOrdersPanel", __esModule: true };
+      if (hgDependency.includes("hg_user_center_vm")) return { default: { getDefaultSelectedKey: () => "orders" }, USER_CENTER_MENU_ITEMS: [{ key: "orders", label: "我的商品订单" }], __esModule: true };
       return { default: {}, __esModule: true };
     },
   });
@@ -42,6 +46,27 @@ function hgLinks(hgNode) {
   return [...(hgNode.type === "a" ? [hgNode.props.to] : []), ...hgLinks(hgNode.props.children)];
 }
 
+/** 遍历元素树收集组件类型，用于断言页面装配了哪些区块。 */
+function hgTypes(hgNode) {
+  if (Array.isArray(hgNode)) return hgNode.flatMap(hgTypes);
+  if (!React.isValidElement(hgNode)) return [];
+  return [hgNode.type, ...hgTypes(hgNode.props.children)];
+}
+
+/** 在元素树中查找第一个指定类型的元素。 */
+function hgFind(hgNode, hgType) {
+  if (Array.isArray(hgNode)) {
+    for (const hgChild of hgNode) {
+      const hgFound = hgFind(hgChild, hgType);
+      if (hgFound) return hgFound;
+    }
+    return null;
+  }
+  if (!React.isValidElement(hgNode)) return null;
+  if (hgNode.type === hgType) return hgNode;
+  return hgFind(hgNode.props.children, hgType);
+}
+
 /** 等待 SWC 转换后包含 await/finally 的页面查询完成。 */
 async function hgFlush() {
   for (let hgIndex = 0; hgIndex < 8; hgIndex++) await Promise.resolve();
@@ -51,7 +76,7 @@ async function hgFlush() {
 const hgPending = { orderId: "MORD_1", title: "测试商品", skuTitle: "规格", quantity: 2, unitAmount: 50, amount: 100,
   tradeStatus: 1, shippingStatus: 0, receiverName: "测试收件人", receiverPhone: "13800000000", receiverAddress: "测试地址", expiresAt: "2026-10-24T12:00:00Z" };
 
-test("本店订单行打开商家授权详情，用户中心面板的待付/已付行打开本人详情", () => {
+test("本店订单行打开商家授权详情，用户中心订单表操作列打开本人详情", () => {
   const hgInstance = hgPage("hg_mall_catalog.jsx", {}, { hgInitialView: "merchant" });
   hgInstance.state.hgSellerOrders = [{ ...hgPending, orderId: "MORD_3", tradeStatus: 2 }];
   assert.deepEqual(hgLinks(hgInstance.renderSellerOrders()), ["/mall/orders/MORD_3?merchant=1"]);
@@ -59,7 +84,27 @@ test("本店订单行打开商家授权详情，用户中心面板的待付/已�
   const hgPanel = hgPage("hg_mall_orders_panel.jsx", {}, {});
   hgPanel.state.hgPendingOrders = [hgPending];
   hgPanel.state.hgOrders = [{ ...hgPending, orderId: "MORD_2", tradeStatus: 2 }];
-  assert.deepEqual(hgLinks(hgPanel.render()).sort(), ["/mall/orders/MORD_1", "/mall/orders/MORD_2"]);
+  // 详情链接在 HGTablePage 操作列的 render 内，直接执行列渲染收集链接目标。
+  const hgPaidAction = hgPanel.hgPaidColumns().find((hgCol) => hgCol.dataIndex === "action");
+  const hgPendingAction = hgPanel.hgPendingColumns().find((hgCol) => hgCol.dataIndex === "action");
+  assert.deepEqual(
+    [
+      ...hgLinks(hgPaidAction.render(null, hgPanel.state.hgOrders[0], 0)),
+      ...hgLinks(hgPendingAction.render(null, hgPanel.state.hgPendingOrders[0], 0)),
+    ].sort(),
+    ["/mall/orders/MORD_1", "/mall/orders/MORD_2"]
+  );
+});
+
+test("个人中心左侧为侧边栏菜单，右侧内容区渲染我的商品订单面板", () => {
+  const hgInstance = hgPage("../../manager_antd/page_modules/user/user_center/hg_user_center_page.jsx", {}, {});
+  const hgTree = hgInstance.render();
+  const hgTypesList = hgTypes(hgTree);
+  assert.ok(hgTypesList.includes("HGSideMenuPage"));
+  assert.ok(hgTypesList.includes("HGMallOrdersPanel"));
+  const hgMenu = hgFind(hgTree, "HGSideMenuPage");
+  assert.equal(hgMenu.props.selectedKey, "orders");
+  assert.equal(hgMenu.props.menuItems[0].label, "我的商品订单");
 });
 
 test("本人详情从待支付快照打开，点击继续支付后重读服务端已支付状态", async () => {
@@ -77,7 +122,7 @@ test("本人详情从待支付快照打开，点击继续支付后重读服务�
   assert.equal(hgPayCalls, 1);
   assert.equal(hgInstance.state.hgOrder.tradeStatus, 2);
   assert.doesNotMatch(hgText(hgInstance.renderOrder()), /继续支付 M币/);
-  assert.equal(hgInstance.render().props.children.props.children[0].props.to, "/account/setting?menu=orders");
+  assert.equal(hgInstance.render().props.children.props.children[0].props.to, "/account/center");
   hgInstance.componentWillUnmount();
 });
 

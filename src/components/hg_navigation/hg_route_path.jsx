@@ -17,6 +17,7 @@ export const ROUTE_PATH = Object.freeze({
   USER_PROFILE: "/profile", //用户信息
   UPDATE_USER_PROIFE: "/profile/edit", //更新用户信息
   EDIT_USER_INFO: "/account/setting", //账号设置(编辑用户信息页)
+  USER_CENTER: "/account/center", //个人中心(侧边栏 + 我的商品订单)
   WALLET: "/account/wallet", //我的钱包
   WALLET_RECHARGE: "/account/wallet/recharge", //充值及订单详情
   WALLET_RECORDS: "/account/wallet/records", //独立充值记录页，支持游标分页

@@ -81,6 +81,8 @@ class HGTopNavLayout extends Component {
         return "about";
       case ROUTE_PATH.USER_PROFILE:
         return "profile";
+      case ROUTE_PATH.USER_CENTER:
+        return "profile";
       case ROUTE_PATH.EDIT_USER_INFO:
       case ROUTE_PATH.WALLET:
         return "avatar";
@@ -241,7 +243,7 @@ class HGTopNavLayout extends Component {
           ] : []),
           { key: "test_module", label: <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>测试模块</Link> },
           { key: "bili_douga", label: <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>B站动画</Link> },
-          { key: "profile", label: <Link to={ROUTE_PATH.USER_PROFILE} className={styles.menuLink}>我的信息</Link> },
+          { key: "profile", label: <Link to={ROUTE_PATH.USER_CENTER} className={styles.menuLink}>个人中心</Link> },
         ]}
       />
     );

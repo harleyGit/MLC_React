@@ -6,7 +6,6 @@ import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_edit_user_page.module.css";
 import HGAccountSecurityPage from "./hg_account_security_page";
 import HGEditUserPageVM, { MENU_KEYS, MENU_LIST } from "./hg_edit_user_page_vm";
-import HGMallOrdersPanel from "../../../../pages/mall/hg_mall_orders_panel";
 import HGVideoUploadPage from "../../hg_video_upload/hg_video_upload_page";
 import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
 
@@ -18,10 +17,6 @@ class HGEditUserPage extends React.Component {
   constructor(props) {
     super(props);
     this.state = HGEditUserPageVM.createInitialState();
-    // 支持站内深链（如钱包消费记录页、订单详情页）通过 ?menu=orders 直达商品订单菜单。
-    if (this.props.location?.search?.includes("menu=orders")) {
-      this.state.activeMenuKey = MENU_KEYS.ORDERS;
-    }
     this.avatarObjectUrl = "";
     this.selectedAvatarFile = null;
   }
@@ -378,15 +373,6 @@ class HGEditUserPage extends React.Component {
   };
 
   /**
-   * 渲染“我的商品订单”内容区。
-   * @returns {React.ReactNode} 商城本人订单面板 JSX。
-   * 约束：订单数据、支付与退款由面板独立请求，父页面不缓存收件隐私信息。
-   */
-  renderOrdersContent = () => {
-    return <HGMallOrdersPanel />;
-  };
-
-  /**
    * 渲染“账号安全”内容区入口。
    * @returns {React.ReactNode} 独立账号安全子模块。
    */
@@ -415,9 +401,6 @@ class HGEditUserPage extends React.Component {
     const { activeMenuKey } = this.state;
     if (activeMenuKey === MENU_KEYS.AVATAR) {
       return this.renderAvatarContent();
-    }
-    if (activeMenuKey === MENU_KEYS.ORDERS) {
-      return this.renderOrdersContent();
     }
     if (activeMenuKey === MENU_KEYS.SECURITY) {
       return this.renderSecurityContent();

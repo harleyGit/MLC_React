@@ -27,6 +27,7 @@ const HGProducts = getHGPageConfig(PAGE.PRODUCTS).component;
 const HGMallPage = getHGPageConfig(PAGE.MALL).component;
 const HGMallOrderPage = getHGPageConfig(PAGE.MALL_ORDER_DETAIL).component;
 const HGEditUserPage = getHGPageConfig(PAGE.EDIT_USER_INFO).component;
+const HGUserCenterPage = getHGPageConfig(PAGE.USER_CENTER).component;
 const HGWalletPage = getHGPageConfig(PAGE.WALLET).component;
 const HGWalletRechargePage = getHGPageConfig(PAGE.WALLET_RECHARGE).component;
 // 全部充值记录的稳定 lazy 页面，使用独立 URL 并沿用主布局鉴权。
@@ -109,6 +110,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.EDIT_USER_INFO,
         element: hgLazyElement(<WrappedHGEditUserPage />),
+      },
+      {
+        path: ROUTE_PATH.USER_CENTER,
+        element: hgLazyElement(<HGUserCenterPage />),
       },
       {
         path: ROUTE_PATH.WALLET,

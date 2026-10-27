@@ -876,7 +876,7 @@ export default class HGMallCatalog extends React.Component {
         this.setState({
           hgPendingBuy: false,
           hgNotice:
-            "订单已创建，商品库存预留15分钟；请在「账号设置 → 我的商品订单」中完成 M币支付",
+            "订单已创建，商品库存预留15分钟；请在「个人中心 → 我的商品订单」中完成 M币支付",
           hgDetail: null,
           hgBuyForm: {
             quantity: "1",

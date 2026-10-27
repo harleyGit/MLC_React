@@ -168,7 +168,7 @@ export default class HGMallPage extends React.Component {
   renderOrders() {
     return (
       <section className={styles.section}>
-        <p className={styles.notice}>这里仅展示本人充值订单；实物商品订单请前往 <Link to={`${ROUTE_PATH.EDIT_USER_INFO}?menu=orders`}>账号设置 → 我的商品订单</Link>。</p>
+        <p className={styles.notice}>这里仅展示本人充值订单；实物商品订单请前往 <Link to={ROUTE_PATH.USER_CENTER}>个人中心 → 我的商品订单</Link>。</p>
         <HGWalletRecordsPage />
       </section>
     );

@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
+import HGTablePage from "../../components/hg_table/hg_table_page";
 import { HGFormatCoin } from "./hg_mall_amount.js";
 import { hgSecureRequestId } from "./hg_mall_security.js";
 import HGMallVM from "./hg_mall_vm.js";
@@ -23,6 +24,8 @@ export default class HGMallOrdersPanel extends React.Component {
     hgPendingError: "", // 待支付列表独立的加载错误；不覆盖已支付订单的错误提示。
     hgPendingBuy: false, // 会话内存在结果未知的购买请求时为 true，须核对订单或重试原请求。
     hgBusy: false, // 支付/退款/收货写操作门闩，防止快速重复提交。
+    hgOrdersLoading: false, // 已支付订单表读取中；表格展示加载遮罩。
+    hgPendingLoading: false, // 待支付订单表读取中；表格展示加载遮罩。
     hgError: "", // 当前请求错误文案；空字符串表示无错误。
     hgNotice: "", // 成功反馈；空字符串表示无需展示。
   };
@@ -57,6 +60,7 @@ export default class HGMallOrdersPanel extends React.Component {
   /** 只读取本人有界已支付订单页，过期响应不可覆盖新结果。 */
   hgLoadOrders = async (hgCursor = "") => {
     const hgSeq = ++this.hgOrdersSeq;
+    this.setState({ hgOrdersLoading: true });
     try {
       const hgPage = await HGMallVM.orders(hgCursor);
       if (!this.hgMounted || this.hgOrdersSeq !== hgSeq) return;
@@ -75,12 +79,16 @@ export default class HGMallOrdersPanel extends React.Component {
     } catch (hgError) {
       if (this.hgMounted && this.hgOrdersSeq === hgSeq)
         this.setState({ hgError: this.hgMessage(hgError) });
+    } finally {
+      if (this.hgMounted && this.hgOrdersSeq === hgSeq)
+        this.setState({ hgOrdersLoading: false });
     }
   };
 
   /** 仅从服务端读取本人有界待支付页；过期状态和支付权限均由后端确定。 */
   hgLoadPending = async (hgCursor = "") => {
     const hgSeq = ++this.hgPendingSeq; // 本次待支付页查询身份，忽略卸载后的旧响应。
+    this.setState({ hgPendingLoading: true });
     try {
       const hgPage = await HGMallVM.pendingOrders(hgCursor); // 本人订单的收件信息来自鉴权接口。
       if (!this.hgMounted || this.hgPendingSeq !== hgSeq) return;
@@ -99,6 +107,9 @@ export default class HGMallOrdersPanel extends React.Component {
     } catch (hgError) {
       if (this.hgMounted && this.hgPendingSeq === hgSeq)
         this.setState({ hgPendingError: this.hgMessage(hgError) });
+    } finally {
+      if (this.hgMounted && this.hgPendingSeq === hgSeq)
+        this.setState({ hgPendingLoading: false });
     }
   };
 
@@ -163,9 +174,153 @@ export default class HGMallOrdersPanel extends React.Component {
     this.setState({ hgPendingBuy: false });
   };
 
+  /** 待支付/超时订单的交易状态文案；仅覆盖本期实物订单状态。 */
+  hgTradeStatusText = (hgOrder) =>
+    hgOrder.tradeStatus === 1 ? "待支付" : "超时取消，库存已释放";
+
+  /** 已支付订单的履约状态文案；退款优先于发货状态展示。 */
+  hgShippingStatusText = (hgOrder) =>
+    hgOrder.shippingStatus === 3
+      ? "未发货已退款"
+      : hgOrder.shippingStatus === 2
+      ? "已确认收货并结算"
+      : hgOrder.shippingStatus === 1
+      ? "已发货"
+      : "已支付，待发货";
+
+  /** 订单详情链接；路由参数只携带订单号，归属校验在服务端。 */
+  hgDetailLink = (hgOrder) => (
+    <Link
+      to={ROUTE_PATH.MALL_ORDER_DETAIL.replace(
+        ":orderId",
+        encodeURIComponent(hgOrder.orderId)
+      )}
+    >
+      查看订单详情
+    </Link>
+  );
+
   /**
-   * 渲染待支付与超时取消区块。
-   * @returns {React.ReactNode} 待支付订单列表 JSX。
+   * 构建待支付订单表列配置。
+   * @returns {Array<Object>} HGTablePage 列配置数组。
+   * 约束：操作列仅对 tradeStatus === 1 提供继续支付；权限与状态以服务端为准。
+   */
+  hgPendingColumns = () => [
+    { title: "商品", dataIndex: "title", width: 180 },
+    { title: "数量", dataIndex: "quantity", width: 64 },
+    {
+      title: "金额（M币）",
+      dataIndex: "amount",
+      width: 110,
+      render: (hgValue) => HGFormatCoin(hgValue),
+    },
+    { title: "订单号", dataIndex: "orderId", width: 220 },
+    {
+      title: "状态",
+      dataIndex: "tradeStatus",
+      width: 150,
+      render: (_hgValue, hgOrder) => this.hgTradeStatusText(hgOrder),
+    },
+    {
+      title: "支付截止（UTC）",
+      dataIndex: "expiresAt",
+      width: 180,
+    },
+    {
+      title: "操作",
+      dataIndex: "action",
+      width: 200,
+      render: (_hgValue, hgOrder) => (
+        <span className={styles.orderActions}>
+          {this.hgDetailLink(hgOrder)}
+          {hgOrder.tradeStatus === 1 && (
+            <button
+              type="button"
+              disabled={this.state.hgBusy}
+              onClick={() => this.hgPay(hgOrder.orderId)}
+            >
+              继续支付 M币
+            </button>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  /**
+   * 构建已支付订单表列配置。
+   * @returns {Array<Object>} HGTablePage 列配置数组。
+   * 约束：未发货可全额退款、已发货可确认收货；收件信息整行拼接，不做本地脱敏。
+   */
+  hgPaidColumns = () => [
+    { title: "商品", dataIndex: "title", width: 180 },
+    { title: "数量", dataIndex: "quantity", width: 64 },
+    {
+      title: "金额（M币）",
+      dataIndex: "amount",
+      width: 110,
+      render: (hgValue) => HGFormatCoin(hgValue),
+    },
+    { title: "订单号", dataIndex: "orderId", width: 220 },
+    {
+      title: "状态",
+      dataIndex: "shippingStatus",
+      width: 150,
+      render: (_hgValue, hgOrder) => this.hgShippingStatusText(hgOrder),
+    },
+    {
+      title: "运单",
+      dataIndex: "carrier",
+      width: 200,
+      render: (_hgValue, hgOrder) =>
+        hgOrder.shippingStatus >= 1 && hgOrder.shippingStatus <= 2
+          ? `${hgOrder.carrier} · ${hgOrder.trackingNumber}（商家录入，非快递轨迹）`
+          : "—",
+    },
+    {
+      title: "收件信息",
+      dataIndex: "receiverName",
+      render: (_hgValue, hgOrder) =>
+        `${hgOrder.receiverName} · ${hgOrder.receiverPhone} · ${hgOrder.receiverAddress}`,
+    },
+    {
+      title: "操作",
+      dataIndex: "action",
+      width: 220,
+      render: (_hgValue, hgOrder) => (
+        <span className={styles.orderActions}>
+          {this.hgDetailLink(hgOrder)}
+          {hgOrder.shippingStatus === 0 && (
+            <button
+              type="button"
+              disabled={this.state.hgBusy}
+              onClick={() => this.hgRefund(hgOrder.orderId)}
+            >
+              未发货全额退款
+            </button>
+          )}
+          {hgOrder.shippingStatus === 1 && (
+            <button
+              type="button"
+              disabled={this.state.hgBusy}
+              onClick={() =>
+                this.hgWrite(async () => {
+                  await HGMallVM.receive(hgOrder.orderId);
+                }, "已确认收货，商家 M币已结算")
+              }
+            >
+              确认收货
+            </button>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  /**
+   * 渲染待支付与超时取消区块（表格列表）。
+   * @returns {React.ReactNode} 待支付订单表格 JSX。
+   * 约束：游标分页不映射为页码，仍使用按钮式翻页，表格关闭内置分页。
    */
   renderPendingOrders = () => {
     return (
@@ -182,45 +337,13 @@ export default class HGMallOrdersPanel extends React.Component {
             </button>
           </p>
         )}
-        {!this.state.hgPendingOrders.length && (
-          <p>当前页暂无待支付商品。</p>
-        )}
-        {this.state.hgPendingOrders.map((hgOrder) => (
-          <article className={styles.orderCard} key={hgOrder.orderId}>
-            <h4>
-              {hgOrder.title} · {hgOrder.quantity} 件 ·{" "}
-              {HGFormatCoin(hgOrder.amount)} M币
-            </h4>
-            <p>
-              订单 {hgOrder.orderId} ·{" "}
-              {hgOrder.tradeStatus === 1
-                ? "待支付"
-                : "超时取消，库存已释放"}{" "}
-              · 支付截止（UTC）{hgOrder.expiresAt}
-            </p>
-            <p>
-              收件：{hgOrder.receiverName} · {hgOrder.receiverPhone} ·{" "}
-              {hgOrder.receiverAddress}
-            </p>
-            <Link
-              to={ROUTE_PATH.MALL_ORDER_DETAIL.replace(
-                ":orderId",
-                encodeURIComponent(hgOrder.orderId)
-              )}
-            >
-              查看订单详情
-            </Link>
-            {hgOrder.tradeStatus === 1 && (
-              <button
-                type="button"
-                disabled={this.state.hgBusy}
-                onClick={() => this.hgPay(hgOrder.orderId)}
-              >
-                继续支付 M币
-              </button>
-            )}
-          </article>
-        ))}
+        <HGTablePage
+          rowKey="orderId"
+          columns={this.hgPendingColumns()}
+          dataSource={this.state.hgPendingOrders}
+          loading={this.state.hgPendingLoading}
+          pagination={false}
+        />
         <div className={styles.pager}>
           <button
             type="button"
@@ -242,71 +365,19 @@ export default class HGMallOrdersPanel extends React.Component {
   };
 
   /**
-   * 渲染已支付订单卡片列表。
-   * @returns {React.ReactNode} 已支付订单 JSX。
+   * 渲染已支付订单区块（表格列表）。
+   * @returns {React.ReactNode} 已支付订单表格 JSX。
    */
   renderPaidOrders = () => {
     return (
       <>
-        {!this.state.hgOrders.length && <p>当前页暂无已支付订单。</p>}
-        {this.state.hgOrders.map((hgOrder) => (
-          <article className={styles.orderCard} key={hgOrder.orderId}>
-            <h3>
-              {hgOrder.title} · {hgOrder.quantity} 件 ·{" "}
-              {HGFormatCoin(hgOrder.amount)} M币
-            </h3>
-            <p>
-              订单 {hgOrder.orderId} ·{" "}
-              {hgOrder.shippingStatus === 3
-                ? "未发货已退款"
-                : hgOrder.shippingStatus === 2
-                ? "已确认收货并结算"
-                : hgOrder.shippingStatus === 1
-                ? "已发货"
-                : "已支付，待发货"}
-            </p>
-            <p>
-              收件：{hgOrder.receiverName} · {hgOrder.receiverPhone} ·{" "}
-              {hgOrder.receiverAddress}
-            </p>
-            <Link
-              to={ROUTE_PATH.MALL_ORDER_DETAIL.replace(
-                ":orderId",
-                encodeURIComponent(hgOrder.orderId)
-              )}
-            >
-              查看订单详情
-            </Link>
-            {hgOrder.shippingStatus >= 1 && hgOrder.shippingStatus <= 2 && (
-              <p>
-                承运商：{hgOrder.carrier} · 运单号：{hgOrder.trackingNumber}
-                （商家录入，非快递轨迹）
-              </p>
-            )}
-            {hgOrder.shippingStatus === 0 && (
-              <button
-                type="button"
-                disabled={this.state.hgBusy}
-                onClick={() => this.hgRefund(hgOrder.orderId)}
-              >
-                未发货全额退款
-              </button>
-            )}
-            {hgOrder.shippingStatus === 1 && (
-              <button
-                type="button"
-                disabled={this.state.hgBusy}
-                onClick={() =>
-                  this.hgWrite(async () => {
-                    await HGMallVM.receive(hgOrder.orderId);
-                  }, "已确认收货，商家 M币已结算")
-                }
-              >
-                确认收货
-              </button>
-            )}
-          </article>
-        ))}
+        <HGTablePage
+          rowKey="orderId"
+          columns={this.hgPaidColumns()}
+          dataSource={this.state.hgOrders}
+          loading={this.state.hgOrdersLoading}
+          pagination={false}
+        />
         <div className={styles.pager}>
           <button
             type="button"
