@@ -17,9 +17,10 @@ function hgPage(hgPath, hgVM, hgProps = {}) {
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
       if (hgDependency === "react-router-dom") return { Link: "a" };
-      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", MALL: "/mall", MALL_ORDER_DETAIL: "/mall/orders/:orderId" } };
+      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", MALL: "/mall", MALL_ORDER_DETAIL: "/mall/orders/:orderId", EDIT_USER_INFO: "/account/setting" } };
       if (hgDependency.endsWith("hg_mall_vm.js")) return { default: hgVM, __esModule: true };
       if (hgDependency.endsWith("hg_mall_amount.js")) return { HGFormatCoin };
+      if (hgDependency.endsWith("hg_mall_security.js")) return { hgSecureRequestId: () => "test-request-id" };
       return { default: {}, __esModule: true };
     },
   });
@@ -50,13 +51,15 @@ async function hgFlush() {
 const hgPending = { orderId: "MORD_1", title: "测试商品", skuTitle: "规格", quantity: 2, unitAmount: 50, amount: 100,
   tradeStatus: 1, shippingStatus: 0, receiverName: "测试收件人", receiverPhone: "13800000000", receiverAddress: "测试地址", expiresAt: "2026-10-24T12:00:00Z" };
 
-test("商品订单列表的待付/已付与本店已付款行均可打开授权详情", () => {
-  const hgInstance = hgPage("hg_mall_catalog.jsx", {}, { hgInitialView: "orders" });
-  hgInstance.state.hgPendingOrders = [hgPending];
-  hgInstance.state.hgOrders = [{ ...hgPending, orderId: "MORD_2", tradeStatus: 2 }];
+test("本店订单行打开商家授权详情，用户中心面板的待付/已付行打开本人详情", () => {
+  const hgInstance = hgPage("hg_mall_catalog.jsx", {}, { hgInitialView: "merchant" });
   hgInstance.state.hgSellerOrders = [{ ...hgPending, orderId: "MORD_3", tradeStatus: 2 }];
-  assert.deepEqual(hgLinks(hgInstance.renderPhysicalOrders()).sort(), ["/mall/orders/MORD_1", "/mall/orders/MORD_2"]);
-  assert.deepEqual(hgLinks(hgInstance.renderPhysicalOrders(true)), ["/mall/orders/MORD_3?merchant=1"]);
+  assert.deepEqual(hgLinks(hgInstance.renderSellerOrders()), ["/mall/orders/MORD_3?merchant=1"]);
+
+  const hgPanel = hgPage("hg_mall_orders_panel.jsx", {}, {});
+  hgPanel.state.hgPendingOrders = [hgPending];
+  hgPanel.state.hgOrders = [{ ...hgPending, orderId: "MORD_2", tradeStatus: 2 }];
+  assert.deepEqual(hgLinks(hgPanel.render()).sort(), ["/mall/orders/MORD_1", "/mall/orders/MORD_2"]);
 });
 
 test("本人详情从待支付快照打开，点击继续支付后重读服务端已支付状态", async () => {
@@ -74,7 +77,7 @@ test("本人详情从待支付快照打开，点击继续支付后重读服务�
   assert.equal(hgPayCalls, 1);
   assert.equal(hgInstance.state.hgOrder.tradeStatus, 2);
   assert.doesNotMatch(hgText(hgInstance.renderOrder()), /继续支付 M币/);
-  assert.equal(hgInstance.render().props.children.props.children[0].props.to, "/mall?view=orders");
+  assert.equal(hgInstance.render().props.children.props.children[0].props.to, "/account/setting?menu=orders");
   hgInstance.componentWillUnmount();
 });
 

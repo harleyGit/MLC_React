@@ -112,7 +112,7 @@ export default class HGMallOrderPage extends React.Component {
   render() {
     return <main className={styles.page}>
       <div className={styles.content}>
-        <Link to={`${ROUTE_PATH.MALL}?view=${this.hgIsMerchant() ? "merchant" : "orders"}`}>← 返回商品订单</Link>
+        <Link to={this.hgIsMerchant() ? `${ROUTE_PATH.MALL}?view=merchant` : `${ROUTE_PATH.EDIT_USER_INFO}?menu=orders`}>← 返回商品订单</Link>
         <section className={styles.section} aria-label="商品订单详情">
           <h1>商品订单详情</h1>
           {this.state.hgLoading && <p role="status">正在加载订单详情...</p>}

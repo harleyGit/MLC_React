@@ -4,6 +4,7 @@ import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 
 export const MENU_KEYS = {
   INFO: "info",
+  ORDERS: "orders",
   AVATAR: "avatar",
   SECURITY: "security",
   UPLOAD: "upload",
@@ -16,13 +17,17 @@ export const MENU_LIST = [
     label: "我的信息",
   },
   {
+    key: MENU_KEYS.ORDERS, // 本人商品订单面板，数据由商城订单组件独立加载。
+    label: "我的商品订单",
+  },
+  {
     key: MENU_KEYS.AVATAR,
     label: "我的头像",
   },
   {
     key: MENU_KEYS.SECURITY,
     label: "账号安全",
-  },,
+  },
   {
     key: MENU_KEYS.WALLET,
     label: "我的钱包",
