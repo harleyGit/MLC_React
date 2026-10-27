@@ -4,14 +4,18 @@
 import React, { Component } from "react";
 import HGSideMenuPage from "../../../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../../../components/menu_component/hg_side_menu_vm";
-import HGMallOrdersPanel from "../../../../pages/mall/hg_mall_orders_panel";
-import HGUserCenterVM, { USER_CENTER_MENU_ITEMS } from "./hg_user_center_vm";
+import HGMallPaidOrdersPage from "../../../../pages/mall/hg_mall_paid_orders_page";
+import HGMallPendingOrdersPage from "../../../../pages/mall/hg_mall_pending_orders_page";
+import HGUserCenterVM, {
+  USER_CENTER_MENU_ITEMS,
+  USER_CENTER_MENU_KEYS,
+} from "./hg_user_center_vm";
 import styles from "./hg_user_center.module.css";
 
 /**
  * 个人中心页面。
  * 职责：管理左侧菜单选中态，并根据菜单 key 渲染右侧内容区。
- * 约束：订单数据由商城订单面板独立请求，页面本身不缓存收件隐私信息。
+ * 约束：订单数据由各自订单页面独立请求，页面本身不缓存收件隐私信息。
  */
 class HGUserCenterPage extends Component {
   constructor(props) {
@@ -61,8 +65,11 @@ class HGUserCenterPage extends Component {
    */
   renderContent = () => {
     const { selectedKey } = this.state;
-    if (selectedKey === "orders") {
-      return <HGMallOrdersPanel />;
+    if (selectedKey === USER_CENTER_MENU_KEYS.UNPAID) {
+      return <HGMallPendingOrdersPage />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.REVIEW) {
+      return <HGMallPaidOrdersPage />;
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;
   };

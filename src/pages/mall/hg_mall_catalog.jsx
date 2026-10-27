@@ -832,7 +832,7 @@ export default class HGMallCatalog extends React.Component {
       }
       if (hgPending && hgPending.digest !== hgDigest)
         throw new Error(
-          "存在结果未知的购买请求，请先在「我的商品订单」中核对，再清除待确认请求"
+          "存在结果未知的购买请求，请先在「我的订单 → 待付款」中核对，再清除待确认请求"
         );
       const hgRequestId =
         hgPending?.id || this.hgBuyRequestId || hgSecureRequestId();
@@ -872,11 +872,11 @@ export default class HGMallCatalog extends React.Component {
       }
       this.hgBuyRequestId = "";
       if (this.hgMounted) {
-        // 买家订单列表已迁入用户中心「我的商品订单」，这里只提示去那里支付。
+        // 买家订单列表已迁入个人中心「我的订单」，这里只提示去那里支付。
         this.setState({
           hgPendingBuy: false,
           hgNotice:
-            "订单已创建，商品库存预留15分钟；请在「个人中心 → 我的商品订单」中完成 M币支付",
+            "订单已创建，商品库存预留15分钟；请在「个人中心 → 我的订单 → 待付款」中完成 M币支付",
           hgDetail: null,
           hgBuyForm: {
             quantity: "1",

@@ -5,6 +5,12 @@ import { runInNewContext } from "node:vm";
 import { transformSync } from "@swc/core";
 import React from "react";
 import { HGFormatCoin } from "./hg_mall_amount.js";
+import {
+  HG_MALL_ORDER_PAGE_SIZE,
+  hgOrderCursorAt,
+  hgOrderPushCursor,
+  hgOrderTotalCount,
+} from "./hg_mall_order_pagination.js";
 
 /** 执行实际 JSX 页面；网络、路由与样式只用可控替身，不访问本地服务。 */
 function hgPage(hgPath, hgVM, hgProps = {}) {
@@ -21,10 +27,12 @@ function hgPage(hgPath, hgVM, hgProps = {}) {
       if (hgDependency.endsWith("hg_mall_vm.js")) return { default: hgVM, __esModule: true };
       if (hgDependency.endsWith("hg_mall_amount.js")) return { HGFormatCoin };
       if (hgDependency.endsWith("hg_mall_security.js")) return { hgSecureRequestId: () => "test-request-id" };
+      if (hgDependency.endsWith("hg_mall_order_pagination.js")) return { HG_MALL_ORDER_PAGE_SIZE, hgOrderCursorAt, hgOrderPushCursor, hgOrderTotalCount };
       if (hgDependency.includes("hg_side_menu_page")) return { default: "HGSideMenuPage", __esModule: true };
       if (hgDependency.includes("hg_side_menu_vm")) return { default: { findPathToKey: () => [] }, __esModule: true };
-      if (hgDependency.includes("hg_mall_orders_panel")) return { default: "HGMallOrdersPanel", __esModule: true };
-      if (hgDependency.includes("hg_user_center_vm")) return { default: { getDefaultSelectedKey: () => "orders" }, USER_CENTER_MENU_ITEMS: [{ key: "orders", label: "我的商品订单" }], __esModule: true };
+      if (hgDependency.includes("hg_mall_pending_orders_page")) return { default: "HGMallPendingOrdersPage", __esModule: true };
+      if (hgDependency.includes("hg_mall_paid_orders_page")) return { default: "HGMallPaidOrdersPage", __esModule: true };
+      if (hgDependency.includes("hg_user_center_vm")) return { default: { getDefaultSelectedKey: () => "unpaid" }, USER_CENTER_MENU_ITEMS: [{ key: "orders", label: "我的订单", children: [{ key: "unpaid", label: "待付款" }, { key: "review", label: "评价" }] }], USER_CENTER_MENU_KEYS: { UNPAID: "unpaid", REVIEW: "review" }, __esModule: true };
       return { default: {}, __esModule: true };
     },
   });
@@ -76,62 +84,61 @@ async function hgFlush() {
 const hgPending = { orderId: "MORD_1", title: "测试商品", skuTitle: "规格", quantity: 2, unitAmount: 50, amount: 100,
   tradeStatus: 1, shippingStatus: 0, receiverName: "测试收件人", receiverPhone: "13800000000", receiverAddress: "测试地址", expiresAt: "2026-10-24T12:00:00Z" };
 
-test("本店订单行打开商家授权详情，用户中心订单表操作列打开本人详情", () => {
+test("本店订单行打开商家授权详情，待付款与评价两页操作列打开本人详情", () => {
   const hgInstance = hgPage("hg_mall_catalog.jsx", {}, { hgInitialView: "merchant" });
   hgInstance.state.hgSellerOrders = [{ ...hgPending, orderId: "MORD_3", tradeStatus: 2 }];
   assert.deepEqual(hgLinks(hgInstance.renderSellerOrders()), ["/mall/orders/MORD_3?merchant=1"]);
 
-  const hgPanel = hgPage("hg_mall_orders_panel.jsx", {}, {});
-  hgPanel.state.hgPendingOrders = [hgPending];
-  hgPanel.state.hgOrders = [{ ...hgPending, orderId: "MORD_2", tradeStatus: 2 }];
+  const hgPaidPage = hgPage("hg_mall_paid_orders_page.jsx", {}, {});
+  hgPaidPage.state.hgOrders = [{ ...hgPending, orderId: "MORD_2", tradeStatus: 2 }];
+  const hgPendingPage = hgPage("hg_mall_pending_orders_page.jsx", {}, {});
+  hgPendingPage.state.hgOrders = [hgPending];
   // 详情链接在 HGTablePage 操作列的 render 内，直接执行列渲染收集链接目标。
-  const hgPaidAction = hgPanel.hgPaidColumns().find((hgCol) => hgCol.dataIndex === "action");
-  const hgPendingAction = hgPanel.hgPendingColumns().find((hgCol) => hgCol.dataIndex === "action");
+  const hgPaidAction = hgPaidPage.hgColumns().find((hgCol) => hgCol.dataIndex === "action");
+  const hgPendingAction = hgPendingPage.hgColumns().find((hgCol) => hgCol.dataIndex === "action");
   assert.deepEqual(
     [
-      ...hgLinks(hgPaidAction.render(null, hgPanel.state.hgOrders[0], 0)),
-      ...hgLinks(hgPendingAction.render(null, hgPanel.state.hgPendingOrders[0], 0)),
+      ...hgLinks(hgPaidAction.render(null, hgPaidPage.state.hgOrders[0], 0)),
+      ...hgLinks(hgPendingAction.render(null, hgPendingPage.state.hgOrders[0], 0)),
     ].sort(),
     ["/mall/orders/MORD_1", "/mall/orders/MORD_2"]
   );
 });
 
-test("订单表分页按游标翻页：下一页记录游标、上一页复用、可回到第一页", async () => {
+test("已支付商品分页按游标翻页：下一页记录游标、上一页复用、可回到第一页", async () => {
   const hgCalls = []; // 记录服务端收到的原始游标，确认未被本地改写成数字页码。
-  const hgInstance = hgPage("hg_mall_orders_panel.jsx", {
+  const hgInstance = hgPage("hg_mall_paid_orders_page.jsx", {
     orders: async (hgCursor) => {
       hgCalls.push(hgCursor);
       return hgCursor === "CURSOR_2"
         ? { list: [{ ...hgPending, orderId: "MORD_9" }], hasMore: false, nextCursor: "" }
         : { list: [hgPending], hasMore: true, nextCursor: "CURSOR_2" };
     },
-    pendingOrders: async () => ({ list: [], hasMore: false, nextCursor: "" }),
   });
   hgInstance.componentDidMount();
   await hgFlush();
-  assert.equal(hgInstance.state.hgOrdersPage, 1);
-  assert.deepEqual([...hgInstance.state.hgOrdersCursors], ["", "CURSOR_2"]);
+  assert.equal(hgInstance.state.hgPage, 1);
+  assert.deepEqual([...hgInstance.state.hgCursors], ["", "CURSOR_2"]);
   // 当前页 1 条且还有下一页：游标分页无总数，条数为下界 2（末页时才是精确值）。
-  assert.deepEqual({ ...hgInstance.hgOrdersPagination() }, { current: 1, pageSize: 20, total: 2 });
+  assert.deepEqual({ ...hgInstance.hgPagination() }, { current: 1, pageSize: 20, total: 2 });
 
-  hgInstance.hgOrdersPageChange({ current: 2 });
+  hgInstance.hgPageChange({ current: 2 });
   await hgFlush();
   assert.deepEqual(hgCalls, ["", "CURSOR_2"]);
-  assert.equal(hgInstance.state.hgOrdersPage, 2);
-  assert.equal(hgInstance.state.hgOrdersHasMore, false);
-  assert.equal(hgInstance.hgOrdersPagination().total, 21); // 已探到末页时条数精确。
+  assert.equal(hgInstance.state.hgPage, 2);
+  assert.equal(hgInstance.state.hgHasMore, false);
+  assert.equal(hgInstance.hgPagination().total, 21); // 已探到末页时条数精确。
 
-  hgInstance.hgOrdersPageChange({ current: 1 });
+  hgInstance.hgPageChange({ current: 1 });
   await hgFlush();
   assert.deepEqual(hgCalls, ["", "CURSOR_2", ""]);
-  assert.equal(hgInstance.state.hgOrdersPage, 1);
+  assert.equal(hgInstance.state.hgPage, 1);
   hgInstance.componentWillUnmount();
 });
 
-test("待支付订单翻到空页时退回第一页，不停留在没有数据的页码", async () => {
+test("待付款翻到空页时退回第一页，不停留在没有数据的页码", async () => {
   const hgCalls = []; // 待支付被支付或超时清空后，深页码不得继续展示空表。
-  const hgInstance = hgPage("hg_mall_orders_panel.jsx", {
-    orders: async () => ({ list: [], hasMore: false, nextCursor: "" }),
+  const hgInstance = hgPage("hg_mall_pending_orders_page.jsx", {
     pendingOrders: async (hgCursor) => {
       hgCalls.push(hgCursor);
       return hgCursor
@@ -141,23 +148,32 @@ test("待支付订单翻到空页时退回第一页，不停留在没有数据�
   });
   hgInstance.componentDidMount();
   await hgFlush();
-  assert.equal(hgInstance.state.hgPendingPage, 1);
-  hgInstance.hgPendingPageChange({ current: 2 });
+  assert.equal(hgInstance.state.hgPage, 1);
+  hgInstance.hgPageChange({ current: 2 });
   await hgFlush();
   assert.deepEqual(hgCalls, ["", "PENDING_2", ""]);
-  assert.equal(hgInstance.state.hgPendingPage, 1);
+  assert.equal(hgInstance.state.hgPage, 1);
   hgInstance.componentWillUnmount();
 });
 
-test("个人中心左侧为侧边栏菜单，右侧内容区渲染我的商品订单面板", () => {
+test("个人中心「我的订单」下挂待付款与评价，默认展示待付款页面", () => {
   const hgInstance = hgPage("../../manager_antd/page_modules/user/user_center/hg_user_center_page.jsx", {}, {});
   const hgTree = hgInstance.render();
   const hgTypesList = hgTypes(hgTree);
   assert.ok(hgTypesList.includes("HGSideMenuPage"));
-  assert.ok(hgTypesList.includes("HGMallOrdersPanel"));
+  assert.ok(hgTypesList.includes("HGMallPendingOrdersPage")); // 默认选中「待付款」。
   const hgMenu = hgFind(hgTree, "HGSideMenuPage");
-  assert.equal(hgMenu.props.selectedKey, "orders");
-  assert.equal(hgMenu.props.menuItems[0].label, "我的商品订单");
+  assert.equal(hgMenu.props.selectedKey, "unpaid");
+  const hgOrdersMenu = hgMenu.props.menuItems[0];
+  assert.equal(hgOrdersMenu.label, "我的订单");
+  assert.deepEqual([...hgOrdersMenu.children].map((hgItem) => `${hgItem.key}:${hgItem.label}`), [
+    "unpaid:待付款",
+    "review:评价",
+  ]);
+
+  // 切到「评价」后内容区换成已支付商品页。
+  hgInstance.handleMenuSelect("review");
+  assert.ok(hgTypes(hgInstance.render()).includes("HGMallPaidOrdersPage"));
 });
 
 test("本人详情从待支付快照打开，点击继续支付后重读服务端已支付状态", async () => {

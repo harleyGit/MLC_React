@@ -89,7 +89,7 @@ export default class HGWalletSpendingPage extends React.Component {
       </header>
       <main className={styles.main}>
         <section className={styles.recordsSection} aria-label="已支付商品订单">
-          <p className={styles.serviceNotice}>全部已付款实物商品，每页最多 20 单；退款订单仍保留并标记为已退款。待支付商品请到 <Link to={ROUTE_PATH.USER_CENTER}>我的商品订单</Link> 查看。</p>
+          <p className={styles.serviceNotice}>全部已付款实物商品，每页最多 20 单；退款订单仍保留并标记为已退款。待支付商品请到 <Link to={ROUTE_PATH.USER_CENTER}>我的订单 → 待付款</Link> 查看。</p>
           {this.renderOrders()}
           <nav className={styles.recordPager} aria-label="消费记录分页">
             <button className={styles.pageButton} type="button" disabled={this.state.hgHistory.length < 2 || this.state.hgLoading} onClick={this.hgPreviousPage}>上一页</button>
