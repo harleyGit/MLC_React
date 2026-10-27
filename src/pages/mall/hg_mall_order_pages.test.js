@@ -96,6 +96,59 @@ test("本店订单行打开商家授权详情，用户中心订单表操作列�
   );
 });
 
+test("订单表分页按游标翻页：下一页记录游标、上一页复用、可回到第一页", async () => {
+  const hgCalls = []; // 记录服务端收到的原始游标，确认未被本地改写成数字页码。
+  const hgInstance = hgPage("hg_mall_orders_panel.jsx", {
+    orders: async (hgCursor) => {
+      hgCalls.push(hgCursor);
+      return hgCursor === "CURSOR_2"
+        ? { list: [{ ...hgPending, orderId: "MORD_9" }], hasMore: false, nextCursor: "" }
+        : { list: [hgPending], hasMore: true, nextCursor: "CURSOR_2" };
+    },
+    pendingOrders: async () => ({ list: [], hasMore: false, nextCursor: "" }),
+  });
+  hgInstance.componentDidMount();
+  await hgFlush();
+  assert.equal(hgInstance.state.hgOrdersPage, 1);
+  assert.deepEqual([...hgInstance.state.hgOrdersCursors], ["", "CURSOR_2"]);
+  // 当前页 1 条且还有下一页：游标分页无总数，条数为下界 2（末页时才是精确值）。
+  assert.deepEqual({ ...hgInstance.hgOrdersPagination() }, { current: 1, pageSize: 20, total: 2 });
+
+  hgInstance.hgOrdersPageChange({ current: 2 });
+  await hgFlush();
+  assert.deepEqual(hgCalls, ["", "CURSOR_2"]);
+  assert.equal(hgInstance.state.hgOrdersPage, 2);
+  assert.equal(hgInstance.state.hgOrdersHasMore, false);
+  assert.equal(hgInstance.hgOrdersPagination().total, 21); // 已探到末页时条数精确。
+
+  hgInstance.hgOrdersPageChange({ current: 1 });
+  await hgFlush();
+  assert.deepEqual(hgCalls, ["", "CURSOR_2", ""]);
+  assert.equal(hgInstance.state.hgOrdersPage, 1);
+  hgInstance.componentWillUnmount();
+});
+
+test("待支付订单翻到空页时退回第一页，不停留在没有数据的页码", async () => {
+  const hgCalls = []; // 待支付被支付或超时清空后，深页码不得继续展示空表。
+  const hgInstance = hgPage("hg_mall_orders_panel.jsx", {
+    orders: async () => ({ list: [], hasMore: false, nextCursor: "" }),
+    pendingOrders: async (hgCursor) => {
+      hgCalls.push(hgCursor);
+      return hgCursor
+        ? { list: [], hasMore: false, nextCursor: "" }
+        : { list: [hgPending], hasMore: true, nextCursor: "PENDING_2" };
+    },
+  });
+  hgInstance.componentDidMount();
+  await hgFlush();
+  assert.equal(hgInstance.state.hgPendingPage, 1);
+  hgInstance.hgPendingPageChange({ current: 2 });
+  await hgFlush();
+  assert.deepEqual(hgCalls, ["", "PENDING_2", ""]);
+  assert.equal(hgInstance.state.hgPendingPage, 1);
+  hgInstance.componentWillUnmount();
+});
+
 test("个人中心左侧为侧边栏菜单，右侧内容区渲染我的商品订单面板", () => {
   const hgInstance = hgPage("../../manager_antd/page_modules/user/user_center/hg_user_center_page.jsx", {}, {});
   const hgTree = hgInstance.render();
