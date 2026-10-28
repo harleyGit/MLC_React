@@ -93,19 +93,17 @@ test("本店订单行打开商家授权详情，待付款与评价两页操作�
   hgPaidPage.state.hgOrders = [{ ...hgPending, orderId: "MORD_2", tradeStatus: 2 }];
   const hgPendingPage = hgPage("hg_mall_pending_orders_page.jsx", {}, {});
   hgPendingPage.state.hgOrders = [hgPending];
-  // 详情链接在 HGTablePage 操作列的 render 内，直接执行列渲染收集链接目标。
-  const hgPaidAction = hgPaidPage.hgColumns().find((hgCol) => hgCol.dataIndex === "action");
-  const hgPendingAction = hgPendingPage.hgColumns().find((hgCol) => hgCol.dataIndex === "action");
+  // 卡片由业务页面渲染；详情路径仍只携带订单号。
   assert.deepEqual(
     [
-      ...hgLinks(hgPaidAction.render(null, hgPaidPage.state.hgOrders[0], 0)),
-      ...hgLinks(hgPendingAction.render(null, hgPendingPage.state.hgOrders[0], 0)),
+      ...hgLinks(hgPaidPage.renderOrderCard(hgPaidPage.state.hgOrders[0])),
+      ...hgLinks(hgPendingPage.renderOrderCard(hgPendingPage.state.hgOrders[0])),
     ].sort(),
     ["/mall/orders/MORD_1", "/mall/orders/MORD_2"]
   );
 });
 
-test("已支付商品分页按游标翻页：下一页记录游标、上一页复用、可回到第一页", async () => {
+test("已支付商品触底追加原始游标；刷新重新从第一页读取并清理旧订单", async () => {
   const hgCalls = []; // 记录服务端收到的原始游标，确认未被本地改写成数字页码。
   const hgInstance = hgPage("hg_mall_paid_orders_page.jsx", {
     orders: async (hgCursor) => {
@@ -117,27 +115,26 @@ test("已支付商品分页按游标翻页：下一页记录游标、上一页�
   });
   hgInstance.componentDidMount();
   await hgFlush();
-  assert.equal(hgInstance.state.hgPage, 1);
-  assert.deepEqual([...hgInstance.state.hgCursors], ["", "CURSOR_2"]);
-  // 当前页 1 条且还有下一页：游标分页无总数，条数为下界 2（末页时才是精确值）。
-  assert.deepEqual({ ...hgInstance.hgPagination() }, { current: 1, pageSize: 20, total: 2 });
+  assert.equal(hgInstance.state.hgOrders.length, 1);
+  assert.equal(hgInstance.state.hgNextCursor, "CURSOR_2");
 
-  hgInstance.hgPageChange({ current: 2 });
+  hgInstance.hgLoadMore();
+  hgInstance.hgLoadMore(); // 同步门闩防止重复请求同一游标。
   await hgFlush();
   assert.deepEqual(hgCalls, ["", "CURSOR_2"]);
-  assert.equal(hgInstance.state.hgPage, 2);
+  assert.deepEqual([...hgInstance.state.hgOrders].map((hgOrder) => hgOrder.orderId), ["MORD_1", "MORD_9"]);
   assert.equal(hgInstance.state.hgHasMore, false);
-  assert.equal(hgInstance.hgPagination().total, 21); // 已探到末页时条数精确。
 
-  hgInstance.hgPageChange({ current: 1 });
+  hgInstance.hgRefreshOrders();
   await hgFlush();
   assert.deepEqual(hgCalls, ["", "CURSOR_2", ""]);
-  assert.equal(hgInstance.state.hgPage, 1);
+  assert.deepEqual([...hgInstance.state.hgOrders].map((hgOrder) => hgOrder.orderId), ["MORD_1"]);
+  assert.equal(hgInstance.state.hgResetKey, 2);
   hgInstance.componentWillUnmount();
 });
 
-test("待付款翻到空页时退回第一页，不停留在没有数据的页码", async () => {
-  const hgCalls = []; // 待支付被支付或超时清空后，深页码不得继续展示空表。
+test("待付款追加空页时保留已有卡片并停止加载", async () => {
+  const hgCalls = []; // 游标所指订单已支付或超时后，避免继续请求同一空页。
   const hgInstance = hgPage("hg_mall_pending_orders_page.jsx", {
     pendingOrders: async (hgCursor) => {
       hgCalls.push(hgCursor);
@@ -148,11 +145,63 @@ test("待付款翻到空页时退回第一页，不停留在没有数据的页�
   });
   hgInstance.componentDidMount();
   await hgFlush();
-  assert.equal(hgInstance.state.hgPage, 1);
-  hgInstance.hgPageChange({ current: 2 });
+  hgInstance.hgLoadMore();
   await hgFlush();
-  assert.deepEqual(hgCalls, ["", "PENDING_2", ""]);
-  assert.equal(hgInstance.state.hgPage, 1);
+  assert.deepEqual(hgCalls, ["", "PENDING_2"]);
+  assert.equal(hgInstance.state.hgOrders.length, 1);
+  assert.equal(hgInstance.state.hgHasMore, false);
+  hgInstance.componentWillUnmount();
+});
+
+test("订单追加失败可重试；写操作遇到在途读取时强制刷新并丢弃旧响应", async () => {
+  let hgReject; // 模拟过期请求延迟返回，不借助真实网络或定时器。
+  const hgCalls = []; // 只检查服务端原始游标，不记录敏感订单字段。
+  const hgInstance = hgPage("hg_mall_pending_orders_page.jsx", {
+    pendingOrders: (hgCursor) => {
+      hgCalls.push(hgCursor);
+      if (hgCalls.length === 2) return Promise.reject(new Error("网络暂不可用"));
+      if (hgCalls.length === 4) return new Promise((resolve) => { hgReject = resolve; });
+      return Promise.resolve({ list: [hgPending], hasMore: true,
+        nextCursor: hgCalls.length === 3 ? "PENDING_3" : "PENDING_2" });
+    },
+    pay: async () => {},
+  });
+  hgInstance.componentDidMount();
+  await hgFlush();
+  hgInstance.hgLoadMore();
+  await hgFlush();
+  assert.match(hgInstance.state.hgError, /网络暂不可用/);
+  hgInstance.hgLoadMore();
+  await hgFlush();
+  assert.equal(hgInstance.state.hgError, "");
+  hgInstance.hgLoadMore();
+  await hgFlush();
+  await hgInstance.hgPay("MORD_1");
+  hgReject({ list: [{ ...hgPending, orderId: "STALE" }], hasMore: false, nextCursor: "" });
+  await hgFlush();
+  assert.deepEqual(hgCalls, ["", "PENDING_2", "PENDING_2", "PENDING_3", ""]);
+  assert.deepEqual([...hgInstance.state.hgOrders].map((hgOrder) => hgOrder.orderId), ["MORD_1"]);
+  hgInstance.componentWillUnmount();
+});
+
+test("严格模式卸载重挂后重新读取首屏，卸载前的慢响应不能覆盖新订单", async () => {
+  let hgResolveOld; // 仅暂存测试替身的旧查询回调，避免依赖真实网络。
+  let hgCalls = 0; // 首屏请求次数，初始为零。
+  const hgInstance = hgPage("hg_mall_paid_orders_page.jsx", {
+    orders: () => {
+      hgCalls += 1;
+      if (hgCalls === 1) return new Promise((resolve) => { hgResolveOld = resolve; });
+      return Promise.resolve({ list: [{ ...hgPending, orderId: "NEW" }], hasMore: false, nextCursor: "" });
+    },
+  });
+  hgInstance.componentDidMount();
+  hgInstance.componentWillUnmount();
+  hgInstance.componentDidMount();
+  await hgFlush();
+  hgResolveOld({ list: [hgPending], hasMore: false, nextCursor: "" });
+  await hgFlush();
+  assert.equal(hgCalls, 2);
+  assert.equal(hgInstance.state.hgOrders[0].orderId, "NEW");
   hgInstance.componentWillUnmount();
 });
 

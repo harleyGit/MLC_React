@@ -1,14 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
-import HGTablePage from "../../components/hg_table/hg_table_page";
+import HGCollectionView from "../../components/hg_collection_view/hg_collection_view";
 import { HGFormatCoin } from "./hg_mall_amount.js";
-import {
-  HG_MALL_ORDER_PAGE_SIZE,
-  hgOrderCursorAt,
-  hgOrderPushCursor,
-  hgOrderTotalCount,
-} from "./hg_mall_order_pagination.js";
 import HGMallVM from "./hg_mall_vm.js";
 import styles from "./hg_mall_page.module.css";
 
@@ -20,11 +14,11 @@ const hgPendingBuyKey = "mlc.mall.pending-buy"; // 与商城下单流程共用�
  */
 export default class HGMallPendingOrdersPage extends React.Component {
   state = {
-    hgOrders: [], // 本人当前页待支付及已过期取消订单；不跨用户保存收件信息。
-    hgCursors: [""], // 已探索页的服务端游标；索引 i 对应第 i+1 页，首项空字符串为第一页。
-    hgPage: 1, // 当前页码，从 1 起。
-    hgHasMore: false, // 当前页之后是否还有下一页；由服务端 hasMore 决定。
-    hgLoading: false, // 列表读取中；表格展示加载遮罩。
+    hgOrders: [], // 本人已加载的待支付及超时订单；仅在本页挂载期间保留。
+    hgNextCursor: "", // 下一页的服务端原始游标；空字符串表示首屏或末页。
+    hgHasMore: false, // 是否还有下一页；只依据服务端 hasMore。
+    hgLoading: false, // 列表请求中；刷新与追加加载互斥。
+    hgResetKey: 0, // 重新读取首屏的序号；变化时滚动视图回到顶部并清除测量缓存。
     hgError: "", // 加载或写操作错误文案；空字符串表示无错误。
     hgNotice: "", // 成功反馈；空字符串表示无需展示。
     hgBusy: false, // 支付写操作门闩，防止快速重复提交。
@@ -32,8 +26,9 @@ export default class HGMallPendingOrdersPage extends React.Component {
   };
 
   hgMounted = false; // 卸载后丢弃异步响应。
-  hgSeq = 0; // 列表请求序号；快速翻页只接受最后一次响应。
+  hgSeq = 0; // 列表请求序号；写操作刷新时忽略旧页响应。
   hgWriteFlight = false; // 同步写入门闩，不依赖异步 setState 生效。
+  hgLoadFlight = false; // 同步加载门闩，防止同一游标被滚动事件重复请求。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -42,24 +37,26 @@ export default class HGMallPendingOrdersPage extends React.Component {
     } catch {
       /* 禁用会话存储时仍保留组件内的待确认状态。 */
     }
-    this.hgLoadOrders();
+    this.hgRefreshOrders();
   }
 
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgSeq += 1;
+    this.hgLoadFlight = false; // 严格模式重新挂载时允许发起新首屏读取。
   }
 
   hgMessage = (hgError) => hgError?.message || "商城请求失败，请重试";
 
-  /** 仅从服务端读取本人有界待支付页；过期状态和支付权限均由后端确定。 */
-  hgLoadOrders = async (hgPage = this.state.hgPage) => {
-    const hgSeq = ++this.hgSeq; // 本次查询身份，忽略卸载或翻页后的旧响应。
+  /** 从服务端读取本人有界订单页；刷新丢弃旧游标，追加只使用服务端下一页游标。 */
+  hgLoadOrders = async (hgAppend = false) => {
+    if (this.hgLoadFlight) return;
+    if (hgAppend && !this.state.hgHasMore) return;
+    this.hgLoadFlight = true;
+    const hgSeq = ++this.hgSeq; // 本次查询身份，忽略卸载或刷新后的旧响应。
     this.setState({ hgLoading: true });
     try {
-      const hgPageData = await HGMallVM.pendingOrders(
-        hgOrderCursorAt(this.state.hgCursors, hgPage)
-      ); // 收件信息来自鉴权接口，不由前端拼装。
+      const hgPageData = await HGMallVM.pendingOrders(hgAppend ? this.state.hgNextCursor : "");
       if (!this.hgMounted || this.hgSeq !== hgSeq) return;
       if (
         !Array.isArray(hgPageData?.list) ||
@@ -67,45 +64,50 @@ export default class HGMallPendingOrdersPage extends React.Component {
         typeof hgPageData?.nextCursor !== "string"
       )
         throw new Error("待支付订单响应异常");
-      if (hgPage > 1 && !hgPageData.list.length) {
-        this.hgLoadOrders(1); // 当前页被支付或超时清空后退回第一页，不停留在空页。
+      if (hgAppend && !hgPageData.list.length) {
+        this.setState({ hgHasMore: false, hgError: "" });
         return;
       }
-      this.setState({
-        hgOrders: hgPageData.list,
-        hgPage,
-        hgCursors: hgOrderPushCursor(
-          this.state.hgCursors,
-          hgPage,
-          hgPageData.hasMore ? hgPageData.nextCursor : ""
-        ),
+      if (hgPageData.hasMore && (!hgPageData.nextCursor ||
+        (hgAppend && hgPageData.nextCursor === this.state.hgNextCursor)))
+        throw new Error("待支付订单游标异常");
+      this.setState((state) => ({
+        hgOrders: hgAppend ? [...state.hgOrders, ...hgPageData.list] : hgPageData.list,
+        hgNextCursor: hgPageData.hasMore ? hgPageData.nextCursor : "",
         hgHasMore: hgPageData.hasMore,
         hgError: "",
-      });
+      }));
     } catch (hgError) {
       if (this.hgMounted && this.hgSeq === hgSeq)
         this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
-      if (this.hgMounted && this.hgSeq === hgSeq) this.setState({ hgLoading: false });
+      if (this.hgSeq === hgSeq) {
+        this.hgLoadFlight = false;
+        if (this.hgMounted) this.setState({ hgLoading: false });
+      }
     }
   };
 
-  /** 表格分页回调；加载中忽略重复点击，页码超出已探索页时由 hgOrderCursorAt 兜底。 */
-  hgPageChange = ({ current }) => {
-    if (!current || current === this.state.hgPage || this.state.hgLoading) return;
-    this.hgLoadOrders(current);
+  /** 刷新后旧页数据立即失效，重新从首屏读取，避免与旧游标混用。 */
+  hgRefreshOrders = (hgForce = false) => {
+    if (this.hgLoadFlight && !hgForce) return;
+    if (hgForce) {
+      this.hgSeq += 1; // 写操作后的刷新废弃尚在途中的旧页响应。
+      this.hgLoadFlight = false;
+    }
+    this.setState((state) => ({
+      hgOrders: [], hgNextCursor: "", hgHasMore: false, hgResetKey: state.hgResetKey + 1,
+      hgError: "",
+    }));
+    return this.hgLoadOrders(false);
   };
 
-  /** 分页配置；条数按游标语义换算，不支持条数切换与跳页。 */
-  hgPagination = () => ({
-    current: this.state.hgPage,
-    pageSize: HG_MALL_ORDER_PAGE_SIZE,
-    total: hgOrderTotalCount(this.state.hgPage, this.state.hgOrders.length, this.state.hgHasMore),
-  });
+  /** 下滑追加下一页，不重取已加载订单。 */
+  hgLoadMore = () => this.hgLoadOrders(true);
 
   /**
-   * 页面内写操作串行执行；成功后重读当前页并通知余额订阅者刷新。
-   * 约束：409 表示订单状态被其他端改变，重取当前页后如实展示错误。
+   * 页面内写操作串行执行；成功后重新读取第一页并通知余额订阅者刷新。
+   * 约束：409 表示订单状态被其他端改变，刷新后仍保留错误反馈。
    */
   hgWrite = async (hgAction, hgSuccess) => {
     if (this.hgWriteFlight) return;
@@ -116,12 +118,12 @@ export default class HGMallPendingOrdersPage extends React.Component {
       this.props.hgOnBalanceChange?.();
       if (this.hgMounted) {
         this.setState({ hgNotice: hgSuccess });
-        await this.hgLoadOrders();
+        await this.hgRefreshOrders(true);
       }
     } catch (hgError) {
       if (this.hgMounted) {
-        this.setState({ hgError: this.hgMessage(hgError) });
-        if (hgError?.status === 409) await this.hgLoadOrders();
+        if (hgError?.status === 409) await this.hgRefreshOrders(true);
+        if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
       }
     } finally {
       this.hgWriteFlight = false;
@@ -161,48 +163,21 @@ export default class HGMallPendingOrdersPage extends React.Component {
     </Link>
   );
 
-  /**
-   * 构建待支付订单表列配置。
-   * @returns {Array<Object>} HGTablePage 列配置数组。
-   * 约束：操作列仅对 tradeStatus === 1 提供继续支付；权限与状态以服务端为准。
-   */
-  hgColumns = () => [
-    { title: "商品", dataIndex: "title", width: 180 },
-    { title: "数量", dataIndex: "quantity", width: 64 },
-    {
-      title: "金额（M币）",
-      dataIndex: "amount",
-      width: 110,
-      render: (hgValue) => HGFormatCoin(hgValue),
-    },
-    { title: "订单号", dataIndex: "orderId", width: 220 },
-    {
-      title: "状态",
-      dataIndex: "tradeStatus",
-      width: 150,
-      render: (_hgValue, hgOrder) => this.hgTradeStatusText(hgOrder),
-    },
-    { title: "支付截止（UTC）", dataIndex: "expiresAt", width: 180 },
-    {
-      title: "操作",
-      dataIndex: "action",
-      width: 200,
-      render: (_hgValue, hgOrder) => (
-        <span className={styles.orderActions}>
-          {this.hgDetailLink(hgOrder)}
-          {hgOrder.tradeStatus === 1 && (
-            <button
-              type="button"
-              disabled={this.state.hgBusy}
-              onClick={() => this.hgPay(hgOrder.orderId)}
-            >
-              继续支付 M币
-            </button>
-          )}
-        </span>
-      ),
-    },
-  ];
+  /** 卡片高度交由内容自然撑开；支付权限和状态仍以服务端为准。 */
+  renderOrderCard = (hgOrder) => (
+    <article className={`${styles.orderCard} ${styles.orderListCard}`}>
+      <h3>{hgOrder.title}</h3>
+      <p>数量：{hgOrder.quantity} · 金额：{HGFormatCoin(hgOrder.amount)} M币</p>
+      <p>订单号：{hgOrder.orderId}</p>
+      <p>状态：{this.hgTradeStatusText(hgOrder)}</p>
+      <p>支付截止（UTC）：{hgOrder.expiresAt}</p>
+      <div className={styles.orderActions}>
+        {this.hgDetailLink(hgOrder)}
+        {hgOrder.tradeStatus === 1 && <button type="button" disabled={this.state.hgBusy}
+          onClick={() => this.hgPay(hgOrder.orderId)}>继续支付 M币</button>}
+      </div>
+    </article>
+  );
 
   /** 渲染待确认购买提示；核对前不隐藏真实订单状态。 */
   renderPendingBuyNotice = () => {
@@ -219,13 +194,14 @@ export default class HGMallPendingOrdersPage extends React.Component {
     );
   };
 
-  /** 渲染加载或写操作错误，保留当前页游标供人工重试。 */
+  /** 渲染加载或写操作错误，允许对失败的下一游标人工重试。 */
   renderError = () => {
     if (!this.state.hgError) return null;
     return (
       <p role="alert" className={styles.error}>
         {this.state.hgError}{" "}
-        <button type="button" onClick={() => this.hgLoadOrders()}>
+        <button type="button" onClick={this.state.hgOrders.length && this.state.hgHasMore
+          ? this.hgLoadMore : () => this.hgRefreshOrders()}>
           重试
         </button>
       </p>
@@ -243,13 +219,16 @@ export default class HGMallPendingOrdersPage extends React.Component {
             {this.state.hgNotice}
           </p>
         )}
-        <HGTablePage
-          rowKey="orderId"
-          columns={this.hgColumns()}
-          dataSource={this.state.hgOrders}
+        <HGCollectionView
+          items={this.state.hgOrders}
+          getKey={(hgOrder) => hgOrder.orderId}
+          renderCell={this.renderOrderCard}
           loading={this.state.hgLoading}
-          pagination={this.hgPagination()}
-          onChange={this.hgPageChange}
+          hasMore={this.state.hgHasMore}
+          resetKey={this.state.hgResetKey}
+          onLoadMore={this.hgLoadMore}
+          onRefresh={() => this.hgRefreshOrders()}
+          ariaLabel="待付款订单"
         />
       </section>
     );

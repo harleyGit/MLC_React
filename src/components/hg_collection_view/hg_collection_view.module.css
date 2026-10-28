@@ -1,0 +1,23 @@
+.viewport {
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  box-sizing: border-box;
+}
+
+.spacer { position: relative; width: 100%; }
+
+.slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding-bottom: 12px;
+}
+
+.toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.toolbar button { border: 1px solid #dcd3ff; border-radius: 8px; padding: 6px 12px; color: #6c4cf1; background: #fff; cursor: pointer; }
+.toolbar button:disabled { opacity: .5; cursor: not-allowed; }
+.status { padding: 14px; color: #5a6076; text-align: center; }
+.viewport:focus-visible, .toolbar button:focus-visible { outline: 2px solid #6c4cf1; outline-offset: 2px; }

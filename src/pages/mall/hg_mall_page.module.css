@@ -84,6 +84,7 @@
 .reviewRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #e6e8f0; }
 .reviewRow span { flex: 1; overflow-wrap: anywhere; }
 .orderCard { border: 1px solid #e6e8f0; border-radius: 12px; padding: 16px; margin: 12px 0; overflow-wrap: anywhere; }
+.orderListCard { margin: 0; }
 
 /* 表格操作列：详情链接与支付/退款/收货按钮的行内排布。 */
 .orderActions { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 10px; }
