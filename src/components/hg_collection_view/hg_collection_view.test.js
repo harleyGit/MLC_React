@@ -127,3 +127,20 @@ test("切换展示页只回到滚动顶部，保留业务 key 对应的高度缓
   assert.equal(collection.hgViewport.current.scrollTop, 0);
   assert.equal(collection.hgHeights.get("a"), 260);
 });
+
+test("分页列表不显示刷新按钮，仍可在顶部下拉触发刷新", () => {
+  let refreshes = 0; // 下拉回调次数，初始尚未刷新。
+  const collection = hgCollection({
+    items: [{ id: "a" }], getKey: (item) => item.id, renderCell: () => null,
+    loading: false, pagination: { current: 1, pageSize: 20, loadedCount: 1, hasMore: false },
+    onRefresh: () => { refreshes += 1; },
+  });
+  collection.hgViewport.current = { scrollTop: 0 };
+  const children = collection.render().props.children;
+  assert.equal(children[0].props.role, "list"); // 第一个节点直接是滚动区，不再有顶部按钮栏。
+  assert.equal(children.at(-1).type, "nav"); // 分页栏仍保留。
+  collection.hgOnTouchStart({ touches: [{ clientY: 100 }] });
+  collection.hgOnTouchMove({ touches: [{ clientY: 175 }] });
+  collection.hgOnTouchEnd();
+  assert.equal(refreshes, 1);
+});

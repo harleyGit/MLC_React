@@ -16,13 +16,10 @@
   padding-bottom: 12px;
 }
 
-.toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-.toolbar button { border: 1px solid #dcd3ff; border-radius: 8px; padding: 6px 12px; color: #6c4cf1; background: #fff; cursor: pointer; }
-.toolbar button:disabled { opacity: .5; cursor: not-allowed; }
 .status { padding: 14px; color: #5a6076; text-align: center; }
 .pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; padding: 14px 0; color: #5a6076; }
 .pagination button, .pageSize select { border: 1px solid #dcd3ff; border-radius: 8px; padding: 6px 10px; background: #fff; color: #6c4cf1; font: inherit; cursor: pointer; }
 .pagination button:disabled, .pageSize select:disabled { opacity: .5; cursor: not-allowed; }
 .pagination button[aria-current="page"] { background: #6c4cf1; color: #fff; }
 .pageSize { display: inline-flex; align-items: center; gap: 6px; }
-.viewport:focus-visible, .toolbar button:focus-visible, .pagination button:focus-visible, .pageSize select:focus-visible { outline: 2px solid #6c4cf1; outline-offset: 2px; }
+.viewport:focus-visible, .pagination button:focus-visible, .pageSize select:focus-visible { outline: 2px solid #6c4cf1; outline-offset: 2px; }

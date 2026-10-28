@@ -239,16 +239,13 @@ export default class HGCollectionView extends React.Component {
 
   render() {
     const {
-      items, getKey, loading, hasMore, onRefresh, pagination,
+      items, getKey, loading, hasMore, pagination,
       height = 520, // 未配置高度时使用 520px 固定视口，保证列表可滚动。
       ariaLabel = "列表", // 未配置时使用通用辅助技术名称；业务页面应覆盖。
     } = this.props;
     const offsets = hgCollectionOffsets(items, getKey, this.hgHeights);
     return (
       <div>
-        {onRefresh && <div className={styles.toolbar}>
-          <button type="button" onClick={onRefresh} disabled={loading}>刷新</button>
-        </div>}
         <div
           ref={this.hgViewport}
           className={styles.viewport}
