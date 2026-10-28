@@ -1,8 +1,8 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-07-05
- * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-10-29
+ * @LastEditors: Harley harelysoa@qq.com
+ * @LastEditTime: 2026-10-29 22:49:31
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/role_list/hg_role_list_page.jsx
  * @Description: 角色管理页面，默认 cursor 分页展示角色列表并支持编辑、删除
  */
@@ -56,6 +56,12 @@ class HGRoleListPage extends Component {
       deleteModalVisible: false,
       /** @type {Object} 待删除的角色记录 */
       deleteRecord: null,
+      permissionModalVisible: false,
+      permissionRole: null,
+      permissionOptions: [],
+      selectedPermissions: [],
+      permissionLoading: false,
+      permissionMFACode: "", // 当前权限替换申请的一次性 MFA 验证码。
     };
   }
 
@@ -216,6 +222,59 @@ class HGRoleListPage extends Component {
     this.setState({ deleteModalVisible: false, deleteRecord: null });
   };
 
+  /** 打开自定义角色的权限编辑页，并从服务端读取当前授权。 */
+  handlePermissions = (record) => {
+    this.setState({
+      permissionRole: record,
+      permissionModalVisible: true,
+      permissionLoading: true,
+      permissionOptions: [],
+      selectedPermissions: [],
+      permissionMFACode: "",
+    });
+    HGRoleListVM.fetchPermissions(record.id)
+      .then((result) =>
+        this.setState({
+          permissionOptions: result?.list || [],
+          selectedPermissions: result?.selected || [],
+        })
+      )
+      .catch(() => {
+        message.error("权限目录加载失败");
+        this.setState({ permissionModalVisible: false });
+      })
+      .finally(() => this.setState({ permissionLoading: false }));
+  };
+
+  /** 保存权限全量快照；后台事务失败时保持弹窗，供用户重试。 */
+  handlePermissionsConfirm = () => {
+    const {
+      permissionRole,
+      selectedPermissions,
+      permissionLoading,
+      permissionMFACode,
+    } = this.state;
+    if (!permissionRole || permissionLoading) return;
+    if (!/^\d{6}$/.test(permissionMFACode)) {
+      message.error("请输入申请人的 6 位 MFA 验证码");
+      return;
+    }
+    this.setState({ permissionLoading: true });
+    HGRoleListVM.updatePermissions(
+      permissionRole.id,
+      selectedPermissions,
+      permissionMFACode
+    )
+      .then((result) => {
+        message.success(
+          `权限变更已提交审批，申请单 ${result?.approvalId || ""}`
+        );
+        this.setState({ permissionModalVisible: false, permissionMFACode: "" });
+      })
+      .catch((error) => message.error(error?.message || "角色权限更新失败"))
+      .finally(() => this.setState({ permissionLoading: false }));
+  };
+
   /**
    * 确认删除角色。
    */
@@ -298,7 +357,11 @@ class HGRoleListPage extends Component {
             编辑
           </HGButtonPage>
           <span className={styles.actionDivider} />
-          <HGButtonPage type="link" danger onClick={() => this.handleDelete(record)}>
+          <HGButtonPage
+            type="link"
+            danger
+            onClick={() => this.handleDelete(record)}
+          >
             删除
           </HGButtonPage>
         </div>
@@ -312,7 +375,9 @@ class HGRoleListPage extends Component {
    */
   renderStats = () => {
     const { data, pagination, loading } = this.state;
-    const describedCount = data.filter((row) => Boolean(row.description)).length;
+    const describedCount = data.filter((row) =>
+      Boolean(row.description)
+    ).length;
 
     const items = [
       {
@@ -358,7 +423,8 @@ class HGRoleListPage extends Component {
       <div className={styles.tipBar}>
         <span className={styles.tipDot} />
         <span>
-          共至少 {pagination.total} 条角色记录，使用 cursor 分页避免深分页扫描；角色权限通过“权限管理”分配。
+          共至少 {pagination.total} 条角色记录，使用 cursor
+          分页避免深分页扫描；角色权限通过“权限管理”分配。
         </span>
       </div>
     );
@@ -425,7 +491,9 @@ class HGRoleListPage extends Component {
         <div className={styles.deleteRoleRow}>
           <span
             className={styles.roleBadge}
-            style={{ background: HGRoleListVM.getRoleBadgeColor(deleteRecord.id) }}
+            style={{
+              background: HGRoleListVM.getRoleBadgeColor(deleteRecord.id),
+            }}
           >
             {(deleteRecord.name || "角").slice(0, 1)}
           </span>
@@ -499,7 +567,52 @@ class HGRoleListPage extends Component {
           {this.renderEditForm()}
         </HGModalPage>
 
-        {/* 删除确认弹窗 */}
+        <HGModalPage
+          visible={this.state.permissionModalVisible}
+          title={`角色权限 · ${this.state.permissionRole?.name || ""}`}
+          onClose={() =>
+            this.setState({
+              permissionModalVisible: false,
+              permissionMFACode: "",
+            })
+          }
+          onCancel={() =>
+            this.setState({
+              permissionModalVisible: false,
+              permissionMFACode: "",
+            })
+          }
+          onOk={this.handlePermissionsConfirm}
+          okText={this.state.permissionLoading ? "处理中..." : "提交权限审批"}
+          cancelText="取消"
+        >
+          <HGTreeSelectPage
+            treeData={this.state.permissionOptions.map((item) => ({
+              title: `${item.code} · ${item.description}`,
+              value: item.code,
+            }))}
+            value={this.state.selectedPermissions}
+            onChange={(values) =>
+              this.setState({ selectedPermissions: values })
+            }
+            treeCheckable
+            allowClear
+            showCheckedStrategy="SHOW_CHILD"
+          />
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={this.state.permissionMFACode}
+            onChange={(event) =>
+              this.setState({ permissionMFACode: event.target.value })
+            }
+            placeholder="申请人 MFA 验证码"
+          />
+        </HGModalPage>
+
+        {/* 停用确认弹窗 */}
         <HGModalPage
           visible={deleteModalVisible}
           title="删除角色"

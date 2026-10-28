@@ -91,6 +91,11 @@ export const HGMANAGER_API = {
   IAM_BINDING_LIST: "/api/v1/iam/bindings/list", // 员工角色绑定
   IAM_BINDING_GRANT: "/api/v1/iam/bindings/grant", // 授予员工角色
   IAM_BINDING_REVOKE: "/api/v1/iam/bindings/revoke", // 撤销员工角色
+  IAM_MFA_ENROLL: "/api/v1/iam/mfa/enroll", // 复核密码后绑定 TOTP
+  IAM_MFA_CONFIRM: "/api/v1/iam/mfa/confirm", // 激活 TOTP
+  IAM_APPROVAL_LIST: "/api/v1/iam/approvals/list", // 待审批授权
+  IAM_APPROVAL_APPROVE: "/api/v1/iam/approvals/approve", // 批准授权
+  IAM_APPROVAL_REJECT: "/api/v1/iam/approvals/reject", // 拒绝授权
   OPS_BILIBILI_TAG_CREATE: "/api/v1/ops/bilibili/tags", // 创建 Bilibili 动画标签
   OPS_BILIBILI_TAG_LIST: "/api/v1/ops/bilibili/tags/list", // 获取 Bilibili 动画标签
   OPS_BILIBILI_TAG_UPDATE: "/api/v1/ops/bilibili/tags/update", // 更新 Bilibili 动画标签

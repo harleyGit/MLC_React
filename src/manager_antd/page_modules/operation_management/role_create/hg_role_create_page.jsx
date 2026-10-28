@@ -47,8 +47,8 @@ class HGRoleCreatePage extends Component {
 
     this.setState({ submitting: true });
     HGRoleCreateVM.submitRole(submitData)
-      .then(() => {
-        message.success("角色创建成功");
+      .then((result) => {
+        message.success(result?.approvalId ? `角色已创建，权限申请 ${result.approvalId} 待审批` : "空权限角色创建成功");
         if (this.formRef.current) {
           this.formRef.current.resetFields();
         }
@@ -93,7 +93,7 @@ class HGRoleCreatePage extends Component {
     </Item>
   );
 
-  /** 权限从服务端目录选择，并与角色创建在一个事务中提交。 */
+  /** 权限从服务端目录选择，角色创建后另行提交双人审批申请。 */
   renderPermissionsField = (rules) => (
     <Item label="角色权限" name="permissions" rules={rules.permissions}>
       <HGTreeSelectPage
@@ -104,6 +104,13 @@ class HGRoleCreatePage extends Component {
         treeDefaultExpandAll
         showCheckedStrategy="SHOW_CHILD"
       />
+    </Item>
+  );
+
+  /** 只有申请角色权限时需要 MFA 动态验证码。 */
+  renderMFAField = (rules) => (
+    <Item label="申请人 MFA 验证码" name="mfaCode" rules={rules.mfaCode}>
+      <HGInputPage maxLength={6} placeholder="选择权限时输入验证器 6 位验证码" className={styles.roleCreateInput} />
     </Item>
   );
 
@@ -163,6 +170,7 @@ class HGRoleCreatePage extends Component {
           {this.renderNameField(rules)}
           {this.renderDescriptionField(rules)}
           {this.renderPermissionsField(rules)}
+          {this.renderMFAField(rules)}
           {this.renderActions()}
         </Form>
       </div>

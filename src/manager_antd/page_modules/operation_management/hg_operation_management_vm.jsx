@@ -22,7 +22,6 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="admin" />,
     children: [
       { key: "admin_add", label: "添加管理员", icon: <HGIconPage type="add-user" /> },
-      { key: "admin_role_assign", label: "管理员角色分配", icon: <HGIconPage type="role" /> },
     ],
   },
   {
@@ -31,7 +30,6 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="user-management" />,
     children: [
       { key: "user_list", label: "用户列表", icon: <HGIconPage type="table" /> },
-      { key: "user_permission", label: "用户权限管理", icon: <HGIconPage type="permission" /> },
     ],
   },
   {
@@ -51,7 +49,6 @@ export const OPERATION_MENU_ITEMS = [
     children: [
       { key: "permission_list", label: "权限列表", icon: <HGIconPage type="table" /> },
       { key: "permission_menu", label: "菜单权限", icon: <HGIconPage type="menu" /> },
-      { key: "permission_role", label: "角色权限分配", icon: <HGIconPage type="shield" /> },
       { key: "permission_config", label: "权限配置", icon: <HGIconPage type="config" /> },
     ],
   },

@@ -18,6 +18,7 @@ export const INITIAL_ROLE_CREATE_FORM_VALUES = {
   name: "",
   description: "",
   permissions: [],
+  mfaCode: "", // 角色权限申请的一次性 MFA 验证码。
 };
 
 /**
@@ -41,6 +42,7 @@ export default class HGRoleCreateVM {
     ],
     description: [{ max: 255, message: "角色描述最多 255 个字符" }],
     permissions: [{ type: "array", max: 50, message: "权限最多 50 项" }],
+    mfaCode: [{ pattern: /^\d{6}$/, message: "请选择权限时需输入 6 位 MFA 验证码" }],
   });
 
   /** 从 IAM 权限目录加载角色可选权限。 */
@@ -56,6 +58,7 @@ export default class HGRoleCreateVM {
     name: String(values.name || "").trim(),
     description: String(values.description || "").trim(),
     permissions: Array.isArray(values.permissions) ? values.permissions : [],
+    mfaCode: String(values.mfaCode || "").trim(),
   });
 
   /**
@@ -63,7 +66,15 @@ export default class HGRoleCreateVM {
    * @param {{name: string, description: string}} data 后端 CreateRole 请求体
    * @returns {Promise<Object>} 后端响应 result
    */
-  static submitRole = (data) => {
-    return HGNet.post(HGMANAGER_API.IAM_ROLE_CREATE, data);
+  static submitRole = async (data) => {
+    if (data.permissions.length > 0 && !/^\d{6}$/.test(data.mfaCode)) throw new Error("选择权限时请输入 6 位 MFA 验证码");
+    const role = await HGNet.post(HGMANAGER_API.IAM_ROLE_CREATE, { code: data.code, name: data.name, description: data.description, permissions: [] });
+    if (!data.permissions.length) return role;
+    try {
+      const approval = await HGNet.post(HGMANAGER_API.IAM_ROLE_PERMISSIONS, { roleId: role.id, permissions: data.permissions, mfaCode: data.mfaCode });
+      return { ...role, approvalId: approval?.approvalId };
+    } catch (error) {
+      throw new Error(`角色 ${role.code} 已创建，但权限审批申请失败：${error?.message || "请在角色列表重试"}`);
+    }
   };
 }

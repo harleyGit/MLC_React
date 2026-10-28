@@ -1,8 +1,8 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
- * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-07-05 23:05:10
+ * @LastEditors: Harley harelysoa@qq.com
+ * @LastEditTime: 2026-10-29 22:48:24
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
@@ -23,9 +23,7 @@ const HGFileListPage = lazy(() => import("./file_management/file_list/hg_file_li
 const HGFileManagementPage = lazy(() => import("./file_management/hg_file_management_page"));
 const HGPermissionMenuPage = lazy(() => import("./hg_permission_menu_page"));
 const HGRoleCreatePage = lazy(() => import("./role_create/hg_role_create_page"));
-const HGUserPermissionPage = lazy(() => import("./user_permission/hg_user_permission_page"));
 const HGRoleListPage = lazy(() => import("./role_list/hg_role_list_page"));
-const HGRolePermissionPage = lazy(() => import("./role_permission/hg_role_permission_page"));
 const HGSmsTemplatePage = lazy(() => import("./sms_template/hg_sms_template_page"));
 const HGBilibiliTagPage = lazy(() => import("./bilibili_tag/hg_bilibili_tag_page"));
 const HGCoinOperationsPage = lazy(() => import("./coin_operations/hg_coin_operations_page"));
@@ -208,19 +206,19 @@ class SystemNotifyChannelPage extends Component {
 const PAGE_MAP = {
   domain_detect: DomainDetectPage,
   admin_add: HGAdminAddPage,
-  admin_role_assign: HGAdminRoleAssignPage,
+  admin_role_assign: HGEmployeeRolePage,
   // 用户管理：user_list 菜单必须展示真实用户资料/用户列表页。
   // user_list 对应“用户列表”菜单，需要渲染真实用户资料列表页，而不是上方的占位组件。
   user_list: HGUserProfilePage,//用户列表
   // 用户权限管理Page：已拆分为独立业务页面。
-  user_permission: HGUserPermissionPage,
+  user_permission: HGEmployeeRolePage,
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
   role_list: HGRoleListPage,//角色列表
   role_employee: HGEmployeeRolePage,
   role_create: HGRoleCreatePage,
   permission_list: PermissionListPage,
   permission_menu: HGPermissionMenuPage,
-  permission_role: HGRolePermissionPage,
+  permission_role: HGRoleListPage,
   permission_config: PermissionConfigPage,
   // 系统配置：基础配置、安全配置、通知配置对应的占位/业务页面。
   system_basic_site: SystemBasicSitePage,

@@ -67,8 +67,8 @@ export default class HGRoleListVM {
   /** 读取权限目录及指定角色的已选权限。 */
   static fetchPermissions = (roleId) => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
 
-  /** 全量替换自定义角色权限，服务端校验调用人的可委派权限。 */
-  static updatePermissions = (roleId, permissions) => HGNet.post(HGMANAGER_API.IAM_ROLE_PERMISSIONS, { roleId, permissions });
+  /** 全量权限替换必须由申请人 MFA 签名并经另一名管理员审批。 */
+  static updatePermissions = (roleId, permissions, mfaCode) => HGNet.post(HGMANAGER_API.IAM_ROLE_PERMISSIONS, { roleId, permissions, mfaCode });
 
   /**
    * 标准化角色列表行，避免页面直接依赖后端空值细节。
