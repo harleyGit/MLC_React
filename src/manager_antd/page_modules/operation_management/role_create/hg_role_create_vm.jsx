@@ -14,8 +14,10 @@ import HGNet from "../../../net_handle/hg_net_manager_vm";
  * 职责：保持新增表单字段默认值一致，避免页面内散落字段名。
  */
 export const INITIAL_ROLE_CREATE_FORM_VALUES = {
+  code: "",
   name: "",
   description: "",
+  permissions: [],
 };
 
 /**
@@ -28,13 +30,21 @@ export default class HGRoleCreateVM {
    * @returns {Object} 表单字段 rules 配置
    */
   static getFormRules = () => ({
+    code: [
+      { required: true, message: "请输入角色编码" },
+      { pattern: /^[a-z][a-z0-9_]{1,63}$/, message: "角色编码需为 2-64 位小写字母、数字或下划线，且以字母开头" },
+    ],
     name: [
       { required: true, message: "请输入角色名称" },
       { min: 2, message: "角色名称至少 2 个字符" },
       { max: 64, message: "角色名称最多 64 个字符" },
     ],
     description: [{ max: 255, message: "角色描述最多 255 个字符" }],
+    permissions: [{ type: "array", max: 50, message: "权限最多 50 项" }],
   });
+
+  /** 从 IAM 权限目录加载角色可选权限。 */
+  static fetchPermissions = () => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST);
 
   /**
    * 转换创建角色提交数据。
@@ -42,8 +52,10 @@ export default class HGRoleCreateVM {
    * @returns {{name: string, description: string}} 后端 CreateRole 请求体
    */
   static transformSubmitData = (values) => ({
+    code: String(values.code || "").trim(),
     name: String(values.name || "").trim(),
     description: String(values.description || "").trim(),
+    permissions: Array.isArray(values.permissions) ? values.permissions : [],
   });
 
   /**
@@ -52,6 +64,6 @@ export default class HGRoleCreateVM {
    * @returns {Promise<Object>} 后端响应 result
    */
   static submitRole = (data) => {
-    return HGNet.post(HGMANAGER_API.OPS_ROLE_CREATE, data);
+    return HGNet.post(HGMANAGER_API.IAM_ROLE_CREATE, data);
   };
 }

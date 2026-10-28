@@ -12,6 +12,7 @@ import HGCardPage from "../../../../components/hg_card/hg_card_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
+import HGTreeSelectPage from "../../../../components/hg_tree_select/hg_tree_select_page";
 import styles from "./hg_role_list.module.css";
 import HGRoleListVM, { ROLE_LIST_PAGE_SIZE } from "./hg_role_list_vm";
 
@@ -54,6 +55,11 @@ class HGRoleListPage extends Component {
       deleteModalVisible: false,
       /** @type {Object} 待删除的角色记录 */
       deleteRecord: null,
+      permissionModalVisible: false,
+      permissionRole: null,
+      permissionOptions: [],
+      selectedPermissions: [],
+      permissionLoading: false,
     };
   }
 
@@ -213,6 +219,26 @@ class HGRoleListPage extends Component {
     this.setState({ deleteModalVisible: false, deleteRecord: null });
   };
 
+  /** 打开自定义角色的权限编辑页，并从服务端读取当前授权。 */
+  handlePermissions = (record) => {
+    this.setState({ permissionRole: record, permissionModalVisible: true, permissionLoading: true });
+    HGRoleListVM.fetchPermissions(record.id)
+      .then((result) => this.setState({ permissionOptions: result?.list || [], selectedPermissions: result?.selected || [] }))
+      .catch(() => { message.error("权限目录加载失败"); this.setState({ permissionModalVisible: false }); })
+      .finally(() => this.setState({ permissionLoading: false }));
+  };
+
+  /** 保存权限全量快照；后台事务失败时保持弹窗，供用户重试。 */
+  handlePermissionsConfirm = () => {
+    const { permissionRole, selectedPermissions } = this.state;
+    if (!permissionRole) return;
+    this.setState({ permissionLoading: true });
+    HGRoleListVM.updatePermissions(permissionRole.id, selectedPermissions)
+      .then(() => { message.success("角色权限已更新"); this.setState({ permissionModalVisible: false }); })
+      .catch((error) => message.error(error?.message || "角色权限更新失败"))
+      .finally(() => this.setState({ permissionLoading: false }));
+  };
+
   /**
    * 确认删除角色。
    */
@@ -222,26 +248,32 @@ class HGRoleListPage extends Component {
 
     HGRoleListVM.deleteRole({ id: deleteRecord.id })
       .then(() => {
-        message.success("角色删除成功");
+        message.success("角色已停用");
         this.handleDeleteModalClose();
         // 刷新当前页
         const { pagination } = this.state;
         this.fetchRoleList(pagination.current, pagination.pageSize);
       })
       .catch(() => {
-        message.error("角色删除失败，请稍后重试");
+        message.error("停用失败：请确认角色未被授权给员工");
       });
   };
 
   /**
    * 角色表格列配置。
-   * 字段来源：role 表的 role_id, name, description, create_at。
+   * 字段来源：iam_roles 的 id、role_code、role_name 和 created_at。
    * @returns {Array<Object>} 表格列定义。
    */
   getColumns = () => [
     {
       title: "角色ID",
       dataIndex: "id",
+      width: 180,
+      render: (text) => <span className={styles.cellText}>{text || "-"}</span>,
+    },
+    {
+      title: "角色编码",
+      dataIndex: "code",
       width: 180,
       render: (text) => <span className={styles.cellText}>{text || "-"}</span>,
     },
@@ -269,9 +301,10 @@ class HGRoleListPage extends Component {
       width: 200,
       render: (_, record) => (
         <span>
-          <a onClick={() => this.handleEdit(record)}>编辑</a>
+          {record.builtIn ? <span>内置角色</span> : <a onClick={() => this.handleEdit(record)}>编辑</a>}
           <span style={{ margin: "0 8px", color: "#e8e8e8" }}>|</span>
-          <a onClick={() => this.handleDelete(record)}>删除</a>
+          {!record.builtIn && <><a onClick={() => this.handlePermissions(record)}>权限</a><span style={{ margin: "0 8px", color: "#e8e8e8" }}>|</span></>}
+          {record.builtIn ? <span>不可停用</span> : <a onClick={() => this.handleDelete(record)}>停用</a>}
         </span>
       ),
     },
@@ -417,18 +450,37 @@ class HGRoleListPage extends Component {
           {this.renderEditForm()}
         </HGModalPage>
 
-        {/* 删除确认弹窗 */}
+        <HGModalPage
+          visible={this.state.permissionModalVisible}
+          title={`角色权限 · ${this.state.permissionRole?.name || ""}`}
+          onClose={() => this.setState({ permissionModalVisible: false })}
+          onCancel={() => this.setState({ permissionModalVisible: false })}
+          onOk={this.handlePermissionsConfirm}
+          okText={this.state.permissionLoading ? "处理中..." : "保存权限"}
+          cancelText="取消"
+        >
+          <HGTreeSelectPage
+            treeData={this.state.permissionOptions.map((item) => ({ title: `${item.code} · ${item.description}`, value: item.code }))}
+            value={this.state.selectedPermissions}
+            onChange={(values) => this.setState({ selectedPermissions: values })}
+            treeCheckable
+            allowClear
+            showCheckedStrategy="SHOW_CHILD"
+          />
+        </HGModalPage>
+
+        {/* 停用确认弹窗 */}
         <HGModalPage
           visible={deleteModalVisible}
-          title="确认删除"
+          title="确认停用"
           onClose={this.handleDeleteModalClose}
           onOk={this.handleDeleteConfirm}
           onCancel={this.handleDeleteModalClose}
-          okText="确认删除"
+          okText="确认停用"
           cancelText="取消"
           okType="danger"
         >
-          <p>确定要删除角色 "{deleteRecord?.name}" 吗？删除后将无法恢复。</p>
+          <p>确定停用角色 "{deleteRecord?.name}" 吗？已绑定员工的角色需先撤销授权。</p>
         </HGModalPage>
       </div>
     );

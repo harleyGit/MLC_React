@@ -35,7 +35,7 @@ export default class HGRoleListVM {
    * @returns {Promise<Object>} 角色列表响应，包含 list、nextCursor、hasMore。
    */
   static fetchRoleList = ({ cursor = 0, pageSize = ROLE_LIST_PAGE_SIZE } = {}) => {
-    return HGNet.get(HGMANAGER_API.OPS_ROLE_LIST, { cursor, pageSize });
+    return HGNet.get(HGMANAGER_API.IAM_ROLE_LIST, { cursor, pageSize });
   };
 
   /**
@@ -49,7 +49,7 @@ export default class HGRoleListVM {
    * @returns {Promise<Object>} 更新后的角色信息。
    */
   static updateRole = ({ id, name, description } = {}) => {
-    return HGNet.post(HGMANAGER_API.OPS_ROLE_UPDATE, { id, name, description });
+    return HGNet.post(HGMANAGER_API.IAM_ROLE_UPDATE, { id, name, description });
   };
 
   /**
@@ -61,8 +61,14 @@ export default class HGRoleListVM {
    * @returns {Promise<Object>} 删除结果。
    */
   static deleteRole = ({ id } = {}) => {
-    return HGNet.post(HGMANAGER_API.OPS_ROLE_DELETE, { id });
+    return HGNet.post(HGMANAGER_API.IAM_ROLE_DISABLE, { id });
   };
+
+  /** 读取权限目录及指定角色的已选权限。 */
+  static fetchPermissions = (roleId) => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
+
+  /** 全量替换自定义角色权限，服务端校验调用人的可委派权限。 */
+  static updatePermissions = (roleId, permissions) => HGNet.post(HGMANAGER_API.IAM_ROLE_PERMISSIONS, { roleId, permissions });
 
   /**
    * 标准化角色列表行，避免页面直接依赖后端空值细节。
@@ -72,6 +78,8 @@ export default class HGRoleListVM {
   static toRoleRows = (roles = []) => {
     return roles.map((role) => ({
       id: String(role.id || ""),
+      code: role.code || "",
+      builtIn: Boolean(role.builtIn),
       name: role.name || "",
       description: role.description || "",
       createdAt: role.createdAt || "",

@@ -82,6 +82,15 @@ export const HGMANAGER_API = {
   OPS_ADMIN_SEARCH: "/api/v1/ops/users/search", // 运维管理员搜索
   OPS_USER_ROLES: "/api/v1/ops/users/roles", // 分配管理员角色
   OPS_USER_ROLE_LIST: "/api/v1/ops/users/roles/list", // 获取管理员已分配角色
+  IAM_ROLE_CREATE: "/api/v1/iam/roles", // 创建 IAM 角色
+  IAM_ROLE_LIST: "/api/v1/iam/roles/list", // IAM 角色游标列表
+  IAM_ROLE_UPDATE: "/api/v1/iam/roles/update", // 更新 IAM 角色
+  IAM_ROLE_DISABLE: "/api/v1/iam/roles/disable", // 停用 IAM 角色
+  IAM_PERMISSION_LIST: "/api/v1/iam/permissions/list", // IAM 权限目录
+  IAM_ROLE_PERMISSIONS: "/api/v1/iam/roles/permissions", // 替换自定义角色权限
+  IAM_BINDING_LIST: "/api/v1/iam/bindings/list", // 员工角色绑定
+  IAM_BINDING_GRANT: "/api/v1/iam/bindings/grant", // 授予员工角色
+  IAM_BINDING_REVOKE: "/api/v1/iam/bindings/revoke", // 撤销员工角色
   OPS_BILIBILI_TAG_CREATE: "/api/v1/ops/bilibili/tags", // 创建 Bilibili 动画标签
   OPS_BILIBILI_TAG_LIST: "/api/v1/ops/bilibili/tags/list", // 获取 Bilibili 动画标签
   OPS_BILIBILI_TAG_UPDATE: "/api/v1/ops/bilibili/tags/update", // 更新 Bilibili 动画标签

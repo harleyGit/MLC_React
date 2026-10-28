@@ -83,6 +83,17 @@ export const OPERATION_MENU_ITEMS = [
     ],
   },
   {
+    key: "mall",
+    label: "商城",
+    icon: <HGIconPage type="config" />,
+    children: [
+      { key: "mall_pending_merchants", label: "待审核商家", icon: <HGIconPage type="table" /> },
+      { key: "mall_pending_products", label: "待审核商品", icon: <HGIconPage type="table" /> },
+      { key: "mall_pending_media", label: "已上架商品补图审核", icon: <HGIconPage type="table" /> },
+      { key: "mall_pending_edits", label: "已上架商品资料修改审核", icon: <HGIconPage type="table" /> },
+    ],
+  },
+  {
     key: "system",
     label: "系统设置",
     icon: <HGIconPage type="config" />,

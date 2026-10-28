@@ -31,6 +31,18 @@ const HGSmsTemplatePage = lazy(() => import("./sms_template/hg_sms_template_page
 const HGBilibiliTagPage = lazy(() => import("./bilibili_tag/hg_bilibili_tag_page"));
 const HGCoinOperationsPage = lazy(() => import("./coin_operations/hg_coin_operations_page"));
 const HGRechargeSkuPage = lazy(() => import("./hg_recharge_sku/hg_recharge_sku_page"));
+const HGPendingMerchantReviewPage = lazy(() =>
+  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingMerchantReviewPage }))
+);
+const HGPendingProductReviewPage = lazy(() =>
+  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingProductReviewPage }))
+);
+const HGPendingMediaReviewPage = lazy(() =>
+  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingMediaReviewPage }))
+);
+const HGPendingEditReviewPage = lazy(() =>
+  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingEditReviewPage }))
+);
 const HGUserProfilePage = lazy(() => import("../user/hg_user_profile_page"));
 // 检测工具按需加载，不增加默认运维页面的初始化请求。
 const DomainDetectPage = lazy(() => import("../domain_module/DomainDetectPage.jsx"));
@@ -228,6 +240,11 @@ const PAGE_MAP = {
   bilibili_douga_tags: HGBilibiliTagPage,
   coin_operations: HGCoinOperationsPage,
   hg_recharge_sku: HGRechargeSkuPage,
+  // 商城审核：四类待审资源分别维护独立列表状态，避免菜单切换时混用游标。
+  mall_pending_merchants: HGPendingMerchantReviewPage,
+  mall_pending_products: HGPendingProductReviewPage,
+  mall_pending_media: HGPendingMediaReviewPage,
+  mall_pending_edits: HGPendingEditReviewPage,
 };
 
 /**

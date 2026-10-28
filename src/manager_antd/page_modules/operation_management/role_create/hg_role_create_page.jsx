@@ -10,6 +10,7 @@ import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import { HGFormPage as Form, HGFormItem as Item } from "../../../../components/hg_form/hg_form_page";
 import HGInputPage, { HGInputTextArea } from "../../../../components/hg_input/hg_input_page";
+import HGTreeSelectPage from "../../../../components/hg_tree_select/hg_tree_select_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGRoleCreateVM, {
   INITIAL_ROLE_CREATE_FORM_VALUES,
@@ -26,7 +27,15 @@ class HGRoleCreatePage extends Component {
     this.formRef = React.createRef();
     this.state = {
       submitting: false,
+      permissions: [],
     };
+  }
+
+  /** 页面挂载时读取权威权限目录，避免提交前端硬编码的权限码。 */
+  componentDidMount() {
+    HGRoleCreateVM.fetchPermissions()
+      .then((result) => this.setState({ permissions: result?.list || [] }))
+      .catch(() => message.error("权限目录加载失败"));
   }
 
   /**
@@ -73,6 +82,27 @@ class HGRoleCreatePage extends Component {
         maxLength={64}
         placeholder="请输入角色名称，如：运营主管"
         className={styles.roleCreateInput}
+      />
+    </Item>
+  );
+
+  /** 渲染不可修改的业务角色编码输入项。 */
+  renderCodeField = (rules) => (
+    <Item label="角色编码" name="code" rules={rules.code}>
+      <HGInputPage allowClear maxLength={64} placeholder="例如 content_editor" className={styles.roleCreateInput} />
+    </Item>
+  );
+
+  /** 权限从服务端目录选择，并与角色创建在一个事务中提交。 */
+  renderPermissionsField = (rules) => (
+    <Item label="角色权限" name="permissions" rules={rules.permissions}>
+      <HGTreeSelectPage
+        treeData={this.state.permissions.map((item) => ({ title: `${item.code} · ${item.description}`, value: item.code }))}
+        placeholder="请选择权限（可多选）"
+        allowClear
+        treeCheckable
+        treeDefaultExpandAll
+        showCheckedStrategy="SHOW_CHILD"
       />
     </Item>
   );
@@ -129,8 +159,10 @@ class HGRoleCreatePage extends Component {
           initialValues={INITIAL_ROLE_CREATE_FORM_VALUES}
           onFinish={this.handleFinish}
         >
+          {this.renderCodeField(rules)}
           {this.renderNameField(rules)}
           {this.renderDescriptionField(rules)}
+          {this.renderPermissionsField(rules)}
           {this.renderActions()}
         </Form>
       </div>
