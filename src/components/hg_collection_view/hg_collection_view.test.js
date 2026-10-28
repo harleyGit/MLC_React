@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import { transformSync } from "@swc/core";
 import React from "react";
 import { hgCollectionOffsets, hgCollectionStart } from "./hg_collection_layout.js";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
 
 /** 运行真实 JSX 组件；DOM 和样式只使用本地替身，不启动网络服务。 */
 function hgCollection(props) {
@@ -20,6 +21,7 @@ function hgCollection(props) {
     require: (name) => {
       if (name === "react") return React;
       if (name.endsWith("hg_collection_layout.js")) return { hgCollectionOffsets, hgCollectionStart };
+      if (name.endsWith("hg_drag_scroll.js")) return { hgStartDrag, hgMoveDrag };
       return { default: {}, __esModule: true };
     },
   });
@@ -143,4 +145,34 @@ test("分页列表不显示刷新按钮，仍可在顶部下拉触发刷新", ()
   collection.hgOnTouchMove({ touches: [{ clientY: 175 }] });
   collection.hgOnTouchEnd();
   assert.equal(refreshes, 1);
+});
+
+test("鼠标拖动列表后不会误点卡片，页面未回顶时下拉不误刷新", () => {
+  let refreshes = 0; // 只统计明确在页面顶部触发的刷新。
+  const collection = hgCollection({
+    items: [{ id: "a" }], getKey: (item) => item.id, renderCell: () => null,
+    onRefresh: () => { refreshes += 1; },
+  });
+  const page = { scrollTop: 90, scrollHeight: 1000, clientHeight: 500, parentElement: null };
+  const body = { scrollTop: 0, scrollHeight: 200, clientHeight: 100, parentElement: page,
+    ownerDocument: { scrollingElement: page }, setPointerCapture: () => {} };
+  page.ownerDocument = body.ownerDocument;
+  collection.hgViewport.current = body;
+  const viewport = collection.render().props.children[0];
+  collection.hgOnTouchStart({ touches: [{ clientY: 100 }] });
+  collection.hgOnTouchMove({ touches: [{ clientY: 180 }] });
+  collection.hgOnTouchEnd();
+  assert.equal(refreshes, 0);
+  assert.equal(typeof viewport.props.onPointerDown, "function");
+  const event = { pointerType: "mouse", button: 0, pointerId: 1, clientY: 100,
+    target: { closest: () => null }, currentTarget: body, preventDefault: () => {} };
+  viewport.props.onPointerDown(event);
+  let nativeDragPrevented = 0;
+  viewport.props.onDragStart({ preventDefault: () => { nativeDragPrevented += 1; } });
+  viewport.props.onPointerMove({ ...event, clientY: 80 });
+  viewport.props.onPointerUp(event);
+  let prevented = 0;
+  viewport.props.onClickCapture({ preventDefault: () => { prevented += 1; }, stopPropagation: () => {} });
+  assert.equal(prevented, 1);
+  assert.equal(nativeDragPrevented, 1);
 });

@@ -1,6 +1,7 @@
 import React from "react";
 import styles from "./hg_table.module.css";
 import { syncHorizontalScroll } from "./hg_table_scroll.js";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
 
 /**
  * 默认行高（px）。
@@ -226,6 +227,8 @@ class HGTablePage extends React.Component {
     this.scrollRef = React.createRef();
     // 表头与表体独立滚动，以 ref 同步像素位置而不触发 React 重渲染。
     this.headerRef = React.createRef();
+    this.hgDrag = null; // 当前鼠标拖动身份；null 表示没有正在拖动表体。
+    this.hgSuppressClick = false; // 拖动后屏蔽该手势触发的行内链接误点击。
   }
 
   /** 监听表体可视宽度变化，包含窗口缩放及纵向滚动条出现/消失。 */
@@ -243,6 +246,7 @@ class HGTablePage extends React.Component {
 
   /** 卸载后停止尺寸监听，避免访问已移除的滚动节点。 */
   componentWillUnmount() {
+    this.hgDrag = null;
     this.hgResizeObserver?.disconnect();
   }
 
@@ -392,6 +396,43 @@ class HGTablePage extends React.Component {
     syncHorizontalScroll(source, target);
   };
 
+  /** 表体拖动优先滚动自身，触底或触顶后继续滚动整个页面。 */
+  hgOnPointerDown = (event) => {
+    this.hgSuppressClick = false;
+    this.hgDrag = hgStartDrag(event);
+  };
+
+  hgOnPointerMove = (event) => {
+    if (hgMoveDrag(event, this.hgDrag)) this.hgSuppressClick = true;
+  };
+
+  hgOnPointerEnd = (event) => {
+    if (this.hgDrag?.id === event.pointerId) this.hgDrag = null;
+  };
+
+  /** 鼠标拖动表体中的链接或图片时不启动浏览器原生拖拽。 */
+  hgOnDragStart = (event) => {
+    if (this.hgDrag) event.preventDefault();
+  };
+
+  hgOnClickCapture = (event) => {
+    if (!this.hgSuppressClick) return;
+    this.hgSuppressClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  /** 表头和所有表体模式共用纵向拖动；分页控件保持原有点击行为。 */
+  hgBodyDragProps = () => ({
+    onPointerDown: this.hgOnPointerDown,
+    onPointerMove: this.hgOnPointerMove,
+    onPointerUp: this.hgOnPointerEnd,
+    onPointerCancel: this.hgOnPointerEnd,
+    onLostPointerCapture: this.hgOnPointerEnd,
+    onDragStart: this.hgOnDragStart,
+    onClickCapture: this.hgOnClickCapture,
+  });
+
   /**
    * 触发外部分页变更回调。
    */
@@ -538,7 +579,7 @@ class HGTablePage extends React.Component {
     const { columns = [] } = this.props;
     const totalWidth = this.getTotalColumnsWidth();
     return (
-      <div className={styles.headerWrap} ref={this.headerRef} onScroll={this.handleHeaderScroll}>
+      <div className={styles.headerWrap} ref={this.headerRef} onScroll={this.handleHeaderScroll} {...this.hgBodyDragProps()}>
         {/*
           表头必须采用“外层 100% 可视宽度 + 内层 totalWidth 总列宽”的结构。
           这样 headerWrap 才会拥有真实横向滚动空间，表体滚动时设置 scrollLeft 才能移动 title 行。
@@ -578,7 +619,7 @@ class HGTablePage extends React.Component {
 
     if (items.length === 0) {
       return (
-        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleSectionScroll}>
+        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleSectionScroll} {...this.hgBodyDragProps()}>
           <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
@@ -628,6 +669,7 @@ class HGTablePage extends React.Component {
         style={{ height: bodyHeight }}
         ref={this.scrollRef}
         onScroll={this.handleSectionScroll}
+        {...this.hgBodyDragProps()}
       >
         {/* Sticky Section Header */}
         {stickyHeader && (
@@ -711,7 +753,7 @@ class HGTablePage extends React.Component {
 
     if (totalCount === 0) {
       return (
-        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleScroll}>
+        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleScroll} {...this.hgBodyDragProps()}>
           <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
@@ -723,6 +765,7 @@ class HGTablePage extends React.Component {
         style={{ height: bodyHeight }}
         ref={this.scrollRef}
         onScroll={this.handleScroll}
+        {...this.hgBodyDragProps()}
       >
         <div className={styles.virtualSpacer} style={{ height: totalHeight, minWidth: totalWidth }}>
           {Array.from({ length: poolSize }, (_, poolIdx) => {
@@ -770,6 +813,7 @@ class HGTablePage extends React.Component {
           style={{ maxHeight: bodyHeight }}
           ref={this.scrollRef}
           onScroll={this.handleAutoRowHeightScroll}
+          {...this.hgBodyDragProps()}
         >
           <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
@@ -782,6 +826,7 @@ class HGTablePage extends React.Component {
         style={{ maxHeight: bodyHeight }}
         ref={this.scrollRef}
         onScroll={this.handleAutoRowHeightScroll}
+        {...this.hgBodyDragProps()}
       >
         {/*
           autoHeightBodyInner 是实际被横向滚动的内容层。

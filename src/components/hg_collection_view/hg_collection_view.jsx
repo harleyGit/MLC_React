@@ -4,6 +4,7 @@ import {
   hgCollectionStart,
 } from "./hg_collection_layout.js";
 import styles from "./hg_collection_view.module.css";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
 
 const HG_OVERSCAN = 240; // 可视区域上下额外预渲染的像素，减少快速滚动时的空白。
 const HG_LOAD_THRESHOLD = 120; // 距底部不足此像素数时触发下一页。
@@ -31,6 +32,8 @@ export default class HGCollectionView extends React.Component {
   hgTouchStart = null; // 顶部触摸起点 Y（px）；null 表示没有待识别的下拉手势。
   hgPullDistance = 0; // 当前手势向下距离（px），松手时判断是否刷新。
   hgObservedWidth = 0; // 当前容器宽度（px）；改变时旧的变高测量不再有效。
+  hgDrag = null; // 当前鼠标拖动身份；null 表示没有按住表体。
+  hgSuppressClick = false; // 拖动结束后仅屏蔽由本次手势产生的误点击。
 
   componentDidMount() {
     if (typeof ResizeObserver !== "undefined") {
@@ -64,6 +67,7 @@ export default class HGCollectionView extends React.Component {
   }
 
   componentWillUnmount() {
+    this.hgDrag = null;
     this.hgObserver?.disconnect();
     this.hgSlots.clear();
     this.hgSlotRefs.clear();
@@ -146,8 +150,36 @@ export default class HGCollectionView extends React.Component {
     this.hgCheckLoadMore();
   };
 
+  /** 鼠标拖动列表：保留内部虚拟滚动，到边界时把余量传给页面。 */
+  hgOnPointerDown = (event) => {
+    this.hgSuppressClick = false;
+    this.hgDrag = hgStartDrag(event);
+  };
+
+  hgOnPointerMove = (event) => {
+    if (hgMoveDrag(event, this.hgDrag)) this.hgSuppressClick = true;
+  };
+
+  hgOnPointerEnd = (event) => {
+    if (this.hgDrag?.id === event.pointerId) this.hgDrag = null;
+  };
+
+  /** 按住链接或图片拖动时避免浏览器原生拖拽抢走纵向手势。 */
+  hgOnDragStart = (event) => {
+    if (this.hgDrag) event.preventDefault();
+  };
+
+  hgOnClickCapture = (event) => {
+    if (!this.hgSuppressClick) return;
+    this.hgSuppressClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   hgOnTouchStart = (event) => {
-    this.hgTouchStart = this.hgViewport.current?.scrollTop === 0 && !this.props.loading
+    // 页面尚未回到顶部时，向下拖动应先滚动页面，而非误触发列表刷新。
+    const pageTop = this.hgViewport.current?.ownerDocument?.scrollingElement?.scrollTop ?? 0;
+    this.hgTouchStart = this.hgViewport.current?.scrollTop === 0 && pageTop === 0 && !this.props.loading
       ? event.touches[0].clientY : null;
     this.hgPullDistance = 0;
   };
@@ -255,6 +287,13 @@ export default class HGCollectionView extends React.Component {
           aria-label={ariaLabel}
           aria-busy={!!loading}
           onScroll={this.hgOnScroll}
+          onPointerDown={this.hgOnPointerDown}
+          onPointerMove={this.hgOnPointerMove}
+          onPointerUp={this.hgOnPointerEnd}
+          onPointerCancel={this.hgOnPointerEnd}
+          onLostPointerCapture={this.hgOnPointerEnd}
+          onDragStart={this.hgOnDragStart}
+          onClickCapture={this.hgOnClickCapture}
           onTouchStart={this.hgOnTouchStart}
           onTouchMove={this.hgOnTouchMove}
           onTouchEnd={this.hgOnTouchEnd}

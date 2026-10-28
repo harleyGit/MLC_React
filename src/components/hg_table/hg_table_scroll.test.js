@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { syncHorizontalScroll } from "./hg_table_scroll.js";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { transformSync } from "@swc/core";
@@ -20,6 +21,7 @@ const { code: hgCode } = transformSync(
 new Function("require", "module", "exports", hgCode)((name) => {
   if (name.endsWith(".css")) return new Proxy({}, { get: (_, key) => key });
   if (name === "./hg_table_scroll.js") return { syncHorizontalScroll };
+  if (name === "../hg_drag_scroll.js") return { hgStartDrag, hgMoveDrag };
   return hgRequire(name);
 }, hgModule, hgModule.exports);
 const HGTablePage = hgModule.exports.default;
@@ -70,6 +72,21 @@ test("空态保持 ref、事件与列宽；加载和模式切换后重新对齐"
   table.headerRef.current = null;
   assert.doesNotThrow(() => table.componentDidUpdate());
   table.componentWillUnmount();
+});
+
+test("表头、三种表体模式与空态都可按住纵向拖动，不影响分页", () => {
+  const table = new HGTablePage({ columns: [{ title: "列" }], dataSource: [{ id: 1 }], sections: [{ data: [{ id: 1 }] }] });
+  for (const render of [table.renderBody, table.renderAutoRowHeightBody, table.renderSectionBody]) {
+    for (const dataSource of [[{ id: 1 }], []]) {
+      table.props = { ...table.props, dataSource, sections: dataSource.length ? [{ data: dataSource }] : [] };
+      const body = render();
+      assert.equal(body.props.onPointerDown, table.hgOnPointerDown);
+      assert.equal(body.props.onPointerMove, table.hgOnPointerMove);
+      assert.equal(body.props.onDragStart, table.hgOnDragStart);
+      assert.equal(body.props.onClickCapture, table.hgOnClickCapture);
+    }
+  }
+  assert.equal(table.renderHeader().props.onPointerDown, table.hgOnPointerDown);
 });
 
 test("已对齐时不重复写入，脚本滚动回传不会形成循环", () => {

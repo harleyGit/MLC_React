@@ -2,7 +2,7 @@
   width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto; /* 触摸滑到列表边界后继续滚动外层页面。 */
   box-sizing: border-box;
 }
 
