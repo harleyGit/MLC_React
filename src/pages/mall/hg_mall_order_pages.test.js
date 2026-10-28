@@ -23,7 +23,7 @@ function hgPage(hgPath, hgVM, hgProps = {}) {
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
       if (hgDependency === "react-router-dom") return { Link: "a" };
-      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", MALL: "/mall", MALL_ORDER_DETAIL: "/mall/orders/:orderId", EDIT_USER_INFO: "/account/setting", USER_CENTER: "/account/center" } };
+      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { WALLET: "/account/wallet", MALL_ORDER_DETAIL: "/mall/orders/:orderId", EDIT_USER_INFO: "/account/setting", USER_CENTER: "/account/center" } };
       if (hgDependency.endsWith("hg_mall_vm.js")) return { default: hgVM, __esModule: true };
       if (hgDependency.endsWith("hg_mall_amount.js")) return { HGFormatCoin };
       if (hgDependency.endsWith("hg_mall_security.js")) return { hgSecureRequestId: () => "test-request-id" };
@@ -32,7 +32,8 @@ function hgPage(hgPath, hgVM, hgProps = {}) {
       if (hgDependency.includes("hg_side_menu_vm")) return { default: { findPathToKey: () => [] }, __esModule: true };
       if (hgDependency.includes("hg_mall_pending_orders_page")) return { default: "HGMallPendingOrdersPage", __esModule: true };
       if (hgDependency.includes("hg_mall_paid_orders_page")) return { default: "HGMallPaidOrdersPage", __esModule: true };
-      if (hgDependency.includes("hg_user_center_vm")) return { default: { getDefaultSelectedKey: () => "unpaid" }, USER_CENTER_MENU_ITEMS: [{ key: "orders", label: "我的订单", children: [{ key: "unpaid", label: "待付款" }, { key: "review", label: "评价" }] }], USER_CENTER_MENU_KEYS: { UNPAID: "unpaid", REVIEW: "review" }, __esModule: true };
+      if (hgDependency.includes("hg_mall_catalog")) return { default: "HGMallCatalog", __esModule: true };
+      if (hgDependency.includes("hg_user_center_vm")) return { default: { getDefaultSelectedKey: () => "unpaid" }, USER_CENTER_MENU_ITEMS: [{ key: "orders", label: "我的订单", children: [{ key: "unpaid", label: "待付款" }, { key: "review", label: "评价" }] }, { key: "merchant", label: "商家入驻申请" }], USER_CENTER_MENU_KEYS: { UNPAID: "unpaid", REVIEW: "review", MERCHANT: "merchant" }, __esModule: true };
       return { default: {}, __esModule: true };
     },
   });
@@ -272,7 +273,7 @@ test("待付款选择每页 100 条时请求失败可按目标页重试，不误
   hgInstance.componentWillUnmount();
 });
 
-test("个人中心「我的订单」下挂待付款与评价，默认展示待付款页面", () => {
+test("个人中心增加商家入驻申请菜单并展示商家工作台", () => {
   const hgInstance = hgPage("../../manager_antd/page_modules/user/user_center/hg_user_center_page.jsx", {}, {});
   const hgTree = hgInstance.render();
   const hgTypesList = hgTypes(hgTree);
@@ -286,10 +287,16 @@ test("个人中心「我的订单」下挂待付款与评价，默认展示待�
     "unpaid:待付款",
     "review:评价",
   ]);
+  assert.equal(hgMenu.props.menuItems[1].label, "商家入驻申请");
 
   // 切到「评价」后内容区换成已支付商品页。
   hgInstance.handleMenuSelect("review");
   assert.ok(hgTypes(hgInstance.render()).includes("HGMallPaidOrdersPage"));
+
+  // 商家菜单复用原商家工作台，且固定为 merchant 模式，不再经过商城聚合页。
+  hgInstance.handleMenuSelect("merchant");
+  const hgMerchant = hgFind(hgInstance.render(), "HGMallCatalog");
+  assert.equal(hgMerchant.props.hgInitialView, "merchant");
 });
 
 test("本人详情从待支付快照打开，点击继续支付后重读服务端已支付状态", async () => {
@@ -321,7 +328,7 @@ test("商家详情只访问本店已付款接口，未付款详情不得提供�
   await hgFlush();
   assert.match(hgText(hgInstance.renderOrder()), /TEST.1/);
   assert.doesNotMatch(hgText(hgInstance.renderOrder()), /继续支付/);
-  assert.equal(hgInstance.render().props.children.props.children[0].props.to, "/mall?view=merchant");
+  assert.equal(hgInstance.render().props.children.props.children[0].props.to, "/account/center");
   hgInstance.componentWillUnmount();
 });
 

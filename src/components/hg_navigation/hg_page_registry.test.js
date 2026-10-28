@@ -57,7 +57,7 @@ test("商品详情和钱包消费记录可通过独立 URL 解析并保留订单
 
 test("拒绝外部、非法、缺少参数及未知路由", () => {
   for (const url of [null, {}, "", "home", "https://example.com/home", "//example.com/home",
-    "/\\example.com/home", "/\nhome", "/unknown", "/home/extra", "/space",
+    "/\\example.com/home", "/\nhome", "/unknown", "/mall", "/home/extra", "/space",
     "/space/%", "/space/%FF", "javascript:alert(1)"]) {
     assert.equal(getHGPageTarget(url), null, String(url));
   }

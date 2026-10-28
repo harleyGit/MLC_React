@@ -24,7 +24,6 @@ const HGRegisterPage = getHGPageConfig(PAGE.REGISTER).component;
 const HGLoginPage = getHGPageConfig(PAGE.LOGIN).component;
 const HGForgetPasswordPage = getHGPageConfig(PAGE.FORGET_PASSWORD).component;
 const HGProducts = getHGPageConfig(PAGE.PRODUCTS).component;
-const HGMallPage = getHGPageConfig(PAGE.MALL).component;
 const HGMallOrderPage = getHGPageConfig(PAGE.MALL_ORDER_DETAIL).component;
 const HGEditUserPage = getHGPageConfig(PAGE.EDIT_USER_INFO).component;
 const HGUserCenterPage = getHGPageConfig(PAGE.USER_CENTER).component;
@@ -59,7 +58,6 @@ const WrappedHGWalletPage = WithNavigation(HGWalletPage);
 const WrappedHGWalletRechargePage = WithNavigation(HGWalletRechargePage);
 // 为记录页注入 location，浏览器后退或路由重新进入时刷新记录。
 const WrappedHGWalletRecordsPage = WithNavigation(HGWalletRecordsPage);
-const WrappedHGMallPage = WithNavigation(HGMallPage);
 const WrappedHGMallOrderPage = WithNavigation(HGMallOrderPage);
 const WrappedHGWalletSpendingPage = WithNavigation(HGWalletSpendingPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
@@ -78,10 +76,6 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.PRODUCTS,
         element: hgLazyElement(<HGProducts />),
-      },
-      {
-        path: ROUTE_PATH.MALL,
-        element: hgLazyElement(<WrappedHGMallPage />),
       },
       {
         path: ROUTE_PATH.MALL_ORDER_DETAIL,

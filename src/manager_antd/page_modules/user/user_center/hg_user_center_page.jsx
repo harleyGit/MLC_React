@@ -6,6 +6,7 @@ import HGSideMenuPage from "../../../../components/menu_component/hg_side_menu_p
 import HGSideMenuVM from "../../../../components/menu_component/hg_side_menu_vm";
 import HGMallPaidOrdersPage from "../../../../pages/mall/hg_mall_paid_orders_page";
 import HGMallPendingOrdersPage from "../../../../pages/mall/hg_mall_pending_orders_page";
+import HGMallCatalog from "../../../../pages/mall/hg_mall_catalog";
 import HGUserCenterVM, {
   USER_CENTER_MENU_ITEMS,
   USER_CENTER_MENU_KEYS,
@@ -70,6 +71,9 @@ class HGUserCenterPage extends Component {
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.REVIEW) {
       return <HGMallPaidOrdersPage />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT) {
+      return <HGMallCatalog hgInitialView="merchant" />;
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;
   };

@@ -61,7 +61,6 @@ export default class HGMallCatalog extends React.Component {
     hgMediaReviewNext: "", // 待审补图下一页游标；空表示结束。
     hgEditReviewCursor: "", // 文字编辑审核当前页游标；空为第一页。
     hgEditReviewNext: "", // 文字编辑审核下一页游标；空表示结束。
-    hgCanReview: false, // 仅审核 API 返回成功才显示审核入口。
     hgShopName: "", // 用户输入的店铺名；提交前无默认值。
     hgDraft: {
       type: "PHYSICAL_PRODUCT",
@@ -123,7 +122,6 @@ export default class HGMallCatalog extends React.Component {
       this.hgLoadMerchant();
       this.hgLoadSellerOrders();
     } else this.hgLoadCatalog("", "", []);
-    this.hgLoadReviewAccess();
   }
 
   componentWillUnmount() {
@@ -327,17 +325,6 @@ export default class HGMallCatalog extends React.Component {
         this.hgSellerSeq === hgSeq
       )
         this.setState({ hgError: this.hgMessage(hgError) });
-    }
-  };
-
-  /** 审核入口由服务端 RBAC 状态决定；普通商家收到 false，不探测受限审核列表。 */
-  hgLoadReviewAccess = async () => {
-    try {
-      const hgAccess = await HGMallVM.reviewAccess(); // 普通商家返回 false，不探测受限的审核列表。
-      if (this.hgMounted)
-        this.setState({ hgCanReview: hgAccess?.canReview === true });
-    } catch {
-      if (this.hgMounted) this.setState({ hgCanReview: false });
     }
   };
 
@@ -894,40 +881,6 @@ export default class HGMallCatalog extends React.Component {
     }
   };
 
-  renderTabs() {
-    return (
-      <nav className={styles.categoryNav} aria-label="商城功能">
-        {this.props.hgShowCatalogTab ? (
-          <button
-            type="button"
-            aria-pressed={this.state.hgView === "catalog"}
-            onClick={() => this.hgSelectView("catalog")}
-          >
-            全部商品
-          </button>
-        ) : (
-          <Link to={ROUTE_PATH.PRODUCTS}>全部商品</Link>
-        )}
-        <button
-          type="button"
-          aria-pressed={this.state.hgView === "merchant"}
-          onClick={() => this.hgSelectView("merchant")}
-        >
-          我的商品 · 管理
-        </button>
-        {this.state.hgCanReview && (
-          <button
-            type="button"
-            aria-pressed={this.state.hgView === "review"}
-            onClick={() => this.hgSelectView("review")}
-          >
-            商品与商家审核
-          </button>
-        )}
-      </nav>
-    );
-  }
-
   renderCatalog() {
     const {
       hgCategory,
@@ -1325,7 +1278,7 @@ export default class HGMallCatalog extends React.Component {
             ) : this.state.hgPendingOwnMedia.length ? (
               <>
                 <p>
-                  以下图片已上传，尚未审核公开；需由其他具备商城审核权限的管理员在「商品与商家审核」通过。
+                  以下图片已上传，尚未审核公开；需由其他具备商城审核权限的管理员在「运维管理 &gt; 商城 &gt; 已上架商品补图审核」中处理。
                 </p>
                 <div className={styles.draftPreviews}>
                   {this.state.hgPendingOwnMedia.map((hgURL, hgIndex) => (
@@ -2122,7 +2075,6 @@ export default class HGMallCatalog extends React.Component {
   render() {
     return (
       <section className={styles.section} aria-label="商城商品与商家工作台">
-        {this.renderTabs()}
         {this.state.hgError && (
           <p role="alert" className={styles.error}>
             {this.state.hgError}{" "}
@@ -2139,11 +2091,7 @@ export default class HGMallCatalog extends React.Component {
             {this.state.hgNotice}
           </p>
         )}
-        {this.state.hgView === "catalog"
-          ? this.renderCatalog()
-          : this.state.hgView === "merchant"
-          ? this.renderMerchant()
-          : this.renderReview()}
+        {this.state.hgView === "catalog" ? this.renderCatalog() : this.renderMerchant()}
       </section>
     );
   }

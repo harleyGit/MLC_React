@@ -15,7 +15,6 @@ const HGBiliContentPage = lazy(() => import("../../pages/bilibili/video_detail/h
 const components = {
   ABOUT: lazy(() => import("../../manager_antd/page_modules/about/hg_about_page")),
   PRODUCTS: lazy(() => import("../../manager_antd/page_modules/product/hg_ products_page")),
-  MALL: lazy(() => import("../../pages/mall/hg_mall_page.jsx")),
   MALL_ORDER_DETAIL: lazy(() => import("../../pages/mall/hg_mall_order_page.jsx")), // 商品订单详情独立路由。
   DEFAULT: HGHomePage,
   HOME: HGHomePage,

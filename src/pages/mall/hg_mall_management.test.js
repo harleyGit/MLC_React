@@ -45,14 +45,13 @@ function hgImages(hgNode) {
   return [...(hgNode.type === "img" ? [{ src: hgNode.props.src, alt: hgNode.props.alt }] : []), ...hgImages(hgNode.props.children)];
 }
 
-test("商品页能切换到本人商品管理，辅助图片接口失败也保留旧商品列表与补图入口", async () => {
+test("个人中心商家工作台保留旧商品列表与补图入口", async () => {
   const hgInstance = hgMerchantPage({
     merchant: async () => ({ status: 1, shopName: "测试店铺" }),
     mine: async () => ({ list: [{ productId: "PRD_OLD", title: "旧商品", summary: "展示", amount: 12, status: 1, lifecycleStatus: 1, imageURLs: [] }], hasMore: false, nextCursor: "" }),
     unusedImages: async () => { throw new Error("辅助接口不可用"); },
     merchantOrders: async () => ({ list: [], hasMore: false, nextCursor: "" }),
-  }, { hgInitialView: "catalog", hgShowCatalogTab: true });
-  assert.match(hgText(hgInstance.renderTabs()), /我的商品 · 管理/);
+  }, { hgInitialView: "merchant" });
   hgInstance.hgSelectView("merchant");
   for (let hgIndex = 0; hgIndex < 10; hgIndex += 1) await Promise.resolve();
   const hgRendered = hgText(hgInstance.renderMerchantProducts());
@@ -185,9 +184,8 @@ test("按商品编号精确读取旧商品并从列表归档后仍能查询历�
   assert.equal(hgInstance.state.hgFoundProduct.lifecycleStatus, 2);
 });
 
-test("普通商家不请求受限审核列表，且能查看本人旧商品两张待审补图", async () => {
+test("个人中心商家工作台能查看本人旧商品两张待审补图", async () => {
   const hgVM = {
-    reviewAccess: async () => ({ canReview: false }),
     pendingMerchants: () => assert.fail("普通商家不应探测审核列表"),
     ownPendingMedia: async (hgProductId) => {
       assert.equal(hgProductId, "PRD_OLD");
@@ -196,8 +194,6 @@ test("普通商家不请求受限审核列表，且能查看本人旧商品两�
   };
   const hgInstance = hgMerchantPage(hgVM, { hgInitialView: "merchant" });
   hgInstance.state.hgMine = [{ productId: "PRD_OLD", title: "旧商品", status: 1, lifecycleStatus: 1, amount: 90, imageURLs: [] }];
-  await hgInstance.hgLoadReviewAccess();
-  assert.equal(hgInstance.state.hgCanReview, false);
   await hgInstance.hgLoadOwnMedia("PRD_OLD");
   assert.equal(hgInstance.state.hgPendingOwnMedia.length, 2);
   assert.match(hgText(hgInstance.renderMerchantProducts()), /尚未审核公开/);

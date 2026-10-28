@@ -729,7 +729,7 @@ export default class HGWalletRechargePage extends React.Component {
       <main className={styles.page}>
         <header className={styles.header}>
           <Link to={ROUTE_PATH.WALLET} onClick={this.hgBackToWallet}>返回我的钱包</Link>
-          <span> · <Link to={ROUTE_PATH.MALL}>商城</Link> · <Link to={ROUTE_PATH.WALLET_RECORDS}>充值记录</Link></span>
+          <span> · <Link to={ROUTE_PATH.PRODUCTS}>商品目录</Link> · <Link to={ROUTE_PATH.WALLET_RECORDS}>充值记录</Link></span>
           <p className={styles.eyebrow}>MLC / RECHARGE</p>
           <h1>M币充值中心</h1>
           <p>

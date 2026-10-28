@@ -80,7 +80,7 @@ test("两个真实 HOC 保留业务 props，并注入导航协议及兼容 navig
   hgAssertInjection(HGWrapped({}), hgHarness);
 });
 
-test("真实路由为首页、商城、钱包及独立记录页注入导航，并保留鉴权布局", () => {
+test("真实路由为首页、商品订单、钱包及独立记录页注入导航，并保留鉴权布局", () => {
   const hgHarness = hgCreateHarness();
   const hgPaths = hgLoadSource("./hg_route_path.jsx");
   const hgRegistry = hgLoadSource("./hg_page_registry.jsx", {
@@ -119,6 +119,7 @@ test("真实路由为首页、商城、钱包及独立记录页注入导航，�
     },
     "../../components/hg_loading": () => null,
     "../auth/hg_auth_guard": HGGuard,
+    "../auth/hg_admin_guard": HGGuard,
     "../page_modules/home/hg_home_page": hgHome,
     "../page_modules/home/hg_top_nav_layout": HGLayout,
     "./hg_naviagion_hook": hgHarness.hgAdapter,
@@ -140,7 +141,6 @@ test("真实路由为首页、商城、钱包及独立记录页注入导航，�
   for (const [hgPath, hgExpected] of [
     ["/", hgHome],
     ["/home", hgHome],
-    ["/mall", hgRegistry.getHGPageConfig(hgRegistry.PAGE.MALL).component],
     ["/mall/orders/:orderId", hgRegistry.getHGPageConfig(hgRegistry.PAGE.MALL_ORDER_DETAIL).component],
     ["/account/wallet", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET).component],
     ["/account/wallet/recharge", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_RECHARGE).component],
