@@ -93,22 +93,7 @@
 }
 
 .horizontal .menuItem {
-  position: relative;
   transition: color 0.24s ease, background 0.24s ease;
-}
-
-.horizontal .menuItem::after {
-  position: absolute;
-  right: 20px;
-  bottom: 5px;
-  left: 20px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  content: "";
-  opacity: 0;
-  transform: scaleX(0.2);
-  transition: opacity 0.24s ease, transform 0.24s ease;
 }
 
 .menuItem:hover {
@@ -146,8 +131,25 @@
 
 /* 由导航实例指定选中缩放比例，其他菜单保持原尺寸。 */
 .horizontal > .menuItem > .menuLabel {
+  position: relative;
+  flex: 0 1 auto;
   transform: scale(1);
   transition: transform 0.24s ease;
+}
+
+/* 下划线跟随文本标签缩放，避免菜单项留白影响选中线宽度。 */
+.horizontal > .menuItem > .menuLabel::after {
+  position: absolute;
+  right: 0;
+  bottom: 5px;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.2);
+  transition: opacity 0.24s ease, transform 0.24s ease;
 }
 
 .horizontal > .menuItemSelected > .menuLabel {
@@ -193,7 +195,7 @@
   background: transparent;
 }
 
-.dark.horizontal .menuItemSelected::after {
+.dark.horizontal > .menuItemSelected > .menuLabel::after {
   opacity: 1;
   transform: scaleX(1);
 }
