@@ -27,20 +27,20 @@ export const ROLE_LIST_PAGE_SIZE = 20;
 export default class HGRoleListVM {
   /**
    * 获取角色列表。
-   * 接口：GET /api/v1/ops/roles/list?cursor=xxx&pageSize=xxx
+   * 接口：GET /api/v1/iam/roles/list?cursor=xxx&pageSize=xxx
    *
    * @param {Object} params 请求参数。
-   * @param {number} params.cursor 角色列表 cursor，0 表示首页。
+   * @param {string} params.cursor 角色列表十进制字符串 cursor，"0" 表示首页。
    * @param {number} params.pageSize 每页条数。
    * @returns {Promise<Object>} 角色列表响应，包含 list、nextCursor、hasMore。
    */
-  static fetchRoleList = ({ cursor = 0, pageSize = ROLE_LIST_PAGE_SIZE } = {}) => {
+  static fetchRoleList = ({ cursor = "0", pageSize = ROLE_LIST_PAGE_SIZE } = {}) => {
     return HGNet.get(HGMANAGER_API.IAM_ROLE_LIST, { cursor, pageSize });
   };
 
   /**
    * 更新角色。
-   * 接口：POST /api/v1/ops/roles/update
+   * 接口：POST /api/v1/iam/roles/update
    *
    * @param {Object} params 请求参数。
    * @param {string} params.id 角色ID。
@@ -53,8 +53,8 @@ export default class HGRoleListVM {
   };
 
   /**
-   * 删除角色。
-   * 接口：POST /api/v1/ops/roles/delete
+   * 停用未绑定的自定义角色。
+   * 接口：POST /api/v1/iam/roles/disable
    *
    * @param {Object} params 请求参数。
    * @param {string} params.id 角色ID。

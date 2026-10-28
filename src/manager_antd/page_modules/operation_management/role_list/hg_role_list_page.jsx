@@ -38,7 +38,7 @@ class HGRoleListPage extends Component {
        * 1 页的 cursor 固定为 0，表示从头开始。
        * 作用：翻页时直接取出对应 cursor 发给后端，无需后端维护分页状态。
        */
-      cursorByPage: { 1: 0 },
+      cursorByPage: { 1: "0" },
       /** @type {Object} 分页状态 */
       pagination: {
         current: 1,
@@ -84,8 +84,12 @@ class HGRoleListPage extends Component {
    */
   fetchRoleList = (pageNum, pageSize) => {
     const { cursorByPage } = this.state;
+    if (pageNum > 1 && cursorByPage[pageNum] === undefined) {
+      message.error("请按顺序翻页");
+      return;
+    }
     // 从映射中取出当前页对应的 cursor；首页为 0。
-    const cursor = Number(cursorByPage[pageNum] ?? 0);
+    const cursor = cursorByPage[pageNum] ?? "0";
     this.setState({ loading: true });
 
     HGRoleListVM.fetchRoleList({ cursor, pageSize })
@@ -96,8 +100,8 @@ class HGRoleListPage extends Component {
         this.setState((prevState) => {
           // 如果有下一页，将 nextCursor 存入 cursorByPage
           const nextCursorByPage = { ...prevState.cursorByPage };
-          if (res?.hasMore && Number(res?.nextCursor) > 0) {
-            nextCursorByPage[pageNum + 1] = Number(res.nextCursor);
+          if (res?.hasMore && res?.nextCursor && res.nextCursor !== "0") {
+            nextCursorByPage[pageNum + 1] = res.nextCursor;
           }
 
           return {
@@ -134,7 +138,7 @@ class HGRoleListPage extends Component {
     const pageSizeChanged = paginationInfo.pageSize !== pagination.pageSize;
     if (pageSizeChanged) {
       // 切换每页条数时重置 cursor 映射，从第 1 页重新加载
-      this.setState({ cursorByPage: { 1: 0 } }, () => {
+      this.setState({ cursorByPage: { 1: "0" } }, () => {
         this.fetchRoleList(1, paginationInfo.pageSize);
       });
       return;
@@ -221,7 +225,7 @@ class HGRoleListPage extends Component {
 
   /** 打开自定义角色的权限编辑页，并从服务端读取当前授权。 */
   handlePermissions = (record) => {
-    this.setState({ permissionRole: record, permissionModalVisible: true, permissionLoading: true });
+    this.setState({ permissionRole: record, permissionModalVisible: true, permissionLoading: true, permissionOptions: [], selectedPermissions: [] });
     HGRoleListVM.fetchPermissions(record.id)
       .then((result) => this.setState({ permissionOptions: result?.list || [], selectedPermissions: result?.selected || [] }))
       .catch(() => { message.error("权限目录加载失败"); this.setState({ permissionModalVisible: false }); })
@@ -230,8 +234,8 @@ class HGRoleListPage extends Component {
 
   /** 保存权限全量快照；后台事务失败时保持弹窗，供用户重试。 */
   handlePermissionsConfirm = () => {
-    const { permissionRole, selectedPermissions } = this.state;
-    if (!permissionRole) return;
+    const { permissionRole, selectedPermissions, permissionLoading } = this.state;
+    if (!permissionRole || permissionLoading) return;
     this.setState({ permissionLoading: true });
     HGRoleListVM.updatePermissions(permissionRole.id, selectedPermissions)
       .then(() => { message.success("角色权限已更新"); this.setState({ permissionModalVisible: false }); })
@@ -413,7 +417,7 @@ class HGRoleListPage extends Component {
           extra={
             <HGButtonPage
               type="primary"
-              onClick={() => this.fetchRoleList(1, pagination.pageSize)}
+              onClick={() => this.setState({ cursorByPage: { 1: "0" } }, () => this.fetchRoleList(1, pagination.pageSize))}
             >
               刷新
             </HGButtonPage>
@@ -428,7 +432,7 @@ class HGRoleListPage extends Component {
             pagination={{
               ...pagination,
               showSizeChanger: true,
-              showQuickJumper: true,
+              showQuickJumper: false,
             }}
             onChange={this.handleTableChange}
             scroll={{ y: 420 }}

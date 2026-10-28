@@ -1,6 +1,6 @@
 /* 员工角色管理表单页面样式 */
 .employeeRoleContainer {
-  max-width: 720px;
+  max-width: 840px;
 }
 
 .formTitle {
@@ -12,10 +12,37 @@
 
 .formItem {
   margin-bottom: 20px;
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fff;
+  overflow-x: auto;
+}
+
+.formItem label {
+  font-weight: 500;
+  color: #1f2c4a;
 }
 
 .inputField {
   width: 100%;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.formItem table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.formItem th,
+.formItem td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5eaf2;
+  white-space: nowrap;
 }
 
 .submitRow {

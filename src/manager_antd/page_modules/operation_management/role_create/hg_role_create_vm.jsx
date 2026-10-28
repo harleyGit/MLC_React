@@ -49,7 +49,7 @@ export default class HGRoleCreateVM {
   /**
    * 转换创建角色提交数据。
    * @param {Object} values 表单原始字段值
-   * @returns {{name: string, description: string}} 后端 CreateRole 请求体
+   * @returns {{code: string, name: string, description: string, permissions: string[]}} 后端 CreateRole 请求体
    */
   static transformSubmitData = (values) => ({
     code: String(values.code || "").trim(),
