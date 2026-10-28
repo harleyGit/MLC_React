@@ -13,6 +13,7 @@ const HG_PULL_THRESHOLD = 70; // 触摸从顶部下拉超过此像素数才刷�
  * 类似 UICollectionView 的单列变高复用列表。
  * 固定数量的 slot 按池索引复用 DOM；子组件以业务 key 隔离状态，不能跨订单复用业务状态。
  * 数据、游标及网络错误均由调用方管理，组件仅缓存当前挂载期间的高度。
+ * 可选 pagination 使用受控页码和每页条数；分页时不再触底自动加载，避免重复翻页。
  */
 export default class HGCollectionView extends React.Component {
   state = {
@@ -52,7 +53,13 @@ export default class HGCollectionView extends React.Component {
       this.setState((state) => ({ hgScrollTop: 0, hgLayoutVersion: state.hgLayoutVersion + 1 }));
       return;
     }
+    if (prevProps.pageKey !== this.props.pageKey) {
+      if (this.hgViewport.current) this.hgViewport.current.scrollTop = 0;
+      this.setState({ hgScrollTop: 0 });
+      return;
+    }
     this.hgSyncSize();
+    this.hgSlots.forEach((node) => this.hgMeasureSlot(node));
     this.hgCheckLoadMore();
   }
 
@@ -125,9 +132,9 @@ export default class HGCollectionView extends React.Component {
 
   /** 用数据长度作为自动请求门闩；失败后由页面的错误重试按钮显式重试。 */
   hgCheckLoadMore = () => {
-    const { items, hasMore, loading, onLoadMore } = this.props;
+    const { items, hasMore, loading, onLoadMore, pagination } = this.props;
     const node = this.hgViewport.current;
-    if (!node || !items.length || !hasMore || loading || !onLoadMore || this.hgLastLoadLength === items.length) return;
+    if (pagination || !node || !items.length || !hasMore || loading || !onLoadMore || this.hgLastLoadLength === items.length) return;
     if (node.scrollHeight - node.scrollTop - node.clientHeight <= HG_LOAD_THRESHOLD) {
       this.hgLastLoadLength = items.length;
       onLoadMore();
@@ -193,9 +200,46 @@ export default class HGCollectionView extends React.Component {
     });
   };
 
+  /** 页码来自调用方，只有已加载的记录或服务端 hasMore 才允许继续翻页。 */
+  renderPagination = () => {
+    const { pagination, onChange, loading } = this.props;
+    if (!pagination) return null;
+    const { current, pageSize, loadedCount, hasMore } = pagination;
+    const pageCount = Math.max(current, Math.ceil(loadedCount / pageSize) + (hasMore ? 1 : 0), 1);
+    const pages = [];
+    for (let page = 1; page <= pageCount; page += 1) {
+      if (page === 1 || page === pageCount || Math.abs(page - current) <= 1) pages.push(page);
+      else if (pages.at(-1) !== "...") pages.push("...");
+    }
+    const canNext = hasMore || loadedCount > current * pageSize;
+    return (
+      <nav className={styles.pagination} aria-label="列表分页">
+        <span>已加载 {loadedCount} 条{hasMore ? "，还有更多" : ""}</span>
+        <label className={styles.pageSize}>
+          每页
+          <select value={pageSize} disabled={loading} onChange={(event) => onChange?.({ current: 1, pageSize: Number(event.target.value) })}>
+            {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size} 条</option>)}
+          </select>
+        </label>
+        <button type="button" disabled={loading || current <= 1} onClick={() => onChange?.({ current: current - 1, pageSize })}>
+          上一页
+        </button>
+        {pages.map((page, index) => page === "..." ? <span key={`gap-${index}`}>…</span> : (
+          <button key={page} type="button" aria-label={`第 ${page} 页`}
+            aria-current={page === current ? "page" : undefined}
+            disabled={loading || page === current || (page > current && !hasMore && (page - 1) * pageSize >= loadedCount)}
+            onClick={() => onChange?.({ current: page, pageSize })}>{page}</button>
+        ))}
+        <button type="button" disabled={loading || !canNext} onClick={() => onChange?.({ current: current + 1, pageSize })}>
+          下一页
+        </button>
+      </nav>
+    );
+  };
+
   render() {
     const {
-      items, getKey, loading, hasMore, onRefresh,
+      items, getKey, loading, hasMore, onRefresh, pagination,
       height = 520, // 未配置高度时使用 520px 固定视口，保证列表可滚动。
       ariaLabel = "列表", // 未配置时使用通用辅助技术名称；业务页面应覆盖。
     } = this.props;
@@ -224,9 +268,11 @@ export default class HGCollectionView extends React.Component {
           </div>
           {!items.length && <div className={styles.status}>{loading ? "加载中…" : "暂无数据"}</div>}
         </div>
-        {items.length > 0 && <div className={styles.status} role="status">
+        {items.length > 0 && !pagination && <div className={styles.status} role="status">
           {loading ? "加载中…" : hasMore ? "上滑加载更多 · 顶部下拉刷新" : "已加载全部订单"}
         </div>}
+        {pagination && loading && <div className={styles.status} role="status">加载中…</div>}
+        {this.renderPagination()}
       </div>
     );
   }

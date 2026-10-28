@@ -205,6 +205,73 @@ test("严格模式卸载重挂后重新读取首屏，卸载前的慢响应不�
   hgInstance.componentWillUnmount();
 });
 
+test("已支付订单可选每页 10/20/50 条，跨服务端游标补页且上一页只读已缓存数据", async () => {
+  const hgOrders = Array.from({ length: 73 }, (_, index) => ({ ...hgPending, orderId: `MORD_${index}` }));
+  const hgCalls = []; // 记录原始游标，验证每页条数没有发给固定 20 条的服务端接口。
+  const hgInstance = hgPage("hg_mall_paid_orders_page.jsx", {
+    orders: async (cursor) => {
+      hgCalls.push(cursor);
+      const start = Number(cursor || 0);
+      const next = start + 20;
+      return { list: hgOrders.slice(start, next), hasMore: next < hgOrders.length,
+        nextCursor: next < hgOrders.length ? String(next) : "" };
+    },
+  });
+  hgInstance.componentDidMount();
+  await hgFlush();
+  assert.equal(hgInstance.state.hgPageSize, 20);
+  await hgInstance.hgPageChange({ current: 1, pageSize: 50 });
+  assert.deepEqual(hgCalls, ["", "20", "40"]);
+  assert.equal(hgInstance.hgVisibleOrders().length, 50);
+  assert.equal(hgInstance.state.hgPage, 1);
+  await hgInstance.hgPageChange({ current: 2, pageSize: 50 });
+  assert.deepEqual(hgCalls, ["", "20", "40", "60"]);
+  assert.equal(hgInstance.hgVisibleOrders().length, 23);
+  assert.equal(hgInstance.state.hgPage, 2);
+  await hgInstance.hgPageChange({ current: 1, pageSize: 50 });
+  assert.equal(hgCalls.length, 4);
+  assert.equal(hgInstance.hgVisibleOrders().length, 50);
+  await hgInstance.hgPageChange({ current: 1, pageSize: 10 });
+  assert.equal(hgInstance.hgVisibleOrders().length, 10);
+  await hgInstance.hgPageChange({ current: 8, pageSize: 10 });
+  assert.equal(hgInstance.hgVisibleOrders().length, 3);
+  await hgInstance.hgPageChange({ current: 9, pageSize: 10 });
+  assert.equal(hgInstance.state.hgPage, 8); // 不允许跳到不存在的第九页。
+  hgInstance.hgRefreshOrders();
+  await hgFlush();
+  assert.equal(hgInstance.state.hgPage, 1);
+  assert.equal(hgInstance.state.hgPageSize, 10); // 刷新保留用户选择的每页条数。
+  hgInstance.componentWillUnmount();
+});
+
+test("待付款选择每页 100 条时请求失败可按目标页重试，不误把部分订单当作整页", async () => {
+  let hgFail = true; // 第二个服务端游标首次失败，重试时返回同一授权页。
+  const hgOrders = Array.from({ length: 45 }, (_, index) => ({ ...hgPending, orderId: `P_${index}` }));
+  const hgCalls = []; // 仅记录游标，不记录收件信息。
+  const hgInstance = hgPage("hg_mall_pending_orders_page.jsx", {
+    pendingOrders: async (cursor) => {
+      hgCalls.push(cursor);
+      if (cursor === "20" && hgFail) { hgFail = false; throw new Error("网络断开"); }
+      const start = Number(cursor || 0);
+      const next = start + 20;
+      return { list: hgOrders.slice(start, next), hasMore: next < hgOrders.length,
+        nextCursor: next < hgOrders.length ? String(next) : "" };
+    },
+  });
+  hgInstance.componentDidMount();
+  await hgFlush();
+  await hgInstance.hgPageChange({ current: 1, pageSize: 100 });
+  assert.match(hgInstance.state.hgError, /网络断开/);
+  assert.equal(hgInstance.state.hgPageSize, 20);
+  assert.equal(hgInstance.state.hgOrders.length, 20);
+  assert.deepEqual({ ...hgInstance.hgPageTarget }, { current: 1, pageSize: 100 });
+  await hgInstance.renderError().props.children[2].props.onClick();
+  assert.deepEqual(hgCalls, ["", "20", "20", "40"]);
+  assert.equal(hgInstance.state.hgPageSize, 100);
+  assert.equal(hgInstance.hgVisibleOrders().length, 45);
+  hgInstance.componentWillUnmount();
+});
+
 test("个人中心「我的订单」下挂待付款与评价，默认展示待付款页面", () => {
   const hgInstance = hgPage("../../manager_antd/page_modules/user/user_center/hg_user_center_page.jsx", {}, {});
   const hgTree = hgInstance.render();

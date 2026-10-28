@@ -91,3 +91,39 @@ test("上方 cell 内容增高时保持当前滚动锚点，重置时清除高�
   assert.equal(collection.hgViewport.current.scrollTop, 0);
   assert.equal(collection.hgHeights.size, 0);
 });
+
+test("受控分页展示页码、每页条数及前后页；分页模式不触发原有触底加载", () => {
+  const changes = []; // 模拟调用方接收分页事件，初始为空。
+  let loads = 0; // 分页模式不应向旧的触底回调发起请求。
+  const collection = hgCollection({
+    items: [{ id: "a" }], getKey: (item) => item.id, renderCell: () => null,
+    hasMore: true, loading: false, onLoadMore: () => { loads += 1; },
+    pagination: { current: 1, pageSize: 20, loadedCount: 20, hasMore: true },
+    onChange: (page) => changes.push(page),
+  });
+  collection.hgViewport.current = { scrollTop: 0, scrollHeight: 100, clientHeight: 520 };
+  collection.hgCheckLoadMore();
+  assert.equal(loads, 0);
+  const pager = collection.renderPagination();
+  const children = pager.props.children;
+  const sizeSelect = children[1].props.children[1];
+  sizeSelect.props.onChange({ target: { value: "50" } });
+  children[3].at(-1).props.onClick(); // 点击服务端尚有更多数据对应的下一页页码。
+  children[4].props.onClick();
+  assert.deepEqual(changes.map((page) => ({ ...page })), [
+    { current: 1, pageSize: 50 }, { current: 2, pageSize: 20 }, { current: 2, pageSize: 20 },
+  ]);
+  assert.equal(children[2].props.disabled, true); // 第一页无上一页。
+});
+
+test("切换展示页只回到滚动顶部，保留业务 key 对应的高度缓存", () => {
+  const collection = hgCollection({
+    items: [{ id: "a" }], getKey: (item) => item.id, renderCell: () => null,
+    pageKey: 2, pagination: { current: 2, pageSize: 10, loadedCount: 20, hasMore: false },
+  });
+  collection.hgViewport.current = { scrollTop: 300, clientWidth: 400, clientHeight: 520 };
+  collection.hgHeights.set("a", 260);
+  collection.componentDidUpdate({ ...collection.props, pageKey: 1 });
+  assert.equal(collection.hgViewport.current.scrollTop, 0);
+  assert.equal(collection.hgHeights.get("a"), 260);
+});
