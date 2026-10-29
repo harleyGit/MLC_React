@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-07-05
  * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-10-29 22:49:31
+ * @LastEditTime: 2026-10-29 23:31:14
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/role_list/hg_role_list_page.jsx
  * @Description: 角色管理页面，默认 cursor 分页展示角色列表并支持编辑、删除
  */
@@ -15,6 +15,7 @@ import HGPageHeaderPage from "../../../../components/hg_page_header/hg_page_head
 import HGStatCardPage from "../../../../components/hg_stat_card/hg_stat_card_page";
 import HGStatusTagPage from "../../../../components/hg_status_tag/hg_status_tag_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
+import HGTreeSelectPage from "../../../../components/hg_tree_select/hg_tree_select_page";
 import styles from "./hg_role_list.module.css";
 import HGRoleListVM, { ROLE_LIST_PAGE_SIZE } from "./hg_role_list_vm";
 

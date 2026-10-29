@@ -7,6 +7,7 @@
  * @Description: 自定义树选择组件，替代 antd TreeSelect，支持多选、勾选框、展示策略和下拉树形结构
  */
 import React from "react";
+import { createPortal } from "react-dom";
 import styles from "./hg_tree_select.module.css";
 
 /**
@@ -133,17 +134,41 @@ class HGTreeSelectPage extends React.Component {
       open: false,
       expandedKeys: this.getInitialExpandedKeys(props.treeData, props.treeDefaultExpandAll),
       checkedValues: new Set(defaultVal),
+      dropdownStyle: {},
     };
     this.containerRef = React.createRef();
+    this.dropdownRef = React.createRef();
   }
 
   componentDidMount() {
     document.addEventListener("mousedown", this.handleOutsideClick);
+    window.addEventListener("resize", this.updateDropdownPosition);
+    window.addEventListener("scroll", this.updateDropdownPosition, true);
   }
 
   componentWillUnmount() {
     document.removeEventListener("mousedown", this.handleOutsideClick);
+    window.removeEventListener("resize", this.updateDropdownPosition);
+    window.removeEventListener("scroll", this.updateDropdownPosition, true);
   }
+
+  /**
+   * 根据选择框视口位置计算浮层坐标，浮层挂载到 body 后不受弹窗滚动容器裁切。
+   */
+  updateDropdownPosition = () => {
+    const anchor = this.containerRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    this.setState({
+      dropdownStyle: {
+        position: "fixed",
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        boxSizing: "border-box",
+      },
+    });
+  };
 
   /**
    * 获取初始展开的节点 key。
@@ -182,6 +207,7 @@ class HGTreeSelectPage extends React.Component {
    * @param {MouseEvent} event 鼠标事件。
    */
   handleOutsideClick = (event) => {
+    if (this.dropdownRef.current?.contains(event.target)) return;
     if (
       this.containerRef.current &&
       !this.containerRef.current.contains(event.target)
@@ -196,7 +222,9 @@ class HGTreeSelectPage extends React.Component {
   handleToggleOpen = () => {
     const { disabled } = this.props;
     if (disabled) return;
-    this.setState((prev) => ({ open: !prev.open }));
+    const open = !this.state.open;
+    if (open) this.updateDropdownPosition();
+    this.setState({ open });
   };
 
   /**
@@ -444,7 +472,16 @@ class HGTreeSelectPage extends React.Component {
             />
           </div>
         </div>
-        <div className={dropdownClassName_}>{this.renderTree()}</div>
+        {open && createPortal(
+          <div
+            ref={this.dropdownRef}
+            className={`${dropdownClassName_} ${styles.dropdownPortal}`}
+            style={this.state.dropdownStyle}
+          >
+            {this.renderTree()}
+          </div>,
+          document.body
+        )}
       </div>
     );
   }
