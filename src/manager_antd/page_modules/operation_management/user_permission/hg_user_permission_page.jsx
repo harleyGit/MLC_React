@@ -78,12 +78,11 @@ class HGUserPermissionPage extends Component {
   }
 
   /**
-   * 组件挂载后立即拉取首页数据和角色选项。
+   * 组件挂载后只读取用户列表；旧授权入口停用后不再预加载角色目录。
    */
   componentDidMount() {
     const { pagination } = this.state;
     this.fetchAdminList(pagination.current, pagination.pageSize);
-    this.loadRoleOptions();
   }
 
   /**
@@ -230,29 +229,11 @@ class HGUserPermissionPage extends Component {
   };
 
   /**
-   * 打开分配角色弹窗，加载该用户已分配角色。
-   * @param {Object} admin 用户信息。
+   * 旧授权入口不能将 IAM 角色 ID 用作旧表绑定，保留明确拒绝提示。
    */
-  handleEditClick = (admin) => {
-    this.setState({
-      modalVisible: true,
-      editingAdmin: admin,
-      loadingUserRoles: true,
-      selectedRoleIds: [],
-      roleFilter: "",
-    });
-
-    HGUserPermissionVM.fetchUserRoles(admin.id)
-      .then((res) => {
-        const roleIds = (res?.roles || []).map((role) => String(role.id));
-        this.setState({ selectedRoleIds: roleIds });
-      })
-      .catch(() => {
-        message.error("用户角色获取失败，请手动选择");
-      })
-      .finally(() => {
-        this.setState({ loadingUserRoles: false });
-      });
+  handleEditClick = () => {
+    // 旧批量角色视图与写接口均返回 410；不能混用 IAM 角色 ID 与旧 ops 授权表。
+    message.warning("旧批量授权已停用，角色分配尚需接入 IAM 审批流程");
   };
 
   /**
@@ -301,25 +282,10 @@ class HGUserPermissionPage extends Component {
   };
 
   /**
-   * 提交角色分配。
-   * 千万级表约束：使用 POST 批量接口，减少网络往返。
+   * 旧批量接口已停用；即使表单被程序触发也不得提交。
    */
   handleSubmitRoles = () => {
-    const { editingAdmin, selectedRoleIds } = this.state;
-    if (!editingAdmin) return;
-
-    this.setState({ submitting: true });
-    HGUserPermissionVM.assignUserRoles(editingAdmin.id, selectedRoleIds)
-      .then(() => {
-        message.success("角色分配成功");
-        this.handleModalClose();
-      })
-      .catch((err) => {
-        message.error(err?.message || "角色分配失败，请稍后重试");
-      })
-      .finally(() => {
-        this.setState({ submitting: false });
-      });
+    message.warning("旧批量授权已停用，请使用 IAM 授权流程");
   };
 
   /**
@@ -382,9 +348,9 @@ class HGUserPermissionPage extends Component {
       title: "操作",
       dataIndex: "action",
       width: 120,
-      render: (_, record) => (
-        <HGButtonPage type="link" onClick={() => this.handleEditClick(record)}>
-          分配角色
+      render: () => (
+        <HGButtonPage type="link" disabled title="旧批量授权已停用，需通过 IAM 审批授权">
+          IAM 授权
         </HGButtonPage>
       ),
     },
@@ -444,7 +410,7 @@ class HGUserPermissionPage extends Component {
         <div className={styles.tipBar}>
           <span className={styles.tipDot} />
           <span>
-            当前为列表模式，共至少 {pagination.total} 条用户记录；点击右侧“分配角色”可调整用户权限。
+            当前为列表模式，共至少 {pagination.total} 条用户记录；旧批量授权已停用，角色分配尚需接入 IAM 的 MFA 与双人审批流程。
           </span>
         </div>
       );

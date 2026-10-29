@@ -78,10 +78,10 @@ export const HGMANAGER_API = {
   OPS_ADMIN_CANDIDATES: "/api/v1/ops/admins/candidates", // 搜索可添加管理员候选用户
   OPS_ADMIN_ADD: "/api/v1/ops/admins", // 添加管理员
   OPS_ADMIN_LIST: "/api/v1/ops/admins/list", // 运维管理员列表（cursor 分页）
-  OPS_ROLE_LIST: "/api/v1/ops/roles/list", // 运维角色列表
+  OPS_ROLE_LIST: "/api/v1/ops/roles/list", // 已停用：后端返回 410；新页面使用 IAM_ROLE_LIST
   OPS_ADMIN_SEARCH: "/api/v1/ops/users/search", // 运维管理员搜索
-  OPS_USER_ROLES: "/api/v1/ops/users/roles", // 分配管理员角色
-  OPS_USER_ROLE_LIST: "/api/v1/ops/users/roles/list", // 获取管理员已分配角色
+  OPS_USER_ROLES: "/api/v1/ops/users/roles", // 已停用：返回 410，禁止以 IAM 角色 ID 调用
+  OPS_USER_ROLE_LIST: "/api/v1/ops/users/roles/list", // 已停用：返回 410，改走 IAM_BINDING_LIST
   IAM_ROLE_CREATE: "/api/v1/iam/roles", // 创建 IAM 角色
   IAM_ROLE_LIST: "/api/v1/iam/roles/list", // IAM 角色游标列表
   IAM_ROLE_UPDATE: "/api/v1/iam/roles/update", // 更新 IAM 角色

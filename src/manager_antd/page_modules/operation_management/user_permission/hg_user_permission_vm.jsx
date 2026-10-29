@@ -28,7 +28,7 @@ export const MAX_ROLE_OPTIONS = 500;
  * 千万级表约束：
  * - 管理员列表使用 cursor 分页，避免 OFFSET 深分页扫描。
  * - 后端不返回实时 total，前端仅根据 hasMore 计算"至少 N 条"。
- * - 角色分配使用 POST 批量接口，减少网络往返。
+ * - 旧 ops 批量授权已停用，角色选项必须来自 IAM，不得混用旧角色 ID。
  */
 export default class HGUserPermissionVM {
   /**
@@ -57,14 +57,15 @@ export default class HGUserPermissionVM {
   };
 
   /**
-   * 获取用户已分配角色。
-   * 接口：GET /api/v1/ops/users/roles/list?userId=xxx
+   * 拒绝从已停用的旧视图回填角色。
+   * 旧 ops 用户角色视图已返回 410，不能用它回填 IAM 角色 ID。
    *
    * @param {string} userId 管理员 ID。
-   * @returns {Promise<Object>} 用户角色响应，包含 userId 和 roles 数组。
+   * @returns {Promise<never>} 始终拒绝，直到页面改用 IAM 绑定查询。
    */
   static fetchUserRoles = (userId) => {
-    return HGNet.get(HGMANAGER_API.OPS_USER_ROLE_LIST, { userId });
+    void userId;
+    return Promise.reject(new Error("旧角色视图已停用，请使用 IAM 精确绑定查询"));
   };
 
   /**
@@ -80,8 +81,11 @@ export default class HGUserPermissionVM {
     const roles = [];
 
     while (hasMore && roles.length < MAX_ROLE_OPTIONS) {
-      const res = await HGNet.get(HGMANAGER_API.OPS_ROLE_LIST, { cursor, pageSize });
-      const list = res?.list || [];
+      const res = await HGNet.get(HGMANAGER_API.IAM_ROLE_LIST, { cursor, pageSize });
+      if (!Array.isArray(res?.list) || typeof res?.hasMore !== "boolean" || (res.hasMore && !res.nextCursor)) {
+        throw new Error("IAM 角色列表格式无效");
+      }
+      const list = res.list;
       roles.push(...list);
       hasMore = Boolean(res?.hasMore) && Boolean(res?.nextCursor);
       cursor = res?.nextCursor || 0;
@@ -95,15 +99,17 @@ export default class HGUserPermissionVM {
   };
 
   /**
-   * 分配用户角色。
-   * 接口：POST /api/v1/ops/users/roles
+   * 拒绝调用已停用的旧批量授权接口。
+   * 旧 ops 批量写接口返回 410；不能将 IAM 角色 ID 发给旧授权表。
    *
    * @param {string} userId 管理员 ID。
    * @param {Array<string>} roleIds 角色 ID 数组。
-   * @returns {Promise<Object>} 提交响应。
+   * @returns {Promise<never>} 始终拒绝，防止将 IAM 角色 ID 写入旧权限表。
    */
   static assignUserRoles = (userId, roleIds) => {
-    return HGNet.post(HGMANAGER_API.OPS_USER_ROLES, { userId, roleIds });
+    void userId;
+    void roleIds;
+    return Promise.reject(new Error("旧批量授权已停用，请使用 IAM 员工角色授权流程"));
   };
 
   /**

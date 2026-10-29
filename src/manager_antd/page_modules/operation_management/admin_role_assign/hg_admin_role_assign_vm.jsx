@@ -98,7 +98,7 @@ export default class HGAdminRoleAssignVM {
   static fetchRoleList = ({ cursor = 0, pageSize = 100 } = {}) => {
     // 后端 /roles/list 已改为 cursor 分页：cursor=0 表示首页，后续页使用响应里的 nextCursor。
     // 不再传 page，避免前端继续表达 OFFSET 分页语义，和 Go 侧大表优化策略保持一致。
-    return HGNet.get(HGMANAGER_API.OPS_ROLE_LIST, { cursor, pageSize });
+    return HGNet.get(HGMANAGER_API.IAM_ROLE_LIST, { cursor, pageSize });
   };
 
   static fetchAllRoleList = async () => {
@@ -131,13 +131,13 @@ export default class HGAdminRoleAssignVM {
   };
 
   static fetchUserRoles = (userId) => {
-    return HGNet.get(HGMANAGER_API.OPS_USER_ROLE_LIST, { userId });
+    void userId;
+    return Promise.reject(new Error("旧角色视图已停用，请使用 IAM 精确绑定查询"));
   };
 
   static submitAdminRole = (data) => {
-    return HGNet.post(HGMANAGER_API.OPS_USER_ROLES, {
-      userId: data.admin_user_id,
-      roleIds: data.role_ids || [],
-    });
+    void data;
+    // IAM 授权需 MFA 与双人审批，旧批量写入不能复用新角色 ID。
+    return Promise.reject(new Error("旧批量授权已停用，请使用 IAM 员工角色授权流程"));
   };
 }

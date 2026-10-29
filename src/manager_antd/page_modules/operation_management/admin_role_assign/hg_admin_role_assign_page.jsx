@@ -112,16 +112,8 @@ class HGAdminRoleAssignPage extends Component {
       return;
     }
 
-    HGAdminRoleAssignVM.fetchUserRoles(adminUserId)
-      .then((res) => {
-        const roleIds = (res?.roles || []).map((role) => String(role.id));
-        if (this.formRef.current) {
-          this.formRef.current.setFieldsValue({ role_ids: roleIds });
-        }
-      })
-      .catch(() => {
-        message.error("已分配角色获取失败，请手动选择角色");
-      });
+    // 旧 ops 角色视图已停用；没有业务 user_id 的 IAM 绑定不可安全回填。
+    message.warning("旧批量授权已停用，角色分配尚需接入 IAM 审批流程");
   };
 
   /**
@@ -129,18 +121,8 @@ class HGAdminRoleAssignPage extends Component {
    * @param {Object} values 表单收集的字段值
    */
   handleFinish = (values) => {
-    this.setState({ submitting: true });
-    const submitData = HGAdminRoleAssignVM.transformSubmitData(values);
-    HGAdminRoleAssignVM.submitAdminRole(submitData)
-      .then((res) => {
-        message.success(res?.message || "角色分配成功");
-      })
-      .catch(() => {
-        message.error("网络异常，请稍后重试");
-      })
-      .finally(() => {
-        this.setState({ submitting: false });
-      });
+    void values;
+    message.warning("旧批量授权已停用，角色分配尚需接入 IAM 的 MFA 与双人审批流程");
   };
 
   /**
@@ -238,9 +220,10 @@ class HGAdminRoleAssignPage extends Component {
           type="primary"
           htmlType="submit"
           loading={submitting || loadingRoles}
+          disabled
           className={styles.submitBtn}
         >
-          提交
+          旧批量授权已停用
         </HGButtonPage>
         <HGButtonPage onClick={this.handleReset} className={styles.submitBtn}>
           取消
@@ -253,6 +236,7 @@ class HGAdminRoleAssignPage extends Component {
     return (
       <div className={styles.adminRoleAssignContainer}>
         <h2 className={styles.formTitle}>管理员角色分配</h2>
+        <p role="status">旧版批量授权已停用；角色列表已迁移 IAM。此页面暂不支持角色分配，尚需接入 MFA 与双人审批流程。</p>
         <Form
           ref={this.formRef}
           layout="vertical"
