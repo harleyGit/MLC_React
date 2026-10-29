@@ -1,38 +1,356 @@
-/* 角色权限分配表单页面样式 */
+/* 权限管理页面样式：左侧角色列表 + 右侧权限分组面板 */
 .rolePermissionContainer {
-  max-width: 720px;
+  min-width: 0;
 }
 
-.formTitle {
-  margin: 0 0 24px;
-  font-size: 18px;
+.layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* 左侧角色面板 */
+.rolePanel {
+  min-width: 0;
+}
+
+.panelCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(51, 112, 255, 0.1);
+  color: #3370ff;
+  font-size: 12px;
+}
+
+.roleSearch {
+  margin-bottom: 12px;
+}
+
+.roleList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 620px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+/* 角色卡片：选中时高亮边框 + 浅底 + 左侧色条 */
+.roleItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #eef1f6;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.roleItem:hover {
+  border-color: #b9ccff;
+  background: #fafbff;
+}
+
+.roleItemActive {
+  border-color: #3370ff;
+  background: rgba(51, 112, 255, 0.06);
+  box-shadow: 0 2px 10px rgba(51, 112, 255, 0.1);
+}
+
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.roleInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.roleName {
+  color: #1f2c4a;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleCode {
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  color: #8a93a8;
+  line-height: 1.4;
+}
+
+.roleDesc {
+  font-size: 12px;
+  color: #7a859f;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 右侧权限面板 */
+.permissionPanel {
+  min-width: 0;
+}
+
+.permissionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px dashed #eef1f6;
+}
+
+.permissionHeaderMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.permissionHeaderMeta {
+  min-width: 0;
+}
+
+.permissionHeaderName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2c4a;
+  line-height: 1.5;
+}
+
+.permissionHeaderDesc {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: #7a859f;
+  line-height: 1.6;
+}
+
+.permissionHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.selectedBadge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(0, 180, 42, 0.1);
+  color: #00b42a;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+/* 权限分组 */
+.groupList {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.group {
+  border: 1px solid #eef1f6;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fcfdff;
+}
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f6f8fd;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.groupTitleArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
   color: #1f2c4a;
 }
 
-.formItem {
-  margin-bottom: 20px;
+.groupCount {
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #e6eaf2;
+  color: #7a859f;
+  font-size: 11.5px;
+  line-height: 18px;
 }
 
-.inputField {
-  width: 100%;
+.resourceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+  padding: 14px;
 }
 
-.permissionTreeBox {
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  padding: 12px;
-  max-height: 360px;
-  overflow-y: auto;
-  background: #fafbfc;
+.resourceBlock {
+  min-width: 0;
 }
 
-.submitRow {
+.resourceHead {
   display: flex;
-  gap: 12px;
-  margin-top: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
-.submitBtn {
-  min-width: 100px;
+.resourceTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a6b8a;
+}
+
+.resourceCount {
+  font-size: 11.5px;
+  color: #a0a8bb;
+  font-variant-numeric: tabular-nums;
+}
+
+.permList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 权限项行：已勾选时浅色底与左侧强调 */
+.permRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* 复选框（HGCheckbox 根节点为 label）不参与压缩，避免长权限名换行挤压编码展示 */
+.permRow label {
+  flex-shrink: 0;
+}
+
+.permRow label span {
+  white-space: nowrap;
+}
+
+.permRow:hover {
+  background: #f7f9fc;
+}
+
+.permRowChecked {
+  background: rgba(51, 112, 255, 0.05);
+  border-color: rgba(51, 112, 255, 0.18);
+}
+
+.permCode {
+  margin-left: auto;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #a0a8bb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 底部操作栏 */
+.footerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed #eef1f6;
+}
+
+.footerHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #7a859f;
+  line-height: 1.6;
+  min-width: 0;
+}
+
+.footerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.placeholderText {
+  padding: 20px;
+  border-radius: 10px;
+  background: #f7f9fc;
+  color: #8a93a8;
+  font-size: 13px;
+  text-align: center;
+}
+
+.emptyState {
+  padding: 60px 20px;
+  border-radius: 12px;
+  background: #f7f9fc;
+  color: #8a93a8;
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .roleList {
+    max-height: 260px;
+  }
 }

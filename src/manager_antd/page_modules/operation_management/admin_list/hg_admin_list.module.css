@@ -1,3 +1,4 @@
+/* 管理员管理页面样式：页头 + 指标卡 + 表格卡片 */
 .adminListContainer {
   min-width: 0;
 }
@@ -6,22 +7,78 @@
   width: 360px;
 }
 
-.tipText {
-  margin: 0 0 14px;
-  color: #7a859f;
+/* 表格上方提示条：浅色底 + 左侧圆点标记当前数据模式 */
+.tipBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(51, 112, 255, 0.06);
+  color: #5a6b8a;
   font-size: 13px;
   line-height: 1.6;
 }
 
-.statusText {
-  display: inline-flex;
+.tipBarSearch {
+  background: rgba(255, 125, 0, 0.08);
+}
+
+.tipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3370ff;
+  flex-shrink: 0;
+}
+
+.tipBarSearch .tipDot {
+  background: #ff7d00;
+}
+
+/* 管理员主体信息单元格：头像 + 主副文本 */
+.userCell {
+  display: flex;
   align-items: center;
-  min-width: 44px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.userMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.userName {
   color: #1f2c4a;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userSub {
+  color: #8a93a8;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.idText {
+  color: #5a6b8a;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12.5px;
 }
 
 .cellText {
   min-width: 0;
+  color: #1f2c4a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

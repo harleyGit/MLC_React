@@ -1,0 +1,44 @@
+/* 状态标签样式：胶囊形 + 半透明底色 + 圆点 */
+.statusTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.toneSuccess {
+  color: #00b42a;
+  background: rgba(0, 180, 42, 0.1);
+}
+
+.toneError {
+  color: #f53f3f;
+  background: rgba(245, 63, 63, 0.1);
+}
+
+.toneWarning {
+  color: #ff7d00;
+  background: rgba(255, 125, 0, 0.1);
+}
+
+.toneInfo {
+  color: #3370ff;
+  background: rgba(51, 112, 255, 0.1);
+}
+
+.toneNeutral {
+  color: #7a859f;
+  background: rgba(122, 133, 159, 0.12);
+}

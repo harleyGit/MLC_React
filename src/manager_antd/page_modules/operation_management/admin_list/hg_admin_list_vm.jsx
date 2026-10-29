@@ -72,4 +72,26 @@ export default class HGAdminListVM {
     if (Number(status) === 0 || Number(status) === -1) return "禁用";
     return "-";
   };
+
+  /**
+   * 将管理员状态映射为状态标签色调。
+   * @param {number} status 管理员状态值。
+   * @returns {string} HGStatusTag 支持的 tone 值。
+   */
+  static getStatusTone = (status) => {
+    if (Number(status) === 1) return "success";
+    if (Number(status) === 0 || Number(status) === -1) return "error";
+    return "neutral";
+  };
+
+  /**
+   * 统计当前页指定状态的管理员数量，用于顶部指标卡。
+   * 说明：仅统计已加载的当前页数据，不代表全量规模，避免额外 COUNT(*) 查询。
+   * @param {Array} rows 当前页管理员行数据。
+   * @param {number} status 目标状态值。
+   * @returns {number} 匹配条数。
+   */
+  static countByStatus = (rows = [], status) => {
+    return rows.filter((row) => Number(row.status) === Number(status)).length;
+  };
 }

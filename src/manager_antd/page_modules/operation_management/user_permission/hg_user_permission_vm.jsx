@@ -159,4 +159,26 @@ export default class HGUserPermissionVM {
     if (Number(status) === 0 || Number(status) === -1) return "禁用";
     return "-";
   };
+
+  /**
+   * 将用户状态映射为状态标签色调。
+   * @param {number} status 用户状态值。
+   * @returns {string} HGStatusTag 支持的 tone 值。
+   */
+  static getStatusTone = (status) => {
+    if (Number(status) === 1) return "success";
+    if (Number(status) === 0 || Number(status) === -1) return "error";
+    return "neutral";
+  };
+
+  /**
+   * 统计当前页指定状态的用户数量，用于顶部指标卡。
+   * 说明：仅统计已加载的当前页数据，避免额外 COUNT(*) 查询。
+   * @param {Array} rows 当前页用户行数据。
+   * @param {number} status 目标状态值。
+   * @returns {number} 匹配条数。
+   */
+  static countByStatus = (rows = [], status) => {
+    return rows.filter((row) => Number(row.status) === Number(status)).length;
+  };
 }

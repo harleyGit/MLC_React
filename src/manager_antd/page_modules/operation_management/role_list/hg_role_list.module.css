@@ -1,17 +1,188 @@
+/* 角色管理页面样式：角色标识徽标 + 表格 + 编辑/删除弹窗 */
 .roleListContainer {
   min-width: 0;
 }
 
-.tipText {
-  margin: 0 0 14px;
-  color: #7a859f;
+/* 提示条 */
+.tipBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(51, 112, 255, 0.06);
+  color: #5a6b8a;
   font-size: 13px;
   line-height: 1.6;
 }
 
-.cellText {
+.tipDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3370ff;
+  flex-shrink: 0;
+}
+
+/* 角色名称单元格 */
+.roleCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
+}
+
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.roleMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.roleName {
+  color: #1f2c4a;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleId {
+  color: #8a93a8;
+  font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.descriptionText {
+  color: #5a6b8a;
+  font-size: 13px;
+  line-height: 1.6;
   overflow-wrap: anywhere;
-  white-space: normal;
-  word-break: break-word;
+}
+
+.emptyText {
+  color: #b4bbcc;
+  font-size: 13px;
+}
+
+.timeText {
+  color: #5a6b8a;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 操作列：链接按钮 + 分隔线 */
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actionDivider {
+  width: 1px;
+  height: 12px;
+  background: #e6eaf2;
+}
+
+/* 编辑弹窗表单 */
+.formBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2c4a;
+}
+
+.requiredMark {
+  color: #f53f3f;
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid #dce1eb;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1f2c4a;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.formInput:focus,
+.formTextarea:focus {
+  border-color: #3370ff;
+  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.12);
+}
+
+.formInputDisabled {
+  background: #f5f7fa;
+  color: #8a93a8;
+  cursor: not-allowed;
+}
+
+.formTextarea {
+  resize: vertical;
+  line-height: 1.6;
+  font-family: inherit;
+}
+
+.formHint {
+  font-size: 12px;
+  color: #8a93a8;
+  line-height: 1.5;
+}
+
+/* 删除确认弹窗 */
+.deleteBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deleteRoleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.deleteText {
+  margin: 0;
+  font-size: 13px;
+  color: #5a6b8a;
+  line-height: 1.7;
 }

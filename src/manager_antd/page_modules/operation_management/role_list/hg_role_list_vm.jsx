@@ -102,4 +102,29 @@ export default class HGRoleListVM {
     // 示例：第 1 页 20 条 hasMore=true，total = 0 + 20 + 1 = 21（表示至少有 21 条）
     return (pageNum - 1) * pageSize + rowCount + (hasMore ? 1 : 0);
   };
+
+  /**
+   * 角色标识徽标底色。
+   * 说明：按角色 ID 哈希取固定色，保证同一角色在不同页面颜色一致，避免随机色导致的视觉抖动。
+   * @param {string} roleId 角色 ID。
+   * @returns {string} 十六进制颜色值。
+   */
+  static getRoleBadgeColor = (roleId) => {
+    const palette = [
+      "#3370ff",
+      "#00b42a",
+      "#ff7d00",
+      "#722ed1",
+      "#14c0cc",
+      "#f53f3f",
+      "#f7ba1e",
+      "#f77eb9",
+    ];
+    const text = String(roleId || "");
+    let hash = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) % 100000;
+    }
+    return palette[hash % palette.length];
+  };
 }
