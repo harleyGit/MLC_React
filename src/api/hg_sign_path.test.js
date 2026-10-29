@@ -20,6 +20,18 @@ test("normalizeSignPath strips the video danmaku module prefix", () => {
   assert.equal(normalizeSignPath("/api/v1/video_danmaku/ticket"), "/ticket");
 });
 
+test("IAM 角色与权限请求使用模块内路径签名", () => {
+  for (const [hgURL, hgPath] of [
+    ["/api/v1/iam/roles/list?cursor=0&pageSize=100", "/roles/list"],
+    ["/api/v1/iam/permissions/list?roleId=1", "/permissions/list"],
+    ["/api/v1/iam/roles/permissions", "/roles/permissions"],
+  ]) {
+    assert.equal(normalizeSignPath(new URL(hgURL, "http://localhost:5174").pathname), hgPath);
+  }
+  assert.equal(normalizeSignPath("/api/v1/iam"), "/");
+  assert.equal(normalizeSignPath("/api/v1/iam_extra/roles/list"), "/api/v1/iam_extra/roles/list");
+});
+
 test("normalizeSignPath strips the bilibili module prefix", () => {
   assert.equal(
     normalizeSignPath("/api/v1/bilibili/author/homepage"),

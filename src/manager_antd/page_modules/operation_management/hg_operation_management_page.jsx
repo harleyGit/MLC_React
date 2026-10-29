@@ -17,7 +17,6 @@ import styles from "./hg_operation_management.module.css";
 
 // 真实业务页按菜单项独立拆包；占位页保留同步渲染，避免无意义的小 chunk。
 const HGAdminAddPage = lazy(() => import("./admin_add/hg_admin_add_page"));
-const HGAdminListPage = lazy(() => import("./admin_list/hg_admin_list_page"));
 const HGAdminRoleAssignPage = lazy(() => import("./admin_role_assign/hg_admin_role_assign_page"));
 const HGEmployeeRolePage = lazy(() => import("./employee_role/hg_employee_role_page"));
 const HGFileListPage = lazy(() => import("./file_management/file_list/hg_file_list_page"));
@@ -208,8 +207,6 @@ class SystemNotifyChannelPage extends Component {
  */
 const PAGE_MAP = {
   domain_detect: DomainDetectPage,
-  // 管理员管理：admin_list 对应独立管理员列表业务页面。
-  admin_list: HGAdminListPage,
   admin_add: HGAdminAddPage,
   admin_role_assign: HGAdminRoleAssignPage,
   // 用户管理：user_list 菜单必须展示真实用户资料/用户列表页。

@@ -77,6 +77,26 @@ test("充值记录签名对齐 Go 模块路径、空 GET body 和 Authorization"
   }
 });
 
+// 页面读取角色和权限均经 IAM 路由组；签名必须使用 Go StripPrefix 后的路径。
+test("IAM 角色列表和权限目录签名对齐后端路径", async () => {
+  const hgHeaders = {
+    "X-Timestamp": "1700000000", "X-Request-ID": "fixture-request",
+    "X-Device-ID": "fixture-device", "X-Client-Type": "web", "X-Client-Version": "1",
+    "X-API-Version": "v1", "X-Language": "zh-CN", Authorization: "Bearer fixture-invalid-jwt",
+  };
+  for (const [hgURL, hgPath] of [
+    ["http://localhost:5174/api/v1/iam/roles/list?cursor=0&pageSize=100", "/roles/list"],
+    ["/api/v1/iam/permissions/list?roleId=1", "/permissions/list"],
+  ]) {
+    const hgPayload = ["GET", hgPath, "1700000000", "fixture-request", "fixture-device", "web", "1", "v1", "zh-CN",
+      createHash("sha256").update("").digest("hex"), hgHeaders.Authorization].join("\n");
+    const hgExpected = `sha256=${createHmac("sha256", "fixture-only-not-a-real-secret").update(hgPayload).digest("hex")}`;
+    for (const hgSigner of [hgCreateSigner(null), hgCreateSigner(webcrypto.subtle)]) {
+      assert.equal(await hgSigner.buildSignature({ url: hgURL, method: "GET", headers: hgHeaders }), hgExpected);
+    }
+  }
+});
+
 // 商城真实请求层须与 Go StripPrefix 后的路径一致；校验 GET、POST body、登录态和两种加密实现。
 test("商城 GET/POST 签名对齐模块内路径和请求体", async () => {
   const hgHeaders = {
