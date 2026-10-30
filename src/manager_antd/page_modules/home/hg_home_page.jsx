@@ -2,15 +2,20 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-26 11:43:08
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-10-30 23:35:00
+ * @LastEditTime: 2026-10-31 00:10:00
  * @FilePath: /MLC_React/src/manager_antd/page_modules/home/hg_home_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koroFileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import React from "react";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import HGMessageList, { HG_MESSAGE_TYPES } from "../../../components/hg_message_list/hg_message_list.jsx";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
 import CSStyles from "./hg_home.module.css";
+
+/** 消息发送者方向常量，供多类型消息复用。 */
+const FROM_ME = "me";
+const FROM_PEER = "peer";
 
 /**
  * 默认演示会话数据。
@@ -25,9 +30,12 @@ const DEFAULT_CONVERSATIONS = [
     lastTime: "22:41",
     unread: 2,
     messages: [
-      { id: "msg_p1", from: "peer", text: "新版本的聊天首页布局评审过了吗？", time: "22:38" },
-      { id: "msg_p2", from: "me", text: "已经过了，按 iPad 微信的双栏布局做。", time: "22:39" },
-      { id: "msg_p3", from: "peer", text: "好的，那左侧列表记得带未读角标。", time: "22:41" },
+      { id: "msg_p_t", type: HG_MESSAGE_TYPES.TIME, text: "22:38", from: FROM_PEER },
+      { id: "msg_p1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "小张", text: "新版本的聊天首页布局评审过了吗？", time: "22:38" },
+      { id: "msg_p2", type: HG_MESSAGE_TYPES.TEXT, from: FROM_ME, text: "已经过了，按 iPad 微信的双栏布局做。", time: "22:39" },
+      { id: "msg_p3", type: HG_MESSAGE_TYPES.IMAGE, from: FROM_PEER, sender: "小张", alt: "设计稿截图", color: "#4f8bf5", text: "这是最新的双栏设计稿", time: "22:40" },
+      { id: "msg_p4", type: HG_MESSAGE_TYPES.VOICE, from: FROM_ME, duration: 8, time: "22:40" },
+      { id: "msg_p5", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "小张", text: "好的，那左侧列表记得带未读角标。", time: "22:41" },
     ],
   },
   {
@@ -38,8 +46,11 @@ const DEFAULT_CONVERSATIONS = [
     lastTime: "21:12",
     unread: 0,
     messages: [
-      { id: "msg_d1", from: "peer", text: "路由还是走 createBrowserRouter，页面内双栏不新增路由。", time: "21:10" },
-      { id: "msg_d2", from: "me", text: "收到，样式继续用 CSS Modules。", time: "21:12" },
+      { id: "msg_d_t", type: HG_MESSAGE_TYPES.TIME, text: "21:10", from: FROM_PEER },
+      { id: "msg_d1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "阿明", text: "路由还是走 createBrowserRouter，页面内双栏不新增路由。", time: "21:10" },
+      { id: "msg_d2", type: HG_MESSAGE_TYPES.VIDEO, from: FROM_ME, alt: "效果演示视频", color: "#6c4cf1", text: "演示一下滚动效果", time: "21:11" },
+      { id: "msg_d3", type: HG_MESSAGE_TYPES.EMOJI, from: FROM_PEER, sender: "阿明", text: "👍", time: "21:11" },
+      { id: "msg_d4", type: HG_MESSAGE_TYPES.TEXT, from: FROM_ME, text: "收到，样式继续用 CSS Modules。", time: "21:12" },
     ],
   },
   {
@@ -50,7 +61,8 @@ const DEFAULT_CONVERSATIONS = [
     lastTime: "18:05",
     unread: 5,
     messages: [
-      { id: "msg_o1", from: "peer", text: "今晚 23:00 采集平台例行发布，注意告警。", time: "18:05" },
+      { id: "msg_o_t", type: HG_MESSAGE_TYPES.TIME, text: "18:05", from: FROM_PEER },
+      { id: "msg_o1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "值班同事", text: "今晚 23:00 采集平台例行发布，注意告警。", time: "18:05" },
     ],
   },
   {
@@ -61,9 +73,20 @@ const DEFAULT_CONVERSATIONS = [
     lastTime: "昨天",
     unread: 0,
     messages: [
-      { id: "msg_n1", from: "peer", text: "你的账号已于新设备登录，如非本人操作请及时修改密码。", time: "昨天 20:30" },
+      { id: "msg_n_t", type: HG_MESSAGE_TYPES.TIME, text: "昨天 20:30", from: FROM_PEER },
+      { id: "msg_n1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "系统", text: "你的账号已于新设备登录，如非本人操作请及时修改密码。", time: "昨天 20:30" },
     ],
   },
+];
+
+/** 每个会话共享的历史消息池，用于上拉加载更多（按时间正序，倒序插入头部）。 */
+const HISTORY_POOL = [
+  { type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "队友", text: "早啊，昨天的进度同步一下？", time: "昨天 09:12" },
+  { type: HG_MESSAGE_TYPES.EMOJI, from: FROM_ME, text: "😄", time: "昨天 09:13" },
+  { type: HG_MESSAGE_TYPES.IMAGE, from: FROM_PEER, sender: "队友", alt: "流程图", color: "#27c0a8", text: "这是最新的接口时序图", time: "昨天 09:20" },
+  { type: HG_MESSAGE_TYPES.VOICE, from: FROM_PEER, sender: "队友", duration: 12, time: "昨天 09:25" },
+  { type: HG_MESSAGE_TYPES.TEXT, from: FROM_ME, text: "收到，我下午整理一版文档。", time: "昨天 09:30" },
+  { type: HG_MESSAGE_TYPES.VIDEO, from: FROM_PEER, sender: "队友", alt: "录屏", color: "#f2a93b", text: "复现步骤录屏", time: "昨天 10:00" },
 ];
 
 /**
@@ -76,6 +99,13 @@ const hgGetNowTime = () => {
   const minute = String(now.getMinutes()).padStart(2, "0");
   return `${hour}:${minute}`;
 };
+
+/**
+ * 生成消息唯一 id。
+ * @param {string} prefix 前缀。
+ * @returns {string} 唯一 id 字符串。
+ */
+const hgNextId = (prefix = "msg") => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 /**
  * 聊天首页（已登录态）
@@ -96,37 +126,15 @@ class HGHomePage extends React.Component {
       activeId: DEFAULT_CONVERSATIONS[0]?.id || "",
       searchKeyword: "",
       draft: "",
+      historyOffset: 0, // 已加载的历史消息条数，用于上拉加载更多。
     };
-    this.messageListRef = React.createRef();
   }
 
   /**
-   * 生命周期挂载：记录挂载标记；会话消息容器滚动到底部。
+   * 生命周期挂载：记录挂载标记。
    */
   componentDidMount() {
     this.hgMounted = true;
-    this.scrollToBottom();
-  }
-
-  /**
-   * 生命周期更新：消息列表内容变化时保持滚动到底部。
-   * @param {object} prevProps 更新前 props。
-   * @param {object} prevState 更新前 state。
-   */
-  componentDidUpdate(prevProps, prevState) {
-    const prevConversation = this.findConversation(
-      prevState.conversations,
-      prevState.activeId
-    );
-    const currConversation = this.findConversation(
-      this.state.conversations,
-      this.state.activeId
-    );
-    const prevCount = prevConversation?.messages.length || 0;
-    const currCount = currConversation?.messages.length || 0;
-    if (prevState.activeId !== this.state.activeId || prevCount !== currCount) {
-      this.scrollToBottom();
-    }
   }
 
   /**
@@ -147,13 +155,11 @@ class HGHomePage extends React.Component {
   };
 
   /**
-   * 将消息列表容器滚动到底部，展示最新消息。
+   * 获取当前选中会话对象。
+   * @returns {object|undefined} 当前会话。
    */
-  scrollToBottom = () => {
-    const node = this.messageListRef.current;
-    if (node) {
-      node.scrollTop = node.scrollHeight;
-    }
+  getActiveConversation = () => {
+    return this.findConversation(this.state.conversations, this.state.activeId);
   };
 
   /**
@@ -203,7 +209,7 @@ class HGHomePage extends React.Component {
   };
 
   /**
-   * 发送草稿到当前会话：追加本人消息、刷新列表时间；内容为空时不发送。
+   * 发送草稿到当前会话：追加本人文字消息、刷新列表时间；内容为空时不发送。
    * @returns {void}
    */
   handleSend = () => {
@@ -212,6 +218,13 @@ class HGHomePage extends React.Component {
       return;
     }
     const time = hgGetNowTime();
+    const newMessage = {
+      id: hgNextId("msg_me"),
+      type: HG_MESSAGE_TYPES.TEXT,
+      from: FROM_ME,
+      text,
+      time,
+    };
     this.setState(
       (prevState) => ({
         draft: "",
@@ -220,10 +233,7 @@ class HGHomePage extends React.Component {
             ? {
                 ...item,
                 lastTime: time,
-                messages: [
-                  ...item.messages,
-                  { id: `msg_me_${Date.now()}`, from: "me", text, time },
-                ],
+                messages: [...item.messages, newMessage],
               }
             : item
         ),
@@ -262,8 +272,10 @@ class HGHomePage extends React.Component {
                 messages: [
                   ...item.messages,
                   {
-                    id: `msg_reply_${Date.now()}`,
-                    from: "peer",
+                    id: hgNextId("msg_reply"),
+                    type: HG_MESSAGE_TYPES.TEXT,
+                    from: FROM_PEER,
+                    sender: item.name,
                     text: "收到，稍后回复你。",
                     time,
                   },
@@ -273,6 +285,37 @@ class HGHomePage extends React.Component {
         ),
       }));
     }, 800);
+  };
+
+  /**
+   * 上拉加载更多：把历史消息按时间倒序插到当前会话消息顶部。
+   * 约束：仅本地演示；历史池耗尽后 hasMore 置为 false。
+   */
+  handleLoadMore = () => {
+    const active = this.getActiveConversation();
+    if (!active) return;
+    const offset = this.state.historyOffset;
+    const batch = HISTORY_POOL.slice(offset, offset + 3);
+    if (batch.length === 0) return;
+    // 历史消息统一倒序插入头部，保持时间线顺序（旧消息在前）。
+    const prepend = [...batch].reverse().map((message) => ({
+      ...message,
+      id: hgNextId("hist"),
+    }));
+    const conversations = this.state.conversations.map((item) =>
+      item.id === active.id
+        ? { ...item, messages: [...prepend, ...item.messages] }
+        : item
+    );
+    this.setState({ conversations, historyOffset: offset + batch.length });
+  };
+
+  /**
+   * 计算当前会话是否还有更多历史消息可加载。
+   * @returns {boolean} hasMore 标记。
+   */
+  getHasMore = () => {
+    return this.state.historyOffset < HISTORY_POOL.length;
   };
 
   /**
@@ -290,14 +333,34 @@ class HGHomePage extends React.Component {
   };
 
   /**
+   * 根据消息类型生成会话列表的摘要文案。
+   * @param {object} message 最后一条消息。
+   * @returns {string} 摘要文案。
+   */
+  getMessagePreview = (message) => {
+    if (!message || message.type === HG_MESSAGE_TYPES.TIME) return "";
+    switch (message.type) {
+      case HG_MESSAGE_TYPES.IMAGE:
+        return "[图片]";
+      case HG_MESSAGE_TYPES.VOICE:
+        return "[语音]";
+      case HG_MESSAGE_TYPES.VIDEO:
+        return "[视频]";
+      case HG_MESSAGE_TYPES.EMOJI:
+        return "[表情]";
+      default:
+        return message.text;
+    }
+  };
+
+  /**
    * 渲染左侧会话列表的单个会话项。
    * @param {object} conversation 会话数据。
    * @returns {React.ReactNode} 会话项节点。
    */
   renderConversationItem = (conversation) => {
     const isActive = conversation.id === this.state.activeId;
-    const lastMessage =
-      conversation.messages[conversation.messages.length - 1];
+    const lastMessage = conversation.messages[conversation.messages.length - 1];
     const itemClassName = `${CSStyles.conversationItem} ${
       isActive ? CSStyles.conversationItemActive : ""
     }`;
@@ -325,7 +388,7 @@ class HGHomePage extends React.Component {
             </span>
           </span>
           <span className={CSStyles.conversationPreview}>
-            {lastMessage ? lastMessage.text : ""}
+            {this.getMessagePreview(lastMessage)}
           </span>
         </span>
       </button>
@@ -393,39 +456,19 @@ class HGHomePage extends React.Component {
   };
 
   /**
-   * 渲染单条消息气泡；本人消息靠右绿色，对端消息靠左白色。
-   * @param {object} message 消息数据。
-   * @returns {React.ReactNode} 消息行节点。
-   */
-  renderMessageItem = (message) => {
-    const isMine = message.from === "me";
-    const rowClassName = `${CSStyles.messageRow} ${
-      isMine ? CSStyles.messageRowMine : CSStyles.messageRowPeer
-    }`;
-    const bubbleClassName = `${CSStyles.messageBubble} ${
-      isMine ? CSStyles.messageBubbleMine : CSStyles.messageBubblePeer
-    }`;
-    return (
-      <div key={message.id} className={rowClassName}>
-        <span className={CSStyles.messageAvatar}>{isMine ? "我" : "友"}</span>
-        <div className={CSStyles.messageBody}>
-          <span className={bubbleClassName}>{message.text}</span>
-          <span className={CSStyles.messageTime}>{message.time}</span>
-        </div>
-      </div>
-    );
-  };
-
-  /**
-   * 渲染右侧消息列表区；容器滚动由 scrollToBottom 维护。
+   * 渲染右侧消息列表（复用 HGMessageList 虚拟滚动）。
    * @param {object} activeConversation 当前选中会话。
    * @returns {React.ReactNode} 消息列表节点。
    */
   renderMessageList = (activeConversation) => {
     return (
-      <div className={CSStyles.messageList} ref={this.messageListRef}>
-        {activeConversation.messages.map(this.renderMessageItem)}
-      </div>
+      <HGMessageList
+        messages={activeConversation.messages}
+        currentUserId={FROM_ME}
+        loading={false}
+        hasMore={this.getHasMore()}
+        onLoadMore={this.handleLoadMore}
+      />
     );
   };
 
@@ -472,17 +515,16 @@ class HGHomePage extends React.Component {
    * @returns {React.ReactNode} 聊天区节点。
    */
   renderChatMain = () => {
-    const activeConversation = this.findConversation(
-      this.state.conversations,
-      this.state.activeId
-    );
+    const activeConversation = this.getActiveConversation();
     if (!activeConversation) {
       return this.renderChatEmpty();
     }
     return (
       <section className={CSStyles.chatMain}>
         {this.renderChatHeader(activeConversation)}
-        {this.renderMessageList(activeConversation)}
+        <div className={CSStyles.messageListWrap}>
+          {this.renderMessageList(activeConversation)}
+        </div>
         {this.renderChatInput()}
       </section>
     );

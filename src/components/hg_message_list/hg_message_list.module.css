@@ -1,0 +1,203 @@
+/* src/components/hg_message_list/hg_message_list.module.css */
+/* 消息气泡列表样式：仿微信/飞书，气泡按发送方向左右布局。 */
+
+.listRoot {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 顶部下拉刷新指示 */
+.refreshHint {
+  padding: 8px 0;
+  font-size: 12px;
+  color: #8e9aaf;
+  text-align: center;
+}
+
+/* 底部加载指示 */
+.loadingHint {
+  padding: 10px 0;
+  font-size: 12px;
+  color: #8e9aaf;
+  text-align: center;
+}
+
+/* 系统时间分隔 */
+.timeRow {
+  padding: 6px 0 12px;
+  font-size: 12px;
+  color: #a0a7b4;
+  text-align: center;
+}
+
+/* 单条消息行 */
+.messageRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 12px 16px;
+}
+
+.messageRowMine {
+  flex-direction: row-reverse;
+}
+
+/* 头像 */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #b9c1ce;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.messageBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 62%;
+  min-width: 0;
+}
+
+.messageRowMine .messageBody {
+  align-items: flex-end;
+}
+
+/* 气泡 */
+.bubble {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.bubblePeer {
+  background: #ffffff;
+  color: #1f2329;
+}
+
+.bubbleMine {
+  background: #95ec69;
+  color: #14361f;
+}
+
+/* 表情气泡不套底色，纯贴纸展示 */
+.bubbleEmoji {
+  background: transparent;
+  padding: 0;
+}
+
+.bubbleText {
+  white-space: pre-wrap;
+}
+
+.messageTime {
+  font-size: 11px;
+  color: #8e9aaf;
+}
+
+/* 图片消息 */
+.imageBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.imagePlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 180px;
+  height: 120px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #58a6ff, #2669ff);
+  overflow: hidden;
+}
+
+.imageIcon {
+  font-size: 40px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mediaCaption {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* 语音消息 */
+.voiceBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 96px;
+}
+
+.voiceBars {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+
+.voiceBar {
+  display: inline-block;
+  width: 4px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.voiceDuration {
+  font-size: 13px;
+}
+
+/* 视频消息 */
+.videoBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.videoCover {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  height: 120px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #8f6cf1, #5b3bd9);
+  overflow: hidden;
+}
+
+.videoPlay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.videoPlayIcon {
+  font-size: 22px;
+  color: #5b3bd9;
+}
+
+/* 大表情贴纸 */
+.emojiLarge {
+  font-size: 44px;
+  line-height: 1;
+}
