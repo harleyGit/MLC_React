@@ -66,11 +66,16 @@ class HGEditUserPage extends React.Component {
   /**
    * 切换左侧菜单。
    * @param {string} menuKey MENU_KEYS 中的目标菜单标识。
-   * 约束：钱包跳转独立路由；其他模块原地切换并清空操作提示。
+   * 约束：钱包与收货地址跳转独立路由（收货地址页需要列表与弹窗的完整空间）；其他模块原地切换并清空操作提示。
    */
   handleMenuClick = (menuKey) => {
     if (menuKey === MENU_KEYS.WALLET) {
       this.props.pageNavigator?.open({ page: PAGE.WALLET });
+      return;
+    }
+
+    if (menuKey === MENU_KEYS.ADDRESS) {
+      this.props.pageNavigator?.open({ page: PAGE.ADDRESS_BOOK });
       return;
     }
 

@@ -6,6 +6,7 @@ export const MENU_KEYS = {
   INFO: "info",
   AVATAR: "avatar",
   SECURITY: "security",
+  ADDRESS: "address",
   UPLOAD: "upload",
   WALLET: "wallet",
 };
@@ -22,6 +23,10 @@ export const MENU_LIST = [
   {
     key: MENU_KEYS.SECURITY,
     label: "账号安全",
+  },
+  {
+    key: MENU_KEYS.ADDRESS,
+    label: "收货地址",
   },
   {
     key: MENU_KEYS.WALLET,

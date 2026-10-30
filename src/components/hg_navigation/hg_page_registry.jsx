@@ -21,6 +21,7 @@ const components = {
   USER_PROFILE: lazy(() => import("../../manager_antd/page_modules/user/hg_user_profile_page")),
   UPDATE_USER_PROIFE: lazy(() => import("../../manager_antd/page_modules/user/hg_update_user_profile_page")),
   EDIT_USER_INFO: lazy(() => import("../../manager_antd/page_modules/user/edit_user_info/hg_edit_user_page")),
+  ADDRESS_BOOK: lazy(() => import("../../manager_antd/page_modules/user/address/hg_address_book_page")), // 收货地址管理页。
   USER_CENTER: lazy(() => import("../../manager_antd/page_modules/user/user_center/hg_user_center_page")), // 个人中心，侧边栏 + 我的订单。
   WALLET: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_page")),
   WALLET_RECHARGE: lazy(() => import("../../manager_antd/page_modules/user/wallet/hg_wallet_recharge_page")),

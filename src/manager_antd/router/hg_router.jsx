@@ -26,6 +26,7 @@ const HGForgetPasswordPage = getHGPageConfig(PAGE.FORGET_PASSWORD).component;
 const HGProducts = getHGPageConfig(PAGE.PRODUCTS).component;
 const HGMallOrderPage = getHGPageConfig(PAGE.MALL_ORDER_DETAIL).component;
 const HGEditUserPage = getHGPageConfig(PAGE.EDIT_USER_INFO).component;
+const HGAddressBookPage = getHGPageConfig(PAGE.ADDRESS_BOOK).component;
 const HGUserCenterPage = getHGPageConfig(PAGE.USER_CENTER).component;
 const HGWalletPage = getHGPageConfig(PAGE.WALLET).component;
 const HGWalletRechargePage = getHGPageConfig(PAGE.WALLET_RECHARGE).component;
@@ -54,6 +55,7 @@ const hgLazyElement = (element, text = "正在加载页面...") => (
 const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);
 const WrappedHGHomePage = WithNavigation(HGHomePage);
 const WrappedHGEditUserPage = WithNavigation(HGEditUserPage);
+const WrappedHGAddressBookPage = WithNavigation(HGAddressBookPage);
 const WrappedHGWalletPage = WithNavigation(HGWalletPage);
 const WrappedHGWalletRechargePage = WithNavigation(HGWalletRechargePage);
 // 为记录页注入 location，浏览器后退或路由重新进入时刷新记录。
@@ -104,6 +106,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.EDIT_USER_INFO,
         element: hgLazyElement(<WrappedHGEditUserPage />),
+      },
+      {
+        path: ROUTE_PATH.ADDRESS_BOOK,
+        element: hgLazyElement(<WrappedHGAddressBookPage />, "正在加载收货地址..."),
       },
       {
         path: ROUTE_PATH.USER_CENTER,

@@ -29,6 +29,9 @@ export const HGMANAGER_API = {
   PROFILE: "/api/v1/profile/info", // 获取用户信息
   PROFILE_UPDATE: "/api/v1/profile/update", // 更新用户资料
   AVATAR_UPLOAD: "/api/v1/profile/avatar", // 上传头像
+  PROFILE_ADDRESSES: "/api/v1/profile/addresses", // 本人收货地址列表与新增
+  PROFILE_ADDRESS_DETAIL: "/api/v1/profile/addresses/detail", // 本人收货地址详情、修改与删除（query id）
+  PROFILE_ADDRESS_DEFAULT: "/api/v1/profile/addresses/default", // 设置本人默认收货地址（query id）
   WALLET_BALANCE: "/api/v1/wallet/balance", // 当前登录用户的平台币余额
   WALLET_RECHARGE_SKUS: "/api/v1/wallet/recharge/skus", // 有效充值档位
   WALLET_RECHARGE_ORDERS: "/api/v1/wallet/recharge/orders", // 创建充值订单

@@ -274,6 +274,8 @@ export default class HGCollectionView extends React.Component {
       items, getKey, loading, hasMore, pagination,
       height = 520, // 未配置高度时使用 520px 固定视口，保证列表可滚动。
       ariaLabel = "列表", // 未配置时使用通用辅助技术名称；业务页面应覆盖。
+      emptyText = "暂无数据", // 空列表占位文案；业务页面可按领域改写。
+      loadedText = "已加载全部订单", // 无分页时末页状态文案；业务页面可按领域改写。
     } = this.props;
     const offsets = hgCollectionOffsets(items, getKey, this.hgHeights);
     return (
@@ -302,10 +304,10 @@ export default class HGCollectionView extends React.Component {
           <div className={styles.spacer} style={{ height: offsets[items.length] }}>
             {this.renderSlots(offsets)}
           </div>
-          {!items.length && <div className={styles.status}>{loading ? "加载中…" : "暂无数据"}</div>}
+          {!items.length && <div className={styles.status}>{loading ? "加载中…" : emptyText}</div>}
         </div>
         {items.length > 0 && !pagination && <div className={styles.status} role="status">
-          {loading ? "加载中…" : hasMore ? "上滑加载更多 · 顶部下拉刷新" : "已加载全部订单"}
+          {loading ? "加载中…" : hasMore ? "上滑加载更多 · 顶部下拉刷新" : loadedText}
         </div>}
         {pagination && loading && <div className={styles.status} role="status">加载中…</div>}
         {this.renderPagination()}

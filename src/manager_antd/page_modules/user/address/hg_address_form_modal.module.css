@@ -1,0 +1,160 @@
+/* 收货地址新建/编辑弹窗表单样式 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  color: #414c63;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.control {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dfe4f0;
+  border-radius: 10px;
+  background: #fbfcff;
+  color: #1b2540;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.control::placeholder {
+  color: #a8b2c6;
+}
+
+.control:hover {
+  border-color: #c6d2ea;
+}
+
+.control:focus {
+  border-color: #4472f0;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(68, 114, 240, 0.14);
+}
+
+.control:disabled {
+  background: #f3f5fa;
+  color: #9aa4b8;
+  cursor: not-allowed;
+}
+
+.controlError {
+  border-color: #eb8a8d;
+  background: #fff8f8;
+}
+
+.controlError:focus {
+  border-color: #e5484d;
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.14);
+}
+
+.textarea {
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.regionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.errorText {
+  color: #d93a40;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.extraText {
+  color: #8b95a9;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed #d7e0f2;
+  border-radius: 10px;
+  background: #f7faff;
+  color: #414c63;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.checkboxRow input {
+  width: 15px;
+  height: 15px;
+  accent-color: #4472f0;
+  cursor: pointer;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancelButton,
+.submitButton {
+  min-width: 96px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cancelButton {
+  border: 1px solid #dfe4f0;
+  background: #fff;
+  color: #4a5468;
+}
+
+.cancelButton:hover:not(:disabled) {
+  border-color: #bfcce4;
+  color: #22304d;
+}
+
+.submitButton {
+  border: 0;
+  background: linear-gradient(135deg, #3f7bff, #6b5cff);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 18px rgba(63, 123, 255, 0.26);
+}
+
+.submitButton:hover:not(:disabled) {
+  box-shadow: 0 10px 22px rgba(63, 123, 255, 0.34);
+}
+
+.cancelButton:disabled,
+.submitButton:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@media (max-width: 620px) {
+  .regionRow {
+    grid-template-columns: 1fr;
+  }
+}

@@ -120,6 +120,31 @@ class HGNetManagerVM extends HGNetManager {
     return this.get(HGMANAGER_API.AVATAR_UPLOAD);
   }
 
+  // 获取本人收货地址列表；后端按 id 倒序返回，单用户最多 20 条。
+  getAddressList() {
+    return this.get(HGMANAGER_API.PROFILE_ADDRESSES);
+  }
+
+  // 新增本人收货地址；第一条地址由后端自动设为默认地址。
+  createAddress(addressBody) {
+    return this.post(HGMANAGER_API.PROFILE_ADDRESSES, addressBody);
+  }
+
+  // 修改本人收货地址：接口以 query id 定位，请求体为全量字段，不改变默认状态。
+  updateAddress(id, addressBody) {
+    return this.put(`${HGMANAGER_API.PROFILE_ADDRESS_DETAIL}?id=${encodeURIComponent(id)}`, addressBody);
+  }
+
+  // 删除本人收货地址；删除默认地址后由后端在同一事务内重新选定默认地址。
+  deleteAddress(id) {
+    return this.delete(HGMANAGER_API.PROFILE_ADDRESS_DETAIL, { params: { id } });
+  }
+
+  // 设置默认地址：接口只认 query id，空对象作为请求体以保证签名内容与实际请求一致。
+  setDefaultAddress(id) {
+    return this.put(`${HGMANAGER_API.PROFILE_ADDRESS_DEFAULT}?id=${encodeURIComponent(id)}`, {});
+  }
+
   uploadVideoFile({ file, submissionId, partNumber }) {
     const formData = new FormData();
     if (submissionId) {
