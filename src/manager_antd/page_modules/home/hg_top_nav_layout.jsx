@@ -233,7 +233,7 @@ class HGTopNavLayout extends Component {
         onClick={this.handleClick}
         className={styles.topMenu}
         items={[
-          { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>首页</Link> },
+          { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>Chat</Link> },
           { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>商品</Link> },
           { key: "message", label: <Link to={ROUTE_PATH.MESSAGE_CENTER} className={styles.menuLink}>消息中心</Link> },
           ...(this.state.hgIsAdmin ? [

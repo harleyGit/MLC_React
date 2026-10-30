@@ -1,12 +1,329 @@
-/* src/pages/Home.module.css */
+/* src/manager_antd/page_modules/home/hg_home.module.css */
+/* 聊天首页样式：左侧会话列表 + 右侧聊天内容，仿 iPad 微信双栏布局。 */
+
+/* 双栏容器：按视口高度撑满（顶部导航 64px），内部各自滚动 */
 .container {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
   width: 100%;
-  min-height: 100%;
+  height: calc(100vh - 64px);
+  min-height: 520px;
   box-sizing: border-box;
-  padding: 24px;
   background: #f5f7fa;
+  overflow: hidden;
+}
+
+/* ---------- 左侧会话列表栏 ---------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  flex-shrink: 0;
+  background: #f7f8fa;
+  border-right: 1px solid #e5e6eb;
+  box-sizing: border-box;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 16px;
+  border-bottom: 1px solid #e5e6eb;
+  box-sizing: border-box;
+}
+
+.sidebarTitle {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.sidebarAction {
+  border: none;
+  background: transparent;
+  color: #5b8def;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.sidebarAction:hover {
+  background: #e8f0fe;
+}
+
+/* 搜索框 */
+.searchBox {
+  padding: 10px 12px;
+}
+
+.searchInput {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: #e2e4e9;
+  box-sizing: border-box;
+  font-size: 13px;
+  color: #1f2329;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: #8e9aaf;
+}
+
+/* 会话列表 */
+.conversationList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+.conversationItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.conversationItem:hover {
+  background: #eceef2;
+}
+
+.conversationItemActive {
+  background: #d9e7fd;
+}
+
+.conversationItemActive:hover {
+  background: #d9e7fd;
+}
+
+/* 会话头像与未读角标 */
+.conversationAvatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #fa5151;
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.conversationInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.conversationTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.conversationName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2329;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversationTime {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #8e9aaf;
+}
+
+.conversationPreview {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversationEmpty {
+  padding: 24px 10px;
+  font-size: 13px;
+  color: #8e9aaf;
+  text-align: center;
+}
+
+/* ---------- 右侧聊天内容区 ---------- */
+.chatMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  background: #f2f3f5;
+  box-sizing: border-box;
+}
+
+.chatHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  padding: 0 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e6eb;
+  box-sizing: border-box;
+}
+
+.chatHeaderName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+/* 消息列表 */
+.messageList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.messageRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.messageRowMine {
+  flex-direction: row-reverse;
+}
+
+.messageAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: #b9c1ce;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.messageBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 60%;
+}
+
+.messageRowMine .messageBody {
+  align-items: flex-end;
+}
+
+.messageBubble {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.messageBubblePeer {
+  background: #ffffff;
+  color: #1f2329;
+}
+
+.messageBubbleMine {
+  background: #95ec69;
+  color: #14361f;
+}
+
+.messageTime {
+  font-size: 11px;
+  color: #8e9aaf;
+}
+
+/* 底部输入区 */
+.chatInputBar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-top: 1px solid #e5e6eb;
+  box-sizing: border-box;
+}
+
+.chatInput {
+  flex: 1;
+  height: 72px;
+  padding: 8px 10px;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  background: #f7f8fa;
+  box-sizing: border-box;
+  font-size: 14px;
+  color: #1f2329;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+}
+
+.chatInput:focus {
+  border-color: #5b8def;
+  background: #ffffff;
+}
+
+.sendButton {
+  flex-shrink: 0;
+}
+
+/* 未选中会话时的空态 */
+.chatEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  background: #f2f3f5;
+}
+
+.chatEmptyText {
+  font-size: 14px;
+  color: #8e9aaf;
 }
