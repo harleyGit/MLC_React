@@ -7,7 +7,7 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koroFileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import React from "react";
-import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import HGChatInput from "../../../components/hg_chat_input/hg_chat_input.jsx";
 import HGMessageList, { HG_MESSAGE_TYPES } from "../../../components/hg_message_list/hg_message_list.jsx";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
@@ -209,25 +209,18 @@ class HGHomePage extends React.Component {
   };
 
   /**
-   * 发送草稿到当前会话：追加本人文字消息、刷新列表时间；内容为空时不发送。
+   * 向当前会话追加一条本人消息并刷新列表时间，随后安排自动回复。
+   * @param {object} message 新消息对象（不含 id/时间，内部补齐）。
    * @returns {void}
    */
-  handleSend = () => {
-    const text = this.state.draft.trim();
-    if (!text || !this.state.activeId) {
+  appendMyMessage = (message) => {
+    if (!this.state.activeId) {
       return;
     }
     const time = hgGetNowTime();
-    const newMessage = {
-      id: hgNextId("msg_me"),
-      type: HG_MESSAGE_TYPES.TEXT,
-      from: FROM_ME,
-      text,
-      time,
-    };
+    const newMessage = { id: hgNextId("msg_me"), time, ...message };
     this.setState(
       (prevState) => ({
-        draft: "",
         conversations: prevState.conversations.map((item) =>
           item.id === prevState.activeId
             ? {
@@ -243,14 +236,84 @@ class HGHomePage extends React.Component {
   };
 
   /**
-   * 输入框内按 Enter 发送消息；Shift+Enter 保留为换行。
-   * @param {React.KeyboardEvent} event 键盘事件。
+   * 发送草稿到当前会话：内容为空时不发送。
+   * @returns {void}
    */
-  handleDraftKeyDown = (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      this.handleSend();
+  handleSend = () => {
+    const text = this.state.draft.trim();
+    if (!text) {
+      return;
     }
+    this.setState({ draft: "" });
+    this.appendMyMessage({
+      type: HG_MESSAGE_TYPES.TEXT,
+      from: FROM_ME,
+      text,
+    });
+  };
+
+  /**
+   * 发送语音消息（由 HGChatInput 长按录音松开后回调）。
+   * @param {number} seconds 语音时长（秒）。
+   */
+  handleSendVoice = (seconds) => {
+    this.appendMyMessage({
+      type: HG_MESSAGE_TYPES.VOICE,
+      from: FROM_ME,
+      duration: seconds,
+    });
+  };
+
+  /**
+   * 发送表情消息（表情面板点击即发送）。
+   * @param {string} emoji 表情字符。
+   */
+  handleSendEmoji = (emoji) => {
+    this.appendMyMessage({
+      type: HG_MESSAGE_TYPES.EMOJI,
+      from: FROM_ME,
+      text: emoji,
+    });
+  };
+
+  /** 发送图片消息（演示占位图）。 */
+  handleSendImage = () => {
+    this.appendMyMessage({
+      type: HG_MESSAGE_TYPES.IMAGE,
+      from: FROM_ME,
+      alt: "图片消息",
+      color: "#4f8bf5",
+      text: "图片",
+    });
+  };
+
+  /** 发送视频消息（演示占位封面）。 */
+  handleSendVideo = () => {
+    this.appendMyMessage({
+      type: HG_MESSAGE_TYPES.VIDEO,
+      from: FROM_ME,
+      alt: "视频消息",
+      color: "#6c4cf1",
+      text: "视频",
+    });
+  };
+
+  /** 发送红包消息。 */
+  handleSendRedPacket = () => {
+    this.appendMyMessage({
+      type: HG_MESSAGE_TYPES.RED_PACKET,
+      from: FROM_ME,
+    });
+  };
+
+  /** 发送联系人名片消息。 */
+  handleSendCard = () => {
+    this.appendMyMessage({
+      type: HG_MESSAGE_TYPES.CARD,
+      from: FROM_ME,
+      cardName: "张工",
+      text: "前端负责人 · 个人名片",
+    });
   };
 
   /**
@@ -348,6 +411,10 @@ class HGHomePage extends React.Component {
         return "[视频]";
       case HG_MESSAGE_TYPES.EMOJI:
         return "[表情]";
+      case HG_MESSAGE_TYPES.RED_PACKET:
+        return "[红包]";
+      case HG_MESSAGE_TYPES.CARD:
+        return "[名片]";
       default:
         return message.text;
     }
@@ -473,28 +540,22 @@ class HGHomePage extends React.Component {
   };
 
   /**
-   * 渲染右侧底部输入区：多行输入框与发送按钮。
+   * 渲染右侧底部输入区：微信风格多模式输入（文字/语音/表情/扩展面板）。
    * @returns {React.ReactNode} 输入区节点。
    */
   renderChatInput = () => {
     return (
-      <div className={CSStyles.chatInputBar}>
-        <textarea
-          className={CSStyles.chatInput}
-          placeholder="输入消息，Enter 发送，Shift+Enter 换行"
-          value={this.state.draft}
-          onChange={this.handleDraftChange}
-          onKeyDown={this.handleDraftKeyDown}
-        />
-        <HGButtonPage
-          type="primary"
-          className={CSStyles.sendButton}
-          disabled={!this.state.draft.trim()}
-          onClick={this.handleSend}
-        >
-          发送
-        </HGButtonPage>
-      </div>
+      <HGChatInput
+        value={this.state.draft}
+        onChange={this.handleDraftChange}
+        onSendText={this.handleSend}
+        onSendVoice={this.handleSendVoice}
+        onSendEmoji={this.handleSendEmoji}
+        onSendImage={this.handleSendImage}
+        onSendVideo={this.handleSendVideo}
+        onSendRedPacket={this.handleSendRedPacket}
+        onSendCard={this.handleSendCard}
+      />
     );
   };
 

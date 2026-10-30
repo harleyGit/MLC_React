@@ -13,7 +13,7 @@ import HGIconPage from "../hg_icon/hg_icon_page.jsx";
 import styles from "./hg_message_list.module.css";
 
 /**
- * 消息类型常量：文字、图片、语音、视频、系统时间、表情贴纸。
+ * 消息类型常量：文字、图片、语音、视频、系统时间、表情贴纸、红包、联系人名片。
  * 约束：renderCell 依据 type 分派，未知类型回退为文字渲染。
  */
 export const HG_MESSAGE_TYPES = {
@@ -23,6 +23,8 @@ export const HG_MESSAGE_TYPES = {
   VIDEO: "video",
   TIME: "time",
   EMOJI: "emoji",
+  RED_PACKET: "red_packet",
+  CARD: "card",
 };
 
 /**
@@ -103,6 +105,35 @@ const hgRenderEmoji = (message) => (
 );
 
 /**
+ * 红包渲染：橙色红包气泡（自带底色，气泡外层做透明处理）。
+ * @param {object} message 消息对象。
+ * @returns {React.ReactNode} 红包节点。
+ */
+const hgRenderRedPacket = (message) => (
+  <div className={styles.redPacketBox} role="img" aria-label="红包消息">
+    <span className={styles.redPacketIcon} aria-hidden="true">¥</span>
+    <span className={styles.redPacketText}>{message.text || "恭喜发财，大吉大利"}</span>
+  </div>
+);
+
+/**
+ * 联系人名片渲染：头像字 + 姓名与说明。
+ * @param {object} message 消息对象。
+ * @returns {React.ReactNode} 名片节点。
+ */
+const hgRenderCard = (message) => (
+  <div className={styles.cardBox}>
+    <span className={styles.cardAvatar} aria-hidden="true">
+      {(message.cardName || "联").slice(0, 1)}
+    </span>
+    <span className={styles.cardInfo}>
+      <span className={styles.cardName}>{message.cardName || "联系人"}</span>
+      <span className={styles.cardDesc}>{message.text || "个人名片"}</span>
+    </span>
+  </div>
+);
+
+/**
  * 根据消息类型分派渲染内容。
  * @param {object} message 消息对象。
  * @returns {React.ReactNode} 对应类型的内容节点。
@@ -117,6 +148,10 @@ const hgRenderMessageContent = (message) => {
       return hgRenderVideo(message);
     case HG_MESSAGE_TYPES.EMOJI:
       return hgRenderEmoji(message);
+    case HG_MESSAGE_TYPES.RED_PACKET:
+      return hgRenderRedPacket(message);
+    case HG_MESSAGE_TYPES.CARD:
+      return hgRenderCard(message);
     case HG_MESSAGE_TYPES.TEXT:
     default:
       return hgRenderText(message);
@@ -141,6 +176,25 @@ export default class HGMessageList extends React.Component {
   };
 
   /**
+   * 渲染消息头像：有 avatar 图片字段时展示图片，否则回退为文字（发送者首字）。
+   * @param {object} message 消息对象。
+   * @param {boolean} isMine 是否本人发送。
+   * @returns {React.ReactNode} 头像节点。
+   */
+  renderAvatar = (message, isMine) => {
+    if (message.avatar) {
+      return (
+        <img
+          className={styles.avatarImage}
+          src={message.avatar}
+          alt={message.sender || "头像"}
+        />
+      );
+    }
+    return <span className={styles.avatar}>{isMine ? "我" : message.sender || "友"}</span>;
+  };
+
+  /**
    * 渲染单条消息 cell（含气泡、头像、时间），作为 HGCollectionView 的 renderCell。
    * @param {object} message 消息对象。
    * @param {number} index 消息下标（复用池内业务 key，与列表 index 无关）。
@@ -156,13 +210,17 @@ export default class HGMessageList extends React.Component {
     const rowClassName = `${styles.messageRow} ${
       isMine ? styles.messageRowMine : styles.messageRowPeer
     }`;
+    // 红包/名片内容自带底色，外层气泡做透明处理避免双层描边。
+    const isPlain =
+      message.type === HG_MESSAGE_TYPES.RED_PACKET ||
+      message.type === HG_MESSAGE_TYPES.CARD;
     const bubbleClassName = `${styles.bubble} ${
       isMine ? styles.bubbleMine : styles.bubblePeer
-    } ${message.type === HG_MESSAGE_TYPES.EMOJI ? styles.bubbleEmoji : ""}`;
+    } ${message.type === HG_MESSAGE_TYPES.EMOJI || isPlain ? styles.bubblePlain : ""}`;
 
     return (
       <div className={rowClassName}>
-        <span className={styles.avatar}>{isMine ? "我" : message.sender || "友"}</span>
+        {this.renderAvatar(message, isMine)}
         <div className={styles.messageBody}>
           <div
             className={bubbleClassName}

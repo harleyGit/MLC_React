@@ -59,6 +59,16 @@
   font-size: 14px;
 }
 
+/* 头像为图片时的展示（无图片回退上面的文字头像） */
+.avatarImage {
+  display: block;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
 .messageBody {
   display: flex;
   flex-direction: column;
@@ -92,8 +102,9 @@
   color: #14361f;
 }
 
-/* 表情气泡不套底色，纯贴纸展示 */
-.bubbleEmoji {
+/* 表情气泡不套底色，纯贴纸展示；红包/名片同理（内容自带底色） */
+.bubbleEmoji,
+.bubblePlain {
   background: transparent;
   padding: 0;
 }
@@ -205,4 +216,78 @@
 .emojiLarge {
   font-size: 44px;
   line-height: 1;
+}
+
+/* 红包消息 */
+.redPacketBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fa9d3b, #f2802e);
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.redPacketIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.redPacketText {
+  font-size: 14px;
+}
+
+/* 联系人名片消息 */
+.cardBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  padding: 12px 14px;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.cardAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #5b8def;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.cardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cardName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.cardDesc {
+  font-size: 12px;
+  color: #8e9aaf;
 }

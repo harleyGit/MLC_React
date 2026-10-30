@@ -222,40 +222,7 @@
   overflow: hidden;
 }
 
-/* 底部输入区 */
-.chatInputBar {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  padding: 12px 16px;
-  background: #ffffff;
-  border-top: 1px solid #e5e6eb;
-  box-sizing: border-box;
-}
-
-.chatInput {
-  flex: 1;
-  height: 72px;
-  padding: 8px 10px;
-  border: 1px solid #e5e6eb;
-  border-radius: 8px;
-  background: #f7f8fa;
-  box-sizing: border-box;
-  font-size: 14px;
-  color: #1f2329;
-  resize: none;
-  outline: none;
-  font-family: inherit;
-}
-
-.chatInput:focus {
-  border-color: #5b8def;
-  background: #ffffff;
-}
-
-.sendButton {
-  flex-shrink: 0;
-}
+/* 底部输入区由 hg_chat_input 组件自带样式渲染 */
 
 /* 未选中会话时的空态 */
 .chatEmpty {

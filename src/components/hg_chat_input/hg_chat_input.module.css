@@ -1,0 +1,209 @@
+/* src/components/hg_chat_input/hg_chat_input.module.css */
+/* 微信风格聊天输入框：文字/语音双模式 + 表情面板 + 圆圈加扩展面板。 */
+
+/* 输入区根节点：面板展开时位于输入条上方，向上撑开 */
+.root {
+  position: relative;
+  border-top: 1px solid #e5e6eb;
+  background: #f7f8fa;
+}
+
+/* 输入条 */
+.inputBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+/* 工具按钮（语音/键盘/表情/圆圈加） */
+.toolButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #7a8699;
+  cursor: pointer;
+}
+
+.toolButton svg {
+  width: 22px;
+  height: 22px;
+}
+
+.toolButton:hover {
+  background: #eceef2;
+  color: #1f2329;
+}
+
+/* 面板展开中的工具按钮高亮 */
+.toolButtonActive {
+  background: #e8f0fe;
+  color: #5b8def;
+}
+
+.toolButtonActive:hover {
+  background: #e8f0fe;
+  color: #5b8def;
+}
+
+/* 文字输入框 */
+.input {
+  flex: 1;
+  height: 40px;
+  padding: 9px 10px;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  background: #ffffff;
+  box-sizing: border-box;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+  color: #1f2329;
+  resize: none;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #5b8def;
+}
+
+.input::placeholder {
+  color: #a0a7b4;
+}
+
+.input:disabled {
+  background: #f2f3f5;
+  color: #a0a7b4;
+}
+
+/* 按住说话按钮 */
+.holdButton {
+  flex: 1;
+  height: 40px;
+  border: 1px solid #dfe3ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2329;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none; /* 长按期间禁止页面滚动/长按菜单 */
+}
+
+.holdButtonActive {
+  background: #d9e7fd;
+  border-color: #5b8def;
+  color: #1a5fd0;
+}
+
+/* 发送按钮 */
+.sendButton {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 8px;
+  background: #07c160;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sendButton:hover {
+  background: #06ae56;
+}
+
+/* 底部展开面板 */
+.panel {
+  padding: 8px 12px 14px;
+  border-bottom: 1px solid #eceef2;
+}
+
+/* 表情网格 */
+.emojiGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.emojiItem {
+  padding: 6px 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.emojiItem:hover {
+  background: #eceef2;
+}
+
+/* 圆圈加扩展动作 */
+.plusGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.plusItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.plusIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid #e5e6eb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #7a8699;
+}
+
+.plusIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.plusItem:hover .plusIcon {
+  border-color: #bcd4fb;
+  color: #5b8def;
+}
+
+.plusLabel {
+  font-size: 12px;
+  color: #5c6675;
+}
+
+/* 短提示浮层 */
+.toast {
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(31, 35, 41, 0.9);
+  color: #ffffff;
+  font-size: 12px;
+  white-space: nowrap;
+}
