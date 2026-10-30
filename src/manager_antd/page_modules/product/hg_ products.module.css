@@ -1,17 +1,43 @@
-/* src/pages/Products.module.css */
-.container {
+/* src/manager_antd/page_modules/product/hg_ products.module.css */
+/* 商品页面 PC 端外壳：浅灰背景、居中容器、白底页头。 */
+.shopPage {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
   width: 100%;
   min-height: 100%;
   box-sizing: border-box;
-  padding: 24px;
-  background: #f5f7fa;
+  background: #f5f6fa;
+  color: #1b1e2b;
 }
 
-.productList {
-  margin-top: 16px;
-  padding-left: 20px;
+.shopHeader {
+  background: #fff;
+  border-bottom: 1px solid #e6e8f0;
+}
+
+.shopHeaderMain {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 18px 20px 16px;
+}
+
+.shopTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #1b1e2b;
+}
+
+.shopSubtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #8b92a8;
+}
+
+.shopContent {
+  max-width: 1220px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 20px 64px;
+  box-sizing: border-box;
 }

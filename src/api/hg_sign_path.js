@@ -1,4 +1,7 @@
 const HG_SIGN_STRIP_PREFIXES = [
+  "/api/v1/notifications",
+  "/api/v1/notification",
+  "/admin/v1/notification",
   "/api/v1/auth",
   "/api/v1/user",
   "/api/v1/profile",

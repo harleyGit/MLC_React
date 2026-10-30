@@ -134,6 +134,10 @@ class HGNotifyChannelPage extends React.Component {
 
   /** 渠道启用/停用：安全类通知禁止整体关闭，后端会再次拦截。 */
   handleToggleChannel = (channel) => {
+    if (HGNotifyChannelVM.isRemote()) {
+      message.info("渠道启停尚未接入投递策略，不支持在此修改");
+      return;
+    }
     const nextEnabled = !channel.enabled;
     this.setState(
       (state) => ({
@@ -161,6 +165,10 @@ class HGNotifyChannelPage extends React.Component {
 
   /** 打开渠道配置弹窗，表单取自当前渠道快照。 */
   openConfig = (channel) => {
+    if (HGNotifyChannelVM.isRemote()) {
+      message.info("渠道限流和配额未接入服务端，暂不开放配置");
+      return;
+    }
     this.setState({ configCode: channel.code, form: { ...channel.config } });
   };
 
@@ -215,6 +223,16 @@ class HGNotifyChannelPage extends React.Component {
 
   /** 试发送：提示将向当前运营账号发出一条测试投递。 */
   handleTestSend = (channel) => {
+    if (HGNotifyChannelVM.isRemote()) {
+      if (channel.code !== "in_app" || !channel.available) {
+        message.warning("该渠道未接入，不会向供应商发送请求");
+        return;
+      }
+      HGNotifyChannelVM.testSend(channel.code)
+        .then(() => { message.success("站内试通知已写入当前管理员的消息中心"); this.handleRefresh(); })
+        .catch((error) => message.error(error?.message || "站内通知试发送失败"));
+      return;
+    }
     if (!channel.enabled) {
       message.warning(`${channel.name}当前处于停用状态，请先启用`);
       return;
@@ -232,7 +250,7 @@ class HGNotifyChannelPage extends React.Component {
         <h2 className={styles.heroTitle}>通知渠道中心</h2>
         <p className={styles.heroDesc}>
           事件与模板解耦后，由渠道中心决定“发给谁、走哪个渠道、失败如何退避”。渠道 Provider 采用策略模式，
-          主备供应商可切换，密钥统一由环境变量或密钥服务管理。
+          当前仅站内信已接入 MySQL；短信、邮件、Push 和实时网关尚未接入，渠道配置不可修改。
         </p>
       </div>
       <div className={styles.heroSide}>
@@ -246,6 +264,9 @@ class HGNotifyChannelPage extends React.Component {
 
   /** KPI 指标卡：总量、成功率、重试队列与死信。 */
   renderSummary = () => {
+    if (HGNotifyChannelVM.isRemote()) {
+      return <HGCardPage title="指标暂不可用">尚未接入投递计数、P95 延迟与死信监控；此处不展示示例成功率。</HGCardPage>;
+    }
     const { summary } = this.state;
     const serviceLevel = summary.successRate >= 99.5 ? "达标" : summary.successRate >= 98 ? "预警" : "劣化";
     return (
@@ -306,6 +327,7 @@ class HGNotifyChannelPage extends React.Component {
             size="small"
             danger={channel.enabled}
             loading={this.state.togglingCode === channel.code}
+            disabled={HGNotifyChannelVM.isRemote()}
             onClick={() => this.handleToggleChannel(channel)}
           >
             {channel.enabled ? "停用" : "启用"}
@@ -325,12 +347,12 @@ class HGNotifyChannelPage extends React.Component {
         <div className={styles.channelMetrics}>
           <div>
             <span>{channel.primaryMetricLabel}</span>
-            <strong>{HGNotifyChannelVM.formatNumber(channel.dailySent)}</strong>
+            <strong>{HGNotifyChannelVM.isRemote() ? "--" : HGNotifyChannelVM.formatNumber(channel.dailySent)}</strong>
           </div>
           <div>
             <span>成功率</span>
             <strong className={styles[`health${healthTone.charAt(0).toUpperCase()}${healthTone.slice(1)}`]}>
-              {HGNotifyChannelVM.formatPercent(channel.successRate)}
+              {HGNotifyChannelVM.isRemote() ? "--" : HGNotifyChannelVM.formatPercent(channel.successRate)}
             </strong>
           </div>
           <div>
@@ -340,10 +362,10 @@ class HGNotifyChannelPage extends React.Component {
         </div>
 
         <div className={styles.channelActions}>
-          <HGButtonPage size="small" type="primary" onClick={() => this.openConfig(channel)}>
+          <HGButtonPage size="small" type="primary" disabled={HGNotifyChannelVM.isRemote()} onClick={() => this.openConfig(channel)}>
             渠道配置
           </HGButtonPage>
-          <HGButtonPage size="small" onClick={() => this.handleTestSend(channel)}>
+          <HGButtonPage size="small" disabled={HGNotifyChannelVM.isRemote() && channel.code !== "in_app"} onClick={() => this.handleTestSend(channel)}>
             试发送
           </HGButtonPage>
         </div>
@@ -412,7 +434,7 @@ class HGNotifyChannelPage extends React.Component {
       { title: "最后一次错误", dataIndex: "lastError", width: 300 },
     ];
     return (
-      <HGCardPage title="失败重试与死信" extra={<span className={styles.cardExtraText}>超过退避上限的任务进入死信，需要人工确认后重放</span>}>
+    <HGCardPage title={HGNotifyChannelVM.isRemote() ? "最近站内通知记录" : "失败重试与死信"} extra={<span className={styles.cardExtraText}>{HGNotifyChannelVM.isRemote() ? "仅展示最近 20 条已落库记录；外部渠道和重试队列尚未接入" : "超过退避上限的任务进入死信，需要人工确认后重放"}</span>}>
         <HGTablePage rowKey="deliveryId" columns={columns} dataSource={this.state.deliveries} loading={this.state.loading} pagination={false} scroll={{ y: 300 }} />
       </HGCardPage>
     );
@@ -420,6 +442,7 @@ class HGNotifyChannelPage extends React.Component {
 
   /** 重试策略说明卡：指数退避 + 抖动 + 幂等约束。 */
   renderRetrySection = () => (
+    HGNotifyChannelVM.isRemote() ? null :
     <HGCardPage title="重试策略">
       <div className={styles.retryGrid}>
         <div>

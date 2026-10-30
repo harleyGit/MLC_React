@@ -98,6 +98,9 @@ export default class HGMallCatalog extends React.Component {
     hgError: "", // 当前请求错误文案；空字符串表示无错误。
     hgNotice: "", // 成功反馈；空字符串表示无需展示。
     hgPendingBuy: false, // 本会话有结果未知的购买请求时为 true；须核对订单或重试原请求。
+    hgMainImage: 0, // 详情页当前主图索引，展示图切换后归零，越界时回退到首图。
+    hgDetailTab: "detail", // 详情页下半区当前标签：detail 为商品介绍，spec 为规格参数。
+    hgDetailId: "", // 正在打开详情的商品 ID；加载期间用于显示骨架屏，避免闪烁回目录。
   };
 
   hgMounted = false; // 卸载后丢弃异步响应。
@@ -149,6 +152,7 @@ export default class HGMallCatalog extends React.Component {
       hgLoading: true,
       hgError: "",
       hgDetail: null,
+      hgDetailId: "",
       hgCategory,
       hgItems: [],
       hgNext: "",
@@ -185,7 +189,15 @@ export default class HGMallCatalog extends React.Component {
 
   hgShowDetail = async (hgProductId) => {
     const hgSeq = ++this.hgSeq;
-    this.setState({ hgLoading: true, hgError: "", hgDetail: null });
+    // 进入详情时重置主图与标签，并记录目标商品 ID 以便加载期展示骨架屏。
+    this.setState({
+      hgLoading: true,
+      hgError: "",
+      hgDetail: null,
+      hgMainImage: 0,
+      hgDetailTab: "detail",
+      hgDetailId: hgProductId,
+    });
     try {
       const hgItem = await HGMallVM.detail(hgProductId);
       if (this.hgMounted && this.hgSeq === hgSeq)
@@ -195,7 +207,7 @@ export default class HGMallCatalog extends React.Component {
         this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
       if (this.hgMounted && this.hgSeq === hgSeq)
-        this.setState({ hgLoading: false });
+        this.setState({ hgLoading: false, hgDetailId: "" });
     }
   };
 
@@ -403,7 +415,7 @@ export default class HGMallCatalog extends React.Component {
     ++this.hgSellerSeq;
     ++this.hgMerchantSeq;
     ++this.hgReviewSeq;
-    this.setState({ hgView, hgDetail: null, hgError: "", hgNotice: "" });
+    this.setState({ hgView, hgDetail: null, hgDetailId: "", hgError: "", hgNotice: "" });
     if (hgView === "merchant") {
       this.hgLoadMerchant();
       this.hgLoadSellerOrders();
@@ -865,6 +877,7 @@ export default class HGMallCatalog extends React.Component {
           hgNotice:
             "订单已创建，商品库存预留15分钟；请在「个人中心 → 我的订单 → 待付款」中完成 M币支付",
           hgDetail: null,
+          hgDetailId: "",
           hgBuyForm: {
             quantity: "1",
             receiverName: "",
@@ -882,157 +895,27 @@ export default class HGMallCatalog extends React.Component {
   };
 
   renderCatalog() {
+    const { hgDetail, hgDetailId } = this.state;
+    // 详情优先；加载期用骨架屏占位，避免短暂回显目录造成闪烁。
+    if (hgDetail) return this.renderProductDetail();
+    if (hgDetailId) return this.renderDetailSkeleton();
+    return this.renderProductList();
+  }
+
+  /** 商品目录：PC 端类目条 + 卡片网格 + 分页，对标拼多多电脑版商品列表。 */
+  renderProductList() {
     const {
       hgCategory,
       hgItems,
-      hgDetail,
       hgLoading,
       hgCursor,
       hgNext,
       hgHistory,
       hgHistoryBase,
     } = this.state;
-    if (hgDetail)
-      return (
-        <article className={styles.detail}>
-          <button
-            type="button"
-            className={styles.secondary}
-            onClick={() => this.setState({ hgDetail: null })}
-          >
-            ← 返回商品目录
-          </button>
-          <div className={styles.detailGrid}>
-            <div>
-              {hgDetail.imageURLs?.length ? (
-                <div className={styles.imageGallery}>
-                  {hgDetail.imageURLs.map((hgURL, hgIndex) => (
-                    <img
-                      key={hgURL}
-                      src={normalizeVideoCoverUrl(hgURL)}
-                      alt={`${hgDetail.title} · 展示图 ${hgIndex + 1}`}
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div
-                  className={styles.imagePlaceholder}
-                  aria-label="商品暂未上传图片"
-                >
-                  {
-                    hgCategories.find(
-                      ([hgCode]) => hgCode === hgDetail.category
-                    )?.[1]
-                  }
-                </div>
-              )}
-            </div>
-            <div>
-              <small>
-                {hgDetail.shopName} ·{" "}
-                {hgDetail.category === "membership" ? "会员" : "实物商品"}
-              </small>
-              <h2>{hgDetail.title}</h2>
-              <strong className={styles.coinPrice}>
-                {HGFormatCoin(hgDetail.amount)} M币
-              </strong>
-              <p>{hgDetail.summary}</p>
-              <h3>商品介绍</h3>
-              <p className={styles.description}>
-                {hgDetail.description || hgDetail.summary}
-              </p>
-              <p>规格：{hgDetail.skuTitle}</p>
-              {hgDetail.type === "PHYSICAL_PRODUCT" ? (
-                <>
-                  <p>可售库存：{hgDetail.available} 件 · 单笔最高 100000 M币</p>
-                  <form className={styles.workspace} onSubmit={this.hgBuy}>
-                    <label>
-                      购买数量{" "}
-                      <input
-                        required
-                        type="number"
-                        min="1"
-                        max="10"
-                        step="1"
-                        value={this.state.hgBuyForm.quantity}
-                        onChange={(hgEvent) =>
-                          this.hgUpdateBuy("quantity", hgEvent.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      收件人{" "}
-                      <input
-                        required
-                        maxLength={64}
-                        value={this.state.hgBuyForm.receiverName}
-                        onChange={(hgEvent) =>
-                          this.hgUpdateBuy("receiverName", hgEvent.target.value)
-                        }
-                      />
-                    </label>
-                    <label>
-                      手机号{" "}
-                      <input
-                        required
-                        inputMode="tel"
-                        maxLength={20}
-                        value={this.state.hgBuyForm.receiverPhone}
-                        onChange={(hgEvent) =>
-                          this.hgUpdateBuy(
-                            "receiverPhone",
-                            hgEvent.target.value
-                          )
-                        }
-                      />
-                    </label>
-                    <label>
-                      详细收货地址{" "}
-                      <textarea
-                        required
-                        maxLength={512}
-                        value={this.state.hgBuyForm.receiverAddress}
-                        onChange={(hgEvent) =>
-                          this.hgUpdateBuy(
-                            "receiverAddress",
-                            hgEvent.target.value
-                          )
-                        }
-                      />
-                    </label>
-                    <p className={styles.notice}>
-                      商品标价含配送费；下单后预留库存15分钟，付款时才扣
-                      M币。到期自动释放库存；已付款未发货可全额退款，运单由商家人工录入。
-                    </p>
-                    <button
-                      type="submit"
-                      disabled={
-                        this.state.hgBusy ||
-                        hgDetail.available < 1 ||
-                        hgDetail.amount > 100000
-                      }
-                    >
-                      创建待支付订单
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <p className={styles.notice}>
-                  会员权益尚未接入，仅展示商品，暂不可购买。
-                </p>
-              )}
-            </div>
-          </div>
-        </article>
-      );
     return (
       <>
-        <div
-          className={styles.categoryNav}
-          role="group"
-          aria-label="筛选商品类目"
-        >
+        <nav className={styles.shopCategoryBar} aria-label="商品类目">
           {hgCategories.map(([hgCode, hgLabel]) => (
             <button
               key={hgCode}
@@ -1043,51 +926,83 @@ export default class HGMallCatalog extends React.Component {
               {hgLabel}
             </button>
           ))}
+        </nav>
+        <div className={styles.shopFilterBar}>
+          <span className={styles.shopFilterCount}>
+            本页 {hgItems.length} 件 · 第 {hgHistoryBase + hgHistory.length + 1} 页
+            {hgHistoryBase > 0 ? " · 仅可返回最近 64 页" : ""}
+          </span>
+          <span className={styles.shopFilterHint}>综合推荐</span>
         </div>
-        {hgLoading && <p role="status">正在加载商品...</p>}
-        {!hgLoading && !hgItems.length && <p>该类目暂无已审核商品。</p>}
-        <div className={styles.productGrid}>
-          {hgItems.map((hgItem) => (
-            <article key={hgItem.productId} className={styles.product}>
-              <div className={styles.productImage}>
-                {hgItem.imageURLs?.length ? (
-                  <img
-                    src={normalizeVideoCoverUrl(hgItem.imageURLs[0])}
-                    alt={`${hgItem.title} 展示图`}
-                    loading="lazy"
-                  />
-                ) : (
-                  hgCategories.find(
-                    ([hgCode]) => hgCode === hgItem.category
-                  )?.[1] || "商品"
-                )}
-              </div>
-              <div className={styles.productBody}>
-                <small>{hgItem.shopName}</small>
-                <h3>{hgItem.title}</h3>
-                <p>{hgItem.skuTitle}</p>
-                <strong className={styles.coinPrice}>
-                  {HGFormatCoin(hgItem.amount)} M币
-                </strong>
-                <small>
-                  {hgItem.type === "MEMBERSHIP"
-                    ? "会员仅展示"
-                    : `可售 ${hgItem.available} 件`}
-                </small>
-                <button
-                  type="button"
-                  onClick={() => {
+        {hgLoading && <p role="status" className={styles.shopLoading}>正在加载商品...</p>}
+        {!hgLoading && !hgItems.length && (
+          <div className={styles.shopEmpty}>该类目暂无已审核商品</div>
+        )}
+        <div className={styles.shopGoodsGrid}>
+          {hgItems.map((hgItem) => {
+            const hgLabel =
+              hgCategories.find(([hgCode]) => hgCode === hgItem.category)?.[1] ||
+              "商品";
+            return (
+              <article
+                key={hgItem.productId}
+                className={styles.shopGoodsCard}
+                onClick={() => {
+                  this.hgBuyRequestId = "";
+                  this.hgShowDetail(hgItem.productId);
+                }}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(hgEvent) => {
+                  if (hgEvent.key === "Enter" || hgEvent.key === " ") {
+                    hgEvent.preventDefault();
                     this.hgBuyRequestId = "";
                     this.hgShowDetail(hgItem.productId);
-                  }}
-                >
-                  查看详情
-                </button>
-              </div>
-            </article>
-          ))}
+                  }
+                }}
+              >
+                <div className={styles.shopGoodsThumb}>
+                  {hgItem.imageURLs?.length ? (
+                    <img
+                      src={normalizeVideoCoverUrl(hgItem.imageURLs[0])}
+                      alt={`${hgItem.title} 展示图`}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className={styles.shopGoodsPlaceholder}>
+                      {hgLabel}
+                    </span>
+                  )}
+                  {hgItem.type === "PHYSICAL_PRODUCT" &&
+                    Number(hgItem.available) > 0 && (
+                      <span className={styles.shopGoodsBadge}>包邮</span>
+                    )}
+                </div>
+                <div className={styles.shopGoodsInfo}>
+                  <h3 className={styles.shopGoodsTitle}>{hgItem.title}</h3>
+                  <div className={styles.shopGoodsPrice}>
+                    <em>¥</em>
+                    <b>{HGFormatCoin(hgItem.amount)}</b>
+                    <small>M 币</small>
+                  </div>
+                  <div className={styles.shopGoodsMeta}>
+                    <span className={styles.shopGoodsShop}>
+                      {hgItem.shopName}
+                    </span>
+                    {hgItem.type === "MEMBERSHIP" ? (
+                      <span className={styles.shopGoodsSold}>会员仅展示</span>
+                    ) : (
+                      <span className={styles.shopGoodsSold}>
+                        可售 {hgItem.available} 件
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
-        <div className={styles.pager}>
+        <div className={styles.shopPager}>
           <button
             type="button"
             disabled={!hgHistory.length || hgLoading}
@@ -1102,9 +1017,8 @@ export default class HGMallCatalog extends React.Component {
           >
             上一页
           </button>
-          <span>
+          <span className={styles.shopPagerText}>
             第 {hgHistoryBase + hgHistory.length + 1} 页
-            {hgHistoryBase > 0 && " · 仅可返回最近 64 页"}
           </span>
           <button
             type="button"
@@ -1130,11 +1044,415 @@ export default class HGMallCatalog extends React.Component {
     );
   }
 
+  /** 详情加载占位：与详情卡片同尺寸的骨架屏，避免布局跳动。 */
+  renderDetailSkeleton() {
+    return (
+      <div className={styles.shopDetailCard} role="status" aria-busy="true">
+        <div className={styles.shopSkeletonMedia} />
+        <div className={styles.shopInfoPanel}>
+          <span className={styles.shopSkeletonLine} />
+          <span
+            className={styles.shopSkeletonLine}
+            style={{ width: "55%", height: 28 }}
+          />
+          <span
+            className={styles.shopSkeletonLine}
+            style={{ width: "40%", height: 18 }}
+          />
+          <span className={styles.shopSkeletonLine} />
+          <span
+            className={styles.shopSkeletonLine}
+            style={{ width: "70%", height: 18 }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /** 详情面包屑：返回目录或切换类目都从同一入口，保留当前位置上下文。 */
+  renderDetailBreadcrumb(hgCategoryLabel) {
+    return (
+      <nav className={styles.shopBreadcrumb} aria-label="商品位置">
+        <button type="button" onClick={this.hgCloseDetail}>
+          全部商品
+        </button>
+        <span className={styles.shopCrumbSep}>/</span>
+        <button
+          type="button"
+          onClick={() => this.hgLoadCatalog(this.state.hgDetail?.category || "", "", [])}
+        >
+          {hgCategoryLabel}
+        </button>
+        <span className={styles.shopCrumbSep}>/</span>
+        <span className={styles.shopCrumbCurrent}>商品详情</span>
+      </nav>
+    );
+  }
+
+  /** 详情页图区：主图 + 缩略图横排，无图时回退类目占位。 */
+  renderDetailGallery(hgImages) {
+    const { hgDetail, hgMainImage } = this.state;
+    if (!hgImages.length) {
+      const hgLabel =
+        hgCategories.find(([hgCode]) => hgCode === hgDetail.category)?.[1] ||
+        "商品";
+      return (
+        <div className={styles.shopGallery}>
+          <div className={styles.shopGalleryMain} aria-label="商品暂未上传图片">
+            <span className={styles.shopGoodsPlaceholder}>{hgLabel}</span>
+          </div>
+        </div>
+      );
+    }
+    const hgCurrent = normalizeVideoCoverUrl(hgImages[hgMainImage] || hgImages[0]);
+    return (
+      <div className={styles.shopGallery}>
+        <div className={styles.shopGalleryMain}>
+          <img
+            src={hgCurrent}
+            alt={`${hgDetail.title} · 展示图 ${(hgMainImage || 0) + 1}`}
+            loading="lazy"
+          />
+        </div>
+        <div className={styles.shopGalleryThumbs}>
+          {hgImages.map((hgURL, hgIndex) => (
+            <button
+              key={hgURL}
+              type="button"
+              className={styles.shopGalleryThumb}
+              aria-pressed={hgMainImage === hgIndex}
+              aria-label={`查看展示图 ${hgIndex + 1}`}
+              onClick={() => this.hgSetMainImage(hgIndex)}
+            >
+              <img src={normalizeVideoCoverUrl(hgURL)} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /** 详情页信息区：标题、价格、店铺、规格、服务、收货表单与下单按钮。 */
+  renderProductDetail() {
+    const { hgDetail, hgBusy, hgPendingBuy } = this.state;
+    const hgImages = Array.isArray(hgDetail.imageURLs)
+      ? hgDetail.imageURLs
+      : [];
+    const hgCategoryLabel =
+      hgCategories.find(([hgCode]) => hgCode === hgDetail.category)?.[1] ||
+      "商品";
+    const hgStock = Number(hgDetail.available) || 0;
+    const hgSoldOut = hgDetail.type === "PHYSICAL_PRODUCT" && hgStock < 1;
+    const hgTotal =
+      hgDetail.type === "PHYSICAL_PRODUCT"
+        ? hgDetail.amount * (Number(this.state.hgBuyForm.quantity) || 1)
+        : hgDetail.amount;
+    return (
+      <>
+        {this.renderDetailBreadcrumb(hgCategoryLabel)}
+        <div className={styles.shopDetailCard}>
+          {this.renderDetailGallery(hgImages)}
+          <form className={styles.shopInfoPanel} onSubmit={this.hgBuy}>
+            <small className={styles.shopInfoSub}>
+              {hgDetail.shopName} ·{" "}
+              {hgDetail.category === "membership" ? "会员商品" : "实物商品"}
+            </small>
+            <h1 className={styles.shopInfoTitle}>{hgDetail.title}</h1>
+            <p className={styles.shopInfoSummary}>{hgDetail.summary}</p>
+
+            <div className={styles.shopPricePanel}>
+              <div className={styles.shopPriceNow}>
+                <em>¥</em>
+                <b>{HGFormatCoin(hgDetail.amount)}</b>
+                <small>M 币</small>
+              </div>
+              <div className={styles.shopPriceTags}>
+                <span className={styles.shopPromoTag}>百亿补贴</span>
+                {hgDetail.type === "PHYSICAL_PRODUCT" && (
+                  <span className={styles.shopPromoTag}>包邮</span>
+                )}
+                {hgDetail.type === "PHYSICAL_PRODUCT" && !hgSoldOut && (
+                  <span className={styles.shopPromoTag}>极速退款</span>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.shopShopRow}>
+              <span className={styles.shopShopName}>{hgDetail.shopName}</span>
+              <span className={styles.shopShopTag}>{hgCategoryLabel}</span>
+            </div>
+
+            {hgDetail.skuTitle && (
+              <div className={styles.shopSpecRow}>
+                <span className={styles.shopSpecLabel}>规格</span>
+                <span className={styles.shopSpecChip}>{hgDetail.skuTitle}</span>
+              </div>
+            )}
+
+            {hgDetail.type === "PHYSICAL_PRODUCT" && (
+              <div className={styles.shopSpecRow}>
+                <span className={styles.shopSpecLabel}>数量</span>
+                <div className={styles.shopStepper}>
+                  <button
+                    type="button"
+                    aria-label="减少数量"
+                    disabled={hgSoldOut}
+                    onClick={() => this.hgStepQuantity(-1)}
+                  >
+                    −
+                  </button>
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    max={Math.min(10, hgStock) || 1}
+                    step="1"
+                    value={this.state.hgBuyForm.quantity}
+                    onChange={(hgEvent) =>
+                      this.hgUpdateBuy("quantity", hgEvent.target.value)
+                    }
+                  />
+                  <button
+                    type="button"
+                    aria-label="增加数量"
+                    disabled={
+                      hgSoldOut ||
+                      (Number(this.state.hgBuyForm.quantity) || 1) >=
+                        Math.min(10, hgStock)
+                    }
+                    onClick={() => this.hgStepQuantity(1)}
+                  >
+                    +
+                  </button>
+                </div>
+                <span className={styles.shopStockHint}>
+                  库存 {hgStock} 件 · 单笔至多 10 件
+                </span>
+              </div>
+            )}
+
+            <div className={styles.shopServiceRow}>
+              <span className={styles.shopServiceItem}>
+                <i className={styles.shopServiceDot} /> 正品保障
+              </span>
+              <span className={styles.shopServiceItem}>
+                <i className={styles.shopServiceDot} />{" "}
+                {hgDetail.type === "PHYSICAL_PRODUCT"
+                  ? "极速退款"
+                  : "即时生效"}
+              </span>
+              <span className={styles.shopServiceItem}>
+                <i className={styles.shopServiceDot} /> 安全支付
+              </span>
+            </div>
+
+            {hgDetail.type === "PHYSICAL_PRODUCT" ? (
+              <>
+                <fieldset className={styles.shopReceiverCard}>
+                  <legend>收货信息</legend>
+                  <div className={styles.shopReceiverGrid}>
+                    <label className={styles.shopField}>
+                      <span>收件人</span>
+                      <input
+                        required
+                        maxLength={64}
+                        placeholder="请输入收件人姓名"
+                        value={this.state.hgBuyForm.receiverName}
+                        onChange={(hgEvent) =>
+                          this.hgUpdateBuy(
+                            "receiverName",
+                            hgEvent.target.value
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.shopField}>
+                      <span>手机号</span>
+                      <input
+                        required
+                        inputMode="tel"
+                        maxLength={20}
+                        placeholder="请输入联系手机号"
+                        value={this.state.hgBuyForm.receiverPhone}
+                        onChange={(hgEvent) =>
+                          this.hgUpdateBuy(
+                            "receiverPhone",
+                            hgEvent.target.value
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <label className={styles.shopField}>
+                    <span>详细收货地址</span>
+                    <textarea
+                      required
+                      maxLength={512}
+                      rows={2}
+                      placeholder="省/市/区/街道及门牌号"
+                      value={this.state.hgBuyForm.receiverAddress}
+                      onChange={(hgEvent) =>
+                        this.hgUpdateBuy(
+                          "receiverAddress",
+                          hgEvent.target.value
+                        )
+                      }
+                    />
+                  </label>
+                </fieldset>
+                <p className={styles.shopBuyTip}>
+                  商品标价含配送费；下单后预留库存 15 分钟，付款时才扣 M 币。
+                  到期自动释放库存；已付款未发货可全额退款，运单由商家人工录入。
+                </p>
+                <div className={styles.shopBuyBar}>
+                  <div className={styles.shopBuyTotal}>
+                    合计 <strong>{HGFormatCoin(hgTotal)}</strong> M 币
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.shopBuyGhost}
+                    onClick={this.hgCloseDetail}
+                  >
+                    返回列表
+                  </button>
+                  <button
+                    type="submit"
+                    className={styles.shopBuyPrimary}
+                    disabled={
+                      hgBusy ||
+                      hgPendingBuy ||
+                      hgSoldOut ||
+                      hgDetail.amount > 100000
+                    }
+                  >
+                    {hgSoldOut ? "已售罄" : "立即购买"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className={styles.shopBuyBar}>
+                <div className={styles.shopBuyTotal}>
+                  会员权益尚未接入，仅展示商品，暂不可购买。
+                </div>
+                <button
+                  type="button"
+                  className={styles.shopBuyGhost}
+                  onClick={this.hgCloseDetail}
+                >
+                  返回列表
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+
+        <section className={styles.shopDetailSection}>
+          <div className={styles.shopDetailTabs} role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-pressed={this.state.hgDetailTab === "detail"}
+              onClick={() => this.setState({ hgDetailTab: "detail" })}
+            >
+              商品详情
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-pressed={this.state.hgDetailTab === "spec"}
+              onClick={() => this.setState({ hgDetailTab: "spec" })}
+            >
+              规格参数
+            </button>
+          </div>
+          <div className={styles.shopDetailBody}>
+            {this.state.hgDetailTab === "spec" ? (
+              <table className={styles.shopSpecTable}>
+                <tbody>
+                  <tr>
+                    <th>店铺</th>
+                    <td>{hgDetail.shopName}</td>
+                  </tr>
+                  <tr>
+                    <th>类目</th>
+                    <td>{hgCategoryLabel}</td>
+                  </tr>
+                  <tr>
+                    <th>规格</th>
+                    <td>{hgDetail.skuTitle || "—"}</td>
+                  </tr>
+                  {hgDetail.type === "PHYSICAL_PRODUCT" && (
+                    <tr>
+                      <th>库存</th>
+                      <td>{hgStock} 件</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <th>类型</th>
+                    <td>
+                      {hgDetail.category === "membership"
+                        ? "会员"
+                        : "实物商品"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            ) : (
+              <>
+                <p className={styles.shopDetailDesc}>
+                  {hgDetail.description || hgDetail.summary}
+                </p>
+                {hgImages.length > 0 && (
+                  <div className={styles.shopDetailGallery}>
+                    {hgImages.map((hgURL, hgIndex) => (
+                      <img
+                        key={hgURL}
+                        src={normalizeVideoCoverUrl(hgURL)}
+                        alt={`${hgDetail.title} · 详情图 ${hgIndex + 1}`}
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      </>
+    );
+  }
+
   hgUpdateBuy = (hgKey, hgValue) => {
     this.hgBuyRequestId = "";
     this.setState((hgState) => ({
       hgBuyForm: { ...hgState.hgBuyForm, [hgKey]: hgValue },
     }));
+  };
+
+  /** 详情页切换主图，越界或无图时回退到首图，避免索引失配导致空白。 */
+  hgSetMainImage = (hgIndex) => {
+    const hgCount = this.state.hgDetail?.imageURLs?.length || 0;
+    if (!hgCount) return;
+    this.setState({ hgMainImage: Math.min(Math.max(hgIndex, 0), hgCount - 1) });
+  };
+
+  /** 数量步进：在 1 与单笔上限（实物取 10 与可售库存的较小值）之间夹紧。 */
+  hgStepQuantity = (hgDelta) => {
+    const hgDetail = this.state.hgDetail;
+    if (!hgDetail || hgDetail.type !== "PHYSICAL_PRODUCT") return;
+    const hgMax =
+      Math.min(10, Number(hgDetail.available) || 0) || 1;
+    const hgNext = Math.min(
+      Math.max((Number(this.state.hgBuyForm.quantity) || 1) + hgDelta, 1),
+      hgMax
+    );
+    this.hgUpdateBuy("quantity", String(hgNext));
+  };
+
+  /** 关闭详情返回目录，保留当前类目与页码，清空目标 ID 防止骨架屏残留。 */
+  hgCloseDetail = () => {
+    this.hgBuyRequestId = "";
+    this.setState({ hgDetail: null, hgDetailId: "", hgMainImage: 0 });
   };
 
   /** 当前商家的有界商品管理列表与精确查询；已归档商品保留可核对的历史信息。 */
@@ -2073,8 +2391,14 @@ export default class HGMallCatalog extends React.Component {
   }
 
   render() {
+    const hgIsCatalog = this.state.hgView === "catalog";
+    // 目录视图走透明舞台，让商品卡片直接落在页面灰底上；商家工作台沿用白底卡片。
+    const hgStageClass = hgIsCatalog ? styles.shopStage : styles.section;
     return (
-      <section className={styles.section} aria-label="商城商品与商家工作台">
+      <section
+        className={hgStageClass}
+        aria-label="商城商品与商家工作台"
+      >
         {this.state.hgError && (
           <p role="alert" className={styles.error}>
             {this.state.hgError}{" "}
@@ -2091,7 +2415,7 @@ export default class HGMallCatalog extends React.Component {
             {this.state.hgNotice}
           </p>
         )}
-        {this.state.hgView === "catalog" ? this.renderCatalog() : this.renderMerchant()}
+        {hgIsCatalog ? this.renderCatalog() : this.renderMerchant()}
       </section>
     );
   }

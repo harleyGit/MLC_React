@@ -145,4 +145,5 @@ export const HGMANAGER_API = {
   ADMIN_NOTIFY_CHANNELS: "/admin/v1/notification/channels", // 渠道与 Provider 适配器状态
   ADMIN_NOTIFY_CHANNEL_UPDATE: "/admin/v1/notification/channels/update", // 更新渠道配置
   ADMIN_NOTIFY_DELIVERIES: "/admin/v1/notification/deliveries", // 投递任务与失败重试
+  ADMIN_NOTIFY_TEST_SEND: "/admin/v1/notification/test-send", // 管理员本人站内试通知
 };

@@ -49,6 +49,8 @@ class HGMessageCenterPage extends Component {
       activeKey: MESSAGE_CATEGORIES[0].key,
       unreadOnly: false,
       page: 1,
+      nextCursor: "", // 下一页通知的服务端游标；空串表示无更多记录。
+      hasMore: false, // 当前分类是否还能继续加载；只以服务端 nextCursor 判定。
       notifications: [],
       unreadByCategory: {},
       conversations: [],
@@ -63,14 +65,22 @@ class HGMessageCenterPage extends Component {
       now: Date.now(),
     };
     this.messageEndRef = React.createRef();
+    this.hgListRequest = 0; // 最近一次列表请求序号，用于丢弃切换分类后的过期响应。
+    this.hgMounted = false; // 页面挂载状态；卸载后禁止网络响应回写 UI。
   }
 
   componentDidMount() {
+    this.hgMounted = true;
     if (HGMessageCenterVM.isRemote()) {
       this.loadRemoteData();
       return;
     }
     this.applyDemoState();
+  }
+
+  componentWillUnmount() {
+    this.hgMounted = false;
+    this.hgListRequest += 1;
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -100,46 +110,53 @@ class HGMessageCenterPage extends Component {
 
   /** remote 模式的一次性初始化：未读汇总、首个分类列表与会话列表。 */
   loadRemoteData = () => {
+    const hgRequest = ++this.hgListRequest; // 初始化请求也遵守分类切换后的过期响应隔离。
     this.setState({ loading: true });
     Promise.all([
       HGMessageCenterVM.fetchUnreadSummary(),
       HGMessageCenterVM.fetchNotifications({ category: this.state.activeKey, pageSize: MESSAGE_PAGE_SIZE }),
-      HGMessageCenterVM.fetchConversations(),
     ])
-      .then(([summary, list, conversationResult]) => {
+      .then(([summary, list]) => {
+        if (!this.hgMounted || hgRequest !== this.hgListRequest) return;
         const notifications = (list?.list || []).map(HGMessageCenterVM.normalizeNotification);
-        const conversations = (conversationResult?.list || []).map(HGMessageCenterVM.normalizeConversation);
         this.setState({
-          unreadByCategory: summary?.unreadByCategory || HGMessageCenterVM.countUnreadByCategory(notifications),
+          unreadByCategory: summary?.unreadByCategory || {},
           notifications,
-          conversations,
-          activeConversationId: conversations[0]?.conversationId || "",
+          nextCursor: list?.nextCursor || "",
+          hasMore: Boolean(list?.nextCursor),
           loading: false,
           now: Date.now(),
         });
       })
       .catch((error) => {
+        if (!this.hgMounted || hgRequest !== this.hgListRequest) return;
         this.setState({ loading: false });
         message.error(error?.message || "消息中心数据加载失败");
       });
   };
 
   /** remote 模式下切换分类时重新拉取列表。 */
-  loadCategoryFromRemote = (category) => {
+  loadCategoryFromRemote = (category, { append = false } = {}) => {
     if (!HGMessageCenterVM.isRemote()) return;
+    const hgRequest = ++this.hgListRequest; // 仅最新分类请求有权写列表，避免乱序响应覆盖。
+    const cursor = append ? this.state.nextCursor : ""; // 追加页只使用服务端游标，不计算 OFFSET。
+    if (append && !cursor) return;
     this.setState({ refreshing: true });
-    HGMessageCenterVM.fetchNotifications({ category, pageSize: MESSAGE_PAGE_SIZE, unreadOnly: this.state.unreadOnly })
+    HGMessageCenterVM.fetchNotifications({ category, cursor, pageSize: MESSAGE_PAGE_SIZE, unreadOnly: this.state.unreadOnly })
       .then((result) => {
+        if (!this.hgMounted || hgRequest !== this.hgListRequest || category !== this.state.activeKey) return;
         const notifications = (result?.list || []).map(HGMessageCenterVM.normalizeNotification);
         this.setState({
-          notifications,
-          unreadByCategory: HGMessageCenterVM.countUnreadByCategory(notifications),
+          notifications: append ? [...this.state.notifications, ...notifications] : notifications,
+          nextCursor: result?.nextCursor || "",
+          hasMore: Boolean(result?.nextCursor),
           page: 1,
           refreshing: false,
           now: Date.now(),
         });
       })
       .catch((error) => {
+        if (!this.hgMounted || hgRequest !== this.hgListRequest) return;
         this.setState({ refreshing: false });
         message.error(error?.message || "通知列表加载失败");
       });
@@ -205,7 +222,9 @@ class HGMessageCenterPage extends Component {
   updateNotifications = (updater) => {
     this.setState((state) => {
       const notifications = updater(state.notifications);
-      return { notifications, unreadByCategory: HGMessageCenterVM.countUnreadByCategory(notifications) };
+      return HGMessageCenterVM.isRemote()
+        ? { notifications }
+        : { notifications, unreadByCategory: HGMessageCenterVM.countUnreadByCategory(notifications) };
     });
   };
 
@@ -213,13 +232,17 @@ class HGMessageCenterPage extends Component {
 
   /** 切换左侧导航：通知分类或私信视图。 */
   handleNavSelect = (key) => {
+    if (HGMessageCenterVM.isRemote() && key === IM_VIEW_KEY) {
+      message.info("私信 IM 独立服务尚未上线，当前仅提供站内通知");
+      return;
+    }
     if (key === this.state.activeKey) return;
     this.setState({ activeKey: key, unreadOnly: false, page: 1 });
     if (key === IM_VIEW_KEY) {
-      this.reportReadAndResetUnread();
       return;
     }
-    this.loadCategoryFromRemote(key);
+    this.hgListRequest += 1;
+    this.setState({ loading: false, notifications: [], nextCursor: "", hasMore: false }, () => this.loadCategoryFromRemote(key));
   };
 
   /** 切换“只看未读”。 */
@@ -234,6 +257,10 @@ class HGMessageCenterPage extends Component {
 
   /** 加载更多：local 递增页，remote 走 cursor（当前由后端游标控制 pageSize）。 */
   handleLoadMore = () => {
+    if (HGMessageCenterVM.isRemote()) {
+      if (!this.state.refreshing && this.state.hasMore) this.loadCategoryFromRemote(this.state.activeKey, { append: true });
+      return;
+    }
     this.setState((state) => ({ page: state.page + 1 }));
   };
 
@@ -244,63 +271,62 @@ class HGMessageCenterPage extends Component {
       message.info("当前展示本地示例数据，刷新只会重算相对时间");
       return;
     }
-    this.setState({ refreshing: true, page: 1 });
-    HGMessageCenterVM.fetchNotifications({
-      category: this.state.activeKey,
-      pageSize: MESSAGE_PAGE_SIZE,
-      unreadOnly: this.state.unreadOnly,
-    })
-      .then((result) => {
-        const notifications = (result?.list || []).map(HGMessageCenterVM.normalizeNotification);
-        this.setState({ notifications, now: Date.now(), refreshing: false });
-        this.refreshUnreadSummary(notifications);
-      })
-      .catch((error) => {
-        this.setState({ refreshing: false });
-        message.error(error?.message || "刷新失败");
-      });
+    if (this.state.activeKey === IM_VIEW_KEY) return;
+    this.setState({ page: 1 }, () => this.loadCategoryFromRemote(this.state.activeKey));
+    HGMessageCenterVM.fetchUnreadSummary().then((summary) => {
+      if (this.hgMounted) this.setState({ unreadByCategory: summary?.unreadByCategory || {} });
+    }).catch((error) => message.error(error?.message || "未读数刷新失败"));
   };
 
   /** 单条标记已读：点击消息体即视为已读，符合 B 站等平台的消息消费习惯。 */
   markAsRead = (item) => {
     if (item.isRead) return;
+    if (HGMessageCenterVM.isRemote()) {
+      return HGMessageCenterVM.markRead([item.notificationId]).then(() => {
+        if (!this.hgMounted) return;
+        this.updateNotifications((list) => list.map((row) => row.notificationId === item.notificationId ? { ...row, isRead: true } : row));
+        HGMessageCenterVM.fetchUnreadSummary()
+          .then((summary) => { if (this.hgMounted) this.setState({ unreadByCategory: summary?.unreadByCategory || {} }); })
+          .catch((error) => message.error(error?.message || "未读数刷新失败"));
+        return true;
+      }).catch((error) => { message.error(error?.message || "已读状态提交失败"); return false; });
+    }
     this.updateNotifications((list) =>
       list.map((row) => (row.notificationId === item.notificationId ? { ...row, isRead: true } : row))
     );
-    if (HGMessageCenterVM.isRemote()) {
-      HGMessageCenterVM.markRead([item.notificationId]).catch((error) =>
-        message.error(error?.message || "已读状态提交失败")
-      );
-    }
   };
 
   /** 当前分类全部已读。 */
   handleMarkAllRead = () => {
     const activeKey = this.state.activeKey;
-    this.updateNotifications((list) => list.map((row) => (row.category === activeKey ? { ...row, isRead: true } : row)));
     if (HGMessageCenterVM.isRemote()) {
-      HGMessageCenterVM.markAllRead(activeKey).catch((error) => message.error(error?.message || "全部已读提交失败"));
+      HGMessageCenterVM.markAllRead(activeKey).then((result) => {
+        if (!this.hgMounted) return;
+        message.info(result?.hasMore ? "已处理 500 条，请再次点击继续标记剩余通知" : "当前分类已全部标记为已读");
+        this.handleRefresh();
+      }).catch((error) => message.error(error?.message || "全部已读提交失败"));
       return;
     }
+    this.updateNotifications((list) => list.map((row) => (row.category === activeKey ? { ...row, isRead: true } : row)));
     message.success(`已将 ${HGMessageCenterVM.getCategoryMeta(activeKey)?.label || "该分类"} 标记为已读`);
   };
 
   /** 用户级删除：只影响当前登录用户的收件箱。 */
   handleDelete = (item) => {
-    this.updateNotifications((list) => list.filter((row) => row.notificationId !== item.notificationId));
     if (HGMessageCenterVM.isRemote()) {
-      HGMessageCenterVM.deleteNotification(item.notificationId).catch((error) =>
-        message.error(error?.message || "删除失败")
-      );
+      HGMessageCenterVM.deleteNotification(item.notificationId).then(() => {
+        if (this.hgMounted) this.handleRefresh();
+      }).catch((error) => message.error(error?.message || "删除失败"));
       return;
     }
+    this.updateNotifications((list) => list.filter((row) => row.notificationId !== item.notificationId));
     message.success("已在本地移除该条通知");
   };
 
   /** 跳转目标资源：demo 模式明确告知不可跳转，避免点击后落到空白业务页。 */
   openTarget = (item) => {
-    this.markAsRead(item);
     if (!HGMessageCenterVM.isRemote()) {
+      this.markAsRead(item);
       message.info(`示例数据：targetType=${item.targetType || "无"}，接入业务服务后按 targetId 跳转`);
       return;
     }
@@ -309,7 +335,11 @@ class HGMessageCenterPage extends Component {
       message.info("该通知没有与之关联的可跳转资源");
       return;
     }
-    window.location.href = url;
+    if (item.isRead) {
+      window.location.href = url;
+      return;
+    }
+    this.markAsRead(item)?.then((ok) => { if (ok) window.location.href = url; });
   };
 
   /* ================= 私信交互 ================= */
@@ -437,7 +467,7 @@ class HGMessageCenterPage extends Component {
   openPreferences = () => {
     if (HGMessageCenterVM.isRemote()) {
       HGMessageCenterVM.fetchPreferences()
-        .then((preferences) => this.setState({ preferences, preferencesOpen: true }))
+        .then((preferences) => { if (this.hgMounted) this.setState({ preferences, preferencesOpen: true }); })
         .catch((error) => message.error(error?.message || "通知偏好加载失败"));
       return;
     }
@@ -558,7 +588,7 @@ class HGMessageCenterPage extends Component {
 
         <div className={styles.navSection}>
           <span className={styles.navSectionLabel}>即时通信</span>
-          {this.renderNavItem({ key: IM_VIEW_KEY, label: "私信", icon: "chat", tone: "blue" })}
+          {this.renderNavItem({ key: IM_VIEW_KEY, label: HGMessageCenterVM.isRemote() ? "私信（待接入）" : "私信", icon: "chat", tone: "blue" })}
         </div>
 
         <button type="button" className={styles.navFooter} onClick={this.openPreferences}>
@@ -736,7 +766,7 @@ class HGMessageCenterPage extends Component {
     const total = this.getCategoryTotal();
     const grouped = HGMessageCenterVM.groupByDay(visible, this.state.now);
     const categoryUnread = this.state.unreadByCategory[activeKey] || 0;
-    const hasMore = !HGMessageCenterVM.isRemote() && visible.length < total;
+    const hasMore = HGMessageCenterVM.isRemote() ? this.state.hasMore : visible.length < total;
 
     return (
       <section className={styles.panel}>
@@ -748,7 +778,7 @@ class HGMessageCenterPage extends Component {
             <div>
               <h2 className={styles.panelTitle}>{category?.label || "消息中心"}</h2>
               <p className={styles.panelSubtitle}>
-                共 {total} 条 · 未读 {categoryUnread} 条
+                {HGMessageCenterVM.isRemote() ? `已加载 ${total} 条` : `共 ${total} 条`} · 未读 {categoryUnread} 条
               </p>
             </div>
           </div>
@@ -756,7 +786,9 @@ class HGMessageCenterPage extends Component {
             <button
               type="button"
               className={`${styles.filterChip} ${unreadOnly ? "" : styles.filterChipActive}`}
-              onClick={() => this.setState({ unreadOnly: false })}
+              onClick={() => this.setState({ unreadOnly: false, page: 1 }, () => {
+                if (HGMessageCenterVM.isRemote()) this.loadCategoryFromRemote(this.state.activeKey);
+              })}
             >
               全部
             </button>
@@ -786,10 +818,10 @@ class HGMessageCenterPage extends Component {
             </div>
             {hasMore ? (
               <div className={styles.loadMoreRow}>
-                <HGButtonPage onClick={this.handleLoadMore}>加载更多（已展示 {visible.length}/{total}）</HGButtonPage>
+                <HGButtonPage onClick={this.handleLoadMore} loading={this.state.refreshing}>加载更多（已展示 {visible.length} 条）</HGButtonPage>
               </div>
             ) : (
-              <p className={styles.listFooter}>已经到底了 · 共 {visible.length} 条</p>
+              <p className={styles.listFooter}>已经到底了 · 已展示 {visible.length} 条</p>
             )}
           </>
         )}
@@ -1018,8 +1050,8 @@ class HGMessageCenterPage extends Component {
             {PREFERENCE_CATEGORIES.map((item) => (
               <div className={styles.switchRow} key={item.key}>
                 <span>{item.label}</span>
-                <HGSwitchPage
-                  checked={Boolean(preferences.categories[item.key])}
+                  <HGSwitchPage
+                    checked={Boolean(preferences.categories[item.key])}
                   onChange={() => this.togglePreference("categories", item.key)}
                 />
               </div>
@@ -1039,6 +1071,7 @@ class HGMessageCenterPage extends Component {
                 </span>
                 <HGSwitchPage
                   checked={Boolean(preferences.channels[item.key])}
+                  disabled={HGMessageCenterVM.isRemote()}
                   onChange={() => this.togglePreference("channels", item.key)}
                 />
               </div>
@@ -1051,7 +1084,7 @@ class HGMessageCenterPage extends Component {
           <div className={styles.quietRow}>
             <div className={styles.switchRow}>
               <span>免打扰时段</span>
-              <HGSwitchPage checked={Boolean(preferences.quietHours.enabled)} onChange={this.toggleQuietHours} />
+              <HGSwitchPage checked={Boolean(preferences.quietHours.enabled)} disabled={HGMessageCenterVM.isRemote()} onChange={this.toggleQuietHours} />
             </div>
             <div className={styles.timeRange}>
               <HGInputPage
@@ -1070,7 +1103,7 @@ class HGMessageCenterPage extends Component {
             </div>
             <label className={styles.digestField}>
               汇总频率
-              <HGSelectPage value={preferences.digest} options={DIGEST_OPTIONS} onChange={this.changeDigest} />
+              <HGSelectPage value={preferences.digest} options={DIGEST_OPTIONS} disabled={HGMessageCenterVM.isRemote()} onChange={this.changeDigest} />
             </label>
           </div>
         </div>

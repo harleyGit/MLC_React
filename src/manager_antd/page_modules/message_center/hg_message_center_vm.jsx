@@ -16,7 +16,7 @@ import {
  * remote：按通知服务 / IM 服务 HTTP 契约读取真实数据。
  * 约束：切换为 remote 前必须确认后端已上线对应接口，否则请求层会弹出全局错误提示。
  */
-export const MESSAGE_DATA_SOURCE = "local";
+export const MESSAGE_DATA_SOURCE = "remote";
 
 /** 单页拉取条数；与后端 pageSize 上限保持一致，避免一次拉全量。 */
 export const MESSAGE_PAGE_SIZE = 8;

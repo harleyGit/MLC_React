@@ -16,7 +16,7 @@ import {
  * local：使用示例数据评审 UI，所有配置变更只影响本地 state；
  * remote：读取 /admin/v1/notification 下的真实渠道与投递数据。
  */
-export const CHANNEL_DATA_SOURCE = "local";
+export const CHANNEL_DATA_SOURCE = "remote";
 
 export { RETRY_LADDER, CHANNEL_PRIORITY_OPTIONS };
 
@@ -37,8 +37,11 @@ export default class HGNotifyChannelVM {
 
   static fetchChannels = () => HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_CHANNELS);
 
-  static fetchDeliveries = ({ status = "unhealthy", pageSize = 20 } = {}) =>
-    HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_DELIVERIES, { status, pageSize });
+  static fetchDeliveries = ({ cursor = "", pageSize = 20 } = {}) =>
+    HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_DELIVERIES, { cursor, pageSize });
+
+  /** 仅站内信支持向当前管理员本人试发送；不向短信/邮件/推送发出请求。 */
+  static testSend = (code) => HGNet.post(HGMANAGER_API.ADMIN_NOTIFY_TEST_SEND, { code });
 
   /** 渠道配置变更：启用开关、优先级、限流与密钥引用。密钥值不落到本页面的任何请求体。 */
   static updateChannel = ({ code, enabled, config }) =>

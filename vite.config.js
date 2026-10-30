@@ -22,6 +22,11 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     proxy: {
+      // 管理端通知接口由业务端口承载，权限由后端 IAM 检查。
+      "/admin/v1/notification": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
       // 域名检测的同源 DNS 代理，与本地原生诊断接口共用配置入口。
       ...domainDetectProxy,
 
