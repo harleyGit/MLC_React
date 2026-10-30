@@ -164,7 +164,7 @@ test("鼠标拖动列表后不会误点卡片，页面未回顶时下拉不误�
   collection.hgOnTouchEnd();
   assert.equal(refreshes, 0);
   assert.equal(typeof viewport.props.onPointerDown, "function");
-  const event = { pointerType: "mouse", button: 0, pointerId: 1, clientY: 100,
+  const event = { pointerType: "mouse", button: 0, pointerId: 1, clientX: 20, clientY: 100,
     target: { closest: () => null }, currentTarget: body, preventDefault: () => {} };
   viewport.props.onPointerDown(event);
   let nativeDragPrevented = 0;
