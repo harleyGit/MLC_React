@@ -20,6 +20,12 @@ test("normalizeSignPath strips the video danmaku module prefix", () => {
   assert.equal(normalizeSignPath("/api/v1/video_danmaku/ticket"), "/ticket");
 });
 
+test("IM 请求只按已注册的模块路径签名，设备凭据不进入 URL", () => {
+  assert.equal(normalizeSignPath("/api/v1/im/messages"), "/messages");
+  assert.equal(normalizeSignPath("/api/v1/im/device/pending"), "/device/pending");
+  assert.equal(normalizeSignPath("/api/v1/im_other/messages"), "/api/v1/im_other/messages");
+});
+
 test("IAM 角色与权限请求使用模块内路径签名", () => {
   for (const [hgURL, hgPath] of [
     ["/api/v1/iam/roles/list?cursor=0&pageSize=100", "/roles/list"],

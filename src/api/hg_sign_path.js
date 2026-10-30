@@ -1,4 +1,5 @@
 const HG_SIGN_STRIP_PREFIXES = [
+  "/api/v1/im",
   "/api/v1/notifications",
   "/api/v1/notification",
   "/admin/v1/notification",

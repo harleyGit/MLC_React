@@ -54,6 +54,8 @@ class HGMessageCenterPage extends Component {
       notifications: [],
       unreadByCategory: {},
       conversations: [],
+      peerIdInput: "", // 新单聊的对方用户 ID；空串表示尚未输入，不推断当前用户身份。
+      imLoading: false, // 私信接口请求中的状态；不与通知列表 loading 混用。
       messagesByConversation: {},
       activeConversationId: "",
       composerText: "",
@@ -67,6 +69,11 @@ class HGMessageCenterPage extends Component {
     this.messageEndRef = React.createRef();
     this.hgListRequest = 0; // 最近一次列表请求序号，用于丢弃切换分类后的过期响应。
     this.hgMounted = false; // 页面挂载状态；卸载后禁止网络响应回写 UI。
+    this.hgImTimer = null; // 私信历史的有界补拉定时器；未进入私信视图时为 null。
+    this.hgImRequest = 0; // 会话历史请求序号；切换会话后丢弃过时响应。
+    this.hgPendingSend = null; // 失败重试时复用原 clientMsgId；成功或修改草稿后清空。
+    this.hgDevice = null; // 仅当前浏览器标签使用的临时设备凭据；不会放入 URL/日志。
+    this.hgDeviceBusy = false; // 单标签最多一个待确认补拉请求，避免定时器放大并发。
   }
 
   componentDidMount() {
@@ -81,6 +88,8 @@ class HGMessageCenterPage extends Component {
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgListRequest += 1;
+    this.hgImRequest += 1;
+    if (this.hgImTimer) clearInterval(this.hgImTimer);
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -232,15 +241,27 @@ class HGMessageCenterPage extends Component {
 
   /** 切换左侧导航：通知分类或私信视图。 */
   handleNavSelect = (key) => {
-    if (HGMessageCenterVM.isRemote() && key === IM_VIEW_KEY) {
-      message.info("私信 IM 独立服务尚未上线，当前仅提供站内通知");
+    if (key === IM_VIEW_KEY && !HGMessageCenterVM.isIMAvailable()) {
+      message.info("私信仍在 debug 环境联调，尚未开放实时网关及媒体授权");
       return;
     }
     if (key === this.state.activeKey) return;
     this.setState({ activeKey: key, unreadOnly: false, page: 1 });
     if (key === IM_VIEW_KEY) {
+      if (HGMessageCenterVM.isRemote()) {
+        this.loadIMConversations();
+        this.ensureIMDevice();
+        if (this.hgImTimer) clearInterval(this.hgImTimer);
+        // WS 网关尚未部署；仅在私信页进行有界补拉，不把轮询称为实时送达。
+        this.hgImTimer = setInterval(() => {
+          this.loadIMHistory(true);
+          this.loadIMDevicePending();
+        }, 8000);
+      }
       return;
     }
+    if (this.hgImTimer) clearInterval(this.hgImTimer);
+    this.hgImTimer = null;
     this.hgListRequest += 1;
     this.setState({ loading: false, notifications: [], nextCursor: "", hasMore: false }, () => this.loadCategoryFromRemote(key));
   };
@@ -344,9 +365,118 @@ class HGMessageCenterPage extends Component {
 
   /* ================= 私信交互 ================= */
 
+  /** 仅 debug 试运行时复用当前标签的设备凭据；服务端仍按 JWT 校验归属和失效时间。 */
+  ensureIMDevice = () => {
+    if (this.hgDevice) return;
+    try {
+      const cached = JSON.parse(sessionStorage.getItem("hg.im.device.debug") || "null");
+      if (cached?.deviceId && cached?.secret) {
+        this.hgDevice = cached;
+        this.loadIMDevicePending();
+        return;
+      }
+    } catch { sessionStorage.removeItem("hg.im.device.debug"); }
+    HGMessageCenterVM.registerDevice()
+      .then((credential) => {
+        if (!this.hgMounted) return;
+        this.hgDevice = credential;
+        sessionStorage.setItem("hg.im.device.debug", JSON.stringify(credential));
+        this.loadIMDevicePending();
+      })
+      .catch((error) => { if (this.hgMounted) message.error(error?.message || "设备注册失败"); });
+  };
+
+  /** 只 ACK 已在本人聊天窗口获取的消息；失败保留待确认记录供后续重试。 */
+  loadIMDevicePending = () => {
+    if (!this.hgDevice || this.hgDeviceBusy || this.state.activeKey !== IM_VIEW_KEY) return;
+    this.hgDeviceBusy = true;
+    HGMessageCenterVM.fetchDevicePending(this.hgDevice)
+      .then((result) => {
+        if (!this.hgMounted) return;
+        const visible = new Set(Object.values(this.state.messagesByConversation).flat().map((item) => item.messageId));
+        return Promise.all((result?.list || []).filter((item) => visible.has(item.messageId)).slice(0, 10)
+          .map((item) => HGMessageCenterVM.ackDeviceMessage(this.hgDevice, item.messageId)));
+      })
+      .catch((error) => {
+        if (!this.hgMounted) return;
+        if (error?.status === 403) {
+          sessionStorage.removeItem("hg.im.device.debug");
+          this.hgDevice = null;
+        }
+      })
+      .finally(() => { this.hgDeviceBusy = false; });
+  };
+
+  /** 拉取本人会话；失败保留现有会话，不用空列表掩盖接口故障。 */
+  loadIMConversations = () => {
+    this.setState({ imLoading: true });
+    HGMessageCenterVM.fetchConversations()
+      .then((result) => {
+        if (!this.hgMounted || this.state.activeKey !== IM_VIEW_KEY) return;
+        const conversations = (result?.list || []).map(HGMessageCenterVM.normalizeConversation);
+        this.setState((state) => ({
+          imLoading: false,
+          conversations,
+          activeConversationId: conversations.some((item) => item.conversationId === state.activeConversationId)
+            ? state.activeConversationId : (conversations[0]?.conversationId || ""),
+        }), () => this.loadIMHistory(false));
+      })
+      .catch((error) => {
+        if (!this.hgMounted) return;
+        this.setState({ imLoading: false });
+        message.error(error?.message || "会话加载失败");
+      });
+  };
+
+  /** 根据服务端 seq 补拉；切换会话后旧请求不得覆盖新聊天窗口。 */
+  loadIMHistory = (append = false) => {
+    const conversationId = this.state.activeConversationId;
+    if (!conversationId || !this.hgMounted || this.state.activeKey !== IM_VIEW_KEY) return;
+    const existing = this.state.messagesByConversation[conversationId] || [];
+    const afterSeq = append && existing.length ? Math.max(...existing.map((item) => item.seq)) : 0;
+    const request = ++this.hgImRequest;
+    HGMessageCenterVM.fetchMessages({ conversationId, afterSeq })
+      .then((result) => {
+        if (!this.hgMounted || request !== this.hgImRequest || this.state.activeConversationId !== conversationId) return;
+        const incoming = (result?.list || []).map(HGMessageCenterVM.normalizeMessage);
+        this.setState((state) => {
+          const current = append ? (state.messagesByConversation[conversationId] || []) : [];
+          const byId = new Map(current.map((item) => [item.messageId, item]));
+          incoming.forEach((item) => byId.set(item.messageId, item));
+          return { messagesByConversation: { ...state.messagesByConversation, [conversationId]: [...byId.values()] } };
+        }, this.loadIMDevicePending);
+        const lastSeq = incoming[incoming.length - 1]?.seq || 0;
+        const recorded = this.state.conversations.find((item) => item.conversationId === conversationId)?.lastReadSeq || 0;
+        if (lastSeq > recorded) {
+          HGMessageCenterVM.reportRead({ conversationId, lastReadSeq: lastSeq })
+            .then(() => {
+              if (!this.hgMounted) return;
+              this.setState((state) => ({ conversations: state.conversations.map((item) =>
+                item.conversationId === conversationId ? { ...item, lastReadSeq: Math.max(item.lastReadSeq, lastSeq) } : item) }));
+            })
+            .catch((error) => { if (this.hgMounted) message.error(error?.message || "已读位置上报失败"); });
+        }
+      })
+      .catch((error) => { if (this.hgMounted && !append) message.error(error?.message || "私信历史加载失败"); });
+  };
+
+  /** 通过对方用户 ID 发起单聊；成功后重新读取服务端权威会话列表。 */
+  handleCreateConversation = () => {
+    const peerId = this.state.peerIdInput.trim();
+    if (!peerId || this.state.imLoading) return;
+    this.setState({ imLoading: true });
+    HGMessageCenterVM.createConversation(peerId)
+      .then((result) => {
+        if (!this.hgMounted) return;
+        this.setState({ peerIdInput: "", activeConversationId: result?.conversationId || "" }, this.loadIMConversations);
+      })
+      .catch((error) => { if (this.hgMounted) this.setState({ imLoading: false }); message.error(error?.message || "创建单聊失败"); });
+  };
+
   /** 选中会话：清本地未读并向服务端上报已读位置。 */
   handleSelectConversation = (conversationId) => {
     this.setState({ activeConversationId: conversationId }, () => {
+      if (HGMessageCenterVM.isRemote()) this.loadIMHistory(false);
       this.reportReadAndResetUnread();
       this.scrollMessageAreaToBottom();
     });
@@ -381,6 +511,7 @@ class HGMessageCenterPage extends Component {
 
   /** 输入框受控变更。 */
   handleComposerChange = (event) => {
+    this.hgPendingSend = null;
     this.setState({ composerText: event.target.value });
   };
 
@@ -405,7 +536,9 @@ class HGMessageCenterPage extends Component {
       message.warning("请先选择一个会话");
       return;
     }
-    const clientMsgId = HGMessageCenterVM.createClientMsgId();
+    const clientMsgId = this.hgPendingSend?.conversationId === activeConversationId && this.hgPendingSend?.text === text
+      ? this.hgPendingSend.clientMsgId : HGMessageCenterVM.createClientMsgId();
+    this.hgPendingSend = { conversationId: activeConversationId, text, clientMsgId };
     const pendingMessage = {
       messageId: `local_${clientMsgId}`,
       seq: conversation.lastSeq + 1,
@@ -441,6 +574,8 @@ class HGMessageCenterPage extends Component {
     this.setState({ sending: true });
     HGMessageCenterVM.sendMessage({ conversationId: activeConversationId, clientMsgId, messageType: "text", content: { text } })
       .then((result) => {
+        if (!this.hgMounted) return;
+        this.hgPendingSend = null;
         const normalized = HGMessageCenterVM.normalizeMessage(result?.message || result || {});
         this.setState((state) => ({
           composerText: "",
@@ -448,13 +583,14 @@ class HGMessageCenterPage extends Component {
           messagesByConversation: {
             ...state.messagesByConversation,
             [activeConversationId]: [
-              ...(state.messagesByConversation[activeConversationId] || []),
-              { ...pendingMessage, messageId: normalized.messageId || pendingMessage.messageId, seq: normalized.seq || pendingMessage.seq, local: false },
+              ...(state.messagesByConversation[activeConversationId] || []).filter((item) => item.messageId !== normalized.messageId),
+              { ...pendingMessage, messageId: normalized.messageId || pendingMessage.messageId, seq: normalized.seq || pendingMessage.seq, local: false, isSelf: true },
             ],
           },
         }));
       })
       .catch((error) => {
+        if (!this.hgMounted) return;
         // 失败不丢弃草稿，clientMsgId 保留以便安全重试。
         this.setState({ sending: false });
         message.error(error?.message || "消息发送失败，可重试（幂等键未变更）");
@@ -588,7 +724,7 @@ class HGMessageCenterPage extends Component {
 
         <div className={styles.navSection}>
           <span className={styles.navSectionLabel}>即时通信</span>
-          {this.renderNavItem({ key: IM_VIEW_KEY, label: HGMessageCenterVM.isRemote() ? "私信（待接入）" : "私信", icon: "chat", tone: "blue" })}
+          {this.renderNavItem({ key: IM_VIEW_KEY, label: HGMessageCenterVM.isIMAvailable() ? "私信（HTTP 补拉）" : "私信（待上线）", icon: "chat", tone: "blue" })}
         </div>
 
         <button type="button" className={styles.navFooter} onClick={this.openPreferences}>
@@ -877,6 +1013,19 @@ class HGMessageCenterPage extends Component {
     const conversations = this.getFilteredConversations();
     return (
       <div className={styles.conversationPanel}>
+        {HGMessageCenterVM.isRemote() ? (
+          <div className={styles.imCreateRow}>
+            <input
+              type="text"
+              maxLength={128}
+              value={this.state.peerIdInput}
+              aria-label="对方用户 ID"
+              placeholder="输入对方用户 ID 开始单聊"
+              onChange={(event) => this.setState({ peerIdInput: event.target.value })}
+            />
+            <button type="button" disabled={this.state.imLoading || !this.state.peerIdInput.trim()} onClick={this.handleCreateConversation}>创建单聊</button>
+          </div>
+        ) : null}
         <div className={styles.conversationSearch}>
           <HGInputSearch
             value={this.state.conversationKeyword}
@@ -898,7 +1047,7 @@ class HGMessageCenterPage extends Component {
 
   /** 单条气泡：文本/图片区分渲染，自己的消息展示回执状态。 */
   renderMessageBubble = (message, conversation) => {
-    const isSelf = message.senderId === SELF_USER_ID;
+    const isSelf = HGMessageCenterVM.isRemote() ? message.isSelf : message.senderId === SELF_USER_ID;
     const receipt = HGMessageCenterVM.getReceiptStatus(message, conversation);
 
     return (

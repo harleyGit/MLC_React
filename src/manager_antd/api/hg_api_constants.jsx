@@ -136,9 +136,12 @@ export const HGMANAGER_API = {
   NOTIFICATION_DELETE: "/api/v1/notifications/delete", // 用户级删除通知
   NOTIFICATION_PREFERENCES: "/api/v1/notification/preferences", // 通知偏好读写
   IM_CONVERSATIONS: "/api/v1/im/conversations", // 会话列表
-  IM_CONVERSATION_MESSAGES: (id) => `/api/v1/im/conversations/${encodeURIComponent(id)}/messages`, // 会话历史（按 seq 游标）
-  IM_CONVERSATION_READ: (id) => `/api/v1/im/conversations/${encodeURIComponent(id)}/read`, // 上报已读位置
+  IM_CONVERSATION_MESSAGES: "/api/v1/im/messages", // 会话历史（conversationId + afterSeq）
+  IM_CONVERSATION_READ: "/api/v1/im/read", // 上报已读位置
   IM_SEND: "/api/v1/im/messages", // 发送私信（clientMsgId 幂等）
+  IM_DEVICE_REGISTER: "/api/v1/im/device/register", // 服务端签发当前浏览器设备凭据
+  IM_DEVICE_PENDING: "/api/v1/im/device/pending", // 仅查询当前设备尚未 ACK 的消息指针
+  IM_DEVICE_ACK: "/api/v1/im/device/ack", // 客户端实际处理后上报本设备 ACK
   IM_SYNC: "/api/v1/im/sync", // 断线后按游标补拉
   IM_MEDIA_UPLOAD_TOKEN: "/api/v1/im/media/upload-token", // 获取对象存储上传凭证
   // 运维后台：通知渠道中心。

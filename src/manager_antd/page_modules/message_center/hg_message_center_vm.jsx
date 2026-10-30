@@ -84,6 +84,9 @@ export default class HGMessageCenterVM {
   /** 是否走真实接口；页面据此决定错误提示与演示标记。 */
   static isRemote = () => MESSAGE_DATA_SOURCE === "remote";
 
+  /** IM HTTP 试运行仅在本机 debug 模式开放，pre/release 仍应保持不可操作。 */
+  static isIMAvailable = () => !HGMessageCenterVM.isRemote() || import.meta.env.MODE === "debug";
+
   /* ===== 接口契约（与通知服务 / IM 服务对齐） ===== */
 
   /** 站内通知分页；cursor 由后端下发，前端不推导时间或主键边界。 */
@@ -117,13 +120,25 @@ export default class HGMessageCenterVM {
   /** 会话列表；服务端按置顶、最后更新时间排序。 */
   static fetchConversations = () => HGNet.get(HGMANAGER_API.IM_CONVERSATIONS);
 
+  /** 创建用户与指定 peerId 的唯一单聊；peerId 来自用户明确输入，不信任浏览器声明 sender。 */
+  static createConversation = (peerId) => HGNet.post(HGMANAGER_API.IM_CONVERSATIONS, { peerId });
+
+  /** 设备凭据只在注册时返回；服务端仅存摘要并校验 JWT 用户归属。 */
+  static registerDevice = () => HGNet.post(HGMANAGER_API.IM_DEVICE_REGISTER, {});
+
+  /** 本设备待送达指针；不在 URL 或 query 中传设备 secret。 */
+  static fetchDevicePending = (credential) => HGNet.post(HGMANAGER_API.IM_DEVICE_PENDING, { ...credential, after: 0 });
+
+  /** 客户端已经获取并处理消息后显式 ACK，服务器写 socket 成功不等于已送达。 */
+  static ackDeviceMessage = (credential, messageId) => HGNet.post(HGMANAGER_API.IM_DEVICE_ACK, { ...credential, messageId });
+
   /** 会话历史按 seq 游标向前翻页，禁止深度 offset。 */
-  static fetchMessages = ({ conversationId, beforeSeq = 0, limit = 30 }) =>
-    HGNet.get(HGMANAGER_API.IM_CONVERSATION_MESSAGES(conversationId), { beforeSeq, limit });
+  static fetchMessages = ({ conversationId, afterSeq = 0 }) =>
+    HGNet.get(HGMANAGER_API.IM_CONVERSATION_MESSAGES, { conversationId, afterSeq });
 
   /** 上报已读位置；lastReadSeq 单调递增，服务端只接受更大值。 */
   static reportRead = ({ conversationId, lastReadSeq }) =>
-    HGNet.post(HGMANAGER_API.IM_CONVERSATION_READ(conversationId), { lastReadSeq });
+    HGNet.post(HGMANAGER_API.IM_CONVERSATION_READ, { conversationId, lastReadSeq });
 
   /** 发送私信：clientMsgId 负责幂等，sender 由服务端从登录态解析。 */
   static sendMessage = ({ conversationId, clientMsgId, messageType = "text", content }) =>
@@ -156,7 +171,7 @@ export default class HGMessageCenterVM {
     createdAt: raw.createdAt || raw.created_at || new Date().toISOString(),
   });
 
-  /** 归一化会话；unreadCount 缺失时按 lastSeq 与 lastReadSeq 推导。 */
+  /** 归一化会话；自己发的消息不计未读，服务端没给权威计数时不能凭 seq 差推导。 */
   static normalizeConversation = (raw = {}) => {
     const lastSeq = Number(raw.lastSeq ?? raw.last_seq ?? 0);
     const lastReadSeq = Number(raw.lastReadSeq ?? raw.last_read_seq ?? 0);
@@ -168,7 +183,7 @@ export default class HGMessageCenterVM {
       peerDeliveredSeq: Number(raw.peerDeliveredSeq ?? raw.peer_delivered_seq ?? 0),
       lastSeq,
       lastReadSeq,
-      unreadCount: Number(raw.unreadCount ?? raw.unread_count ?? Math.max(lastSeq - lastReadSeq, 0)),
+      unreadCount: Number(raw.unreadCount ?? raw.unread_count ?? 0),
       isPinned: Boolean(raw.isPinned ?? raw.is_pinned ?? false),
       isMuted: Boolean(raw.isMuted ?? raw.is_muted ?? false),
       updatedAt: raw.updatedAt || raw.updated_at || new Date().toISOString(),
@@ -184,6 +199,7 @@ export default class HGMessageCenterVM {
     messageId: raw.messageId || raw.message_id || "",
     seq: Number(raw.seq || 0),
     senderId: raw.senderId || raw.sender_id || "",
+    isSelf: Boolean(raw.isSelf ?? false),
     messageType: raw.messageType || raw.message_type || "text",
     content: raw.content || {},
     status: raw.status || "normal",
