@@ -1,0 +1,116 @@
+/* hg_loading_showcase.module.css
+ * CSS 加载动画展示页样式（测试模块「UI组件 > 加载动画」内容页）。
+ * 职责：仅负责深色展示面板框架（页头、卡片网格、复制按钮）；
+ * 8 种动画的本体样式由组件库 hg_loading_animations/hg_loading_animations.module.css 提供。
+ * 预览区通过 color 与 CSS 变量为组件库的 currentColor / 变量配色提供深色上下文。 */
+
+.page {
+  padding: 24px;
+  border-radius: 12px;
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Microsoft YaHei', 'Segoe UI', sans-serif;
+}
+
+.pageHeader {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  background: linear-gradient(90deg, #58a6ff, #bc8cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  color: #8b949e;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* 响应式卡片网格：窄屏自动降为单列 */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: #30363d;
+}
+
+/* 预览区：为动画组件提供主色与骨架屏深色变量 */
+.preview {
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 16px;
+  color: #58a6ff;
+  --hg-skeleton-base: #21262d;
+  --hg-skeleton-highlight: #30363d;
+  --hg-skeleton-card: #1c2129;
+}
+
+.cardTitle {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+
+.cardDesc {
+  color: #8b949e;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 14px;
+  flex: 1;
+}
+
+.copyBtn {
+  align-self: flex-start;
+  background: transparent;
+  color: #58a6ff;
+  border: 1px solid rgba(88, 166, 255, 0.4);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.copyBtn:hover {
+  background: #1f6feb;
+  color: #fff;
+}
+
+/* 复制成功态：绿色高亮反馈 */
+.copyBtnActive {
+  color: #3fb950;
+  border-color: rgba(63, 185, 80, 0.5);
+}
+
+/* 用户偏好减少动画时，卡片悬停位移一并关闭 */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}

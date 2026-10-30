@@ -52,11 +52,13 @@
   height: 36px;
 }
 
+/* 默认请求加载图标：conic-gradient 渐变旋转器（mask 挖空成环带，兼容 WebKit） */
 .defaultSpinner {
   display: inline-block;
-  border: 3px solid #dce7ff;
-  border-top-color: #1a73ff;
   border-radius: 999px;
+  background: conic-gradient(from 0deg, transparent 10%, #1a73ff);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
   animation: hgLoadingRotate 0.82s linear infinite;
   box-sizing: border-box;
 }

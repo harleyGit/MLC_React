@@ -1,9 +1,9 @@
 /**
- * hg_loading_registry.jsx
- * 加载动画注册表：将动画名称、描述、预览组件与可复制的 CSS 源码组合成清单。
- * 职责边界：纯数据与组件引用映射，不含渲染逻辑；独立成文件是为了让
- * hg_loading_animations.jsx 仅导出组件、满足 react-refresh 约束。
- * css 字段为独立可用的样式片段（含 keyframes），复制后即可在其他项目使用。
+ * hg_loading_animations_data.js
+ * CSS 加载动画展示数据（由单文件 HTML 演示页转换而来）。
+ * 职责：集中维护动画名称、描述与可复制的 CSS 源码片段，并映射组件库预览组件。
+ * 约束：css 字段为独立可用的样式片段（含 keyframes），复制后即可在其他项目使用；
+ * 预览组件来自 hg_loading_animations 组件库，本文件不含渲染逻辑。
  */
 
 import {
@@ -15,13 +15,13 @@ import {
   HGTypingBubble,
   HGSkeleton,
   HGDnaHelix,
-} from './hg_loading_animations.jsx';
+} from "../../../components/hg_loading_animations/hg_loading_animations.jsx";
 
 export const LOADING_ANIMATIONS = [
   {
-    key: 'ring',
-    name: '旋转圆环',
-    desc: '渐变边框旋转，经典加载指示器',
+    key: "ring",
+    name: "旋转圆环",
+    desc: "渐变边框旋转，经典加载指示器",
     Preview: HGRingSpinner,
     css: `.ring-spinner {
   width: 48px;
@@ -36,9 +36,9 @@ export const LOADING_ANIMATIONS = [
 }`,
   },
   {
-    key: 'pulse',
-    name: '脉冲圆点',
-    desc: '三点缩放，简约节奏感',
+    key: "pulse",
+    name: "脉冲圆点",
+    desc: "三点缩放，简约节奏感",
     Preview: HGPulseDots,
     css: `.pulse-dots {
   display: flex;
@@ -59,9 +59,9 @@ export const LOADING_ANIMATIONS = [
 }`,
   },
   {
-    key: 'bars',
-    name: '弹跳柱条',
-    desc: '五柱交错弹跳，音频可视化风格',
+    key: "bars",
+    name: "弹跳柱条",
+    desc: "五柱交错弹跳，音频可视化风格",
     Preview: HGBounceBars,
     css: `.bounce-bars {
   display: flex;
@@ -87,9 +87,9 @@ export const LOADING_ANIMATIONS = [
 }`,
   },
   {
-    key: 'ripple',
-    name: '波纹圆圈',
-    desc: '涟漪扩散效果，雷达探测感',
+    key: "ripple",
+    name: "波纹圆圈",
+    desc: "涟漪扩散效果，雷达探测感",
     Preview: HGRipple,
     css: `.ripple {
   position: relative;
@@ -110,9 +110,9 @@ export const LOADING_ANIMATIONS = [
 }`,
   },
   {
-    key: 'conic',
-    name: '渐变旋转器',
-    desc: '锥形渐变旋转，现代质感',
+    key: "conic",
+    name: "渐变旋转器",
+    desc: "锥形渐变旋转，现代质感",
     Preview: HGConicSpinner,
     css: `.conic-spinner {
   width: 52px;
@@ -128,9 +128,9 @@ export const LOADING_ANIMATIONS = [
 }`,
   },
   {
-    key: 'typing',
-    name: '打字指示器',
-    desc: '聊天输入指示器，对话 UI 必备',
+    key: "typing",
+    name: "打字指示器",
+    desc: "聊天输入指示器，对话 UI 必备",
     Preview: HGTypingBubble,
     css: `.typing-bubble {
   background: #21262d;
@@ -155,9 +155,9 @@ export const LOADING_ANIMATIONS = [
 }`,
   },
   {
-    key: 'skeleton',
-    name: '骨架屏微光',
-    desc: '占位内容扫光效果，加载过渡自然',
+    key: "skeleton",
+    name: "骨架屏微光",
+    desc: "占位内容扫光效果，加载过渡自然",
     Preview: HGSkeleton,
     css: `.skeleton .avatar,
 .skeleton .line,
@@ -175,9 +175,9 @@ export const LOADING_ANIMATIONS = [
 }`,
   },
   {
-    key: 'dna',
-    name: 'DNA 双螺旋',
-    desc: '双链旋转动画，科技生物感',
+    key: "dna",
+    name: "DNA 双螺旋",
+    desc: "双链旋转动画，科技生物感",
     Preview: HGDnaHelix,
     css: `.dna {
   position: relative;

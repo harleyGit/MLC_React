@@ -150,6 +150,11 @@
   height: 22px;
 }
 
+/* 播放中的弹跳柱条：尺寸由组件库 small 档控制，这里只约束占位 */
+.voicePlayingBars {
+  flex-shrink: 0;
+}
+
 .voiceBar {
   display: inline-block;
   width: 4px;

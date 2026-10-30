@@ -1,7 +1,7 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
 import HGCollectionView from "../../../../components/hg_collection_view/hg_collection_view";
-import HGLoading from "../../../../components/hg_loading/hg_loading";
+import { HGSkeletonList } from "../../../../components/hg_loading_animations/hg_loading_animations.jsx";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import { hgMessage } from "../../../../components/hg_message/hg_message_page";
 import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
@@ -313,10 +313,14 @@ class HGAddressBookPage extends React.Component {
 
   /**
    * 渲染地址列表。
-   * @returns {React.ReactNode} HGCollectionView 实例 JSX。
+   * 约束：首屏加载（尚无数据）时渲染骨架屏占位；已有数据后的刷新仍走 HGCollectionView 内建状态。
+   * @returns {React.ReactNode} 骨架屏或 HGCollectionView 实例 JSX。
    */
   renderAddressList = () => {
     const { addresses, loading, resetKey } = this.state;
+    if (loading && addresses.length === 0) {
+      return <HGSkeletonList rows={3} className={styles.skeletonList} />;
+    }
     return (
       <HGCollectionView
         items={addresses}
@@ -380,10 +384,9 @@ class HGAddressBookPage extends React.Component {
   };
 
   render() {
-    const { addresses, loading, error } = this.state;
+    const { error } = this.state;
     return (
       <div className={styles.page}>
-        <HGLoading fullscreen text="正在处理收货地址…" visible={loading && addresses.length === 0} />
         {this.renderHeader()}
         <main className={styles.main}>
           {this.renderSummary()}

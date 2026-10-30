@@ -231,6 +231,11 @@
   box-shadow: 0 10px 26px rgba(23, 34, 59, 0.05);
 }
 
+/* 首屏加载的骨架屏占位：行间距与卡片节奏保持一致 */
+.skeletonList {
+  gap: 12px;
+}
+
 .card {
   position: relative;
   padding: 16px 18px;

@@ -8,7 +8,7 @@ const LOADING_SIZE_CLASS_MAP = {
 };
 
 /**
- * 通用加载组件：支持默认旋转 loading、图片动画和点状 loading 三种模式。
+ * 通用加载组件：支持默认渐变旋转器 loading、图片动画和点状 loading 三种模式。
  */
 class HGLoading extends React.PureComponent {
   /**
@@ -38,7 +38,7 @@ class HGLoading extends React.PureComponent {
   };
 
   /**
-   * 渲染默认旋转 loading。
+   * 渲染默认请求 loading（conic-gradient 渐变旋转器）。
    * @returns {React.ReactNode} 默认 loading 节点。
    */
   renderDefaultLoading = () => {

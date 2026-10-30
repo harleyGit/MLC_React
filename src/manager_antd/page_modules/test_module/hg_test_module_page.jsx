@@ -6,6 +6,7 @@ import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page
 import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
 import GuideVideoListView from "../../../pages/app/guide_video/GuideVideoListView";
 import GuideVideoView from "../../../pages/app/guide_video/GuideVideoView";
+import HGLoadingShowcasePage from "./hg_loading_showcase_page.jsx";
 import HGTestModuleVM, { TEST_MODULE_MENU_ITEMS } from "./hg_test_module_vm";
 import styles from "./hg_test_module.module.css";
 
@@ -44,6 +45,7 @@ class HGGuideVideoPlayerPane extends Component {
 const PAGE_MAP = {
   guide_video_list: HGGuideVideoListPane,
   guide_video_player: HGGuideVideoPlayerPane,
+  css_loading: HGLoadingShowcasePage,
 };
 
 /**

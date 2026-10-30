@@ -1,20 +1,20 @@
 /**
- * hg_loading_showcase.jsx
- * CSS 加载动画合集展示页。
+ * hg_loading_showcase_page.jsx
+ * 测试模块「UI组件 > CSS 加载动画」展示页（由单文件 HTML 演示页转换而来）。
  * 职责：渲染 8 种动画卡片网格（实时预览 + 名称 + 描述 + 复制按钮），
- * 并维护「复制成功」的临时 UI 状态。因存在交互状态与生命周期清理，
- * 按项目约定与用户要求使用类组件。
- * 依赖：动画 DOM 组件与 CSS 片段数据来自 hg_loading_animations.jsx。
+ * 并维护「复制成功」的临时 UI 状态。因存在交互状态与定时器清理，
+ * 按项目约定使用类组件。
+ * 依赖：动画预览组件来自 hg_loading_animations 组件库，数据来自 hg_loading_animations_data.js。
  */
 
-import React from 'react';
-import styles from './hg_loading_showcase.module.css';
-import { LOADING_ANIMATIONS } from './hg_loading_registry.jsx';
+import React from "react";
+import styles from "./hg_loading_showcase.module.css";
+import { LOADING_ANIMATIONS } from "./hg_loading_animations_data.js";
 
 /** 「已复制」提示的展示时长（毫秒），超时后按钮文案恢复 */
 const COPY_FEEDBACK_MS = 1600;
 
-export default class HGLoadingShowcase extends React.Component {
+export default class HGLoadingShowcasePage extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -51,13 +51,13 @@ export default class HGLoadingShowcase extends React.Component {
 
   /** 降级复制方案：临时 textarea + execCommand，兼容旧环境 */
   copyByExecCommand(text) {
-    const textarea = document.createElement('textarea');
+    const textarea = document.createElement("textarea");
     textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
     document.body.appendChild(textarea);
     textarea.select();
-    document.execCommand('copy');
+    document.execCommand("copy");
     document.body.removeChild(textarea);
   }
 
@@ -103,7 +103,7 @@ export default class HGLoadingShowcase extends React.Component {
           className={btnClass}
           onClick={() => this.handleCopy(item)}
         >
-          {isCopied ? '已复制 ✓' : '复制 CSS'}
+          {isCopied ? "已复制 ✓" : "复制 CSS"}
         </button>
       </div>
     );

@@ -8,6 +8,7 @@
  */
 import React from "react";
 import HGCollectionView from "../hg_collection_view/hg_collection_view.jsx";
+import { HGBounceBars } from "../hg_loading_animations/hg_loading_animations.jsx";
 import HGIconPage from "../hg_icon/hg_icon_page.jsx";
 import styles from "./hg_message_list.module.css";
 
@@ -51,17 +52,22 @@ const hgRenderImage = (message) => (
 );
 
 /**
- * 语音渲染：音量柱状 SVG 波形 + 时长。
+ * 语音渲染：静态音量柱 + 时长；播放中（message.playing）改用弹跳柱条动画。
+ * 约束：柱条颜色跟随气泡文字色（currentColor），深浅气泡均自适应。
  * @param {object} message 消息对象。
  * @returns {React.ReactNode} 语音节点。
  */
 const hgRenderVoice = (message) => (
   <span className={styles.voiceBox}>
-    <span className={styles.voiceBars} aria-hidden="true">
-      {Array.from({ length: 4 }, (_, index) => (
-        <i key={index} className={styles.voiceBar} style={{ height: `${6 + ((index * 7) % 14)}px` }} />
-      ))}
-    </span>
+    {message.playing ? (
+      <HGBounceBars size="small" className={styles.voicePlayingBars} />
+    ) : (
+      <span className={styles.voiceBars} aria-hidden="true">
+        {Array.from({ length: 4 }, (_, index) => (
+          <i key={index} className={styles.voiceBar} style={{ height: `${6 + ((index * 7) % 14)}px` }} />
+        ))}
+      </span>
+    )}
     <span className={styles.voiceDuration}>{message.duration || 0}&quot;</span>
   </span>
 );

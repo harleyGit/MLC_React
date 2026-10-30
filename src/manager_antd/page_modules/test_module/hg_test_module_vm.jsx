@@ -15,6 +15,13 @@ export const TEST_MODULE_MENU_ITEMS = [
       { key: "guide_video_player", label: "视频播放" },
     ],
   },
+  {
+    key: "ui_components",
+    label: "UI组件",
+    children: [
+      { key: "css_loading", label: "CSS 加载动画" },
+    ],
+  },
 ];
 
 /**
