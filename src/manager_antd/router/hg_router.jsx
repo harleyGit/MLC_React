@@ -8,7 +8,7 @@
  */
 import React, { Suspense } from "react";
 import { createBrowserRouter } from "react-router-dom";
-import HGLoading from "../../components/hg_loading";
+import HGLoading from "../../components/hg_loading/hg_loading";
 import HGAuthGuard from "../auth/hg_auth_guard";
 import HGAdminGuard from "../auth/hg_admin_guard";
 import HGHomePage from "../page_modules/home/hg_home_page";

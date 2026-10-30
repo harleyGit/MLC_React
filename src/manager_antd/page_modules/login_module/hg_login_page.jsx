@@ -8,7 +8,7 @@
  */
 import React, { Component } from "react";
 import { LogOut } from "../../../logger/hg_logger";
-import HGLoading from "../../../components/hg_loading";
+import HGLoading from "../../../components/hg_loading/hg_loading";
 import { DEBUG_MAP } from "../../auth/hg_auth";
 import { getHGLoginReturn } from "../../auth/hg_login_return.js";
 import { WithNavigation } from "../../router/hg_naviagion_hook";

@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import { transformSync } from "@swc/core";
 import React from "react";
 import { hgCollectionOffsets, hgCollectionStart } from "./hg_collection_layout.js";
-import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
 
 /** 运行真实 JSX 组件；DOM 和样式只使用本地替身，不启动网络服务。 */
 function hgCollection(props) {

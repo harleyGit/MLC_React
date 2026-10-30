@@ -117,7 +117,7 @@ test("真实路由为首页、商品订单、钱包及独立记录页注入导�
         return hgRouter;
       },
     },
-    "../../components/hg_loading": () => null,
+    "../../components/hg_loading/hg_loading": () => null,
     "../auth/hg_auth_guard": HGGuard,
     "../auth/hg_admin_guard": HGGuard,
     "../page_modules/home/hg_home_page": hgHome,

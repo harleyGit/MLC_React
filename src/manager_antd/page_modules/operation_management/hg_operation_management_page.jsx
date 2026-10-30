@@ -7,7 +7,7 @@
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
 import React, { Component, lazy, Suspense } from "react";
-import HGLoading from "../../../components/hg_loading";
+import HGLoading from "../../../components/hg_loading/hg_loading";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
 import HGOperationManagementVM, {

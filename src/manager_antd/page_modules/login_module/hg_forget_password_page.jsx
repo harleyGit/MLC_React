@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { LogOut } from "../../../logger/hg_logger";
-import HGLoading from "../../../components/hg_loading";
+import HGLoading from "../../../components/hg_loading/hg_loading";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import styles from "./hg_forget_password.module.css";

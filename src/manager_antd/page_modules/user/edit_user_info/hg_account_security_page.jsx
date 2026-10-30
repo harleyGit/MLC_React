@@ -1,6 +1,6 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
-import HGVerifyCodeInput from "../../../../components/hg_verify_code_input";
+import HGVerifyCodeInput from "../../../../components/hg_verify_code_input/hg_verify_code_input";
 import HGClickCaptchaPage from "../../../../components/hg_click_captcha/hg_click_captcha_page";
 import styles from "./hg_account_security_page.module.css";
 import HGAccountSecurityPageVM from "./hg_account_security_page_vm";

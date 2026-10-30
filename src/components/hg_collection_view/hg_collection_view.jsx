@@ -4,7 +4,7 @@ import {
   hgCollectionStart,
 } from "./hg_collection_layout.js";
 import styles from "./hg_collection_view.module.css";
-import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
 
 const HG_OVERSCAN = 240; // 可视区域上下额外预渲染的像素，减少快速滚动时的空白。
 const HG_LOAD_THRESHOLD = 120; // 距底部不足此像素数时触发下一页。

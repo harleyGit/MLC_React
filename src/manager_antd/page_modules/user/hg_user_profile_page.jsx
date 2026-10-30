@@ -12,7 +12,7 @@ import React from "react";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../components/hg_card/hg_card_page";
 import { HGInputSearch } from "../../../components/hg_input/hg_input_page";
-import HGLoading from "../../../components/hg_loading";
+import HGLoading from "../../../components/hg_loading/hg_loading";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGSpacePage from "../../../components/hg_space/hg_space_page";
 import HGTablePage from "../../../components/hg_table/hg_table_page";

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { syncHorizontalScroll } from "./hg_table_scroll.js";
-import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { transformSync } from "@swc/core";
@@ -21,7 +21,7 @@ const { code: hgCode } = transformSync(
 new Function("require", "module", "exports", hgCode)((name) => {
   if (name.endsWith(".css")) return new Proxy({}, { get: (_, key) => key });
   if (name === "./hg_table_scroll.js") return { syncHorizontalScroll };
-  if (name === "../hg_drag_scroll.js") return { hgStartDrag, hgMoveDrag };
+  if (name === "../hg_drag_scroll/hg_drag_scroll.js") return { hgStartDrag, hgMoveDrag };
   return hgRequire(name);
 }, hgModule, hgModule.exports);
 const HGTablePage = hgModule.exports.default;

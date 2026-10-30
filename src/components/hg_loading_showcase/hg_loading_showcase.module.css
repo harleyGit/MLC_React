@@ -1,0 +1,418 @@
+/* hg_loading_showcase.module.css
+ * CSS 加载动画合集展示页样式。
+ * 职责：深色主题页面框架 + 8 种动画的本体样式（keyframes + transform）。
+ * 约束：动画仅用 CSS 实现，末尾统一处理 prefers-reduced-motion 降级。 */
+
+/* ========== 页面框架（深色主题） ========== */
+
+.page {
+  min-height: 100vh;
+  padding: 48px 24px;
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Microsoft YaHei', 'Segoe UI', sans-serif;
+}
+
+.pageHeader {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  background: linear-gradient(90deg, #58a6ff, #bc8cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  color: #8b949e;
+  font-size: 15px;
+  margin: 0;
+}
+
+/* 响应式卡片网格：窄屏自动降为单列 */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.card {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: #30363d;
+}
+
+.preview {
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 18px;
+}
+
+.cardTitle {
+  font-size: 17px;
+  margin: 0 0 6px;
+}
+
+.cardDesc {
+  color: #8b949e;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 16px;
+  flex: 1;
+}
+
+.copyBtn {
+  align-self: flex-start;
+  background: transparent;
+  color: #58a6ff;
+  border: 1px solid rgba(88, 166, 255, 0.4);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.copyBtn:hover {
+  background: #1f6feb;
+  color: #fff;
+}
+
+/* 复制成功态：绿色高亮反馈 */
+.copyBtnActive {
+  color: #3fb950;
+  border-color: rgba(63, 185, 80, 0.5);
+}
+
+/* ========== 动画 1：旋转圆环（渐变边框旋转） ========== */
+
+.ringSpinner {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 4px solid rgba(88, 166, 255, 0.15);
+  border-top-color: #58a6ff;
+  animation: ringRotate 1s linear infinite;
+}
+
+/* 旋转圆环与锥形旋转器共用同一旋转关键帧 */
+@keyframes ringRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========== 动画 2：脉冲圆点（三点缩放） ========== */
+
+.pulseDots {
+  display: flex;
+  gap: 10px;
+}
+
+.pulseDots span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #bc8cff;
+  animation: pulseScale 1.2s ease-in-out infinite;
+}
+
+.pulseDots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.pulseDots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulseScale {
+  0%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+/* ========== 动画 3：弹跳柱条（五柱交错弹跳） ========== */
+
+.bounceBars {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 56px;
+}
+
+.bounceBars span {
+  width: 8px;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #58a6ff, #bc8cff);
+  animation: bounceBar 1.1s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.bounceBars span:nth-child(2) { animation-delay: 0.12s; }
+.bounceBars span:nth-child(3) { animation-delay: 0.24s; }
+.bounceBars span:nth-child(4) { animation-delay: 0.36s; }
+.bounceBars span:nth-child(5) { animation-delay: 0.48s; }
+
+@keyframes bounceBar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* ========== 动画 4：波纹圆圈（涟漪扩散） ========== */
+
+.ripple {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+
+.ripple span {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid #58a6ff;
+  animation: rippleExpand 1.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.ripple span:nth-child(2) {
+  animation-delay: -0.9s;
+}
+
+@keyframes rippleExpand {
+  0% {
+    transform: scale(0.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+/* ========== 动画 5：渐变旋转器（conic-gradient） ========== */
+
+.conicSpinner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 10%, #bc8cff);
+  /* mask 挖空中心形成环带，兼容 WebKit 内核 */
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 5px),
+    #000 calc(100% - 5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 5px),
+    #000 calc(100% - 5px)
+  );
+  animation: ringRotate 0.9s linear infinite;
+}
+
+/* ========== 动画 6：打字指示器（聊天气泡三点） ========== */
+
+.typingBubble {
+  background: #21262d;
+  border-radius: 20px;
+  padding: 14px 20px;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.typingBubble span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #8b949e;
+  animation: typingBounce 1.3s ease-in-out infinite;
+}
+
+.typingBubble span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.typingBubble span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-7px);
+    opacity: 1;
+  }
+}
+
+/* ========== 动画 7：骨架屏微光（扫光扫过占位块） ========== */
+
+.skeleton {
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeletonRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 占位块统一使用平移渐变背景产生扫光效果 */
+.skeletonAvatar,
+.skeletonLine,
+.skeletonBlock {
+  background: linear-gradient(90deg, #21262d 25%, #30363d 50%, #21262d 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s linear infinite;
+}
+
+.skeletonAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeletonLines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeletonLine {
+  height: 12px;
+  border-radius: 6px;
+}
+
+.skeletonLineShort {
+  width: 60%;
+}
+
+.skeletonBlock {
+  height: 72px;
+  border-radius: 8px;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ========== 动画 8：DNA 双螺旋（双链旋转） ========== */
+
+.dna {
+  position: relative;
+  width: 64px;
+  height: 96px;
+}
+
+.dna i {
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: dnaSpin 2.2s linear infinite;
+}
+
+.dnaA {
+  background: #58a6ff;
+}
+
+.dnaB {
+  background: #bc8cff;
+}
+
+/* 偶数节点反向相位（负延迟取满周期），与奇数节点交错形成双链 */
+.dna i:nth-child(2n) {
+  animation-delay: -2.2s;
+}
+
+.dna i:nth-child(1) { top: 0; }
+.dna i:nth-child(2) { top: 12px; }
+.dna i:nth-child(3) { top: 24px; animation-delay: -0.275s; }
+.dna i:nth-child(4) { top: 36px; }
+.dna i:nth-child(5) { top: 48px; animation-delay: -0.55s; }
+.dna i:nth-child(6) { top: 60px; }
+.dna i:nth-child(7) { top: 72px; animation-delay: -0.825s; }
+.dna i:nth-child(8) { top: 84px; }
+
+@keyframes dnaSpin {
+  0% {
+    transform: translateX(calc(-50% - 22px)) scale(0.7);
+  }
+  50% {
+    transform: translateX(calc(-50% + 22px)) scale(1);
+  }
+  100% {
+    transform: translateX(calc(-50% - 22px)) scale(0.7);
+  }
+}
+
+/* ========== 无障碍：用户偏好减少动画时全部降级为静态 ========== */
+
+@media (prefers-reduced-motion: reduce) {
+  .ringSpinner,
+  .pulseDots span,
+  .bounceBars span,
+  .ripple span,
+  .conicSpinner,
+  .typingBubble span,
+  .skeletonAvatar,
+  .skeletonLine,
+  .skeletonBlock,
+  .dna i {
+    animation: none !important;
+  }
+
+  .card {
+    transition: none;
+  }
+}

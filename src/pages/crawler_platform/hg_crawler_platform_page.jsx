@@ -1,5 +1,5 @@
 import React, { Component, lazy, Suspense } from "react";
-import HGLoading from "../../components/hg_loading";
+import HGLoading from "../../components/hg_loading/hg_loading";
 import HGSideMenuPage from "../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../components/menu_component/hg_side_menu_vm";
 import HGCrawlerPlatformVM, { CRAWLER_MENU_ITEMS } from "./hg_crawler_platform_vm";

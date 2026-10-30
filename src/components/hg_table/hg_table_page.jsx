@@ -1,7 +1,7 @@
 import React from "react";
 import styles from "./hg_table.module.css";
 import { syncHorizontalScroll } from "./hg_table_scroll.js";
-import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll.js";
+import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
 
 /**
  * 默认行高（px）。

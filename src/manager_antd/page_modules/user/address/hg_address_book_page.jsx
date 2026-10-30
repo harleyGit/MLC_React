@@ -1,7 +1,7 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
 import HGCollectionView from "../../../../components/hg_collection_view/hg_collection_view";
-import HGLoading from "../../../../components/hg_loading";
+import HGLoading from "../../../../components/hg_loading/hg_loading";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import { hgMessage } from "../../../../components/hg_message/hg_message_page";
 import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
