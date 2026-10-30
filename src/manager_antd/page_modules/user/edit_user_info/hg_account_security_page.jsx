@@ -1,6 +1,5 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
-import { LogOut } from "../../../../logger/hg_logger";
 import HGVerifyCodeInput from "../../../../components/hg_verify_code_input";
 import HGClickCaptchaPage from "../../../../components/hg_click_captcha/hg_click_captcha_page";
 import styles from "./hg_account_security_page.module.css";
@@ -283,11 +282,10 @@ class HGAccountSecurityPage extends React.Component {
 
     this.setState({ saving: true, tips: "" });
     try {
-      const response = await HGAccountSecurityPageVM.updateAccountSecurity({
+      await HGAccountSecurityPageVM.updateAccountSecurity({
         itemKey: activeSecurityKey,
         securityForm,
       });
-      LogOut("账号安全设置响应：", response);
       const nextUserProfile = HGAccountSecurityPageVM.buildNextUserProfile(
         userProfile,
         activeSecurityKey,

@@ -1,4 +1,3 @@
-import { LogOut } from "../../../../logger/hg_logger";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
 import { hgBuildRegionLabel, hgFindCity, hgFindProvince } from "./hg_region_data";
 
@@ -27,16 +26,11 @@ export default class HGAddressBookVM {
   static listAddresses() {
     return HGNet.getAddressList()
       .then((response) => {
-        LogOut("获取收货地址列表响应：", response);
         if (!Array.isArray(response)) {
           throw new Error("收货地址列表响应异常");
         }
         return HGAddressBookVM.sortAddresses(response);
       })
-      .catch((error) => {
-        console.error("获取收货地址列表失败:", error);
-        throw error;
-      });
   }
 
   /**
@@ -45,15 +39,7 @@ export default class HGAddressBookVM {
    * @returns {Promise<Object>} 新建后的地址对象。
    */
   static createAddress(addressInput) {
-    return HGNet.createAddress(addressInput)
-      .then((response) => {
-        LogOut("新增收货地址响应：", response);
-        return response;
-      })
-      .catch((error) => {
-        console.error("新增收货地址失败:", error);
-        throw error;
-      });
+    return HGNet.createAddress(addressInput);
   }
 
   /**
@@ -63,15 +49,7 @@ export default class HGAddressBookVM {
    * @returns {Promise<boolean>} 服务端确认结果。
    */
   static updateAddress(addressId, addressInput) {
-    return HGNet.updateAddress(addressId, addressInput)
-      .then((response) => {
-        LogOut("修改收货地址响应：", response);
-        return response;
-      })
-      .catch((error) => {
-        console.error("修改收货地址失败:", error);
-        throw error;
-      });
+    return HGNet.updateAddress(addressId, addressInput);
   }
 
   /**
@@ -80,15 +58,7 @@ export default class HGAddressBookVM {
    * @returns {Promise<boolean>} 服务端确认结果。
    */
   static deleteAddress(addressId) {
-    return HGNet.deleteAddress(addressId)
-      .then((response) => {
-        LogOut("删除收货地址响应：", response);
-        return response;
-      })
-      .catch((error) => {
-        console.error("删除收货地址失败:", error);
-        throw error;
-      });
+    return HGNet.deleteAddress(addressId);
   }
 
   /**
@@ -97,15 +67,7 @@ export default class HGAddressBookVM {
    * @returns {Promise<boolean>} 服务端确认结果。
    */
   static setDefaultAddress(addressId) {
-    return HGNet.setDefaultAddress(addressId)
-      .then((response) => {
-        LogOut("设置默认地址响应：", response);
-        return response;
-      })
-      .catch((error) => {
-        console.error("设置默认地址失败:", error);
-        throw error;
-      });
+    return HGNet.setDefaultAddress(addressId);
   }
 
   /**

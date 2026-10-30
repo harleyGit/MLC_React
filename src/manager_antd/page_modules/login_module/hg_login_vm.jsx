@@ -6,7 +6,6 @@
  * @FilePath: /MLC_React/src/manager_antd/page_modules/login_module/hg_login_vm.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-import { LogOut } from "../../../logger/hg_logger";
 import { REFRESH_TOKEN_KEY, TOKEN_KEY } from "../../auth/hg_auth";
 import HGNet from "../../net_handle/hg_net_manager_vm";
 
@@ -38,7 +37,6 @@ export default class HGLoginVM {
       password,
     })
       .then((res) => {
-        LogOut("注册响应：", res);
         return res;
       })
       .catch((err) => {
@@ -59,7 +57,6 @@ export default class HGLoginVM {
       password,
     })
       .then((res) => {
-        LogOut("邮箱注册响应：", res);
         return res;
       })
       .catch((err) => {
@@ -78,7 +75,6 @@ export default class HGLoginVM {
   */
   static requestSendVerifyCode = ({ phone, verifyToken }) => {
     return HGNet.sendCode({ phone, verifyToken }).then((res) => {
-      LogOut(res);
       return res?.verifyCode;
     });
   };
@@ -91,7 +87,6 @@ export default class HGLoginVM {
   */
   static requestSendEmailVerifyCode = ({ email, verifyToken }) => {
     return HGNet.sendEmailCode({ email, verifyToken }).then((res) => {
-      LogOut(res);
       return res?.verifyCode;
     });
   };
@@ -104,7 +99,6 @@ export default class HGLoginVM {
   static requestLogin = ({ phone, password }) => {
     return HGNet.postUserLogin({ phone, password })
       .then((response) => {
-        LogOut("登录 res：", response);
         // 兼容 access token / refresh token 的常见字段命名，避免后续请求 401 直接退出。
         const accessToken =
           response?.token ?? response?.accessToken ?? response?.access_token;

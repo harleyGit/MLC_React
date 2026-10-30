@@ -17,6 +17,7 @@ class HGAddressBookPage extends React.Component {
   state = HGAddressBookVM.createInitialState();
 
   hgMounted = false; // 是否已挂载；卸载后丢弃异步响应。
+  hgRequestSeq = 0; // 地址列表请求序号；较旧响应不能覆盖较新操作结果。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -25,6 +26,7 @@ class HGAddressBookPage extends React.Component {
 
   componentWillUnmount() {
     this.hgMounted = false;
+    this.hgRequestSeq += 1;
   }
 
   /**
@@ -32,10 +34,11 @@ class HGAddressBookPage extends React.Component {
    * 约束：成功后递增 resetKey，让 HGCollectionView 丢弃旧的测量高度；失败只落页面提示，不弹全局提示。
    */
   hgLoadAddresses = () => {
+    const requestSeq = ++this.hgRequestSeq; // 本次请求版本；其他刷新启动后本次结果失效。
     this.setState({ loading: true, error: "" });
     return HGAddressBookVM.listAddresses()
       .then((addresses) => {
-        if (!this.hgMounted) return;
+        if (!this.hgMounted || requestSeq !== this.hgRequestSeq) return;
         this.setState((previousState) => ({
           addresses,
           loading: false,
@@ -43,7 +46,7 @@ class HGAddressBookPage extends React.Component {
         }));
       })
       .catch((error) => {
-        if (!this.hgMounted) return;
+        if (!this.hgMounted || requestSeq !== this.hgRequestSeq) return;
         this.setState({
           loading: false,
           error: HGAddressBookVM.errorMessage(error),
@@ -91,11 +94,13 @@ class HGAddressBookPage extends React.Component {
   handleSubmitForm = async (addressInput, options = {}) => {
     const { editingAddress } = this.state;
     const isEditing = Boolean(editingAddress);
+    let addressSaved = false; // 地址主写是否已成功；默认地址二次请求失败时不允许误导用户重提新建。
     this.setState({ formSubmitting: true, error: "" });
     try {
       const savedAddress = isEditing
         ? await HGAddressBookVM.updateAddress(editingAddress.id, addressInput)
         : await HGAddressBookVM.createAddress(addressInput);
+      addressSaved = true;
       const savedAddressId = isEditing ? editingAddress.id : savedAddress?.id;
 
       // 默认地址由独立接口维护；已有默认地址时不重复提交，避免多一次写请求。
@@ -109,7 +114,15 @@ class HGAddressBookPage extends React.Component {
       await this.hgLoadAddresses();
     } catch (error) {
       handleError(error);
-      if (this.hgMounted) this.setState({ error: HGAddressBookVM.errorMessage(error) });
+      if (this.hgMounted) {
+        if (addressSaved) {
+          this.setState({ formVisible: false, editingAddress: null, error: "地址已保存，但设置默认地址失败，请在列表中重试" });
+          await this.hgLoadAddresses();
+          if (this.hgMounted) this.setState({ error: "地址已保存，但设置默认地址失败，请在列表中重试" });
+        } else {
+          this.setState({ error: HGAddressBookVM.errorMessage(error) });
+        }
+      }
     } finally {
       if (this.hgMounted) this.setState({ formSubmitting: false });
     }
@@ -199,7 +212,7 @@ class HGAddressBookPage extends React.Component {
             <p className={styles.eyebrow}>MLC SHIPPING ADDRESS</p>
             <h1>收货地址</h1>
           </div>
-          <button type="button" className={styles.createButton} onClick={this.handleCreateClick}>
+          <button type="button" className={styles.createButton} disabled={this.state.addresses.length >= ADDRESS_MAX_COUNT} onClick={this.handleCreateClick}>
             <span aria-hidden="true">＋</span>
             新建地址
           </button>
@@ -307,7 +320,7 @@ class HGAddressBookPage extends React.Component {
     return (
       <HGCollectionView
         items={addresses}
-        getKey={(address) => address.id}
+        getKey={(address) => address.addressId || address.id}
         renderCell={this.renderAddressCard}
         loading={loading}
         hasMore={false}

@@ -1,4 +1,3 @@
-import { LogOut } from "../../../../logger/hg_logger";
 import HGNet from "../../../../manager_antd/net_handle/hg_net_manager_vm";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 
@@ -50,7 +49,6 @@ export default class HGEditUserPageVM {
   static getUserProfile = () => {
     return HGNet.getUserProfile()
       .then((response) => {
-        LogOut("获取用户信息响应：", response);
         HGUserProfileStorage.saveUserProfile(response);
         return response;
       })
@@ -80,13 +78,12 @@ export default class HGEditUserPageVM {
       avatar_url,
     })
       .then((response) => {
-        LogOut("更新用户资料响应：", response);
-        const currentProfile = HGUserProfileStorage.getUserProfile() || {};
-        HGUserProfileStorage.saveUserProfile({
-          ...currentProfile,
-          ...response,
-        });
-        return response;
+        // 响应 birth_date 是 {value,format}；展现层仍使用既有 birth_month 字符串。
+        const profileUpdate = response?.birth_date?.value
+          ? { ...response, birth_month: response.birth_date.value }
+          : response;
+        HGUserProfileStorage.patchUserProfile(profileUpdate);
+        return profileUpdate;
       })
       .catch((error) => {
         console.error("更新用户资料失败:", error);
@@ -122,7 +119,6 @@ export default class HGEditUserPageVM {
       const imageData = new Uint8Array(buffer);
       return HGNet.uploadAvatar(imageData, ext)
         .then((response) => {
-          LogOut("上传头像响应：", response);
           return response;
         })
         .catch((error) => {
@@ -140,7 +136,6 @@ export default class HGEditUserPageVM {
   static getAvatar = () => {
     return HGNet.getAvatar()
       .then((response) => {
-        LogOut("获取头像响应：", response);
         return response;
       })
       .catch((error) => {

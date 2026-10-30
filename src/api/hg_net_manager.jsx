@@ -1,4 +1,3 @@
-import { LogOut } from "../logger/hg_logger";
 import NetManager from "./HttpManagerV1";
 import { joinApiURL } from "./hg_api_url";
 
@@ -51,7 +50,6 @@ class HGNetManager {
     const url = query
       ? `${this.getFullURL(path)}?${query}` // 有参数：域名/路径?参数
       : this.getFullURL(path); // 无参数：只保留域名/路径
-    LogOut("params:", params, "query:", query, "url:", url);
     return NetManager.getWithURL(url);
   }
 

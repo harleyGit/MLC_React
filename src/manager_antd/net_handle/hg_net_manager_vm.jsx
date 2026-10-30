@@ -87,19 +87,20 @@ class HGNetManagerVM extends HGNetManager {
   // 更新用户资料
   updateUserProfile({ nickname, signature, gender, birth_month, avatar_url }) {
     const body = {};
-    if (nickname !== undefined && nickname !== "") {
+    if (nickname !== undefined) {
       body.nickname = nickname;
     }
-    if (signature !== undefined && signature !== "") {
+    if (signature !== undefined) {
       body.signature = signature;
     }
     if (gender !== undefined) {
       body.gender = gender;
     }
     if (birth_month !== undefined && birth_month !== "") {
-      body.birth_month = birth_month;
+      // Go 的 HGUpdateUserProfileReqDTO 接收带格式声明的 birth_date，而非 birth_month。
+      body.birth_date = { value: birth_month, format: /^\d{4}-\d{2}$/.test(birth_month) ? "year-month" : "date" };
     }
-    if (avatar_url !== undefined && avatar_url !== "") {
+    if (avatar_url !== undefined) {
       body.avatar_url = avatar_url;
     }
     return this.put(HGMANAGER_API.PROFILE_UPDATE, body);

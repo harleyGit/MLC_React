@@ -1,6 +1,5 @@
 import React from "react";
 import { handleError } from "../../../../api/HttpManagerV1";
-import { LogOut } from "../../../../logger/hg_logger";
 import HGLoading from "../../../../components/hg_loading";
 import HGUserProfileStorage from "../../../storage/hg_user_profile_storage";
 import styles from "./hg_edit_user_page.module.css";
@@ -130,7 +129,6 @@ class HGEditUserPage extends React.Component {
     try {
       this.setState({ loading: true });
       const response = await HGEditUserPageVM.updateUserProfile(profileData);
-      LogOut("用户资料响应数据为：", response);
       const newProfileForm = {
         nickName: response.nickname ?? profileForm.nickName,
         signature: response.signature ?? profileForm.signature,
@@ -201,7 +199,6 @@ class HGEditUserPage extends React.Component {
     try {
       this.setState({ loading: true });
       const result = await HGEditUserPageVM.uploadAvatar(this.selectedAvatarFile);
-      LogOut("头像上传结果：", result);
       const newState = {
         operationTips: result.isNew ? "头像已上传成功。" : "头像已存在，直接使用。",
       };
