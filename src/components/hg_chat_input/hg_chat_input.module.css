@@ -31,9 +31,11 @@
   cursor: pointer;
 }
 
-.toolButton svg {
-  width: 22px;
-  height: 22px;
+/* HGIconPage 图标：尺寸与颜色跟随按钮态 */
+.toolButton .toolIcon {
+  font-size: 22px;
+  color: inherit;
+  transition: color 0.2s;
 }
 
 .toolButton:hover {
@@ -121,10 +123,10 @@
   background: #06ae56;
 }
 
-/* 底部展开面板 */
+/* 底部展开面板（位于输入条下方，向上撑开） */
 .panel {
   padding: 8px 12px 14px;
-  border-bottom: 1px solid #eceef2;
+  border-top: 1px solid #eceef2;
 }
 
 /* 表情网格 */
@@ -178,9 +180,10 @@
   color: #7a8699;
 }
 
-.plusIcon svg {
-  width: 24px;
-  height: 24px;
+.plusIcon .actionIcon {
+  font-size: 24px;
+  color: inherit;
+  transition: color 0.2s;
 }
 
 .plusItem:hover .plusIcon {

@@ -7,6 +7,7 @@
  * @Description: 微信风格聊天输入框：文字/语音双模式 + 表情面板 + 圆圈加扩展面板。
  */
 import React from "react";
+import HGIconPage from "../hg_icon/hg_icon_page.jsx";
 import styles from "./hg_chat_input.module.css";
 
 /** 输入模式：文字 / 语音（内部常量，不对外导出）。 */
@@ -25,67 +26,13 @@ const EMOJI_OPTIONS = [
   "💪", "🤝", "🌹", "🎉", "🔥", "❤️", "💔", "💯",
 ];
 
-/** 圆圈加扩展面板动作：key 对应 props 中的 onSendXxx 回调。 */
+/** 圆圈加扩展面板动作：key 对应 props 中的 onSendXxx 回调与 hg_icon 图标 type。 */
 const PLUS_ACTIONS = [
-  { key: "image", label: "图片" },
-  { key: "video", label: "视频" },
-  { key: "redPacket", label: "红包" },
-  { key: "card", label: "联系人名片" },
+  { key: "image", label: "图片", icon: "image" },
+  { key: "video", label: "视频", icon: "video" },
+  { key: "redPacket", label: "红包", icon: "red-packet" },
+  { key: "card", label: "联系人名片", icon: "card" },
 ];
-
-/* 工具条图标（内联 SVG，颜色跟随 currentColor）。 */
-const ICON_MIC = (
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Z" />
-    <path d="M19.5 11a1 1 0 1 0-2 0 5.5 5.5 0 0 1-11 0 1 1 0 1 0-2 0 7.5 7.5 0 0 0 6.5 7.42V21a1 1 0 1 0 2 0v-2.58A7.5 7.5 0 0 0 19.5 11Z" />
-  </svg>
-);
-
-const ICON_KEYBOARD = (
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm2 3v2h2V9H5Zm3.5 0v2h2V9h-2Zm3.5 0v2h2V9h-2Zm3.5 0v2h2V9h-2ZM5 13v2h2v-2H5Zm3.5 0v2h7v-2h-7Zm8.5 0v2h2v-2h-2Z" />
-  </svg>
-);
-
-const ICON_EMOJI = (
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path fillRule="evenodd" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10Zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
-    <circle cx="8.8" cy="9.8" r="1.4" />
-    <circle cx="15.2" cy="9.8" r="1.4" />
-    <path d="M7.6 13.6a1 1 0 0 1 1.37.36 3.5 3.5 0 0 0 6.06 0 1 1 0 1 1 1.73 1 5.5 5.5 0 0 1-9.52 0 1 1 0 0 1 .36-1.36Z" />
-  </svg>
-);
-
-const ICON_PLUS = (
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path fillRule="evenodd" d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10Zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
-    <path d="M11 6h2v5h5v2h-5v5h-2v-5H6v-2h5V6Z" />
-  </svg>
-);
-
-/** 扩展面板各动作的图标。 */
-const PLUS_ICONS = {
-  image: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path fillRule="evenodd" d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm1 2v9.6l3.7-3.7a1 1 0 0 1 1.42 0L14 15.7l1.8-1.8a1 1 0 0 1 1.4 0L19 15.7V6H5Zm10.5 1a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6Z" />
-    </svg>
-  ),
-  video: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Zm7 3.5v7l6-3.5-6-3.5Z" />
-    </svg>
-  ),
-  redPacket: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path fillRule="evenodd" d="M4 3h16a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm3.4 1.6a12.4 12.4 0 0 0 9.2 0H7.4ZM12 9a2.4 2.4 0 1 0 0 4.8A2.4 2.4 0 0 0 12 9Zm-9 4.2V19h18v-5.8a13.9 13.9 0 0 1-8.1 2.5H11A13.9 13.9 0 0 1 3 13.2Z" />
-    </svg>
-  ),
-  card: (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm5 3.2a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4ZM5.4 17.2c.4-2.1 1.9-3.4 3.6-3.4s3.2 1.3 3.6 3.4H5.4ZM15 9.4h4V11h-4V9.4Zm0 3.4h4v1.6h-4v-1.6Z" />
-    </svg>
-  ),
-};
 
 /**
  * 微信风格聊天输入框（类组件）。
@@ -285,7 +232,9 @@ class HGChatInput extends React.Component {
                 className={styles.plusItem}
                 onClick={() => this.hgHandleAction(action.key)}
               >
-                <span className={styles.plusIcon}>{PLUS_ICONS[action.key]}</span>
+                <span className={styles.plusIcon}>
+                  <HGIconPage type={action.icon} className={styles.actionIcon} />
+                </span>
                 <span className={styles.plusLabel}>{action.label}</span>
               </button>
             ))}
@@ -322,7 +271,7 @@ class HGChatInput extends React.Component {
           title="切换到语音输入"
           onClick={() => this.hgSwitchMode(MODE_VOICE)}
         >
-          {ICON_MIC}
+          <HGIconPage type="mic" className={styles.toolIcon} />
         </button>
       );
     }
@@ -333,7 +282,7 @@ class HGChatInput extends React.Component {
         title="切换到键盘输入"
         onClick={() => this.hgSwitchMode(MODE_TEXT)}
       >
-        {ICON_KEYBOARD}
+        <HGIconPage type="keyboard" className={styles.toolIcon} />
       </button>
     );
   };
@@ -404,7 +353,7 @@ class HGChatInput extends React.Component {
         title={panel === PANEL_PLUS ? "收起" : "更多功能"}
         onClick={() => this.hgTogglePanel(PANEL_PLUS)}
       >
-        {ICON_PLUS}
+        <HGIconPage type="plus-circle" className={styles.toolIcon} />
       </button>
     );
   };
@@ -417,7 +366,6 @@ class HGChatInput extends React.Component {
     return (
       <div className={styles.root}>
         {this.renderToast()}
-        {this.renderPanel()}
         <div className={styles.inputBar}>
           {this.renderModeButton()}
           {this.renderInputBody()}
@@ -427,10 +375,12 @@ class HGChatInput extends React.Component {
             title={panel === PANEL_EMOJI ? "收起表情" : "表情"}
             onClick={() => this.hgTogglePanel(PANEL_EMOJI)}
           >
-            {ICON_EMOJI}
+            <HGIconPage type="emotion" className={styles.toolIcon} />
           </button>
           {this.renderRightActions()}
         </div>
+        {/* 表情/更多面板在输入条下方展开，撑高底部把输入框顶上来 */}
+        {this.renderPanel()}
       </div>
     );
   }
