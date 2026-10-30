@@ -14,6 +14,7 @@ const HGHomePage = lazy(() => import("../../manager_antd/page_modules/home/hg_ho
 const HGBiliContentPage = lazy(() => import("../../pages/bilibili/video_detail/hg_bili_content_page"));
 const components = {
   ABOUT: lazy(() => import("../../manager_antd/page_modules/about/hg_about_page")),
+  MESSAGE_CENTER: lazy(() => import("../../manager_antd/page_modules/message_center/hg_message_center_page")), // 消息中心：通知分类 + 私信 IM。
   PRODUCTS: lazy(() => import("../../manager_antd/page_modules/product/hg_ products_page")),
   MALL_ORDER_DETAIL: lazy(() => import("../../pages/mall/hg_mall_order_page.jsx")), // 商品订单详情独立路由。
   DEFAULT: HGHomePage,

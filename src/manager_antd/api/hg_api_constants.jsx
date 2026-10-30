@@ -126,6 +126,23 @@ export const HGMANAGER_API = {
   CRAWLER_SPIDERS: "/api/v1/crawler/spiders", // Spider 运行状态列表
   CRAWLER_TASKS: "/api/v1/crawler/tasks", // 任务 cursor 列表和手动创建任务
   CRAWLER_RECOMMENDATIONS: "/api/v1/crawler/recommendations", // 最近一次成功推荐快照
-  CRAWLER_SPIDER_START: (id) => `/api/v1/crawler/spiders/${id}/start`, // 启动指定 Spider
-  CRAWLER_SPIDER_STOP: (id) => `/api/v1/crawler/spiders/${id}/stop`, // 停止指定 Spider
+  CRAWLER_SPIDER_SWITCH_STATUS: "/api/v1/ops/crawler/spider/status", // 已鉴权的数据库期望状态
+  CRAWLER_SPIDER_START: (id) => id === "bilibili" ? "/api/v1/ops/crawler/spider/start" : "", // 已鉴权的 B 站推荐爬虫启动
+  CRAWLER_SPIDER_STOP: (id) => id === "bilibili" ? "/api/v1/ops/crawler/spider/stop" : "", // 已鉴权的 B 站推荐爬虫停止
+  // 消息中心：站内通知与私信 IM 的读写入口，路径与通知服务 HTTP 契约一致。
+  NOTIFICATION_LIST: "/api/v1/notifications", // 站内通知分页列表
+  NOTIFICATION_UNREAD: "/api/v1/notifications/unread", // 各分类未读数
+  NOTIFICATION_READ: "/api/v1/notifications/read", // 批量标记已读
+  NOTIFICATION_DELETE: "/api/v1/notifications/delete", // 用户级删除通知
+  NOTIFICATION_PREFERENCES: "/api/v1/notification/preferences", // 通知偏好读写
+  IM_CONVERSATIONS: "/api/v1/im/conversations", // 会话列表
+  IM_CONVERSATION_MESSAGES: (id) => `/api/v1/im/conversations/${encodeURIComponent(id)}/messages`, // 会话历史（按 seq 游标）
+  IM_CONVERSATION_READ: (id) => `/api/v1/im/conversations/${encodeURIComponent(id)}/read`, // 上报已读位置
+  IM_SEND: "/api/v1/im/messages", // 发送私信（clientMsgId 幂等）
+  IM_SYNC: "/api/v1/im/sync", // 断线后按游标补拉
+  IM_MEDIA_UPLOAD_TOKEN: "/api/v1/im/media/upload-token", // 获取对象存储上传凭证
+  // 运维后台：通知渠道中心。
+  ADMIN_NOTIFY_CHANNELS: "/admin/v1/notification/channels", // 渠道与 Provider 适配器状态
+  ADMIN_NOTIFY_CHANNEL_UPDATE: "/admin/v1/notification/channels/update", // 更新渠道配置
+  ADMIN_NOTIFY_DELIVERIES: "/admin/v1/notification/deliveries", // 投递任务与失败重试
 };

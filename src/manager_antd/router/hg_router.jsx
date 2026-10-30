@@ -20,6 +20,8 @@ import { hgPageNavigator } from "../../components/hg_navigation/hg_page_navigato
 
 // 首页和布局保持 eager，其余页面复用注册表中的稳定 lazy 组件。
 const HGAboutPage = getHGPageConfig(PAGE.ABOUT).component;
+// 消息中心：站内通知与私信，沿用主布局鉴权。
+const HGMessageCenterPage = getHGPageConfig(PAGE.MESSAGE_CENTER).component;
 const HGRegisterPage = getHGPageConfig(PAGE.REGISTER).component;
 const HGLoginPage = getHGPageConfig(PAGE.LOGIN).component;
 const HGForgetPasswordPage = getHGPageConfig(PAGE.FORGET_PASSWORD).component;
@@ -86,6 +88,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.ABOUT,
         element: hgLazyElement(<HGAboutPage />),
+      },
+      {
+        path: ROUTE_PATH.MESSAGE_CENTER,
+        element: hgLazyElement(<HGMessageCenterPage />, "正在加载消息中心..."),
       },
       {
         path: ROUTE_PATH.DEFAULT,

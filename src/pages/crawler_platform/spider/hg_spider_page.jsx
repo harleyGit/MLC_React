@@ -14,7 +14,11 @@ import styles from "./hg_spider_page.module.css";
 class HGSpiderPage extends Component {
   constructor(props) {
     super(props);
-    this.state = { rows: [], loading: false, actionId: "" };
+    this.state = {
+      rows: [], // 当前独立 worker 列表；空数组表示尚未加载或确实无 worker。
+      loading: false, // 是否正在读取 worker 和数据库期望状态。
+      actionId: "", // 正在提交开关的 worker ID；空字符串表示没有在途操作。
+    };
   }
 
   /** 页面挂载后读取 worker 状态。 */
@@ -43,7 +47,7 @@ class HGSpiderPage extends Component {
     this.setState({ actionId: row.id });
     HGSpiderVM[action](row.id)
       .then(() => {
-        message.success(action === "start" ? "Spider 已启动" : "Spider 已停止");
+        message.success(action === "start" ? "启动指令已保存，等待 worker 生效" : "停止指令已保存，等待 worker 生效");
         this.loadSpiders();
       })
       .catch(() => message.error("Spider 操作失败"))
@@ -53,11 +57,11 @@ class HGSpiderPage extends Component {
   /** @returns {Array<Object>} Spider 表格列配置。 */
   getColumns = () => [
     { title: "Spider", dataIndex: "name", width: 260, render: (value, row) => <div><strong>{value}</strong><small className={styles.subText}>{row.id} · {row.type}</small></div> },
-    { title: "状态", dataIndex: "status", width: 120, render: (value) => <span className={`${styles.status} ${value === "RUNNING" ? styles.running : styles.stopped}`}>{value}</span> },
+    { title: "状态", dataIndex: "status", width: 120, render: (value, row) => <span className={`${styles.status} ${value === "RUNNING" ? styles.running : styles.stopped}`}>{value}{row.desiredRunning !== (value === "RUNNING") ? "（同步中）" : ""}</span> },
     { title: "Worker", dataIndex: "workers", width: 90 }, { title: "QPS 上限", dataIndex: "qpsLimit", width: 110 },
     { title: "调度周期", dataIndex: "intervalSeconds", width: 120, render: (value) => `${value}s` },
     { title: "最后成功", dataIndex: "lastSuccessAt", width: 190, render: (value) => value && !String(value).startsWith("0001") ? new Date(value).toLocaleString() : "尚未执行" },
-    { title: "操作", dataIndex: "actions", width: 190, render: (_, row) => <HGSpacePage><HGButtonPage type="primary" size="small" disabled={row.status === "RUNNING"} loading={this.state.actionId === row.id && row.status !== "RUNNING"} onClick={() => this.runAction(row, "start")}>启动</HGButtonPage><HGButtonPage size="small" danger disabled={row.status !== "RUNNING"} onClick={() => this.runAction(row, "stop")}>停止</HGButtonPage></HGSpacePage> },
+    { title: "操作", dataIndex: "actions", width: 190, render: (_, row) => <HGSpacePage><HGButtonPage type="primary" size="small" disabled={row.desiredRunning !== false} loading={this.state.actionId === row.id && !row.desiredRunning} onClick={() => this.runAction(row, "start")}>启动</HGButtonPage><HGButtonPage size="small" danger disabled={row.desiredRunning !== true} onClick={() => this.runAction(row, "stop")}>停止</HGButtonPage></HGSpacePage> },
   ];
 
   /** @returns {React.ReactNode} Spider 管理页面。 */

@@ -3,8 +3,20 @@ import HGNet from "../../../manager_antd/net_handle/hg_net_manager_vm";
 
 /** HGSpiderVM 封装 Spider 列表和启停操作。 */
 export default class HGSpiderVM {
-  /** @returns {Promise<Object>} Spider 列表 result。 */
-  static fetchSpiders = () => HGNet.get(HGMANAGER_API.CRAWLER_SPIDERS);
+  /** @returns {Promise<Object>} Spider 实际状态与数据库期望状态合并后的列表；查询失败不伪造开关值。 */
+  static fetchSpiders = async () => {
+    // 同时读取独立进程的实际运行状态与已鉴权主服务的数据库期望状态。
+    const [spiders, switchState] = await Promise.all([
+      HGNet.get(HGMANAGER_API.CRAWLER_SPIDERS),
+      HGNet.get(HGMANAGER_API.CRAWLER_SPIDER_SWITCH_STATUS),
+    ]);
+    return {
+      ...spiders,
+      list: (spiders?.list ?? []).map((row) => row.id === switchState?.id
+        ? { ...row, desiredRunning: switchState.desiredRunning }
+        : row),
+    };
+  };
 
   /** @param {string} id Spider 标识。 @returns {Promise<Object>} 启动后的状态快照。 */
   static start = (id) => HGNet.post(HGMANAGER_API.CRAWLER_SPIDER_START(id), {});

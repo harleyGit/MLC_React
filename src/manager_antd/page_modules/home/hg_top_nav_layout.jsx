@@ -77,6 +77,8 @@ class HGTopNavLayout extends Component {
         return "products";
       case ROUTE_PATH.ABOUT:
         return "about";
+      case ROUTE_PATH.MESSAGE_CENTER:
+        return "message";
       case ROUTE_PATH.USER_PROFILE:
         return "profile";
       case ROUTE_PATH.USER_CENTER:
@@ -233,7 +235,7 @@ class HGTopNavLayout extends Component {
         items={[
           { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>首页</Link> },
           { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>商品</Link> },
-          { key: "about", label: <Link to={ROUTE_PATH.ABOUT} className={styles.menuLink}>我们</Link> },
+          { key: "message", label: <Link to={ROUTE_PATH.MESSAGE_CENTER} className={styles.menuLink}>消息中心</Link> },
           ...(this.state.hgIsAdmin ? [
             { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
             { key: "crawler", label: <Link to={ROUTE_PATH.CRAWLER_PLATFORM} className={styles.menuLink}>采集平台</Link> },

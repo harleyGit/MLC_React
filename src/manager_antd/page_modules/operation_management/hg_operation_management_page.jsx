@@ -25,6 +25,7 @@ const HGPermissionMenuPage = lazy(() => import("./hg_permission_menu_page"));
 const HGRoleCreatePage = lazy(() => import("./role_create/hg_role_create_page"));
 const HGRoleListPage = lazy(() => import("./role_list/hg_role_list_page"));
 const HGSmsTemplatePage = lazy(() => import("./sms_template/hg_sms_template_page"));
+const HGNotifyChannelPage = lazy(() => import("./notify_channel/hg_notify_channel_page"));
 const HGBilibiliTagPage = lazy(() => import("./bilibili_tag/hg_bilibili_tag_page"));
 const HGCoinOperationsPage = lazy(() => import("./coin_operations/hg_coin_operations_page"));
 const HGRechargeSkuPage = lazy(() => import("./hg_recharge_sku/hg_recharge_sku_page"));
@@ -160,7 +161,7 @@ class SystemSecurityPasswordPage extends Component {
 }
 
 /**
- * 通知模板占位页面
+ * 通知渠道占位页面
  */
 class SystemNotifyTemplatePage extends Component {
   render() {
@@ -168,20 +169,6 @@ class SystemNotifyTemplatePage extends Component {
       <div>
         <h2>通知模板</h2>
         <p className={styles.placeholderText}>通知模板配置页面内容</p>
-      </div>
-    );
-  }
-}
-
-/**
- * 通知渠道占位页面
- */
-class SystemNotifyChannelPage extends Component {
-  render() {
-    return (
-      <div>
-        <h2>通知渠道</h2>
-        <p className={styles.placeholderText}>通知渠道配置页面内容</p>
       </div>
     );
   }
@@ -227,7 +214,8 @@ const PAGE_MAP = {
   system_security_login: SystemSecurityLoginPage,
   system_security_password: SystemSecurityPasswordPage,
   system_notify_template: SystemNotifyTemplatePage,
-  system_notify_channel: SystemNotifyChannelPage,
+  // 通知渠道：模板批次的投递出口，由 notify_channel 目录下的真实类组件承载。
+  system_notify_channel: HGNotifyChannelPage,
   system_notify_sms: HGSmsTemplatePage,
   // 资源管理：文件管理入口和文件列表页面。
   resource_file: HGFileManagementPage,
