@@ -11,10 +11,10 @@ export const HG_IM_MIME = {
 /** 计算有界文件摘要后申请隔离区，不把 S3 密钥或业务 JWT 交给对象存储。 */
 export async function hgIMPrepareUpload(hgAPI, hgFile, hgKind, hgConversationID) {
   const hgMIME = hgFile.type.split(";")[0].toLowerCase(); // 录音 Blob 可能附带 codecs，签名绑定基础 MIME。
-  const hgMax = hgKind === "image" ? 10 * 1024 * 1024 : 128 * 1024 * 1024; // 与 Go 大小限制一致。
+  const hgMax = hgKind === "image" ? 10 * 1024 * 1024 : hgKind === "video" ? 300 * 1024 * 1024 : 128 * 1024 * 1024; // 与 Go 大小限制一致。
   if (!HG_IM_MIME[hgKind]?.includes(hgMIME) || hgFile.size < 1 || hgFile.size > hgMax) throw new Error("文件格式或大小不符合限制");
   if (!crypto.subtle) throw new Error("上传需要 HTTPS 或 localhost 安全上下文");
-  const hgDigest = await crypto.subtle.digest("SHA-256", await hgFile.arrayBuffer()); // 单文件内存预算最多128MiB，页面禁止并行上传。
+  const hgDigest = await crypto.subtle.digest("SHA-256", await hgFile.arrayBuffer()); // 视频可能占用至少300MiB内存，页面禁止并行上传。
   const hgHash = Array.from(new Uint8Array(hgDigest), (hgByte) => hgByte.toString(16).padStart(2, "0")).join("");
   const hgGrant = await hgAPI.hgUploadInit({ conversationId: hgConversationID, messageType: hgKind, mime: hgMIME, size: hgFile.size, sha256: hgHash });
   if (!/^[a-f0-9]{32}$/.test(hgGrant?.mediaId) || hgGrant.method !== "PUT" || hgGrant.size !== hgFile.size || hgGrant.headers?.["Content-Type"] !== hgMIME || hgGrant.headers?.["x-amz-acl"] !== "private") throw new Error("上传凭据协议不合法");
@@ -27,7 +27,7 @@ export async function hgIMPut(hgGrant, hgFile, hgSignal) {
   const hgResponse = await fetch(hgIMEndpoint(hgGrant.uploadUrl, false), {
     method: "PUT", body: hgFile, credentials: "omit", redirect: "error",
     headers: { "Content-Type": hgGrant.headers["Content-Type"], "x-amz-acl": "private" },
-    signal: AbortSignal.any([hgSignal, AbortSignal.timeout(120000)]),
+    signal: AbortSignal.any([hgSignal, AbortSignal.timeout(hgFile.size > 128 * 1024 * 1024 ? 540000 : 120000)]),
   });
   if (!hgResponse.ok) throw new Error("隔离区上传失败，可在凭据有效期内重试");
   await hgResponse.body?.cancel();
@@ -36,8 +36,8 @@ export async function hgIMPut(hgGrant, hgFile, hgSignal) {
 /** 每段重新经 Go 授权；完成后在本地生成 Blob，不把带鉴权 URL 直接赋给媒体标签。 */
 export async function hgIMReadMedia(hgAPI, hgMediaID, hgKind, hgSignal, hgProgress) {
   const hgStep = 4 * 1024 * 1024; // 单段最大4MiB，每次重新签名/鉴权。
-  const hgMax = hgKind === "image" ? 10 * 1024 * 1024 : 128 * 1024 * 1024;
-  const hgParts = []; // 单个查看器最多缓存128MiB，关闭后由组件释放 Blob URL。
+  const hgMax = hgKind === "image" ? 10 * 1024 * 1024 : hgKind === "video" ? 300 * 1024 * 1024 : 128 * 1024 * 1024;
+  const hgParts = []; // 视频查看器最多缓存300MiB，关闭后由组件释放 Blob URL。
   let hgOffset = 0; // 已确认连续字节数。
   let hgTotal = null; // 第一段确定总长，后续不可改变。
   let hgMIME = ""; // 审核后的实际类型，后续响应必须一致。
