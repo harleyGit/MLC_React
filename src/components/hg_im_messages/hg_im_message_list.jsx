@@ -24,10 +24,10 @@ class HGIMVisibleMedia extends React.Component {
   }
 }
 
-/** 虚拟行复用 DOM 容器；内部附件以 messageId 为 key，换消息时必须清理旧 Blob/请求。 */
+/** 只挂载可见行；业务 ID 保证滚动窗口移动时仍可见的媒体不会被替换或重新解码。 */
 class HGIMMessageCell extends React.Component {
-  hgNode = React.createRef(); // 当前复用槽的 DOM 节点，不持有消息内容。
-  hgObserver = null; // 行高度测量器，槽位销毁时断开。
+  hgNode = React.createRef(); // 当前消息的 DOM 节点，退出虚拟窗口后释放。
+  hgObserver = null; // 行高度测量器，消息退出虚拟窗口时断开。
 
   componentDidMount() {
     if (!globalThis.ResizeObserver) return;
@@ -42,7 +42,7 @@ class HGIMMessageCell extends React.Component {
   componentWillUnmount() { this.hgObserver?.disconnect(); }
 
   render() {
-    const hgMessage = this.props.message; // 槽位重用时只显示当前消息，不保留前一消息局部状态。
+    const hgMessage = this.props.message; // 相同 messageId 的气泡在滚动中维持媒体节点身份。
     const hgName = hgMessage.isSelf ? "我" : this.props.peerName || hgMessage.senderId || "用户"; // 协议没有头像 URL，使用文本占位。
     return <li ref={this.hgNode} className={`${styles.message} ${hgMessage.isSelf ? styles.mine : ""}`}>
       <span className={styles.avatar} aria-label={`${hgName}的头像`}>{[...String(hgName)][0] || "用"}</span>
@@ -63,7 +63,7 @@ class HGIMMessageCell extends React.Component {
   }
 }
 
-/** 有界消息窗口：下拉到顶取旧页，上拉到底取新页；可复用可见槽而不一次挂载 200 个媒体节点。 */
+/** 有界消息窗口：下拉到顶取旧页，上拉到底取新页；只挂载可见行而不一次挂载 200 个媒体节点。 */
 export default class HGIMMessageList extends React.Component {
   hgList = React.createRef(); // 原生滚动容器，窗口变化时按序号锚定原视野。
   hgResize = null; // 容器尺寸观察器，挂载时创建、卸载时断开。
@@ -234,7 +234,7 @@ export default class HGIMMessageList extends React.Component {
       onTouchStart={this.hgTouchDown} onTouchEnd={this.hgTouchUp}>
       {(this.hgRequest === "older" || this.props.loading) && <li className={styles.hint} role="status">正在加载消息…</li>}
       {hgMessages.length > 0 && <li className={styles.spacer} style={{ height: hgTopHeight }} aria-hidden="true" />}
-      {hgMessages.slice(hgStart, hgEnd).map((hgMessage, hgSlot) => <HGIMMessageCell key={hgSlot} message={hgMessage}
+      {hgMessages.slice(hgStart, hgEnd).map((hgMessage) => <HGIMMessageCell key={hgMessage.messageId} message={hgMessage}
         peerName={this.props.peerName} api={this.props.api} cache={this.hgCache} scrollRef={this.hgList}
         onDelete={this.props.onDelete} onHeight={this.hgMeasure} />)}
       {hgMessages.length > 0 && <li className={styles.spacer} style={{ height: hgBottomHeight }} aria-hidden="true" />}

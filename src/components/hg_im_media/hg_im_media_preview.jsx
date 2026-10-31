@@ -53,6 +53,17 @@ export default class HGIMMediaPreview extends React.Component {
   hgPressTimer = null; // 指针持续按住550ms才打开菜单，松开即取消。
   hgDialog = React.createRef(); // 弹窗打开后聚焦，方便键盘关闭。
 
+  constructor(hgProps) {
+    super(hgProps);
+    // 虚拟槽重新创建时直接展示当前会话缓存；不先闪回“加载”再异步创建 Blob URL。
+    if (!["image", "video"].includes(hgProps.message.messageType)) return;
+    const hgCached = hgProps.cache?.hgGet(hgProps.message.content.mediaId); // 缓存仍按原 TTL 校验，不发起未授权请求。
+    if (!hgCached) return;
+    this.hgMIME = hgCached.type;
+    this.hgURL = URL.createObjectURL(hgCached);
+    this.state = { ...this.state, hgURL: this.hgURL, hgProgress: 100 };
+  }
+
   componentDidMount() {
     this.hgMounted = true;
     if (this.props.autoLoad) void this.hgLoad();
@@ -157,19 +168,20 @@ export default class HGIMMediaPreview extends React.Component {
 
   render() {
     const hgKind = this.props.message.messageType; // 视频/图片气泡直接展示，文件需主动下载。
+    const hgVisual = hgKind === "image" || hgKind === "video"; // 预留固定预览区，加载和展示阶段保持同一气泡高度。
     return <section className={styles.panel} aria-label="私有附件查看器">
       <div className={styles.bubble} onPointerDown={this.hgStartPress} onPointerUp={this.hgStopPress}
         onPointerLeave={this.hgStopPress} onPointerCancel={this.hgStopPress} onContextMenu={this.hgContextMenu}>
         {this.state.hgURL && hgKind !== "file"
-          ? <button type="button" className={styles.mediaButton} onClick={this.hgOpen} aria-label={`放大${hgKind === "image" ? "图片" : hgKind === "video" ? "视频" : "音频"}`}>
+          ? <button type="button" className={hgVisual ? styles.mediaButton : undefined} onClick={this.hgOpen} aria-label={`放大${hgKind === "image" ? "图片" : hgKind === "video" ? "视频" : "音频"}`}>
             {this.renderMedia()}{hgKind === "video" && <span className={styles.playIcon}>▶</span>}
           </button>
-          : <button type="button" disabled={this.state.hgBusy} onClick={this.hgOpen}>
+          : <button type="button" className={hgVisual ? styles.mediaButton : undefined} disabled={this.state.hgBusy} onClick={this.hgOpen}>
             {this.state.hgBusy ? `鉴权加载 ${this.state.hgProgress}%` : hgKind === "file" ? "📄 点击下载文件" : `加载${hgKind === "video" ? "视频" : "图片"}`}
           </button>}
         <button type="button" className={styles.more} onClick={() => this.setState((hgState) => ({ hgMenu: !hgState.hgMenu }))} aria-label="附件操作">⋯</button>
       </div>
-      {this.state.hgBusy && <div role="status">{this.state.hgProgress ? `加载 ${this.state.hgProgress}%` : "鉴权加载中…"}<progress max="100" value={this.state.hgProgress || undefined} /></div>}
+      {this.state.hgBusy && <div className={hgVisual ? styles.visualProgress : undefined} role="status">{this.state.hgProgress ? `加载 ${this.state.hgProgress}%` : "鉴权加载中…"}<progress max="100" value={this.state.hgProgress || undefined} /></div>}
       {this.state.hgError && <p role="alert">{this.state.hgError}</p>}
       {this.state.hgMenu && <div className={styles.menu} role="group" aria-label="附件操作菜单">
         <button type="button" onClick={() => void this.hgDownload()}>下载</button>
