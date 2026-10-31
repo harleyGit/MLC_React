@@ -118,9 +118,15 @@ class NetAPI {
 
   // request 统一合并 token、公共 header 和业务 header，并根据请求体生成签名后发起请求。
   // 这里会避免给 GET / HEAD 塞 body，防止浏览器或服务端对请求语义判断出错。
-  async request({ url, method = "GET", headers = {}, body, timeout = 5000, _hasRetried = false }) {
+  async request({ url, method = "GET", headers = {}, body, timeout = 5000, _hasRetried = false, signal, responseType = "json", maxResponseBytes = 4 * 1024 * 1024, validateRequest }) {
+    validateRequest?.();
+    signal?.throwIfAborted();
     // 浏览器原生 API，专门用来手动中断异步请求（fetch、DOM 事件监听、流式读取等），搭配 fetch 的 signal 属性使用。
     const controller = new AbortController();
+    // 调用者生命周期取消与请求超时共同生效；刷新重试继续携带原 signal。
+    const hgAbort = () => controller.abort();
+    signal?.addEventListener("abort", hgAbort, { once: true });
+    if (signal?.aborted) controller.abort();
     const timer = setTimeout(() => controller.abort(), timeout);
     const upperMethod = method.toUpperCase();
     const authHeaders = this.getAuthHeaders();
@@ -152,32 +158,35 @@ class NetAPI {
 
     const requestBody = this.buildRequestBody(body, upperMethod, isFormData);
 
-    mergedHeaders = {
-      ...mergedHeaders,
-      "X-Signature": await this.buildSignature({
-        url,
+    try {
+      mergedHeaders = {
+        ...mergedHeaders,
+        "X-Signature": await this.buildSignature({
+          url,
+          method: upperMethod,
+          headers: mergedHeaders,
+          body,
+        }),
+      };
+
+      const fetchOptions = {
         method: upperMethod,
         headers: mergedHeaders,
-        body,
-      }),
-    };
+        signal: controller.signal,
+        ...(responseType === "bytes" ? { redirect: "error", cache: "no-store" } : {}),
+      };
 
-    const fetchOptions = {
-      method: upperMethod,
-      headers: mergedHeaders,
-      signal: controller.signal,
-    };
+      if (requestBody !== undefined) {
+        fetchOptions.body = requestBody;
+      }
 
-    if (requestBody !== undefined) {
-      fetchOptions.body = requestBody;
-    }
-
-    try {
+      validateRequest?.();
       const response = await fetch(url, fetchOptions);
-      clearTimeout(timer);
+      validateRequest?.();
 
       if (!response.ok) {
         if (response.status === 401) {
+          await response.body?.cancel();
           return this.handle401({
             url,
             method: upperMethod,
@@ -185,6 +194,7 @@ class NetAPI {
             body,
             timeout,
             _hasRetried,
+            signal, responseType, maxResponseBytes, validateRequest,
           });
         }
 
@@ -199,7 +209,29 @@ class NetAPI {
         };
       }
 
+      // 私有媒体按有界字节读取，复用 JWT 刷新/签名；超时覆盖整个响应体。
+      if (responseType === "bytes") {
+        const hgReader = response.body.getReader(); // 当前分段流，超限时主动取消。
+        const hgChunks = []; // 最大 maxResponseBytes；由媒体调用方限制为 4MiB。
+        let hgLength = 0; // 已读取字节数，防止无 Content-Length 响应无限增长。
+        try {
+          while (true) {
+            const { done, value } = await hgReader.read(); // 单次网络流片段。
+            if (done) break;
+            hgLength += value.byteLength;
+            if (hgLength > maxResponseBytes) throw new Error("媒体分段超过大小限制");
+            hgChunks.push(value);
+          }
+        } finally {
+          await hgReader.cancel().catch(() => {});
+          hgReader.releaseLock();
+        }
+        validateRequest?.();
+        return { blob: new Blob(hgChunks, { type: response.headers.get("Content-Type") || "application/octet-stream" }), headers: response.headers, status: response.status };
+      }
+
       const data = await response.json();
+      validateRequest?.();
       const { code, message, result, tid, timestamp } = data;
 
       if (this.isTokenInvalidCode(code)) {
@@ -210,6 +242,7 @@ class NetAPI {
           body,
           timeout,
           _hasRetried,
+          signal, responseType, maxResponseBytes, validateRequest,
         });
       }
 
@@ -228,6 +261,7 @@ class NetAPI {
       clearTimeout(timer);
 
       if (error.name === "AbortError") {
+        if (signal?.aborted) throw error;
         throw {
           type: "TIMEOUT",
           message: `请求超时 (${timeout}ms)`,
@@ -242,6 +276,9 @@ class NetAPI {
         type: "UNKNOWN",
         message: error.message || "未知错误",
       };
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", hgAbort);
     }
   }
 
@@ -589,6 +626,8 @@ class NetAPI {
 
   // handle401 只做一次 refresh 重试；失败后抛错给页面处理，避免请求层强制退出登录。
   async handle401(originalRequest) {
+    originalRequest?.validateRequest?.();
+    originalRequest?.signal?.throwIfAborted();
     if (originalRequest?._hasRetried) {
       throw {
         type: "AUTH_ERROR",
@@ -603,6 +642,7 @@ class NetAPI {
 
     try {
       await this.refreshTokenPromise;
+      originalRequest?.validateRequest?.();
       return this.request({
         ...originalRequest,
         _hasRetried: true,
@@ -654,6 +694,11 @@ class NetAPI {
 
     if (data.code !== 200) {
       throw { type: "AUTH_ERROR", message: data.message || "刷新 token 失败" };
+    }
+
+    // 刷新期间登出或换号时不能把旧账号 token 写回当前登录态。
+    if ((localStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem("refreshToken")) !== refreshToken) {
+      throw { type: "AUTH_ERROR", message: "登录身份已变化，已忽略旧刷新结果" };
     }
 
     localStorage.setItem(TOKEN_KEY, data?.result?.token);

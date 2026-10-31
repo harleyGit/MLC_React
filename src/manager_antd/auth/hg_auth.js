@@ -7,6 +7,7 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import HGUserProfileStorage from "../storage/hg_user_profile_storage";
+import { hgClearIMSession } from "../storage/hg_im_session";
 
 /* DEBUG环境默认值设置 */
 const env = import.meta.env;
@@ -51,8 +52,10 @@ export function isAuthenticated() {
 
 // 退出登录
 export function logout() {
+  hgClearIMSession();
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem("refreshToken");
   HGUserProfileStorage.clearUserProfile();
+  window.dispatchEvent(new Event("hg:auth-changed"));
 }

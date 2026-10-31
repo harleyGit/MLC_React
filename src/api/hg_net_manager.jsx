@@ -27,7 +27,7 @@ class HGNetManager {
    * @param {string} path - 接口相对路径
    * @param {Object} options - 额外配置
    */
-  get(path, params = {}) {
+  get(path, params = {}, options = {}) {
     /*
     query = new URLSearchParams({
       phone: "17681317668",
@@ -50,7 +50,7 @@ class HGNetManager {
     const url = query
       ? `${this.getFullURL(path)}?${query}` // 有参数：域名/路径?参数
       : this.getFullURL(path); // 无参数：只保留域名/路径
-    return NetManager.getWithURL(url);
+    return NetManager.getWithURL(url, options);
   }
 
   /**
