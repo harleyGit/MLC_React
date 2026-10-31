@@ -15,9 +15,11 @@ const PLUS_ACTIONS = [
   { key: "video", label: "视频", icon: "video" },
   { key: "audio", label: "音频", icon: "mic" },
   { key: "file", label: "文件", icon: "file" },
+  { key: "call-audio", label: "语音通话", icon: "mic", mediaType: "audio" },
+  { key: "call-video", label: "视频通话", icon: "video", mediaType: "video" },
 ];
 
-/** IM 输入：api、conversationId、onSend、onUploadChange 由首页提供，无默认值；审核通过才向 Go 发送。 */
+/** IM 输入：api、conversationId、onSend、onUploadChange、onCall、callReady 均由首页提供，无默认值；审核通过才发送附件。 */
 export default class HGChatInput extends React.Component {
   state = {
     hgDraft: "", // 当前文本草稿，不写入浏览器持久存储。
@@ -120,6 +122,18 @@ export default class HGChatInput extends React.Component {
     this.hgInput.current.accept = HG_IM_MIME[hgKind].join(",");
     this.hgInput.current.click();
     this.setState({ hgPanel: PANEL_NONE });
+  };
+
+  /** 更多面板中的通话沿用首页面板的设备鉴权及会话幂等控制，不走附件选择器。 */
+  hgStartCall = (hgMediaType) => {
+    if (this.props.disabled || this.state.hgBusy || this.state.hgRecording || this.state.hgRequestingMic) return;
+    this.setState({ hgPanel: PANEL_NONE });
+    if (!this.props.callReady) {
+      this.hgFail("当前标签页没有有效聊天设备，请退出后重新登录再发起通话。");
+      return;
+    }
+    this.setState({ hgError: "" });
+    this.props.onCall(hgMediaType);
   };
 
   /** 捕获选择文件时的会话；审核完成后仍向此会话发送，不跟随之后切换。 */
@@ -312,7 +326,7 @@ export default class HGChatInput extends React.Component {
     </div>;
   }
 
-  /** 更多仅打开受后端 MIME 白名单约束的原生文件选择器。 */
+  /** 更多面板将附件与通话分流；通话不使用文件 MIME 白名单。 */
   renderPanel() {
     const hgBlocked = this.props.disabled || this.state.hgBusy || this.hgFinishingRecording || !!this.state.hgPending || this.state.hgRecording || this.state.hgRequestingMic;
     if (this.state.hgPanel === PANEL_EMOJI) return <div className={styles.panel}>
@@ -322,7 +336,7 @@ export default class HGChatInput extends React.Component {
     </div>;
     if (this.state.hgPanel === PANEL_PLUS) return <div className={styles.panel}>
       <div className={styles.plusGrid}>{PLUS_ACTIONS.map((hgAction) =>
-        <button key={hgAction.key} type="button" className={styles.plusItem} disabled={hgBlocked || !!this.state.hgJob} onClick={() => this.hgChoose(hgAction.key)}>
+        <button key={hgAction.key} type="button" className={styles.plusItem} disabled={hgBlocked || (!hgAction.mediaType && !!this.state.hgJob)} onClick={() => hgAction.mediaType ? this.hgStartCall(hgAction.mediaType) : this.hgChoose(hgAction.key)}>
           <span className={styles.plusIcon}><HGIconPage type={hgAction.icon} className={styles.actionIcon} /></span>
           <span className={styles.plusLabel}>{hgAction.label}</span>
         </button>

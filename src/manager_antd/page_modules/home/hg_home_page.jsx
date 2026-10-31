@@ -402,6 +402,8 @@ export default class HGHomePage extends React.Component {
               api={this.hgVM.hgAPI}
               conversationId={hgSnapshot.activeId}
               onSend={(hgCommand) => this.hgVM.hgSend(hgCommand)}
+              onCall={(hgMediaType) => void this.hgCall.current?.hgCreate(hgMediaType)}
+              callReady={hgSnapshot.deviceReady}
               onUploadChange={this.hgUpdateUpload}
               disabled={!this.hgVM.hgAlive()}
             />

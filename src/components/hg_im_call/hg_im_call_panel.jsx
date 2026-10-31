@@ -15,7 +15,7 @@ class HGIMTrack extends React.Component {
   }
 }
 
-/** 通话控制面板：vm 提供已鉴权 API/设备，conversationId 为发起目标，无默认值。 */
+/** 通话控制面板：vm 提供已鉴权 API/设备，deviceReady 与 conversationId 由首页传入，无默认值；发起入口位于聊天输入框。 */
 export default class HGIMCallPanel extends React.Component {
   state = {
     hgCall: null, // 从 Go 读取的权威状态；null 时没有已知呼叫。
@@ -101,7 +101,19 @@ export default class HGIMCallPanel extends React.Component {
   };
 
   hgCreate = async (hgMediaType) => {
-    if (!this.hgAlive() || this.hgActionBusy || this.hgActive() || !this.props.vm.hgCredential) return;
+    if (!this.hgAlive() || this.hgActionBusy) return;
+    if (!this.props.deviceReady || !this.props.vm.hgCredential) {
+      this.setState({ hgError: "当前标签页没有有效聊天设备，请退出后重新登录。" });
+      return;
+    }
+    if (!this.props.conversationId || this.hgActive()) {
+      this.setState({ hgError: this.hgActive() ? "当前已有通话，请先处理本次通话。" : "请先选择单聊会话。" });
+      return;
+    }
+    if (this.hgCommand && (this.hgCommand.conversationId !== this.props.conversationId || this.hgCommand.mediaType !== hgMediaType)) {
+      this.setState({ hgError: "上次呼叫结果未确认，请回到原会话按原类型重试，不能改发给其他会话。" });
+      return;
+    }
     this.hgActionBusy = true;
     this.setState({ hgBusy: true, hgError: "" });
     this.hgCommand ||= { ...this.props.vm.hgCredential, conversationId: this.props.conversationId, mediaType: hgMediaType, requestId: crypto.randomUUID() };
@@ -201,10 +213,9 @@ export default class HGIMCallPanel extends React.Component {
   renderActions() {
     const hgCall = this.state.hgCall; // 当前已知权威状态。
     const hgCaller = hgCall?.callerId === this.props.vm.hgOwner; // 只决定按钮，实际权限由 Go 判断。
-    if (!this.hgActive()) return <>
-      <button type="button" disabled={this.state.hgBusy || !this.props.deviceReady || !this.props.conversationId} onClick={() => void this.hgCreate("audio")}>{this.state.hgRetryCreate ? "按原请求重试呼叫" : "语音通话"}</button>
-      {!this.state.hgRetryCreate && <button type="button" disabled={this.state.hgBusy || !this.props.deviceReady || !this.props.conversationId} onClick={() => void this.hgCreate("video")}>视频通话</button>}
-    </>;
+    if (!this.hgActive()) return this.state.hgRetryCreate && this.hgCommand
+      ? <button type="button" disabled={this.state.hgBusy || this.hgCommand.conversationId !== this.props.conversationId} onClick={() => void this.hgCreate(this.hgCommand.mediaType)}>按原请求重试呼叫</button>
+      : null;
     if (hgCall.state === "ringing") return hgCaller
       ? <button type="button" disabled={this.state.hgBusy} onClick={() => void this.hgAction("cancel")}>取消呼叫</button>
       : <><button type="button" disabled={this.state.hgBusy} onClick={() => void this.hgAction("accept")}>接听</button><button type="button" disabled={this.state.hgBusy} onClick={() => void this.hgAction("reject")}>拒绝</button></>;
@@ -220,7 +231,8 @@ export default class HGIMCallPanel extends React.Component {
   }
 
   render() {
-    const hgCall = this.state.hgCall; // 无呼叫时仅展示发起按钮。
+    const hgCall = this.state.hgCall; // 无呼叫、无失败状态时不占据聊天区域。
+    if (!hgCall && !this.state.hgError && !this.state.hgRetryCreate) return null;
     return <section className={styles.panel} aria-label="单聊通话">
       {hgCall && <div aria-live="polite">会话 {hgCall.conversationId} · {({ ringing: "振铃中", accepted: "业务已接听", ended: "已结束", rejected: "已拒绝", cancelled: "已取消", timeout: "已超时" })[hgCall.state]} · {this.state.hgConnection}</div>}
       <div className={styles.actions}>{this.renderActions()}</div>
