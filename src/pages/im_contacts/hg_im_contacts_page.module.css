@@ -1,0 +1,653 @@
+/*
+ * @Description: 联系人页面样式，微信电脑端视觉风格：深色导航栏 + 浅灰列表 + 白色详情区。
+ */
+
+/* 页面整体：三栏布局，适配个人中心内容区剩余高度。 */
+.pageRoot {
+  display: flex;
+  height: calc(100vh - 238px);
+  min-height: 560px;
+  border: 1px solid #e5e8ec;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  position: relative;
+}
+
+/* 左侧深色导航栏（仿微信功能栏）。 */
+.rail {
+  width: 72px;
+  flex-shrink: 0;
+  background: #2b2f33;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 18px;
+  gap: 6px;
+}
+
+.railItem {
+  position: relative;
+  width: 60px;
+  padding: 10px 0 8px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.railItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.railItemActive,
+.railItemActive:hover {
+  background: #07c160;
+}
+
+.railIcon {
+  width: 22px;
+  height: 22px;
+}
+
+.railItemActive .railIcon {
+  filter: brightness(0) invert(1);
+}
+
+.railLabel {
+  font-size: 11px;
+  color: #9aa4ad;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.railItemActive .railLabel {
+  color: #fff;
+}
+
+.railBadge {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #fa5151;
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* 中间联系人列表。 */
+.listPane {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f7f8fa;
+  border-right: 1px solid #ebedf0;
+}
+
+.searchWrap {
+  padding: 12px 12px 8px;
+}
+
+.searchInput {
+  width: 100%;
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #eef0f2;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #1f2329;
+  outline: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.searchInput::placeholder {
+  color: #a2a8b0;
+}
+
+.searchInput:focus {
+  background: #fff;
+  border-color: #07c160;
+}
+
+.listScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.listScroll::-webkit-scrollbar,
+.detailScroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.listScroll::-webkit-scrollbar-thumb,
+.detailScroll::-webkit-scrollbar-thumb {
+  background: #d9dee3;
+  border-radius: 3px;
+}
+
+.listTip {
+  margin: 0;
+  padding: 28px 16px;
+  font-size: 13px;
+  color: #909499;
+  text-align: center;
+}
+
+.section {
+  margin-top: 4px;
+}
+
+.sectionTitle {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 16px 4px;
+  font-size: 12px;
+  color: #909499;
+  background: #f7f8fa;
+}
+
+/* 列表行。 */
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.row:hover {
+  background: #eef0f2;
+}
+
+.rowActive,
+.rowActive:hover {
+  background: #d9f2e5;
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rowName {
+  font-size: 14px;
+  color: #1f2329;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowSub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #909499;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowStar {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #f5a623;
+}
+
+/* 头像。 */
+.avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 6px;
+  user-select: none;
+}
+
+.avatarMedium {
+  width: 38px;
+  height: 38px;
+  font-size: 15px;
+}
+
+.avatarLarge {
+  width: 72px;
+  height: 72px;
+  font-size: 28px;
+  border-radius: 10px;
+}
+
+.avatarSmall {
+  width: 34px;
+  height: 34px;
+  font-size: 13px;
+}
+
+/* 右侧详情区。 */
+.detailPane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  background: #fff;
+}
+
+.detailScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px 32px;
+  box-sizing: border-box;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f1f3;
+}
+
+.detailHeaderMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detailNameRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.detailName {
+  font-size: 21px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.detailMeta {
+  margin: 0;
+  font-size: 12.5px;
+  color: #909499;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.starBadge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #fdf3dd;
+  color: #d98f00;
+  font-size: 11px;
+}
+
+.blockedBadge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #fde7e7;
+  color: #d54941;
+  font-size: 11px;
+}
+
+.memberCount {
+  font-size: 13px;
+  color: #7a859f;
+}
+
+/* 资料信息卡。 */
+.infoCard {
+  margin-top: 20px;
+  background: #f7f8fa;
+  border-radius: 10px;
+  padding: 6px 18px;
+}
+
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+  padding: 9px 0;
+  border-bottom: 1px dashed #ececee;
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  width: 84px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #909499;
+}
+
+.infoValue {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: #1f2329;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.tagChip {
+  display: inline-block;
+  margin: 0 6px 4px 0;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: #e6f7ee;
+  color: #07a254;
+  font-size: 12px;
+}
+
+/* 操作按钮。 */
+.actionRow {
+  margin-top: 22px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.primaryBtn {
+  border: none;
+  border-radius: 8px;
+  background: #07c160;
+  color: #fff;
+  padding: 9px 22px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.primaryBtn:hover {
+  background: #06ad56;
+}
+
+.outlineBtn {
+  border: 1px solid #d9dee3;
+  border-radius: 8px;
+  background: #fff;
+  color: #4e5969;
+  padding: 8px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.outlineBtn:hover {
+  color: #07c160;
+  border-color: #07c160;
+}
+
+/* 危险区与二次确认。 */
+.dangerRow {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid #f0f1f3;
+  display: flex;
+  gap: 18px;
+}
+
+.dangerBtn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #d54941;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dangerBtn:hover {
+  text-decoration: underline;
+}
+
+.dangerSolidBtn {
+  border: none;
+  border-radius: 8px;
+  background: #fa5151;
+  color: #fff;
+  padding: 8px 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dangerSolidBtn:hover {
+  background: #e04343;
+}
+
+.confirmBar {
+  margin-top: 24px;
+  background: #fdf1f1;
+  border: 1px solid #f7d4d3;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.confirmText {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #b42318;
+  line-height: 1.6;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 编辑表单。 */
+.editCard {
+  margin-top: 20px;
+  background: #f7f8fa;
+  border-radius: 10px;
+  padding: 18px;
+}
+
+.editTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2329;
+  margin-bottom: 12px;
+}
+
+.editField {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.editLabel {
+  width: 56px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #7a859f;
+  line-height: 34px;
+}
+
+.editInput {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  box-sizing: border-box;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #1f2329;
+  background: #fff;
+  outline: none;
+}
+
+.editInput:focus {
+  border-color: #07c160;
+}
+
+.editInput:disabled {
+  background: #eef0f2;
+  color: #909499;
+  cursor: not-allowed;
+}
+
+.editTextarea {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #dde1e6;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1f2329;
+  background: #fff;
+  resize: vertical;
+  outline: none;
+}
+
+.editTextarea:focus {
+  border-color: #07c160;
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* 群成员网格。 */
+.memberSection {
+  margin-top: 20px;
+}
+
+.memberTitle {
+  font-size: 13px;
+  color: #7a859f;
+  margin-bottom: 10px;
+}
+
+.memberGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.memberItem {
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.memberName {
+  max-width: 100%;
+  font-size: 11px;
+  color: #4e5969;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 好友申请附言卡与提示。 */
+.messageCard {
+  margin-top: 20px;
+  background: #f7f8fa;
+  border-left: 3px solid #07c160;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.messageTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #07a254;
+  margin-bottom: 6px;
+}
+
+.messageContent {
+  margin: 0;
+  font-size: 13.5px;
+  color: #1f2329;
+  line-height: 1.7;
+}
+
+.requestTip {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #909499;
+  line-height: 1.6;
+}
+
+/* 空态。 */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.emptyIcon {
+  font-size: 40px;
+  opacity: 0.45;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 13px;
+  color: #909499;
+}
+
+/* 轻提示。 */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: rgba(31, 35, 41, 0.92);
+  color: #fff;
+  padding: 9px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+  white-space: nowrap;
+  z-index: 30;
+  animation: toastFadeIn 0.2s ease;
+}
+
+@keyframes toastFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

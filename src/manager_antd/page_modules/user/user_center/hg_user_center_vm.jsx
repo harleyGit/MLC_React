@@ -6,12 +6,13 @@
 export const USER_CENTER_MENU_KEYS = {
   UNPAID: "unpaid", // 我的订单 → 待付款（待支付与超时取消）。
   REVIEW: "review", // 我的订单 → 评价（已支付商品）。
-  MERCHANT: "merchant", // 商家入驻申请及获批后的商品、订单管理工作台。
+  MERCHANT: "merchant", // 商家中心 → 商家入驻申请及获批后的商品、订单管理工作台。
+  CONTACTS: "im_contacts", // 即时通信 → 联系人（通讯录、好友申请、群组）。
 };
 
 /**
  * 个人中心左侧菜单配置。
- * 约束：「我的订单」是分组节点，只有叶子节点会触发内容区切换。
+ * 约束：分组节点（含 children）只负责展开，只有叶子节点会触发内容区切换。
  */
 export const USER_CENTER_MENU_ITEMS = [
   {
@@ -22,7 +23,16 @@ export const USER_CENTER_MENU_ITEMS = [
       { key: USER_CENTER_MENU_KEYS.REVIEW, label: "评价" },
     ],
   },
-  { key: USER_CENTER_MENU_KEYS.MERCHANT, label: "商家入驻申请" },
+  {
+    key: "merchant_center",
+    label: "商家中心",
+    children: [{ key: USER_CENTER_MENU_KEYS.MERCHANT, label: "商家入驻申请" }],
+  },
+  {
+    key: "im",
+    label: "即时通信",
+    children: [{ key: USER_CENTER_MENU_KEYS.CONTACTS, label: "联系人" }],
+  },
 ];
 
 /**
