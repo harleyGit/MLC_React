@@ -687,6 +687,10 @@ class NetAPI {
     });
 
     if (!res.ok) {
+      // 服务端明确拒绝续签才执行本地登出；网络故障不可清除有效会话。
+      if (res.status === 401 && (localStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem("refreshToken")) === refreshToken) {
+        redirectToLogin();
+      }
       throw { type: "AUTH_ERROR", message: "刷新 token 失败" };
     }
 

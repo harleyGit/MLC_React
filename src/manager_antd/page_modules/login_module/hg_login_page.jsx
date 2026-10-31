@@ -33,6 +33,7 @@ import HGLoginHistoryStorage from "../../storage/hg_login_history_storage";
 class HGLoginPage extends Component {
   formRef = React.createRef();
   passwordInputRef = React.createRef();
+  hgSubmitting = false; // 当前登录提交中的同步锁；组件卸载或请求完成后释放，阻止双击重复登录。
 
   state = {
     loading: false,
@@ -56,6 +57,8 @@ class HGLoginPage extends Component {
    * @returns {void}
    */
   handleSubmit = (values) => {
+    if (this.hgSubmitting) return;
+    this.hgSubmitting = true;
     this.setState({ loading: true });
     HGLoginVM.requestLogin({
       phone: values.username,
@@ -64,16 +67,17 @@ class HGLoginPage extends Component {
       .then(async () => {
         const recentAccounts = HGLoginHistoryStorage.recordSuccessfulLogin(values.username);
         this.setState({ recentAccounts });
+        await HGEditUserPageVM.getUserProfile();
+        // IM 当前仅在 debug 环境注册；服务端原子替换最早设备并撤销其登录会话。
         if (import.meta.env.MODE === "debug") {
           try {
             await hgRegisterIMDevice();
           } catch (hgError) {
             message.warning(hgError?.status === 409
-              ? "登录成功，但当前账号已有 5 台活跃聊天设备；请在旧设备退出登录或撤销设备后重试。"
-              : "登录成功，但聊天设备注册失败；可进入聊天页重试。", 8000);
+              ? "登录成功，但最早的聊天设备属于旧版会话或当前会话，无法安全踢出；请在旧设备退出登录后重试。"
+              : "登录成功，但聊天设备注册失败；可重新登录重试。", 8000);
           }
         }
-        await HGEditUserPageVM.getUserProfile();
       })
       .then(() => {
         const from = getHGLoginReturn(
@@ -84,12 +88,14 @@ class HGLoginPage extends Component {
         // 仅将已校验的站内来源转换为页面目标，保留查询、路径参数和锚点。
         const target = getHGPageTarget(from) || { page: PAGE.HOME };
         this.props.pageNavigator?.open(target);
-        this.setState({ loading: false });
       })
       .catch((error) => {
-        this.setState({ loading: false });
         // 处理登录失败
         message.error(error.message);
+      })
+      .finally(() => {
+        this.hgSubmitting = false;
+        this.setState({ loading: false });
       });
   };
 

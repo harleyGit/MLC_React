@@ -7,7 +7,7 @@
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 import { hgMessage as message } from '../components/hg_message/hg_message_page';
-import HGUserProfileStorage from '../manager_antd/storage/hg_user_profile_storage';
+import { logout } from '../manager_antd/auth/hg_auth';
 
 /**
  * 错误提示（红）
@@ -47,8 +47,7 @@ export function showSuccess(msg) {
  */
 export function redirectToLogin() {
     // 清理本地登录态
-    localStorage.removeItem("manager_token");
-    HGUserProfileStorage.clearUserProfile();
+    logout(); // 同时清除 refresh token 与 IM 凭据，防止被踢会话仍以旧刷新令牌重试。
   
     // 带回跳地址
     const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
