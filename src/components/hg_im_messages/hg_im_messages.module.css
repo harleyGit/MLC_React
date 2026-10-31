@@ -1,10 +1,15 @@
 .list { list-style: none; margin: 0; padding: 16px; flex: 1; min-height: 100px; overflow-y: auto; overscroll-behavior: contain; }
-.message { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin-bottom: 16px; }
-.mine { align-items: flex-end; }
-.bubble { max-width: 85%; padding: 10px 14px; border-radius: 8px; background: #fff; color: #1f2937; white-space: pre-wrap; overflow-wrap: anywhere; }
+.message { display: flex; align-items: flex-start; gap: 9px; padding-bottom: 16px; min-width: 0; }
+.mine { flex-direction: row-reverse; }
+.avatar { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 5px; background: #fff; color: #475569; font-size: 16px; font-weight: 600; overflow: hidden; }
+.mine .avatar { background: #89b7f5; color: #fff; }
+.messageBody { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 47px); gap: 5px; }
+.mine .messageBody { align-items: flex-end; }
+.bubble { max-width: 100%; padding: 10px 14px; border-radius: 8px; background: #fff; color: #1f2937; white-space: pre-wrap; overflow-wrap: anywhere; }
 .mine .bubble { background: #d3ebff; }
-.message small { color: #64748b; font-size: 11px; overflow-wrap: anywhere; max-width: 90%; }
+.message small { color: #64748b; font-size: 11px; overflow-wrap: anywhere; max-width: 100%; }
 .bubble button { cursor: pointer; border: 1px solid #b7c8df; background: white; padding: 5px 8px; border-radius: 5px; margin-right: 5px; }
-.empty { color: #64748b; text-align: center; margin: 24px; }
+.empty, .hint { color: #64748b; text-align: center; padding: 8px; }
+.spacer { padding: 0; margin: 0; border: 0; pointer-events: none; }
 .localMedia { display: block; max-width: min(280px, 62vw); max-height: 220px; object-fit: contain; margin-bottom: 6px; }
 .bubble progress { display: block; max-width: 100%; margin-top: 6px; }

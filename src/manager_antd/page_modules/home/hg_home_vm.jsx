@@ -259,9 +259,9 @@ export default class HGHomeVM {
     } finally { if (this.hgLoadingSelection === hgSelection) this.hgLoadingSelection = null; }
   }
 
-  /** 历史页替换当前窗口；不会把早期消息持续堆入内存，也不自动上报已读。 */
+  /** 按 seq 连续拼接历史页，裁剪另一端保持 200 条内存窗口；历史浏览不自动上报已读。 */
   async hgHistory(hgDirection) {
-    if (this.hgState.loading || !this.hgState.activeId) return;
+    if (this.hgState.loading || !this.hgState.activeId) return 0;
     if (hgDirection === "latest") return this.hgSelect(this.hgState.activeId);
     const hgID = this.hgState.activeId; // 固定此次翻页目标。
     const hgVersion = ++this.hgSelection; // 使正在轮询的响应失效。
@@ -270,7 +270,23 @@ export default class HGHomeVM {
     await this.hgEmit({ loading: true });
     try {
       const hgList = hgIMMessages(await this.hgAPI.hgMessages(hgID, hgAfter));
-      if (hgVersion === this.hgSelection && hgList.length) await this.hgEmit({ messages: hgList });
+      if (hgVersion !== this.hgSelection || !this.hgAlive()) return 0;
+      let hgExpected = hgAfter; // 翻页仍按连续 seq 验证，不能因服务端缺页跳过未展示消息。
+      for (const hgItem of hgList) {
+        if (hgItem.seq !== ++hgExpected) throw new Error("消息序号不连续，请重新同步");
+      }
+      const hgCurrent = this.hgState.messages; // 可能已有实时响应；只接受同会话同版本数据。
+      const hgEdge = hgDirection === "older" ? hgCurrent[0]?.seq : hgCurrent.at(-1)?.seq; // 本次需要紧邻的序号。
+      const hgAdjacent = hgDirection === "older" ? hgList.filter((hgItem) => hgItem.seq < hgEdge) : hgList.filter((hgItem) => hgItem.seq > hgEdge);
+      if (hgAdjacent.length && (hgDirection === "older" ? hgAdjacent.at(-1).seq !== hgEdge - 1 : hgAdjacent[0].seq !== hgEdge + 1)) throw new Error("消息序号不连续，请重新同步");
+      if (hgAdjacent.length) {
+        const hgMessages = (hgDirection === "older" ? [...hgAdjacent, ...hgCurrent].slice(0, 200) : [...hgCurrent, ...hgAdjacent].slice(-200)); // 有界窗口。
+        const hgLastSeq = this.hgState.conversations.find((hgItem) => hgItem.conversationId === hgID)?.lastSeq || 0;
+        this.hgFollow = hgDirection === "newer" && hgMessages.at(-1)?.seq >= hgLastSeq;
+        if (this.hgFollow) this.hgWindowAfter = hgMessages.at(-1).seq;
+        await this.hgEmit({ messages: hgMessages });
+      }
+      return hgAdjacent.length;
     } finally { if (hgVersion === this.hgSelection) await this.hgEmit({ loading: false }); }
   }
 

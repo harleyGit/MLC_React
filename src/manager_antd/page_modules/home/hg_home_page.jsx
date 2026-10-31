@@ -346,34 +346,6 @@ export default class HGHomePage extends React.Component {
             <div className={styles.historyControls}>
               <button
                 type="button"
-                disabled={
-                  hgSnapshot.loading ||
-                  !hgSnapshot.messages.length ||
-                  hgSnapshot.messages[0].seq <= 1
-                }
-                onClick={() =>
-                  void this.hgRun(
-                    () => this.hgVM.hgHistory("older"),
-                    "历史翻页"
-                  )
-                }
-              >
-                更早50条
-              </button>
-              <button
-                type="button"
-                disabled={hgSnapshot.loading}
-                onClick={() =>
-                  void this.hgRun(
-                    () => this.hgVM.hgHistory("newer"),
-                    "历史翻页"
-                  )
-                }
-              >
-                更晚50条
-              </button>
-              <button
-                type="button"
                 disabled={hgSnapshot.loading}
                 onClick={() =>
                   void this.hgRun(
@@ -395,6 +367,11 @@ export default class HGHomePage extends React.Component {
             <HGIMMessageList
               key={hgSnapshot.activeId}
               messages={hgSnapshot.messages}
+              latestSeq={hgConversation.lastSeq}
+              loading={hgSnapshot.loading}
+              onHistory={(hgDirection) => this.hgVM.hgHistory(hgDirection)}
+              onHistoryError={(hgError) => this.hgVM.hgError(hgError, "历史翻页")}
+              peerName={hgConversation.peer.name}
               upload={this.state.hgUpload?.conversationId === hgSnapshot.activeId ? this.state.hgUpload : null}
               api={this.hgVM.hgAPI}
               onDelete={this.hgDeleteMedia}

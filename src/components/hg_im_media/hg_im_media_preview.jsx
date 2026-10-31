@@ -2,6 +2,38 @@ import React from "react";
 import { hgIMReadMedia } from "../../manager_antd/net_handle/hg_im_media";
 import styles from "./hg_im_media.module.css";
 
+/** 仅当前聊天列表会话内存复用已鉴权字节；LRU 最多 12 件/320MiB、五分钟，离开会话即清空。 */
+export class HGIMMediaCache {
+  hgEntries = new Map(); // mediaId -> {blob, expires}；不写磁盘、不跨账号共享。
+  hgBytes = 0; // 当前缓存的 Blob 字节总数，不包含正在显示或下载的额外临时内存。
+  hgLimit = 320 * 1024 * 1024; // 允许保留一段 300MiB 视频；超过上限不缓存。
+
+  hgGet(hgID) {
+    const hgEntry = this.hgEntries.get(hgID); // 过期或撤销后必须重新向 Go 鉴权。
+    if (!hgEntry) return null;
+    if (hgEntry.expires <= Date.now()) { this.hgDelete(hgID); return null; }
+    this.hgEntries.delete(hgID);
+    this.hgEntries.set(hgID, hgEntry);
+    return hgEntry.blob;
+  }
+
+  hgSet(hgID, hgBlob) {
+    this.hgDelete(hgID);
+    if (hgBlob.size > this.hgLimit) return;
+    this.hgEntries.set(hgID, { blob: hgBlob, expires: Date.now() + 5 * 60 * 1000 });
+    this.hgBytes += hgBlob.size;
+    while (this.hgBytes > this.hgLimit || this.hgEntries.size > 12) this.hgDelete(this.hgEntries.keys().next().value);
+  }
+
+  hgDelete(hgID) {
+    const hgEntry = this.hgEntries.get(hgID); // 仅移除缓存；已打开的 Blob URL 由查看器卸载/撤销释放。
+    if (hgEntry) this.hgBytes -= hgEntry.blob.size;
+    this.hgEntries.delete(hgID);
+  }
+
+  hgClear() { this.hgEntries.clear(); this.hgBytes = 0; }
+}
+
 /** 单条已发送附件：api/message/onDelete 由列表提供；仅图片/视频进入视口后自动读取。 */
 export default class HGIMMediaPreview extends React.Component {
   state = {
@@ -27,6 +59,7 @@ export default class HGIMMediaPreview extends React.Component {
   }
 
   componentDidUpdate(hgPrevious, hgState) {
+    if (this.props.autoLoad && !hgPrevious.autoLoad) void this.hgLoad();
     if (this.state.hgExpanded && !hgState.hgExpanded) this.hgDialog.current?.focus();
   }
 
@@ -44,10 +77,12 @@ export default class HGIMMediaPreview extends React.Component {
     this.hgLoading = true;
     this.setState({ hgBusy: true, hgError: "" });
     try {
-      const hgBlob = await hgIMReadMedia(this.props.api, this.props.message.content.mediaId, this.props.message.messageType,
+      const hgCached = this.props.cache?.hgGet(this.props.message.content.mediaId); // 命中不延长原鉴权有效期。
+      const hgBlob = hgCached || await hgIMReadMedia(this.props.api, this.props.message.content.mediaId, this.props.message.messageType,
         AbortSignal.any([this.hgController.signal, this.props.api.hgOptions.signal]),
         (hgProgress) => this.hgMounted && this.setState({ hgProgress }));
       if (!this.hgMounted || this.hgController.signal.aborted) return "";
+      if (!hgCached) this.props.cache?.hgSet(this.props.message.content.mediaId, hgBlob);
       this.hgMIME = hgBlob.type;
       this.hgURL = URL.createObjectURL(hgBlob);
       this.setState({ hgURL: this.hgURL, hgProgress: 100 });
@@ -81,6 +116,7 @@ export default class HGIMMediaPreview extends React.Component {
     this.hgDeleting = true;
     try {
       if (await this.props.onDelete(this.props.message)) {
+        this.props.cache?.hgDelete(this.props.message.content.mediaId);
         this.hgController.abort();
         if (this.hgURL) URL.revokeObjectURL(this.hgURL);
         this.hgURL = "";
