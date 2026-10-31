@@ -20,10 +20,12 @@ import { hgMessage as message } from "../../../components/hg_message/hg_message_
 import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
 import { hgGetAdminStatus } from "../../auth/hg_admin_status";
 import styles from "./hg_top_nav_layout.module.css";
+import { HG_IM_CONNECTION_EVENT, HG_IM_RECONNECT_EVENT } from "./hg_im_connection_events";
 
 class HGTopNavLayout extends Component {
   hgMounted = false; // 页面挂载标记；卸载后忽略延迟返回的管理员状态。
   hgLoggingOut = false; // 退出请求进行中，防止重复撤销和清空后续账号的登录态。
+  hgConnectionOwner = ""; // 上一次连接状态所属账号；切换账号时不沿用旧状态。
   /**
    * 构造函数：初始化当前导航选中态和头像浮层状态，并创建浮层容器引用。
    */
@@ -33,6 +35,7 @@ class HGTopNavLayout extends Component {
       current: this.getCurrentPage(),
       showUserDropdown: false,
       hgIsAdmin: false, // 后端确认有效管理员前一律隐藏运维和采集入口。
+      hgChatFailed: false, // 仅当前账号实时连接最终失败时标红；HTTP 补拉仍可用。
     };
     this.avatarMenuRef = React.createRef();
   }
@@ -45,6 +48,8 @@ class HGTopNavLayout extends Component {
     this.updateCurrentPage();
     document.addEventListener("mousedown", this.handleDocumentClick);
     this.hgMounted = true;
+    window.addEventListener(HG_IM_CONNECTION_EVENT, this.hgOnChatConnection);
+    window.addEventListener("hg:auth-changed", this.hgResetChatConnection);
     hgGetAdminStatus().then((hgIsAdmin) => { if (this.hgMounted) this.setState({ hgIsAdmin }); }).catch(() => {});
   }
 
@@ -64,6 +69,8 @@ class HGTopNavLayout extends Component {
    */
   componentWillUnmount() {
     this.hgMounted = false;
+    window.removeEventListener(HG_IM_CONNECTION_EVENT, this.hgOnChatConnection);
+    window.removeEventListener("hg:auth-changed", this.hgResetChatConnection);
     document.removeEventListener("mousedown", this.handleDocumentClick);
   }
 
@@ -116,6 +123,26 @@ class HGTopNavLayout extends Component {
    */
   handleClick = (e) => {
     this.setState({ current: e.key });
+    // 从其他路由进入时新页面会自动建连；仅同路由点击才通知存活的 VM，避免重复建连。
+    if (e.key === "home" && this.props.location?.pathname === ROUTE_PATH.HOME && import.meta.env.MODE === "debug") {
+      window.dispatchEvent(new Event(HG_IM_RECONNECT_EVENT));
+    }
+  };
+
+  /** 只接受当前账号的安全状态文案；一次失败只弹一次 toast，恢复后清除红色。 */
+  hgOnChatConnection = (hgEvent) => {
+    const { owner, state, reason } = hgEvent.detail || {};
+    if (!owner || owner !== hgIMOwner()) return;
+    this.hgConnectionOwner = owner;
+    const hgFailed = state === "failed";
+    if (hgFailed && !this.state.hgChatFailed) message.error(reason || "聊天实时连接失败，HTTP 补拉仍可用", 8000);
+    if (hgFailed || state === "connected" || state === "idle") this.setState({ hgChatFailed: hgFailed });
+  };
+
+  /** 账号或聊天页关闭时清理旧账号的连接提示。 */
+  hgResetChatConnection = () => {
+    this.hgConnectionOwner = "";
+    if (this.hgMounted) this.setState({ hgChatFailed: false });
   };
 
   /**
@@ -253,7 +280,7 @@ class HGTopNavLayout extends Component {
         onClick={this.handleClick}
         className={styles.topMenu}
         items={[
-          { key: "home", label: <Link to={ROUTE_PATH.HOME} className={styles.menuLink}>Chat</Link> },
+          { key: "home", label: <Link to={ROUTE_PATH.HOME} className={`${styles.menuLink} ${this.state.hgChatFailed && this.hgConnectionOwner === hgIMOwner() ? styles.menuLinkFailed : ""}`}>Chat</Link> },
           { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>商品</Link> },
           { key: "message", label: <Link to={ROUTE_PATH.MESSAGE_CENTER} className={styles.menuLink}>消息中心</Link> },
           ...(this.state.hgIsAdmin ? [

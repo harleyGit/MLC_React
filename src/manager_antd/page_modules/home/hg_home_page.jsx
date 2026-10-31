@@ -6,6 +6,7 @@ import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
 import styles from "./hg_home.module.css";
 import HGHomeVM from "./hg_home_vm";
+import { HG_IM_RECONNECT_EVENT } from "./hg_im_connection_events";
 
 /** 真实单聊首页；pageNavigator 由既有导航框架注入，无默认值。 */
 export default class HGHomePage extends React.Component {
@@ -39,6 +40,7 @@ export default class HGHomePage extends React.Component {
     );
     window.addEventListener("storage", this.hgCheckOwner);
     window.addEventListener("hg:auth-changed", this.hgCheckOwner);
+    window.addEventListener(HG_IM_RECONNECT_EVENT, this.hgReconnect);
     window.addEventListener("online", this.hgWake);
     document.addEventListener("visibilitychange", this.hgWake);
     void this.hgVM.hgStart();
@@ -50,6 +52,7 @@ export default class HGHomePage extends React.Component {
     this.hgVM?.hgClose();
     window.removeEventListener("storage", this.hgCheckOwner);
     window.removeEventListener("hg:auth-changed", this.hgCheckOwner);
+    window.removeEventListener(HG_IM_RECONNECT_EVENT, this.hgReconnect);
     window.removeEventListener("online", this.hgWake);
     document.removeEventListener("visibilitychange", this.hgWake);
   }
@@ -73,6 +76,11 @@ export default class HGHomePage extends React.Component {
       this.hgVM?.hgSchedule();
       void this.hgCall.current?.hgRefresh();
     }
+  };
+
+  /** 顶栏再次点击 Chat 时复用当前 VM；首次进页由 hgStart 自动连接。 */
+  hgReconnect = () => {
+    if (this.hgVM?.hgAlive()) void this.hgVM.hgReconnect();
   };
 
   /** 操作统一捕获失败，具体服务端错误由 VM 映射，不把原始秘密响应带入 UI。 */
@@ -283,13 +291,6 @@ export default class HGHomePage extends React.Component {
         <span role="status">{hgSnapshot?.realtime || "初始化中"}</span>
         <button type="button" onClick={() => this.hgVM.hgSchedule()}>
           同步消息
-        </button>
-        <button
-          type="button"
-          disabled={!hgSnapshot?.deviceReady}
-          onClick={() => void this.hgVM.hgReconnect()}
-        >
-          重连实时
         </button>
         {(hgSnapshot?.error || this.state.hgNotice) && (
           <p role="alert">
