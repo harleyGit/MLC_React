@@ -6,6 +6,8 @@
   position: relative;
   border-top: 1px solid #e5e6eb;
   background: #f7f8fa;
+  max-height: 45vh;
+  overflow-y: auto;
 }
 
 /* 输入条 */
@@ -57,6 +59,7 @@
 /* 文字输入框 */
 .input {
   flex: 1;
+  min-width: 0;
   height: 40px;
   padding: 9px 10px;
   border: 1px solid #dfe3ea;
@@ -87,6 +90,7 @@
 /* 按住说话按钮 */
 .holdButton {
   flex: 1;
+  min-width: 0;
   height: 40px;
   border: 1px solid #dfe3ea;
   border-radius: 8px;
@@ -194,6 +198,38 @@
 .plusLabel {
   font-size: 12px;
   color: #5c6675;
+}
+
+/* 审核、撤销和失败幂等命令保留在输入条上方，切换会话也可见。 */
+.job {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 12px;
+  padding: 6px;
+  background: #eef5ff;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.job button {
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  padding: 6px 9px;
+}
+
+.job button:disabled, .root button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 8px 12px;
+  color: #b42318;
+  font-size: 13px;
 }
 
 /* 短提示浮层 */

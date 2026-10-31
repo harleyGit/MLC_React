@@ -1,6 +1,6 @@
 import React from "react";
+import HGChatInput from "../../../components/hg_chat_input/hg_chat_input";
 import HGIMCallPanel from "../../../components/hg_im_call/hg_im_call_panel";
-import HGIMComposer from "../../../components/hg_im_composer/hg_im_composer";
 import HGIMMediaPreview from "../../../components/hg_im_media/hg_im_media_preview";
 import HGIMMessageList from "../../../components/hg_im_messages/hg_im_message_list";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
@@ -399,7 +399,7 @@ export default class HGHomePage extends React.Component {
                 onClose={() => this.setState({ hgPreview: null })}
               />
             )}
-            <HGIMComposer
+            <HGChatInput
               api={this.hgVM.hgAPI}
               conversationId={hgSnapshot.activeId}
               onSend={(hgCommand) => this.hgVM.hgSend(hgCommand)}
