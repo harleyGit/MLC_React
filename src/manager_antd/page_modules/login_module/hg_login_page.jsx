@@ -68,13 +68,16 @@ class HGLoginPage extends Component {
         const recentAccounts = HGLoginHistoryStorage.recordSuccessfulLogin(values.username);
         this.setState({ recentAccounts });
         await HGEditUserPageVM.getUserProfile();
-        // IM 当前仅在 debug 环境注册；服务端原子替换最早设备并撤销其登录会话。
+        // IM 当前仅在 debug 环境注册；服务端按设备归属选择替换路径，旧版设备无法撤销其登录会话。
         if (import.meta.env.MODE === "debug") {
           try {
-            await hgRegisterIMDevice();
+            const hgCredential = await hgRegisterIMDevice(); // 旧版设备替换结果；普通注册不额外提示。
+            if (hgCredential.legacyReplaced) {
+              message.warning("已替换最早的旧版聊天设备，但旧登录会话仍可使用其他功能；请在旧设备自行退出登录。", 8000);
+            }
           } catch (hgError) {
             message.warning(hgError?.status === 409
-              ? "登录成功，但最早的聊天设备属于旧版会话或当前会话，无法安全踢出；请在旧设备退出登录后重试。"
+              ? "登录成功，但聊天设备已达上限或状态冲突；请在旧设备退出登录后重试。"
               : "登录成功，但聊天设备注册失败；可重新登录重试。", 8000);
           }
         }

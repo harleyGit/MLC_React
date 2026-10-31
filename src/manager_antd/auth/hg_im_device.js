@@ -16,10 +16,11 @@ export async function hgRegisterIMDevice() {
   const hgStoredSessionID = hgPrevious.sessionID; // 空值表示旧版设备，没有可验证的会话归属。
   if (hgValidCredential(hgStored) && hgStoredSessionID === hgSessionID && hgSessionID) return hgStored;
   if (hgValidCredential(hgStored)) await hgRevokeIMDevice(true); // 先撤销本标签页旧设备，失败则不额外占用名额。
-  const hgCredential = await new HGIMAPI(new AbortController().signal).hgRegister();
+  const hgResponse = await new HGIMAPI(new AbortController().signal).hgRegister(); // legacyReplaced 仅用于提示，不属于设备凭据协议。
+  const hgCredential = { deviceId: hgResponse?.deviceId, secret: hgResponse?.secret }; // 待确认后仅保存两项服务端签发的秘密。
   if (!hgValidCredential(hgCredential) || hgIMOwner() !== hgOwner || hgIMSessionID() !== hgSessionID) throw new Error("设备注册响应或账号状态已变化");
   hgIMSession(hgOwner, { credential: hgCredential, sessionID: hgSessionID });
-  return hgCredential;
+  return { ...hgCredential, legacyReplaced: hgResponse?.legacyReplaced === true };
 }
 
 /** 登出前撤销本标签页已知设备；失败向上传递，不假装服务端已释放额度。 */
