@@ -1,7 +1,6 @@
 import React from "react";
 import HGChatInput from "../../../components/hg_chat_input/hg_chat_input";
 import HGIMCallPanel from "../../../components/hg_im_call/hg_im_call_panel";
-import HGIMMediaPreview from "../../../components/hg_im_media/hg_im_media_preview";
 import HGIMMessageList from "../../../components/hg_im_messages/hg_im_message_list";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
@@ -19,7 +18,7 @@ export default class HGHomePage extends React.Component {
     hgSearch: "", // 仅过滤当前已加载会话，不冒充服务端全量搜索。
     hgPeer: "", // 用户明确输入的对方 userId。
     hgCreating: false, // 创建单聊中的按钮状态。
-    hgPreview: null, // 当前唯一媒体查看器；关闭/切换后释放 Blob。
+    hgUpload: null, // 仅发送方本机的待审核气泡；null 表示没有未同步完的附件。
     hgNotice: "", // 页面操作结果或权限错误。
     hgInvalidOwner: false, // 账号切换/退出时清空聊天 DOM 和媒体设备。
   };
@@ -47,6 +46,7 @@ export default class HGHomePage extends React.Component {
 
   componentWillUnmount() {
     this.hgMounted = false;
+    if (this.state.hgUpload?.url) URL.revokeObjectURL(this.state.hgUpload.url);
     this.hgVM?.hgClose();
     window.removeEventListener("storage", this.hgCheckOwner);
     window.removeEventListener("hg:auth-changed", this.hgCheckOwner);
@@ -57,10 +57,11 @@ export default class HGHomePage extends React.Component {
   hgCheckOwner = () => {
     if (this.hgVM && !this.hgVM.hgAlive()) {
       this.hgVM.hgClose();
+      if (this.state.hgUpload?.url) URL.revokeObjectURL(this.state.hgUpload.url);
       if (this.hgMounted)
         this.setState({
           hgSnapshot: null,
-          hgPreview: null,
+          hgUpload: null,
           hgInvalidOwner: true,
         });
     }
@@ -84,8 +85,32 @@ export default class HGHomePage extends React.Component {
   };
 
   hgSelect = (hgID) => {
-    this.setState({ hgPreview: null });
     void this.hgRun(() => this.hgVM.hgSelect(hgID), "读取会话");
+  };
+
+  /** 切换会话时保留原会话的本机待发送气泡；确认消息进入窗口后释放本地预览。 */
+  componentDidUpdate() {
+    const hgUpload = this.state.hgUpload; // sent 仍等待连续补拉，不提前冒充已展示消息。
+    if (hgUpload?.state === "sent" && this.state.hgSnapshot?.messages.some((hgMessage) => hgMessage.messageId === hgUpload.messageId)) {
+      this.hgUpdateUpload(null);
+    }
+  }
+
+  hgUpdateUpload = (hgUpdate) => {
+    if (!this.hgMounted) return;
+    if (!hgUpdate) {
+      if (this.state.hgUpload?.url) URL.revokeObjectURL(this.state.hgUpload.url);
+      this.setState({ hgUpload: null });
+      return;
+    }
+    if (hgUpdate.file) {
+      if (this.state.hgUpload?.url) URL.revokeObjectURL(this.state.hgUpload.url);
+      const hgURL = ["image", "video"].includes(hgUpdate.messageType) ? URL.createObjectURL(hgUpdate.file) : ""; // 只用于本机未审核预览。
+      this.setState({ hgUpload: { ...hgUpdate, url: hgURL, fileName: hgUpdate.file.name || "录音", file: undefined } });
+    } else {
+      this.setState((hgPrevious) => hgPrevious.hgUpload?.clientMsgId === hgUpdate.clientMsgId
+        ? { hgUpload: { ...hgPrevious.hgUpload, ...hgUpdate } } : null);
+    }
   };
 
   hgCreate = async (hgEvent) => {
@@ -125,11 +150,12 @@ export default class HGHomePage extends React.Component {
       await this.hgVM.hgAPI.hgMediaDelete(hgMessage.content.mediaId);
       if (this.hgMounted)
         this.setState({
-          hgPreview: null,
           hgNotice: "附件已撤销，后续读取将被拒绝；当前配额尚不自动返还。",
         });
+      return true;
     } catch (hgError) {
       this.hgVM.hgError(hgError, "撤销附件");
+      return false;
     }
   };
 
@@ -388,21 +414,15 @@ export default class HGHomePage extends React.Component {
             <HGIMMessageList
               key={hgSnapshot.activeId}
               messages={hgSnapshot.messages}
-              onPreview={(hgMessage) => this.setState({ hgPreview: hgMessage })}
+              upload={this.state.hgUpload?.conversationId === hgSnapshot.activeId ? this.state.hgUpload : null}
+              api={this.hgVM.hgAPI}
               onDelete={this.hgDeleteMedia}
             />
-            {this.state.hgPreview && (
-              <HGIMMediaPreview
-                key={this.state.hgPreview.content.mediaId}
-                api={this.hgVM.hgAPI}
-                message={this.state.hgPreview}
-                onClose={() => this.setState({ hgPreview: null })}
-              />
-            )}
             <HGChatInput
               api={this.hgVM.hgAPI}
               conversationId={hgSnapshot.activeId}
               onSend={(hgCommand) => this.hgVM.hgSend(hgCommand)}
+              onUploadChange={this.hgUpdateUpload}
               disabled={!this.hgVM.hgAlive()}
             />
           </>

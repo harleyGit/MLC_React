@@ -1,4 +1,13 @@
-.panel { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; overflow: auto; max-height: 45vh; }
-.panel header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.panel button, .panel a { cursor: pointer; padding: 6px 10px; }
-.media { display: block; max-width: 100%; max-height: 34vh; object-fit: contain; }
+.panel { position: relative; max-width: min(320px, 70vw); }
+.panel button { cursor: pointer; border: 1px solid #b7c8df; background: white; padding: 5px 8px; border-radius: 5px; }
+.bubble { position: relative; display: flex; align-items: flex-start; gap: 4px; touch-action: pan-y; }
+.panel .mediaButton { position: relative; padding: 0; overflow: hidden; background: #f1f5f9; }
+.media { display: block; max-width: min(280px, 62vw); max-height: 220px; object-fit: contain; }
+.playIcon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; padding: 8px 12px; background: #0009; color: white; pointer-events: none; }
+.panel .more { align-self: flex-start; min-width: 32px; }
+.menu { position: relative; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; }
+.menu::before { content: ""; position: absolute; top: -6px; left: 15px; width: 10px; height: 10px; transform: rotate(45deg); background: white; border-top: 1px solid #cbd5e1; border-left: 1px solid #cbd5e1; }
+.panel progress { display: block; max-width: 100%; }
+.overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: #000b; padding: 20px; }
+.dialog { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; max-width: 95vw; max-height: 95vh; overflow: auto; background: #111; padding: 12px; border-radius: 8px; }
+.largeMedia { display: block; max-width: min(90vw, 1200px); max-height: 80vh; object-fit: contain; }

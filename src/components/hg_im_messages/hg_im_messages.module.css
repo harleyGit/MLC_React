@@ -6,3 +6,5 @@
 .message small { color: #64748b; font-size: 11px; overflow-wrap: anywhere; max-width: 90%; }
 .bubble button { cursor: pointer; border: 1px solid #b7c8df; background: white; padding: 5px 8px; border-radius: 5px; margin-right: 5px; }
 .empty { color: #64748b; text-align: center; margin: 24px; }
+.localMedia { display: block; max-width: min(280px, 62vw); max-height: 220px; object-fit: contain; margin-bottom: 6px; }
+.bubble progress { display: block; max-width: 100%; margin-top: 6px; }

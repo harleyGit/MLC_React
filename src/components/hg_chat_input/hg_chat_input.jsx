@@ -17,7 +17,7 @@ const PLUS_ACTIONS = [
   { key: "file", label: "文件", icon: "file" },
 ];
 
-/** IM 输入：api、conversationId、onSend 由首页提供，无默认值；发送仅代表 Go 持久化。 */
+/** IM 输入：api、conversationId、onSend、onUploadChange 由首页提供，无默认值；审核通过才向 Go 发送。 */
 export default class HGChatInput extends React.Component {
   state = {
     hgDraft: "", // 当前文本草稿，不写入浏览器持久存储。
@@ -51,6 +51,9 @@ export default class HGChatInput extends React.Component {
   hgReviewVersion = 0; // 撤销/换附件后拒绝迟到审核响应覆盖当前状态。
   hgFileConversation = ""; // 打开原生文件选择器时绑定的会话，选择器关闭前不改变。
 
+  /** 本机进度只发给所属会话的发送方，不把未审核附件广播为已发送消息。 */
+  hgReportUpload = (hgUpdate) => { if (this.hgMounted) this.props.onUploadChange(hgUpdate); };
+
   componentDidMount() { this.hgMounted = true; }
   componentWillUnmount() {
     this.hgMounted = false;
@@ -71,13 +74,17 @@ export default class HGChatInput extends React.Component {
     this.hgActionBusy = true;
     this.setState({ hgBusy: true, hgError: "", hgPending: hgCommand });
     try {
-      await this.props.onSend(hgCommand);
+      const hgReceipt = await this.props.onSend(hgCommand);
       if (!this.hgMounted) return;
+      if (hgCommand.messageType !== "text") this.hgReportUpload({ clientMsgId: hgCommand.clientMsgId, state: "sent", messageId: hgReceipt.messageId });
       this.setState((hgPrevious) => ({ hgPending: null,
         hgDraft: hgCommand.messageType === "text" && hgPrevious.hgDraft.trim() === hgCommand.content.text ? "" : hgPrevious.hgDraft,
         hgJob: hgCommand.messageType === "text" ? hgPrevious.hgJob : null }));
       if (hgCommand.messageType !== "text") { this.hgGrant = null; this.hgFile = null; }
-    } catch { this.hgFail("发送结果未确认；请用原命令重试，避免重复消息。"); }
+    } catch {
+      if (hgCommand.messageType !== "text") this.hgReportUpload({ clientMsgId: hgCommand.clientMsgId, state: "uncertain" });
+      this.hgFail("发送结果未确认；请用原命令重试，避免重复消息。");
+    }
     finally { this.hgActionBusy = false; if (this.hgMounted) this.setState({ hgBusy: false }); }
   };
 
@@ -120,16 +127,20 @@ export default class HGChatInput extends React.Component {
     if (this.hgActionBusy || !hgFile || this.props.disabled) return;
     this.hgActionBusy = true;
     let hgJob = null; // 预留成功后保留媒体身份供重试，即使 React 尚未提交状态。
+    const hgClientMsgId = crypto.randomUUID(); // 本次选择到服务端发送均复用同一幂等 ID。
     this.setState({ hgBusy: true, hgError: "" });
+    this.hgReportUpload({ clientMsgId: hgClientMsgId, conversationId: hgConversation, messageType: hgKind, state: "hashing", file: hgFile });
     try {
       this.hgFile = hgFile;
       this.hgGrant = await hgIMPrepareUpload(this.props.api, hgFile, hgKind, hgConversation);
       if (!this.hgMounted) { this.hgGrant = null; this.hgFile = null; return; }
-      hgJob = { mediaId: this.hgGrant.mediaId, conversationId: hgConversation, messageType: hgKind, state: "uploading", clientMsgId: crypto.randomUUID() };
+      hgJob = { mediaId: this.hgGrant.mediaId, conversationId: hgConversation, messageType: hgKind, state: "uploading", clientMsgId: hgClientMsgId };
       this.setState({ hgJob });
+      this.hgReportUpload({ clientMsgId: hgClientMsgId, state: "uploading" });
       await this.hgUpload(hgJob);
     } catch (hgError) {
       if (!hgJob) { this.hgFile = null; this.hgGrant = null; }
+      this.hgReportUpload({ clientMsgId: hgClientMsgId, state: "failed" });
       this.hgFail(hgError?.status === 503 ? "IM 媒体未启用或依赖不可用，请联系管理员检查实时模块、对象存储和审核服务。" : "附件准备或上传失败，请检查格式/大小、配额和后端媒体配置；已取得媒体ID时可重试。");
     }
     finally { this.hgActionBusy = false; if (this.hgMounted) this.setState({ hgBusy: false }); }
@@ -144,7 +155,9 @@ export default class HGChatInput extends React.Component {
     this.hgGrant = null;
     this.hgReviewAttempts = 0;
     await new Promise((hgResolve) => this.setState({ hgJob: { ...hgJob, state: "verifying" } }, hgResolve));
-    await this.hgReview(hgJob);
+    this.hgReportUpload({ clientMsgId: hgJob.clientMsgId, state: "verifying" });
+    // 下轮事件循环再查审核，让上传互斥先释放；ready 时自动发送。
+    this.hgReviewTimer = setTimeout(() => void this.hgReview(hgJob), 0);
   };
 
   hgRetryUpload = async () => {
@@ -152,7 +165,10 @@ export default class HGChatInput extends React.Component {
     this.hgActionBusy = true;
     this.setState({ hgBusy: true, hgError: "" });
     try { await this.hgUpload(this.state.hgJob); }
-    catch { this.hgFail("上传未确认；预签名可能已过期，可撤销后重新选择附件。"); }
+    catch {
+      this.hgReportUpload({ clientMsgId: this.state.hgJob.clientMsgId, state: "failed" });
+      this.hgFail("上传未确认；预签名可能已过期，可撤销后重新选择附件。");
+    }
     finally { this.hgActionBusy = false; if (this.hgMounted) this.setState({ hgBusy: false }); }
   };
 
@@ -169,15 +185,29 @@ export default class HGChatInput extends React.Component {
     try {
       const hgStatus = await this.props.api.hgMediaStatus(hgJob.mediaId); // 真实审核状态。
       if (!this.hgMounted || hgVersion !== this.hgReviewVersion || this.state.hgJob?.mediaId !== hgJob.mediaId) return;
-      this.setState({ hgJob: { ...hgJob, ...hgStatus, mediaId: hgJob.mediaId } });
+      const hgNextJob = { ...hgJob, ...hgStatus, mediaId: hgJob.mediaId }; // ready 元数据只取审核器返回值。
+      this.setState({ hgJob: hgNextJob }, () => {
+        if (hgStatus.state === "ready" && this.hgMounted && hgVersion === this.hgReviewVersion) this.hgSendMedia(hgNextJob);
+      });
+      if (hgStatus.state === "rejected" || hgStatus.state === "deleted") this.hgReportUpload({ clientMsgId: hgJob.clientMsgId, state: hgStatus.state });
       if (hgStatus.state === "verifying" && ++this.hgReviewAttempts < 40) this.hgReviewTimer = setTimeout(() => void this.hgReview(), 10000);
-    } catch { if (hgVersion === this.hgReviewVersion) this.hgFail("审核状态查询失败，可手动继续检查；未通过审核不能发送。"); }
+    } catch {
+      if (hgVersion === this.hgReviewVersion) {
+        this.hgReportUpload({ clientMsgId: hgJob.clientMsgId, state: "failed" });
+        this.hgFail("审核状态查询失败，可手动继续检查；未通过审核不能发送。");
+      }
+    }
     finally { this.hgReviewBusy = false; }
   };
 
-  hgSendMedia = () => {
-    const hgJob = this.state.hgJob; // ready 的权威元数据，不接受本地猜测尺寸。
-    if (hgJob?.state !== "ready" || this.state.hgPending) return;
+  hgSendMedia = (hgJob) => {
+    if (hgJob?.state !== "ready") return;
+    if (this.state.hgPending || this.hgActionBusy || this.props.disabled) {
+      this.hgReportUpload({ clientMsgId: hgJob.clientMsgId, state: "failed" });
+      this.hgFail("审核已通过，但当前无法发送；请恢复会话后重试。");
+      return;
+    }
+    this.hgReportUpload({ clientMsgId: hgJob.clientMsgId, state: "sending" });
     void this.hgSubmit({ conversationId: hgJob.conversationId, clientMsgId: hgJob.clientMsgId, messageType: hgJob.messageType,
       content: { mediaId: hgJob.mediaId, width: hgJob.width, height: hgJob.height, durationMs: hgJob.durationMs } });
   };
@@ -191,6 +221,7 @@ export default class HGChatInput extends React.Component {
     try {
       await this.props.api.hgMediaDelete(this.state.hgJob.mediaId);
       if (this.hgMounted) this.setState({ hgJob: null, hgError: "" });
+      this.hgReportUpload(null);
       this.hgFile = null; this.hgGrant = null;
     } catch { this.hgFail("撤销失败，附件状态仍需服务端确认。"); }
     finally { this.hgActionBusy = false; if (this.hgMounted) this.setState({ hgBusy: false }); }
@@ -269,12 +300,13 @@ export default class HGChatInput extends React.Component {
 
   renderAttachment() {
     const hgJob = this.state.hgJob; // null 表示没有正在审核/待发送的附件。
-    if (!hgJob) return null;
+    if (!hgJob || (!this.state.hgError && (this.state.hgBusy || hgJob.state === "ready" ||
+      (hgJob.state === "verifying" && this.hgReviewAttempts < 40)))) return null;
     return <div className={styles.job}>
       <span>附件 · 会话 {hgJob.conversationId} · {({ uploading: "待完成上传", verifying: "审核中", ready: "审核通过", rejected: "审核拒绝", deleted: "已撤销" })[hgJob.state] || "未知状态"}</span>
       {hgJob.state === "uploading" && <button type="button" disabled={this.state.hgBusy} onClick={this.hgRetryUpload}>重试上传/完成</button>}
       {hgJob.state === "verifying" && <button type="button" disabled={this.state.hgBusy || this.hgReviewBusy} onClick={() => void this.hgReview()}>检查审核</button>}
-      {hgJob.state === "ready" && <button type="button" disabled={this.state.hgBusy || !!this.state.hgPending} onClick={this.hgSendMedia}>发送附件</button>}
+      {hgJob.state === "ready" && <button type="button" disabled={this.state.hgBusy || !!this.state.hgPending || this.props.disabled} onClick={() => this.hgSendMedia(hgJob)}>重试发送</button>}
       <button type="button" disabled={this.state.hgBusy || !!this.state.hgPending} onClick={this.hgDelete}>撤销附件</button>
       <small>撤销不返还当前服务端预留配额</small>
     </div>;
