@@ -1,8 +1,8 @@
 /*
- * @Description: 联系人页面样式，微信电脑端视觉风格：深色导航栏 + 浅灰列表 + 白色详情区。
+ * @Description: 联系人页面样式，微信电脑端视觉风格：浅灰联系人列表 + 白色详情区。
  */
 
-/* 页面整体：三栏布局，适配个人中心内容区剩余高度。 */
+/* 页面整体：两栏布局，适配个人中心内容区剩余高度。 */
 .pageRoot {
   display: flex;
   height: calc(100vh - 238px);
@@ -12,78 +12,6 @@
   overflow: hidden;
   background: #fff;
   position: relative;
-}
-
-/* 左侧深色导航栏（仿微信功能栏）。 */
-.rail {
-  width: 72px;
-  flex-shrink: 0;
-  background: #2b2f33;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 18px;
-  gap: 6px;
-}
-
-.railItem {
-  position: relative;
-  width: 60px;
-  padding: 10px 0 8px;
-  border: none;
-  background: transparent;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.railItem:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.railItemActive,
-.railItemActive:hover {
-  background: #07c160;
-}
-
-.railIcon {
-  width: 22px;
-  height: 22px;
-}
-
-.railItemActive .railIcon {
-  filter: brightness(0) invert(1);
-}
-
-.railLabel {
-  font-size: 11px;
-  color: #9aa4ad;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.railItemActive .railLabel {
-  color: #fff;
-}
-
-.railBadge {
-  position: absolute;
-  top: 2px;
-  right: 8px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  border-radius: 8px;
-  background: #fa5151;
-  color: #fff;
-  font-size: 10px;
-  line-height: 16px;
-  text-align: center;
-  box-sizing: border-box;
 }
 
 /* 中间联系人列表。 */

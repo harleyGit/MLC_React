@@ -1,25 +1,20 @@
 /*
- * @Description: 联系人页面，模仿微信电脑端通讯录：左侧分类导航 + 中间联系人列表 + 右侧资料详情与编辑。
+ * @Description: 联系人页面，模仿微信电脑端通讯录：左侧联系人列表 + 右侧资料详情与编辑。
  * 职责：维护联系人/群组/好友申请/黑名单四类数据的选择、搜索、接受申请、资料修改、拉黑与删除等交互。
- * 约束：数据由 hg_im_contacts_vm 提供模拟实现；真实 Go IM 接口落地后仅替换 VM 数据源，本页面逻辑不变。
+ * 约束：视图分类（联系人/新的朋友/群组）由个人中心「即时通信」菜单 children 通过 hgInitialFilter 下发；
+ *       数据由 hg_im_contacts_vm 提供模拟实现，真实 Go IM 接口落地后仅替换 VM 数据源，本页面逻辑不变。
  */
 import React, { Component } from "react";
-import iconContacts from "../../assets/icons/icon_im_contacts.svg";
-import iconRequest from "../../assets/icons/icon_im_request.svg";
-import iconGroup from "../../assets/icons/icon_im_group.svg";
 import HGImContactsVM from "./hg_im_contacts_vm";
 import styles from "./hg_im_contacts_page.module.css";
 
-/** 左侧导航过滤器配置：key 对应 activeFilter 状态。 */
-const RAIL_FILTERS = [
-  { key: "contacts", label: "联系人", icon: iconContacts },
-  { key: "requests", label: "新的朋友", icon: iconRequest },
-  { key: "groups", label: "群组", icon: iconGroup },
-];
+/** 合法的视图过滤器集合：与「即时通信」菜单 children 的 key 一一对应。 */
+const VALID_FILTERS = ["contacts", "requests", "groups"];
 
 /**
  * 联系人页面组件。
  * 约束：类组件实现；JSX 按 renderXxx 拆分，render 只负责组装；隐私字段仅做展示不做持久化。
+ * @param {string} hgInitialFilter 初始视图过滤器（contacts/requests/groups），切换菜单时通过 props 更新。
  */
 class HGImContactsPage extends Component {
   constructor(props) {
@@ -31,7 +26,7 @@ class HGImContactsPage extends Component {
       requests: [],
       blocked: [],
       keyword: "",
-      activeFilter: "contacts",
+      activeFilter: VALID_FILTERS.includes(props.hgInitialFilter) ? props.hgInitialFilter : "contacts",
       selected: null, // { type: 'friend' | 'group' | 'blocked' | 'request', id }
       editing: false,
       editForm: null, // { remark, tags, phone, description }
@@ -45,23 +40,62 @@ class HGImContactsPage extends Component {
     this.loadContacts();
   }
 
+  /**
+   * 响应菜单切换：个人中心「即时通信」children 切换时同步视图过滤器并重置选中项。
+   * @param {Object} prevProps 上一次的 props。
+   */
+  componentDidUpdate(prevProps) {
+    const nextFilter = this.props.hgInitialFilter;
+    if (
+      nextFilter !== prevProps.hgInitialFilter &&
+      VALID_FILTERS.includes(nextFilter) &&
+      nextFilter !== this.state.activeFilter
+    ) {
+      this.setState((prevState) => ({
+        activeFilter: nextFilter,
+        editing: false,
+        editForm: null,
+        confirmAction: null,
+        selected: this.pickDefaultSelection(nextFilter, prevState),
+      }));
+    }
+  }
+
   componentWillUnmount() {
     if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
   /**
-   * 加载联系人模块数据，并默认选中第一位好友，避免右侧空白。
+   * 根据视图过滤器挑选默认选中项，避免右侧详情区空白。
+   * @param {string} filter 当前视图过滤器。
+   * @param {{friends: Array, groups: Array, requests: Array}} data 联系人模块数据。
+   * @returns {Object|null} 默认选中目标。
+   */
+  pickDefaultSelection = (filter, data) => {
+    if (filter === "requests") {
+      const first = data.requests[0];
+      return first ? { type: "request", id: first.requestId } : null;
+    }
+    if (filter === "groups") {
+      const first = data.groups[0];
+      return first ? { type: "group", id: first.groupId } : null;
+    }
+    const first = data.friends[0];
+    return first ? { type: "friend", id: first.userId } : null;
+  };
+
+  /**
+   * 加载联系人模块数据，并按当前视图过滤器选中默认项。
    */
   loadContacts = async () => {
     const data = await HGImContactsVM.fetchContacts();
-    const firstFriend = data.friends.length > 0 ? data.friends[0] : null;
     this.setState({
       loading: false,
       friends: data.friends,
       groups: data.groups,
       requests: data.requests,
       blocked: data.blocked,
-      selected: firstFriend ? { type: "friend", id: firstFriend.userId } : null,
+      selected: this.pickDefaultSelection(this.state.activeFilter, data),
     });
   };
 
@@ -146,14 +180,6 @@ class HGImContactsPage extends Component {
    */
   handleKeywordChange = (event) => {
     this.setState({ keyword: event.target.value });
-  };
-
-  /**
-   * 左侧导航切换回调。
-   * @param {string} filter 过滤器 key。
-   */
-  handleFilterChange = (filter) => {
-    this.setState({ activeFilter: filter, editing: false, confirmAction: null });
   };
 
   /**
@@ -352,35 +378,6 @@ class HGImContactsPage extends Component {
       {HGImContactsVM.getAvatarText(contact)}
     </div>
   );
-
-  /**
-   * 渲染左侧深色导航栏：联系人 / 新的朋友（含待处理角标）/ 群组。
-   * @returns {React.ReactNode} 导航栏节点。
-   */
-  renderRail = () => {
-    const { activeFilter, requests } = this.state;
-    return (
-      <div className={styles.rail}>
-        {RAIL_FILTERS.map((filter) => {
-          const isActive = activeFilter === filter.key;
-          const badgeCount = filter.key === "requests" ? requests.length : 0;
-          return (
-            <button
-              key={filter.key}
-              type="button"
-              className={`${styles.railItem} ${isActive ? styles.railItemActive : ""}`}
-              onClick={() => this.handleFilterChange(filter.key)}
-              title={filter.label}
-            >
-              <img className={styles.railIcon} src={filter.icon} alt={filter.label} />
-              {badgeCount > 0 && <span className={styles.railBadge}>{badgeCount}</span>}
-              <span className={styles.railLabel}>{filter.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    );
-  };
 
   /**
    * 渲染中间联系人列表：搜索框 + 分组列表（新的朋友 / 字母分组 / 群组）。
@@ -860,7 +857,6 @@ class HGImContactsPage extends Component {
   render() {
     return (
       <div className={styles.pageRoot}>
-        {this.renderRail()}
         {this.renderListPane()}
         {this.renderDetailPane()}
         {this.renderToast()}

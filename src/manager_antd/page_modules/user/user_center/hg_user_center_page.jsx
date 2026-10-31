@@ -77,7 +77,13 @@ class HGUserCenterPage extends Component {
       return <HGMallCatalog hgInitialView="merchant" />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.CONTACTS) {
-      return <HGImContactsPage />;
+      return <HGImContactsPage hgInitialFilter="contacts" />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.FRIEND_REQUESTS) {
+      return <HGImContactsPage hgInitialFilter="requests" />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.IM_GROUPS) {
+      return <HGImContactsPage hgInitialFilter="groups" />;
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;
   };
