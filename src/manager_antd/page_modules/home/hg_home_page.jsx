@@ -1,604 +1,176 @@
-/*
- * @Author: GangHuang harleysor@qq.com
- * @Date: 2026-01-26 11:43:08
- * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-10-31 00:10:00
- * @FilePath: /MLC_React/src/manager_antd/page_modules/home/hg_home_page.jsx
- * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koroFileHeader/wiki/%E9%85%8D%E7%BD%AE
- */
 import React from "react";
-import HGChatInput from "../../../components/hg_chat_input/hg_chat_input.jsx";
-import HGMessageList, { HG_MESSAGE_TYPES } from "../../../components/hg_message_list/hg_message_list.jsx";
+import HGIMComposer from "../../../components/hg_im_composer/hg_im_composer";
+import HGIMCallPanel from "../../../components/hg_im_call/hg_im_call_panel";
+import HGIMMediaPreview from "../../../components/hg_im_media/hg_im_media_preview";
+import HGIMMessageList from "../../../components/hg_im_messages/hg_im_message_list";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
-import CSStyles from "./hg_home.module.css";
+import HGHomeVM from "./hg_home_vm";
+import styles from "./hg_home.module.css";
 
-/** 消息发送者方向常量，供多类型消息复用。 */
-const FROM_ME = "me";
-const FROM_PEER = "peer";
+/** 真实单聊首页；pageNavigator 由既有导航框架注入，无默认值。 */
+export default class HGHomePage extends React.Component {
+  hgVM = null; // 挂载时创建，卸载/切换账号时关闭。
+  hgMounted = false; // 防止异步回调覆盖卸载页面。
+  hgCall = React.createRef(); // 来电指针交给独立通话控制组件。
+  hgCreating = false; // 单聊创建防连点，不依赖异步 setState。
+  state = {
+    hgSnapshot: null, // VM 权威视图，初始 null 表示尚未启动。
+    hgSearch: "", // 仅过滤当前已加载会话，不冒充服务端全量搜索。
+    hgPeer: "", // 用户明确输入的对方 userId。
+    hgCreating: false, // 创建单聊中的按钮状态。
+    hgPreview: null, // 当前唯一媒体查看器；关闭/切换后释放 Blob。
+    hgNotice: "", // 页面操作结果或权限错误。
+    hgInvalidOwner: false, // 账号切换/退出时清空聊天 DOM 和媒体设备。
+  };
 
-/**
- * 默认演示会话数据。
- * 约束：仅用于本地展示；后续接入真实接口时由 VM 层替换，不在视图内写死请求。
- */
-const DEFAULT_CONVERSATIONS = [
-  {
-    id: "conv_product",
-    name: "产品讨论组",
-    avatarText: "产",
-    avatarColor: "#5b8def",
-    lastTime: "22:41",
-    unread: 2,
-    messages: [
-      { id: "msg_p_t", type: HG_MESSAGE_TYPES.TIME, text: "22:38", from: FROM_PEER },
-      { id: "msg_p1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "小张", text: "新版本的聊天首页布局评审过了吗？", time: "22:38" },
-      { id: "msg_p2", type: HG_MESSAGE_TYPES.TEXT, from: FROM_ME, text: "已经过了，按 iPad 微信的双栏布局做。", time: "22:39" },
-      { id: "msg_p3", type: HG_MESSAGE_TYPES.IMAGE, from: FROM_PEER, sender: "小张", alt: "设计稿截图", color: "#4f8bf5", text: "这是最新的双栏设计稿", time: "22:40" },
-      { id: "msg_p4", type: HG_MESSAGE_TYPES.VOICE, from: FROM_ME, duration: 8, time: "22:40" },
-      { id: "msg_p5", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "小张", text: "好的，那左侧列表记得带未读角标。", time: "22:41" },
-    ],
-  },
-  {
-    id: "conv_dev",
-    name: "前端小分队",
-    avatarText: "前",
-    avatarColor: "#27c0a8",
-    lastTime: "21:12",
-    unread: 0,
-    messages: [
-      { id: "msg_d_t", type: HG_MESSAGE_TYPES.TIME, text: "21:10", from: FROM_PEER },
-      { id: "msg_d1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "阿明", text: "路由还是走 createBrowserRouter，页面内双栏不新增路由。", time: "21:10" },
-      { id: "msg_d2", type: HG_MESSAGE_TYPES.VIDEO, from: FROM_ME, alt: "效果演示视频", color: "#6c4cf1", text: "演示一下滚动效果", time: "21:11" },
-      { id: "msg_d3", type: HG_MESSAGE_TYPES.EMOJI, from: FROM_PEER, sender: "阿明", text: "👍", time: "21:11" },
-      { id: "msg_d4", type: HG_MESSAGE_TYPES.TEXT, from: FROM_ME, text: "收到，样式继续用 CSS Modules。", time: "21:12" },
-    ],
-  },
-  {
-    id: "conv_ops",
-    name: "运维值班",
-    avatarText: "运",
-    avatarColor: "#f2a93b",
-    lastTime: "18:05",
-    unread: 5,
-    messages: [
-      { id: "msg_o_t", type: HG_MESSAGE_TYPES.TIME, text: "18:05", from: FROM_PEER },
-      { id: "msg_o1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "值班同事", text: "今晚 23:00 采集平台例行发布，注意告警。", time: "18:05" },
-    ],
-  },
-  {
-    id: "conv_notice",
-    name: "系统通知",
-    avatarText: "系",
-    avatarColor: "#8e9aaf",
-    lastTime: "昨天",
-    unread: 0,
-    messages: [
-      { id: "msg_n_t", type: HG_MESSAGE_TYPES.TIME, text: "昨天 20:30", from: FROM_PEER },
-      { id: "msg_n1", type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "系统", text: "你的账号已于新设备登录，如非本人操作请及时修改密码。", time: "昨天 20:30" },
-    ],
-  },
-];
-
-/** 每个会话共享的历史消息池，用于上拉加载更多（按时间正序，倒序插入头部）。 */
-const HISTORY_POOL = [
-  { type: HG_MESSAGE_TYPES.TEXT, from: FROM_PEER, sender: "队友", text: "早啊，昨天的进度同步一下？", time: "昨天 09:12" },
-  { type: HG_MESSAGE_TYPES.EMOJI, from: FROM_ME, text: "😄", time: "昨天 09:13" },
-  { type: HG_MESSAGE_TYPES.IMAGE, from: FROM_PEER, sender: "队友", alt: "流程图", color: "#27c0a8", text: "这是最新的接口时序图", time: "昨天 09:20" },
-  { type: HG_MESSAGE_TYPES.VOICE, from: FROM_PEER, sender: "队友", duration: 12, time: "昨天 09:25" },
-  { type: HG_MESSAGE_TYPES.TEXT, from: FROM_ME, text: "收到，我下午整理一版文档。", time: "昨天 09:30" },
-  { type: HG_MESSAGE_TYPES.VIDEO, from: FROM_PEER, sender: "队友", alt: "录屏", color: "#f2a93b", text: "复现步骤录屏", time: "昨天 10:00" },
-];
-
-/**
- * 获取当前时间 HH:mm 文本。
- * @returns {string} 形如 "23:05" 的时间字符串。
- */
-const hgGetNowTime = () => {
-  const now = new Date();
-  const hour = String(now.getHours()).padStart(2, "0");
-  const minute = String(now.getMinutes()).padStart(2, "0");
-  return `${hour}:${minute}`;
-};
-
-/**
- * 生成消息唯一 id。
- * @param {string} prefix 前缀。
- * @returns {string} 唯一 id 字符串。
- */
-const hgNextId = (prefix = "msg") => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-
-/**
- * 聊天首页（已登录态）
- * 职责：以 iPad 微信风格展示「左侧会话列表 + 右侧聊天内容」的双栏布局。
- * 输入：props - 包含 pageNavigator，用于个人资料页面跳转。
- * 约束：当前为本地演示数据与本地状态，不发起网络请求；退出登录仍使用原生 window.location。
- */
-class HGHomePage extends React.Component {
-  hgMounted = false; // 挂载标记；卸载后忽略延迟的自动回复。
-
-  /**
-   * 构造函数：初始化会话数据、当前选中会话、搜索关键字与输入草稿。
-   */
-  constructor(props) {
-    super(props);
-    this.state = {
-      conversations: DEFAULT_CONVERSATIONS,
-      activeId: DEFAULT_CONVERSATIONS[0]?.id || "",
-      searchKeyword: "",
-      draft: "",
-      historyOffset: 0, // 已加载的历史消息条数，用于上拉加载更多。
-    };
-  }
-
-  /**
-   * 生命周期挂载：记录挂载标记。
-   */
   componentDidMount() {
     this.hgMounted = true;
+    if (import.meta.env.MODE !== "debug") return;
+    this.hgVM = new HGHomeVM((hgSnapshot) => new Promise((hgResolve) => {
+      if (!this.hgMounted) { hgResolve(); return; }
+      this.setState({ hgSnapshot }, hgResolve);
+    }), (hgCallID) => this.hgCall.current?.hgHint(hgCallID));
+    window.addEventListener("storage", this.hgCheckOwner);
+    window.addEventListener("hg:auth-changed", this.hgCheckOwner);
+    window.addEventListener("online", this.hgWake);
+    document.addEventListener("visibilitychange", this.hgWake);
+    void this.hgVM.hgStart();
   }
 
-  /**
-   * 生命周期卸载：清除挂载标记，阻止延迟自动回复写入状态。
-   */
   componentWillUnmount() {
     this.hgMounted = false;
+    this.hgVM?.hgClose();
+    window.removeEventListener("storage", this.hgCheckOwner);
+    window.removeEventListener("hg:auth-changed", this.hgCheckOwner);
+    window.removeEventListener("online", this.hgWake);
+    document.removeEventListener("visibilitychange", this.hgWake);
   }
 
-  /**
-   * 在会话列表中查找指定 id 的会话。
-   * @param {Array} conversations 会话数组。
-   * @param {string} activeId 目标会话 id。
-   * @returns {object|undefined} 命中的会话；未命中返回 undefined。
-   */
-  findConversation = (conversations, activeId) => {
-    return conversations.find((item) => item.id === activeId);
+  hgCheckOwner = () => {
+    if (this.hgVM && !this.hgVM.hgAlive()) {
+      this.hgVM.hgClose();
+      if (this.hgMounted) this.setState({ hgSnapshot: null, hgPreview: null, hgInvalidOwner: true });
+    }
   };
 
-  /**
-   * 获取当前选中会话对象。
-   * @returns {object|undefined} 当前会话。
-   */
-  getActiveConversation = () => {
-    return this.findConversation(this.state.conversations, this.state.activeId);
+  hgWake = () => {
+    this.hgCheckOwner();
+    if (document.visibilityState === "visible") {
+      this.hgVM?.hgSchedule();
+      void this.hgCall.current?.hgRefresh();
+    }
   };
 
-  /**
-   * 退出登录，清除本地登录态并强制跳转到登录页。
-   * @returns {void}
-   */
-  handleLogout = () => {
+  /** 操作统一捕获失败，具体服务端错误由 VM 映射，不把原始秘密响应带入 UI。 */
+  hgRun = async (hgAction, hgName) => {
+    try { await hgAction(); }
+    catch (hgError) { this.hgVM?.hgError(hgError, hgName); }
+  };
+
+  hgSelect = (hgID) => {
+    this.setState({ hgPreview: null });
+    void this.hgRun(() => this.hgVM.hgSelect(hgID), "读取会话");
+  };
+
+  hgCreate = async (hgEvent) => {
+    hgEvent.preventDefault();
+    if (this.hgCreating || !this.state.hgPeer.trim()) return;
+    this.hgCreating = true;
+    this.setState({ hgCreating: true, hgNotice: "" });
+    try {
+      await this.hgVM.hgCreateConversation(this.state.hgPeer);
+      if (this.hgMounted) this.setState({ hgPeer: "" });
+    } catch (hgError) { this.hgVM.hgError(hgError, "创建单聊"); }
+    finally { this.hgCreating = false; if (this.hgMounted) this.setState({ hgCreating: false }); }
+  };
+
+  /** 登出前尝试释放本机通话和设备；服务端失败不谎报撤销，但仍允许用户结束本地登录。 */
+  hgLogout = async () => {
+    this.hgCall.current?.hgDisconnect();
+    try { await this.hgVM?.hgRevoke(); }
+    catch { if (this.hgMounted) this.setState({ hgNotice: "设备撤销未确认；可重试撤销或直接退出本地登录。" }); return; }
     logout();
-    window.location.href = "/login"; // 强制浏览器跳转到登录页
+    window.location.href = "/login";
   };
 
-  /**
-   * 跳转到个人资料页面。
-   * @returns {void}
-   */
-  viewPersonalProfile = () => {
-    this.props.pageNavigator.open({ page: PAGE.USER_PROFILE });
+  hgDeleteMedia = async (hgMessage) => {
+    try {
+      await this.hgVM.hgAPI.hgMediaDelete(hgMessage.content.mediaId);
+      if (this.hgMounted) this.setState({ hgPreview: null, hgNotice: "附件已撤销，后续读取将被拒绝；当前配额尚不自动返还。" });
+    } catch (hgError) { this.hgVM.hgError(hgError, "撤销附件"); }
   };
 
-  /**
-   * 更新会话搜索关键字。
-   * @param {React.ChangeEvent} event 输入框变更事件。
-   */
-  handleSearchChange = (event) => {
-    this.setState({ searchKeyword: event.target.value });
-  };
-
-  /**
-   * 选中某个会话并清除其未读数。
-   * @param {string} conversationId 目标会话 id。
-   */
-  selectConversation = (conversationId) => {
-    this.setState((prevState) => ({
-      activeId: conversationId,
-      conversations: prevState.conversations.map((item) =>
-        item.id === conversationId ? { ...item, unread: 0 } : item
-      ),
-    }));
-  };
-
-  /**
-   * 更新输入草稿内容。
-   * @param {React.ChangeEvent} event 输入框变更事件。
-   */
-  handleDraftChange = (event) => {
-    this.setState({ draft: event.target.value });
-  };
-
-  /**
-   * 向当前会话追加一条本人消息并刷新列表时间，随后安排自动回复。
-   * @param {object} message 新消息对象（不含 id/时间，内部补齐）。
-   * @returns {void}
-   */
-  appendMyMessage = (message) => {
-    if (!this.state.activeId) {
-      return;
-    }
-    const time = hgGetNowTime();
-    const newMessage = { id: hgNextId("msg_me"), time, ...message };
-    this.setState(
-      (prevState) => ({
-        conversations: prevState.conversations.map((item) =>
-          item.id === prevState.activeId
-            ? {
-                ...item,
-                lastTime: time,
-                messages: [...item.messages, newMessage],
-              }
-            : item
-        ),
-      }),
-      this.scheduleAutoReply
-    );
-  };
-
-  /**
-   * 发送草稿到当前会话：内容为空时不发送。
-   * @returns {void}
-   */
-  handleSend = () => {
-    const text = this.state.draft.trim();
-    if (!text) {
-      return;
-    }
-    this.setState({ draft: "" });
-    this.appendMyMessage({
-      type: HG_MESSAGE_TYPES.TEXT,
-      from: FROM_ME,
-      text,
-    });
-  };
-
-  /**
-   * 发送语音消息（由 HGChatInput 长按录音松开后回调）。
-   * @param {number} seconds 语音时长（秒）。
-   */
-  handleSendVoice = (seconds) => {
-    this.appendMyMessage({
-      type: HG_MESSAGE_TYPES.VOICE,
-      from: FROM_ME,
-      duration: seconds,
-    });
-  };
-
-  /**
-   * 发送表情消息（表情面板点击即发送）。
-   * @param {string} emoji 表情字符。
-   */
-  handleSendEmoji = (emoji) => {
-    this.appendMyMessage({
-      type: HG_MESSAGE_TYPES.EMOJI,
-      from: FROM_ME,
-      text: emoji,
-    });
-  };
-
-  /** 发送图片消息（演示占位图）。 */
-  handleSendImage = () => {
-    this.appendMyMessage({
-      type: HG_MESSAGE_TYPES.IMAGE,
-      from: FROM_ME,
-      alt: "图片消息",
-      color: "#4f8bf5",
-      text: "图片",
-    });
-  };
-
-  /** 发送视频消息（演示占位封面）。 */
-  handleSendVideo = () => {
-    this.appendMyMessage({
-      type: HG_MESSAGE_TYPES.VIDEO,
-      from: FROM_ME,
-      alt: "视频消息",
-      color: "#6c4cf1",
-      text: "视频",
-    });
-  };
-
-  /** 发送红包消息。 */
-  handleSendRedPacket = () => {
-    this.appendMyMessage({
-      type: HG_MESSAGE_TYPES.RED_PACKET,
-      from: FROM_ME,
-    });
-  };
-
-  /** 发送联系人名片消息。 */
-  handleSendCard = () => {
-    this.appendMyMessage({
-      type: HG_MESSAGE_TYPES.CARD,
-      from: FROM_ME,
-      cardName: "张工",
-      text: "前端负责人 · 个人名片",
-    });
-  };
-
-  /**
-   * 发送后安排一条延迟自动回复，模拟对端响应。
-   * 约束：仅本地演示；组件卸载后不再写入状态。
-   */
-  scheduleAutoReply = () => {
-    window.setTimeout(() => {
-      if (!this.hgMounted) {
-        return;
-      }
-      const time = hgGetNowTime();
-      this.setState((prevState) => ({
-        conversations: prevState.conversations.map((item) =>
-          item.id === prevState.activeId
-            ? {
-                ...item,
-                lastTime: time,
-                messages: [
-                  ...item.messages,
-                  {
-                    id: hgNextId("msg_reply"),
-                    type: HG_MESSAGE_TYPES.TEXT,
-                    from: FROM_PEER,
-                    sender: item.name,
-                    text: "收到，稍后回复你。",
-                    time,
-                  },
-                ],
-              }
-            : item
-        ),
-      }));
-    }, 800);
-  };
-
-  /**
-   * 上拉加载更多：把历史消息按时间倒序插到当前会话消息顶部。
-   * 约束：仅本地演示；历史池耗尽后 hasMore 置为 false。
-   */
-  handleLoadMore = () => {
-    const active = this.getActiveConversation();
-    if (!active) return;
-    const offset = this.state.historyOffset;
-    const batch = HISTORY_POOL.slice(offset, offset + 3);
-    if (batch.length === 0) return;
-    // 历史消息统一倒序插入头部，保持时间线顺序（旧消息在前）。
-    const prepend = [...batch].reverse().map((message) => ({
-      ...message,
-      id: hgNextId("hist"),
-    }));
-    const conversations = this.state.conversations.map((item) =>
-      item.id === active.id
-        ? { ...item, messages: [...prepend, ...item.messages] }
-        : item
-    );
-    this.setState({ conversations, historyOffset: offset + batch.length });
-  };
-
-  /**
-   * 计算当前会话是否还有更多历史消息可加载。
-   * @returns {boolean} hasMore 标记。
-   */
-  getHasMore = () => {
-    return this.state.historyOffset < HISTORY_POOL.length;
-  };
-
-  /**
-   * 按搜索关键字过滤会话列表。
-   * @returns {Array} 过滤后的会话数组。
-   */
-  getVisibleConversations = () => {
-    const keyword = this.state.searchKeyword.trim().toLowerCase();
-    if (!keyword) {
-      return this.state.conversations;
-    }
-    return this.state.conversations.filter((item) =>
-      item.name.toLowerCase().includes(keyword)
-    );
-  };
-
-  /**
-   * 根据消息类型生成会话列表的摘要文案。
-   * @param {object} message 最后一条消息。
-   * @returns {string} 摘要文案。
-   */
-  getMessagePreview = (message) => {
-    if (!message || message.type === HG_MESSAGE_TYPES.TIME) return "";
-    switch (message.type) {
-      case HG_MESSAGE_TYPES.IMAGE:
-        return "[图片]";
-      case HG_MESSAGE_TYPES.VOICE:
-        return "[语音]";
-      case HG_MESSAGE_TYPES.VIDEO:
-        return "[视频]";
-      case HG_MESSAGE_TYPES.EMOJI:
-        return "[表情]";
-      case HG_MESSAGE_TYPES.RED_PACKET:
-        return "[红包]";
-      case HG_MESSAGE_TYPES.CARD:
-        return "[名片]";
-      default:
-        return message.text;
-    }
-  };
-
-  /**
-   * 渲染左侧会话列表的单个会话项。
-   * @param {object} conversation 会话数据。
-   * @returns {React.ReactNode} 会话项节点。
-   */
-  renderConversationItem = (conversation) => {
-    const isActive = conversation.id === this.state.activeId;
-    const lastMessage = conversation.messages[conversation.messages.length - 1];
-    const itemClassName = `${CSStyles.conversationItem} ${
-      isActive ? CSStyles.conversationItemActive : ""
-    }`;
-    return (
-      <button
-        key={conversation.id}
-        type="button"
-        className={itemClassName}
-        onClick={() => this.selectConversation(conversation.id)}
-      >
-        <span
-          className={CSStyles.conversationAvatar}
-          style={{ backgroundColor: conversation.avatarColor }}
-        >
-          {conversation.avatarText}
-          {conversation.unread > 0 ? (
-            <span className={CSStyles.unreadBadge}>{conversation.unread}</span>
-          ) : null}
-        </span>
-        <span className={CSStyles.conversationInfo}>
-          <span className={CSStyles.conversationTopRow}>
-            <span className={CSStyles.conversationName}>{conversation.name}</span>
-            <span className={CSStyles.conversationTime}>
-              {conversation.lastTime}
-            </span>
-          </span>
-          <span className={CSStyles.conversationPreview}>
-            {this.getMessagePreview(lastMessage)}
-          </span>
-        </span>
-      </button>
-    );
-  };
-
-  /**
-   * 渲染左侧会话列表栏：搜索框、会话列表与底部账号操作区。
-   * @returns {React.ReactNode} 侧栏节点。
-   */
-  renderSidebar = () => {
-    const visibleConversations = this.getVisibleConversations();
-    return (
-      <aside className={CSStyles.sidebar}>
-        <div className={CSStyles.sidebarHeader}>
-          <span className={CSStyles.sidebarTitle}>微信</span>
-          <button
-            type="button"
-            className={CSStyles.sidebarAction}
-            onClick={this.viewPersonalProfile}
-            title="查看我的资料"
-          >
-            资料
-          </button>
-          <button
-            type="button"
-            className={CSStyles.sidebarAction}
-            onClick={this.handleLogout}
-            title="退出登录"
-          >
-            退出
-          </button>
-        </div>
-        <div className={CSStyles.searchBox}>
-          <input
-            className={CSStyles.searchInput}
-            type="text"
-            placeholder="搜索"
-            value={this.state.searchKeyword}
-            onChange={this.handleSearchChange}
-          />
-        </div>
-        <div className={CSStyles.conversationList}>
-          {visibleConversations.length > 0 ? (
-            visibleConversations.map(this.renderConversationItem)
-          ) : (
-            <div className={CSStyles.conversationEmpty}>没有匹配的会话</div>
-          )}
-        </div>
-      </aside>
-    );
-  };
-
-  /**
-   * 渲染右侧聊天区顶部标题栏。
-   * @param {object} activeConversation 当前选中会话。
-   * @returns {React.ReactNode} 标题栏节点。
-   */
-  renderChatHeader = (activeConversation) => {
-    return (
-      <header className={CSStyles.chatHeader}>
-        <span className={CSStyles.chatHeaderName}>{activeConversation.name}</span>
-      </header>
-    );
-  };
-
-  /**
-   * 渲染右侧消息列表（复用 HGMessageList 虚拟滚动）。
-   * @param {object} activeConversation 当前选中会话。
-   * @returns {React.ReactNode} 消息列表节点。
-   */
-  renderMessageList = (activeConversation) => {
-    return (
-      <HGMessageList
-        messages={activeConversation.messages}
-        currentUserId={FROM_ME}
-        loading={false}
-        hasMore={this.getHasMore()}
-        onLoadMore={this.handleLoadMore}
-      />
-    );
-  };
-
-  /**
-   * 渲染右侧底部输入区：微信风格多模式输入（文字/语音/表情/扩展面板）。
-   * @returns {React.ReactNode} 输入区节点。
-   */
-  renderChatInput = () => {
-    return (
-      <HGChatInput
-        value={this.state.draft}
-        onChange={this.handleDraftChange}
-        onSendText={this.handleSend}
-        onSendVoice={this.handleSendVoice}
-        onSendEmoji={this.handleSendEmoji}
-        onSendImage={this.handleSendImage}
-        onSendVideo={this.handleSendVideo}
-        onSendRedPacket={this.handleSendRedPacket}
-        onSendCard={this.handleSendCard}
-      />
-    );
-  };
-
-  /**
-   * 渲染未选中会话时的右侧占位空态。
-   * @returns {React.ReactNode} 空态节点。
-   */
-  renderChatEmpty = () => {
-    return (
-      <div className={CSStyles.chatEmpty}>
-        <span className={CSStyles.chatEmptyText}>未选择聊天</span>
+  renderSidebar() {
+    const hgSnapshot = this.state.hgSnapshot; // VM 已加载会话与分页状态。
+    const hgKeyword = this.state.hgSearch.trim().toLowerCase(); // 本地过滤，不发起全表搜索。
+    const hgConversations = (hgSnapshot?.conversations || []).filter((hgItem) => `${hgItem.peer.name} ${hgItem.peer.userId}`.toLowerCase().includes(hgKeyword));
+    return <aside className={styles.sidebar}>
+      <div className={styles.sidebarHeader}>
+        <span className={styles.sidebarTitle}>聊天</span>
+        <button type="button" className={styles.sidebarAction} onClick={() => this.props.pageNavigator.open({ page: PAGE.USER_PROFILE })}>资料</button>
+        <button type="button" className={styles.sidebarAction} onClick={this.hgLogout}>退出</button>
       </div>
-    );
-  };
+      <div className={styles.searchBox}><input className={styles.searchInput} aria-label="过滤已加载会话" placeholder="过滤已加载会话" value={this.state.hgSearch} onChange={(hgEvent) => this.setState({ hgSearch: hgEvent.target.value })} /></div>
+      <form className={styles.createForm} onSubmit={this.hgCreate}>
+        <input aria-label="对方用户ID" placeholder="输入对方用户ID" value={this.state.hgPeer} maxLength={128} onChange={(hgEvent) => this.setState({ hgPeer: hgEvent.target.value })} />
+        <button type="submit" disabled={!hgSnapshot || this.state.hgCreating || !this.state.hgPeer.trim()}>新建单聊</button>
+      </form>
+      <div className={styles.conversationList}>
+        {hgConversations.map((hgConversation) => <button key={hgConversation.conversationId} type="button"
+          className={`${styles.conversationItem} ${hgSnapshot.activeId === hgConversation.conversationId ? styles.conversationItemActive : ""}`}
+          aria-pressed={hgSnapshot.activeId === hgConversation.conversationId} onClick={() => this.hgSelect(hgConversation.conversationId)}>
+          <span className={styles.conversationAvatar} style={{ backgroundColor: "#5b8def" }}>{[...hgConversation.peer.name][0] || "友"}</span>
+          <span className={styles.conversationInfo}><span className={styles.conversationName}>{hgConversation.peer.name}</span>
+            <span className={styles.conversationPreview}>会话 {hgConversation.conversationId} · 最新序号 {hgConversation.lastSeq}</span>
+          </span>
+        </button>)}
+        {!hgConversations.length && <div className={styles.conversationEmpty}>{hgSnapshot?.loading ? "正在读取会话…" : "暂无会话，可输入用户ID创建单聊"}</div>}
+        {hgSnapshot?.moreConversations && <button type="button" disabled={hgSnapshot.conversations.length >= 300} onClick={() => void this.hgRun(() => this.hgVM.hgLoadConversations(true), "会话翻页")}>加载更多会话（最多300个）</button>}
+      </div>
+    </aside>;
+  }
 
-  /**
-   * 渲染右侧聊天内容区：标题 + 消息列表 + 输入区。
-   * @returns {React.ReactNode} 聊天区节点。
-   */
-  renderChatMain = () => {
-    const activeConversation = this.getActiveConversation();
-    if (!activeConversation) {
-      return this.renderChatEmpty();
-    }
-    return (
-      <section className={CSStyles.chatMain}>
-        {this.renderChatHeader(activeConversation)}
-        <div className={CSStyles.messageListWrap}>
-          {this.renderMessageList(activeConversation)}
+  renderStatus() {
+    const hgSnapshot = this.state.hgSnapshot; // 网络连接不等于端到端已送达。
+    return <div className={styles.connectionBar}>
+      <span role="status">{hgSnapshot?.realtime || "初始化中"}</span>
+      <button type="button" onClick={() => this.hgVM.hgSchedule()}>同步消息</button>
+      <button type="button" disabled={!hgSnapshot?.deviceReady} onClick={() => void this.hgVM.hgReconnect()}>重连实时</button>
+      {hgSnapshot && !hgSnapshot.deviceReady && <button type="button" onClick={() => void this.hgRun(() => this.hgVM.hgRegisterDevice(), "注册设备")}>注册新设备</button>}
+      <button type="button" disabled={!hgSnapshot?.deviceReady} onClick={() => { this.hgCall.current?.hgDisconnect(); void this.hgRun(() => this.hgVM.hgRevoke(), "撤销设备"); }}>撤销本设备</button>
+      {(hgSnapshot?.error || this.state.hgNotice) && <p role="alert">{hgSnapshot?.error || this.state.hgNotice}
+        {this.state.hgNotice.includes("退出本地") && <button type="button" onClick={() => { logout(); window.location.href = "/login"; }}>仅退出本地登录</button>}
+      </p>}
+    </div>;
+  }
+
+  renderChat() {
+    const hgSnapshot = this.state.hgSnapshot; // 当前窗口与成员信息由 Go 返回。
+    const hgConversation = hgSnapshot?.conversations.find((hgItem) => hgItem.conversationId === hgSnapshot.activeId);
+    return <section className={styles.chatMain}>
+      {this.renderStatus()}
+      {this.hgVM && <HGIMCallPanel ref={this.hgCall} vm={this.hgVM} deviceReady={hgSnapshot?.deviceReady || false} conversationId={hgSnapshot?.activeId || ""} />}
+      {hgConversation ? <>
+        <header className={styles.chatHeader}><strong className={styles.chatHeaderName}>{hgConversation.peer.name}</strong>
+          <button type="button" onClick={() => void this.hgRun(() => this.hgVM.hgMarkRead(), "标记已读")}>标记当前及此前已读</button>
+        </header>
+        <div className={styles.historyControls}>
+          <button type="button" disabled={hgSnapshot.loading || !hgSnapshot.messages.length || hgSnapshot.messages[0].seq <= 1} onClick={() => void this.hgRun(() => this.hgVM.hgHistory("older"), "历史翻页")}>更早50条</button>
+          <button type="button" disabled={hgSnapshot.loading} onClick={() => void this.hgRun(() => this.hgVM.hgHistory("newer"), "历史翻页")}>更晚50条</button>
+          <button type="button" disabled={hgSnapshot.loading} onClick={() => void this.hgRun(() => this.hgVM.hgHistory("latest"), "最新消息")}>回到最新</button>
+          <span>{hgSnapshot.loading ? "加载中…" : `${this.hgVM.hgFollow ? "最新" : "历史"}窗口 · ${hgSnapshot.messages.length}条`}</span>
         </div>
-        {this.renderChatInput()}
-      </section>
-    );
-  };
+        <HGIMMessageList key={hgSnapshot.activeId} messages={hgSnapshot.messages} onPreview={(hgMessage) => this.setState({ hgPreview: hgMessage })} onDelete={this.hgDeleteMedia} />
+        {this.state.hgPreview && <HGIMMediaPreview key={this.state.hgPreview.content.mediaId} api={this.hgVM.hgAPI} message={this.state.hgPreview} onClose={() => this.setState({ hgPreview: null })} />}
+        <HGIMComposer api={this.hgVM.hgAPI} conversationId={hgSnapshot.activeId} onSend={(hgCommand) => this.hgVM.hgSend(hgCommand)} disabled={!this.hgVM.hgAlive()} />
+      </> : <div className={styles.chatEmpty}>选择会话或创建单聊</div>}
+    </section>;
+  }
 
   render() {
-    return (
-      <div className={CSStyles.container}>
-        {this.renderSidebar()}
-        {this.renderChatMain()}
-      </div>
-    );
+    if (import.meta.env.MODE !== "debug") return <div className={styles.chatEmpty}>IM 当前仅在隔离 debug 环境开放，pre/release 尚未启用。</div>;
+    if (this.state.hgInvalidOwner) return <div className={styles.chatEmpty}>登录账号已变化，聊天和媒体连接已关闭，请重新打开页面。</div>;
+    return <div className={styles.container}>{this.renderSidebar()}{this.renderChat()}</div>;
   }
 }
-
-export default HGHomePage;

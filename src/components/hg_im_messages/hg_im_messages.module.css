@@ -1,0 +1,8 @@
+.list { list-style: none; margin: 0; padding: 16px; flex: 1; min-height: 100px; overflow-y: auto; overscroll-behavior: contain; }
+.message { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin-bottom: 16px; }
+.mine { align-items: flex-end; }
+.bubble { max-width: 85%; padding: 10px 14px; border-radius: 8px; background: #fff; color: #1f2937; white-space: pre-wrap; overflow-wrap: anywhere; }
+.mine .bubble { background: #d3ebff; }
+.message small { color: #64748b; font-size: 11px; overflow-wrap: anywhere; max-width: 90%; }
+.bubble button { cursor: pointer; border: 1px solid #b7c8df; background: white; padding: 5px 8px; border-radius: 5px; margin-right: 5px; }
+.empty { color: #64748b; text-align: center; margin: 24px; }

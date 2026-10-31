@@ -239,3 +239,24 @@
   font-size: 14px;
   color: #8e9aaf;
 }
+
+/* 真实聊天的网络状态、历史窗口和有界会话创建入口。 */
+.connectionBar { padding: 8px 12px; background: #fff; font-size: 12px; border-bottom: 1px solid #e2e8f0; }
+.connectionBar button, .historyControls button, .createForm button, .chatHeader button { margin-left: 6px; padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; cursor: pointer; }
+.connectionBar p { color: #b42318; margin: 6px 0 0; }
+.historyControls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 7px; font-size: 12px; }
+.createForm { display: flex; padding: 0 10px 10px; gap: 4px; }
+.createForm input { min-width: 0; width: 100%; border: 1px solid #cbd5e1; border-radius: 5px; padding: 6px; }
+.createForm button { flex-shrink: 0; margin: 0; }
+.chatHeader { flex-shrink: 0; gap: 12px; }
+.container button:disabled { opacity: .5; cursor: not-allowed; }
+.container button:focus-visible, .container input:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+@media (max-width: 720px) {
+  .container { flex-direction: column; height: calc(100dvh - 90px); min-height: 540px; }
+  .sidebar { width: 100%; max-height: 210px; flex-shrink: 0; border-right: none; border-bottom: 1px solid #e2e8f0; }
+  .sidebarHeader { min-height: 38px; height: 38px; }
+  .searchBox { padding: 4px 10px; }
+  .conversationList { display: flex; flex-shrink: 0; min-height: 65px; overflow: auto; }
+  .conversationItem { min-width: 170px; width: 170px; padding: 6px; }
+  .chatMain { min-height: 0; }
+}
