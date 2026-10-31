@@ -1,0 +1,7 @@
+.panel { padding: 8px 14px; background: #f8fbff; border-bottom: 1px solid #dbe5f0; font-size: 13px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 5px 0; }
+.panel button { padding: 5px 8px; cursor: pointer; border: 1px solid #b7c8df; background: white; border-radius: 5px; }
+.panel button:disabled { opacity: .5; cursor: not-allowed; }
+.tracks { display: flex; gap: 6px; max-height: 25vh; }
+.video { width: min(46%, 260px); max-height: 25vh; background: #172235; border-radius: 6px; }
+.panel p { color: #b42318; margin: 4px 0; }
