@@ -9,6 +9,7 @@
 import React, { Component } from "react";
 import HGLoading from "../../../components/hg_loading/hg_loading";
 import { DEBUG_MAP } from "../../auth/hg_auth";
+import { hgRegisterIMDevice } from "../../auth/hg_im_device";
 import { getHGLoginReturn } from "../../auth/hg_login_return.js";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { ROUTE_PATH } from "../../router/hg_router_path";
@@ -60,10 +61,19 @@ class HGLoginPage extends Component {
       phone: values.username,
       password: values.password,
     })
-      .then(() => {
+      .then(async () => {
         const recentAccounts = HGLoginHistoryStorage.recordSuccessfulLogin(values.username);
         this.setState({ recentAccounts });
-        return HGEditUserPageVM.getUserProfile();
+        if (import.meta.env.MODE === "debug") {
+          try {
+            await hgRegisterIMDevice();
+          } catch (hgError) {
+            message.warning(hgError?.status === 409
+              ? "登录成功，但当前账号已有 5 台活跃聊天设备；请在旧设备退出登录或撤销设备后重试。"
+              : "登录成功，但聊天设备注册失败；可进入聊天页重试。", 8000);
+          }
+        }
+        await HGEditUserPageVM.getUserProfile();
       })
       .then(() => {
         const from = getHGLoginReturn(

@@ -33,7 +33,6 @@ export default class HGHomeVM {
   hgListCursor = ""; // 会话主键倒序游标，不按时间猜测。
   hgWindowAfter = null; // 当前连续历史水位；null 表示尚未建立快照。
   hgLoadingSelection = null; // 同一窗口补拉单飞；null 表示当前无请求。
-  hgRegistering = false; // 显式设备重注册互斥，避免耗尽五设备额度。
   hgFollow = true; // true 追最新，false 停留历史页不被轮询覆盖。
   hgState = {
     conversations: [], // 最多 300 个已加载会话；更大集合需后续服务器搜索能力。
@@ -67,21 +66,17 @@ export default class HGHomeVM {
     void this.hgEmit({ error: `${hgOperation}：${hgReason}` });
   }
 
-  /** 设备恢复先于网关启动；任一扩展失败仍展示可用的 HTTP 会话。 */
+  /** 首页仅恢复登录时注册的设备；缺失时仍保留 HTTP 会话，不在页面额外注册。 */
   async hgStart() {
     if (!this.hgAlive()) { await this.hgOnState({ ...this.hgState, loading: false, error: "请重新登录后打开聊天" }); return; }
-    try {
-      const hgStored = hgIMSession(this.hgOwner).credential; // 与账号绑定的标签页凭据。
-      if (/^[a-f0-9]{32}$/.test(hgStored?.deviceId) && /^[a-f0-9]{64}$/.test(hgStored?.secret)) this.hgCredential = hgStored;
-      else {
-        this.hgCredential = await this.hgAPI.hgRegister();
-        if (!/^[a-f0-9]{32}$/.test(this.hgCredential?.deviceId) || !/^[a-f0-9]{64}$/.test(this.hgCredential?.secret)) throw new Error("设备凭据协议不合法");
-        if (this.hgAlive()) hgIMSession(this.hgOwner, { credential: this.hgCredential });
-      }
-      if (!this.hgAlive()) return;
+    const hgStored = hgIMSession(this.hgOwner).credential; // 与账号绑定的标签页凭据。
+    if (/^[a-f0-9]{32}$/.test(hgStored?.deviceId) && /^[a-f0-9]{64}$/.test(hgStored?.secret)) {
+      this.hgCredential = hgStored;
       await this.hgEmit({ deviceReady: true });
       void this.hgReconnect();
-    } catch (hgError) { this.hgError(hgError, "设备注册"); }
+    } else {
+      await this.hgEmit({ realtime: "未绑定聊天设备，请退出后重新登录 · HTTP 补拉中", error: "无本设备凭据，请退出后重新登录以注册聊天设备" });
+    }
     await this.hgSync();
   }
 
@@ -97,22 +92,6 @@ export default class HGHomeVM {
       await this.hgEmit({ realtime: "实时不可用 · HTTP 补拉中" });
       this.hgError(hgError, "实时连接");
     }
-  }
-
-  /** 失效/撤销后由用户显式注册新设备；不会在后台无限注册。 */
-  async hgRegisterDevice() {
-    if (!this.hgAlive() || this.hgCredential || this.hgRegistering) return;
-    this.hgRegistering = true;
-    try {
-      const hgCredential = await this.hgAPI.hgRegister();
-      if (!/^[a-f0-9]{32}$/.test(hgCredential?.deviceId) || !/^[a-f0-9]{64}$/.test(hgCredential?.secret)) throw new Error("设备凭据协议不合法");
-      if (!this.hgAlive()) return;
-      this.hgCredential = hgCredential;
-      hgIMSession(this.hgOwner, { credential: hgCredential });
-      await this.hgEmit({ deviceReady: true, error: "" });
-      await this.hgReconnect();
-      this.hgSchedule();
-    } finally { this.hgRegistering = false; }
   }
 
   /** 只接受有界指针；重复或乱序消息统一触发权威同步。 */
@@ -146,7 +125,7 @@ export default class HGHomeVM {
             this.hgCredential = null;
             hgIMSession(this.hgOwner, { credential: null });
             this.hgRealtime?.hgClose();
-            await this.hgEmit({ deviceReady: false, realtime: "设备已失效，请显式注册新设备" });
+            await this.hgEmit({ deviceReady: false, realtime: "设备已失效，请退出后重新登录" });
           }
           throw hgError;
         }

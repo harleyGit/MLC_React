@@ -14,12 +14,16 @@ import { Link, Outlet } from "react-router-dom";
 import { ROUTE_PATH } from "../../router/hg_router_path";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
+import { hgRevokeIMDevice } from "../../auth/hg_im_device";
+import { hgIMOwner } from "../../storage/hg_im_session";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
 import { hgGetAdminStatus } from "../../auth/hg_admin_status";
 import styles from "./hg_top_nav_layout.module.css";
 
 class HGTopNavLayout extends Component {
   hgMounted = false; // 页面挂载标记；卸载后忽略延迟返回的管理员状态。
+  hgLoggingOut = false; // 退出请求进行中，防止重复撤销和清空后续账号的登录态。
   /**
    * 构造函数：初始化当前导航选中态和头像浮层状态，并创建浮层容器引用。
    */
@@ -210,13 +214,29 @@ class HGTopNavLayout extends Component {
   };
 
   /**
-   * 退出登录：清除登录态并跳转到登录页。
-   * 约束：先关闭浮层，调用 logout 清除 token，再跳转到登录页。
+   * 退出登录：先撤销本标签页聊天设备，再清除本地登录态。
+   * 撤销失败时由用户决定是否仅退出本地登录，不声称已释放设备额度。
    */
-  gotoLogoutPage = () => {
+  gotoLogoutPage = async () => {
+    if (this.hgLoggingOut) return;
+    this.hgLoggingOut = true;
+    const hgOwner = hgIMOwner(); // 异步撤销期间若账号切换，不清空新账号登录态。
     this.setState({ showUserDropdown: false });
-    logout();
-    this.props.pageNavigator.open({ page: PAGE.LOGIN });
+    try {
+      if (import.meta.env.MODE === "debug") {
+        try {
+          await hgRevokeIMDevice();
+        } catch {
+          message.warning("设备撤销未确认，仍可能占用聊天设备名额。", 8000);
+          if (!window.confirm("设备撤销失败。是否仅退出本地登录？该设备可能继续占用名额。")) return;
+        }
+      }
+      if (hgIMOwner() !== hgOwner) return;
+      logout();
+      this.props.pageNavigator.open({ page: PAGE.LOGIN });
+    } finally {
+      this.hgLoggingOut = false;
+    }
   };
 
   /**

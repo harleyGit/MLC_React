@@ -291,26 +291,6 @@ export default class HGHomePage extends React.Component {
         >
           重连实时
         </button>
-        {hgSnapshot && !hgSnapshot.deviceReady && (
-          <button
-            type="button"
-            onClick={() =>
-              void this.hgRun(() => this.hgVM.hgRegisterDevice(), "注册设备")
-            }
-          >
-            注册新设备
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={!hgSnapshot?.deviceReady}
-          onClick={() => {
-            this.hgCall.current?.hgDisconnect();
-            void this.hgRun(() => this.hgVM.hgRevoke(), "撤销设备");
-          }}
-        >
-          撤销本设备
-        </button>
         {(hgSnapshot?.error || this.state.hgNotice) && (
           <p role="alert">
             {hgSnapshot?.error || this.state.hgNotice}
