@@ -2,38 +2,6 @@ import React from "react";
 import { hgIMReadMedia } from "../../manager_antd/net_handle/hg_im_media";
 import styles from "./hg_im_media.module.css";
 
-/** 仅当前聊天列表会话内存复用已鉴权字节；LRU 最多 12 件/320MiB、五分钟，离开会话即清空。 */
-export class HGIMMediaCache {
-  hgEntries = new Map(); // mediaId -> {blob, expires}；不写磁盘、不跨账号共享。
-  hgBytes = 0; // 当前缓存的 Blob 字节总数，不包含正在显示或下载的额外临时内存。
-  hgLimit = 320 * 1024 * 1024; // 允许保留一段 300MiB 视频；超过上限不缓存。
-
-  hgGet(hgID) {
-    const hgEntry = this.hgEntries.get(hgID); // 过期或撤销后必须重新向 Go 鉴权。
-    if (!hgEntry) return null;
-    if (hgEntry.expires <= Date.now()) { this.hgDelete(hgID); return null; }
-    this.hgEntries.delete(hgID);
-    this.hgEntries.set(hgID, hgEntry);
-    return hgEntry.blob;
-  }
-
-  hgSet(hgID, hgBlob) {
-    this.hgDelete(hgID);
-    if (hgBlob.size > this.hgLimit) return;
-    this.hgEntries.set(hgID, { blob: hgBlob, expires: Date.now() + 5 * 60 * 1000 });
-    this.hgBytes += hgBlob.size;
-    while (this.hgBytes > this.hgLimit || this.hgEntries.size > 12) this.hgDelete(this.hgEntries.keys().next().value);
-  }
-
-  hgDelete(hgID) {
-    const hgEntry = this.hgEntries.get(hgID); // 仅移除缓存；已打开的 Blob URL 由查看器卸载/撤销释放。
-    if (hgEntry) this.hgBytes -= hgEntry.blob.size;
-    this.hgEntries.delete(hgID);
-  }
-
-  hgClear() { this.hgEntries.clear(); this.hgBytes = 0; }
-}
-
 /** 单条已发送附件：api/message/onDelete 由列表提供；仅图片/视频进入视口后自动读取。 */
 export default class HGIMMediaPreview extends React.Component {
   state = {
@@ -81,10 +49,15 @@ export default class HGIMMediaPreview extends React.Component {
     if (this.hgURL) URL.revokeObjectURL(this.hgURL);
   }
 
-  /** 返回本机 Blob URL；读取失败不发起下载，不绕过 Go 的逐段鉴权。 */
-  hgLoad = async () => {
+  /** 自动预览短期避开已拒绝附件；用户主动点击仍可重新向 Go 鉴权。 */
+  hgLoad = async (hgManual = false) => {
     if (this.hgURL) return this.hgURL;
     if (this.hgLoading) return "";
+    const hgMediaID = this.props.message.content.mediaId; // 当前消息的媒体 ID，仅在本会话缓存拒绝结果。
+    if (!hgManual && this.props.cache?.hgIsDenied(hgMediaID)) {
+      if (this.hgMounted) this.setState({ hgError: "无权读取此附件：请确认审核状态、撤销状态及当前会话权限" });
+      return "";
+    }
     this.hgLoading = true;
     this.setState({ hgBusy: true, hgError: "" });
     try {
@@ -99,7 +72,10 @@ export default class HGIMMediaPreview extends React.Component {
       this.setState({ hgURL: this.hgURL, hgProgress: 100 });
       return this.hgURL;
     } catch (hgError) {
-      if (this.hgMounted) this.setState({ hgError: hgError?.name === "AbortError" ? "下载已取消" : "读取失败：请检查权限、网络与媒体审核状态" });
+      if (hgError?.status === 403) this.props.cache?.hgDeny(hgMediaID); // 虚拟行重建不重复请求已拒绝附件。
+      if (this.hgMounted) this.setState({ hgError: hgError?.name === "AbortError" ? "下载已取消" : hgError?.status === 403
+        ? "无权读取此附件：请确认审核状态、撤销状态及当前会话权限"
+        : "读取失败：请检查网络与媒体审核状态" });
       return "";
     } finally {
       this.hgLoading = false;
@@ -109,7 +85,7 @@ export default class HGIMMediaPreview extends React.Component {
 
   /** 保存本机已授权 Blob，文件名不使用服务端或消息正文中的不可信路径。 */
   hgDownload = async () => {
-    const hgURL = await this.hgLoad(); // 文件不自动读取，点击下载时才申请权限。
+    const hgURL = await this.hgLoad(true); // 用户点击可重试；仍逐次由 Go 鉴权。
     if (!hgURL || !this.hgMounted) return;
     const hgExt = ({ "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "video/mp4": ".mp4",
       "video/quicktime": ".mov", "audio/mpeg": ".mp3", "audio/ogg": ".ogg", "audio/mp4": ".m4a", "audio/aac": ".aac",
@@ -152,7 +128,7 @@ export default class HGIMMediaPreview extends React.Component {
     if (this.state.hgMenu) return;
     if (this.props.message.messageType === "file") { void this.hgDownload(); return; }
     if (this.state.hgURL) this.setState({ hgExpanded: true });
-    else void this.hgLoad().then((hgURL) => { if (hgURL && this.hgMounted) this.setState({ hgExpanded: true }); });
+    else void this.hgLoad(true).then((hgURL) => { if (hgURL && this.hgMounted) this.setState({ hgExpanded: true }); });
   };
 
   /** 气泡复用同一媒体字节；仅弹窗中的视频/音频显示播放控件。 */

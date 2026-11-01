@@ -109,7 +109,7 @@ export default class HGHomeVM {
       this.hgConnectionTimer = setTimeout(() => {
         this.hgConnectionTimer = null;
         if (!this.hgAlive() || this.hgConnectionState === "connected") return;
-        const hgReason = typeof navigator !== "undefined" && navigator.onLine === false ? "网络已断开，聊天实时连接失败；HTTP 补拉将在网络恢复后继续" : "聊天实时连接超时，消息仍通过 HTTP 补拉；请检查网络或稍后点击 Chat 重试";
+        const hgReason = typeof navigator !== "undefined" && navigator.onLine === false ? "网络已断开，聊天实时连接失败；HTTP 补拉将在网络恢复后继续" : "实时网关未建立连接，消息仍通过 HTTP 补拉；请检查网关服务及当前页面 Origin 是否获准，连接将自动重试";
         void this.hgEmit({ realtime: "实时不可用 · HTTP 补拉中" });
         this.hgPublishConnection("failed", hgReason);
       }, 20000);

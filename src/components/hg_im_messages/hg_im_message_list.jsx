@@ -1,5 +1,6 @@
 import React from "react";
-import HGIMMediaPreview, { HGIMMediaCache } from "../hg_im_media/hg_im_media_preview.jsx";
+import HGIMMediaPreview from "../hg_im_media/hg_im_media_preview.jsx";
+import { HGIMMediaCache } from "../hg_im_media/hg_im_media_cache.js";
 import styles from "./hg_im_messages.module.css";
 
 /** 媒体只在进入列表可视区时自动读取；短暂离屏仍保持组件直到虚拟槽被复用。 */
