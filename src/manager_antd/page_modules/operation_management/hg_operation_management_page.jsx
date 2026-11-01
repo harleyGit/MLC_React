@@ -1,8 +1,8 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
- * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-10-29 22:48:24
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-11-01 14:58:27
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
@@ -10,40 +10,71 @@ import React, { Component, lazy, Suspense } from "react";
 import HGLoading from "../../../components/hg_loading/hg_loading";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
+import styles from "./hg_operation_management.module.css";
 import HGOperationManagementVM, {
   OPERATION_MENU_ITEMS,
 } from "./hg_operation_management_vm";
-import styles from "./hg_operation_management.module.css";
 
 // 真实业务页按菜单项独立拆包；占位页保留同步渲染，避免无意义的小 chunk。
 const HGAdminAddPage = lazy(() => import("./admin_add/hg_admin_add_page"));
-const HGAdminRoleAssignPage = lazy(() => import("./admin_role_assign/hg_admin_role_assign_page"));
-const HGEmployeeRolePage = lazy(() => import("./employee_role/hg_employee_role_page"));
-const HGFileListPage = lazy(() => import("./file_management/file_list/hg_file_list_page"));
-const HGFileManagementPage = lazy(() => import("./file_management/hg_file_management_page"));
+const HGAdminListPage = lazy(() => import("./admin_list/hg_admin_list_page"));
+const HGAdminRoleAssignPage = lazy(() =>
+  import("./admin_role_assign/hg_admin_role_assign_page")
+);
+const HGEmployeeRolePage = lazy(() =>
+  import("./employee_role/hg_employee_role_page")
+);
+const HGFileListPage = lazy(() =>
+  import("./file_management/file_list/hg_file_list_page")
+);
+const HGFileManagementPage = lazy(() =>
+  import("./file_management/hg_file_management_page")
+);
 const HGPermissionMenuPage = lazy(() => import("./hg_permission_menu_page"));
-const HGRoleCreatePage = lazy(() => import("./role_create/hg_role_create_page"));
+const HGRoleCreatePage = lazy(() =>
+  import("./role_create/hg_role_create_page")
+);
 const HGRoleListPage = lazy(() => import("./role_list/hg_role_list_page"));
-const HGSmsTemplatePage = lazy(() => import("./sms_template/hg_sms_template_page"));
-const HGNotifyChannelPage = lazy(() => import("./notify_channel/hg_notify_channel_page"));
-const HGBilibiliTagPage = lazy(() => import("./bilibili_tag/hg_bilibili_tag_page"));
-const HGCoinOperationsPage = lazy(() => import("./coin_operations/hg_coin_operations_page"));
-const HGRechargeSkuPage = lazy(() => import("./hg_recharge_sku/hg_recharge_sku_page"));
+const HGSmsTemplatePage = lazy(() =>
+  import("./sms_template/hg_sms_template_page")
+);
+const HGNotifyChannelPage = lazy(() =>
+  import("./notify_channel/hg_notify_channel_page")
+);
+const HGBilibiliTagPage = lazy(() =>
+  import("./bilibili_tag/hg_bilibili_tag_page")
+);
+const HGCoinOperationsPage = lazy(() =>
+  import("./coin_operations/hg_coin_operations_page")
+);
+const HGRechargeSkuPage = lazy(() =>
+  import("./hg_recharge_sku/hg_recharge_sku_page")
+);
 const HGPendingMerchantReviewPage = lazy(() =>
-  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingMerchantReviewPage }))
+  import("./mall_review/hg_mall_review_page").then((module) => ({
+    default: module.HGPendingMerchantReviewPage,
+  }))
 );
 const HGPendingProductReviewPage = lazy(() =>
-  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingProductReviewPage }))
+  import("./mall_review/hg_mall_review_page").then((module) => ({
+    default: module.HGPendingProductReviewPage,
+  }))
 );
 const HGPendingMediaReviewPage = lazy(() =>
-  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingMediaReviewPage }))
+  import("./mall_review/hg_mall_review_page").then((module) => ({
+    default: module.HGPendingMediaReviewPage,
+  }))
 );
 const HGPendingEditReviewPage = lazy(() =>
-  import("./mall_review/hg_mall_review_page").then((module) => ({ default: module.HGPendingEditReviewPage }))
+  import("./mall_review/hg_mall_review_page").then((module) => ({
+    default: module.HGPendingEditReviewPage,
+  }))
 );
 const HGUserProfilePage = lazy(() => import("../user/hg_user_profile_page"));
 // 检测工具按需加载，不增加默认运维页面的初始化请求。
-const DomainDetectPage = lazy(() => import("../domain_module/DomainDetectPage.jsx"));
+const DomainDetectPage = lazy(() =>
+  import("../domain_module/DomainDetectPage.jsx")
+);
 
 /**
  * 用户列表占位页面
@@ -193,14 +224,16 @@ class SystemNotifyTemplatePage extends Component {
 const PAGE_MAP = {
   domain_detect: DomainDetectPage,
   admin_add: HGAdminAddPage,
-  admin_role_assign: HGEmployeeRolePage,
+  admin_list: HGAdminListPage,
+  admin_role_assign: HGAdminRoleAssignPage,
+  //HGEmployeeRolePage,
   // 用户管理：user_list 菜单必须展示真实用户资料/用户列表页。
   // user_list 对应“用户列表”菜单，需要渲染真实用户资料列表页，而不是上方的占位组件。
-  user_list: HGUserProfilePage,//用户列表
+  user_list: HGUserProfilePage, //用户列表
   // 用户权限管理Page：已拆分为独立业务页面。
   user_permission: HGEmployeeRolePage,
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
-  role_list: HGRoleListPage,//角色列表
+  role_list: HGRoleListPage, //角色列表
   role_employee: HGEmployeeRolePage,
   role_create: HGRoleCreatePage,
   permission_list: PermissionListPage,

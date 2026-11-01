@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-09-30 18:04:06
+ * @LastEditTime: 2026-11-01 14:40:30
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_vm.jsx
  * @Description: 运维管理页面 ViewModel，管理菜单配置与页面切换逻辑
  */
@@ -21,7 +21,16 @@ export const OPERATION_MENU_ITEMS = [
     label: "管理员管理",
     icon: <HGIconPage type="admin" />,
     children: [
-      { key: "admin_add", label: "添加管理员", icon: <HGIconPage type="add-user" /> },
+      {
+        key: "admin_add",
+        label: "添加管理员",
+        icon: <HGIconPage type="add-user" />,
+      },
+      {
+        key: "admin_list",
+        label: "管理员列表",
+        icon: <HGIconPage type="table" />,
+      },
     ],
   },
   {
@@ -29,7 +38,11 @@ export const OPERATION_MENU_ITEMS = [
     label: "用户管理",
     icon: <HGIconPage type="user-management" />,
     children: [
-      { key: "user_list", label: "用户列表", icon: <HGIconPage type="table" /> },
+      {
+        key: "user_list",
+        label: "用户列表",
+        icon: <HGIconPage type="table" />,
+      },
     ],
   },
   {
@@ -37,9 +50,21 @@ export const OPERATION_MENU_ITEMS = [
     label: "角色管理",
     icon: <HGIconPage type="role" />,
     children: [
-      { key: "role_list", label: "角色列表", icon: <HGIconPage type="table" /> },
-      { key: "role_employee", label: "管理员工角色", icon: <HGIconPage type="user" /> },
-      { key: "role_create", label: "创建角色", icon: <HGIconPage type="plus" /> },
+      {
+        key: "role_list",
+        label: "角色列表",
+        icon: <HGIconPage type="table" />,
+      },
+      {
+        key: "role_employee",
+        label: "管理员工角色",
+        icon: <HGIconPage type="user" />,
+      },
+      {
+        key: "role_create",
+        label: "创建角色",
+        icon: <HGIconPage type="plus" />,
+      },
     ],
   },
   {
@@ -47,9 +72,21 @@ export const OPERATION_MENU_ITEMS = [
     label: "权限管理",
     icon: <HGIconPage type="permission" />,
     children: [
-      { key: "permission_list", label: "权限列表", icon: <HGIconPage type="table" /> },
-      { key: "permission_menu", label: "菜单权限", icon: <HGIconPage type="menu" /> },
-      { key: "permission_config", label: "权限配置", icon: <HGIconPage type="config" /> },
+      {
+        key: "permission_list",
+        label: "权限列表",
+        icon: <HGIconPage type="table" />,
+      },
+      {
+        key: "permission_menu",
+        label: "菜单权限",
+        icon: <HGIconPage type="menu" />,
+      },
+      {
+        key: "permission_config",
+        label: "权限配置",
+        icon: <HGIconPage type="config" />,
+      },
     ],
   },
   {
@@ -57,8 +94,16 @@ export const OPERATION_MENU_ITEMS = [
     label: "资源管理",
     icon: <HGIconPage type="file" />,
     children: [
-      { key: "resource_file", label: "文件管理", icon: <HGIconPage type="file" /> },
-      { key: "resource_file_list", label: "文件列表", icon: <HGIconPage type="table" /> },
+      {
+        key: "resource_file",
+        label: "文件管理",
+        icon: <HGIconPage type="file" />,
+      },
+      {
+        key: "resource_file_list",
+        label: "文件列表",
+        icon: <HGIconPage type="table" />,
+      },
     ],
   },
   {
@@ -66,7 +111,11 @@ export const OPERATION_MENU_ITEMS = [
     label: "BiliBili",
     icon: <HGIconPage type="config" />,
     children: [
-      { key: "bilibili_douga_tags", label: "动画标签", icon: <HGIconPage type="table" /> },
+      {
+        key: "bilibili_douga_tags",
+        label: "动画标签",
+        icon: <HGIconPage type="table" />,
+      },
     ],
   },
   {
@@ -74,8 +123,16 @@ export const OPERATION_MENU_ITEMS = [
     label: "资产与链路",
     icon: <HGIconPage type="config" />,
     children: [
-      { key: "coin_operations", label: "硬币资产运维", icon: <HGIconPage type="table" /> },
-      { key: "hg_recharge_sku", label: "M币充值档位", icon: <HGIconPage type="table" /> },
+      {
+        key: "coin_operations",
+        label: "硬币资产运维",
+        icon: <HGIconPage type="table" />,
+      },
+      {
+        key: "hg_recharge_sku",
+        label: "M币充值档位",
+        icon: <HGIconPage type="table" />,
+      },
     ],
   },
   {
@@ -83,10 +140,26 @@ export const OPERATION_MENU_ITEMS = [
     label: "商城",
     icon: <HGIconPage type="config" />,
     children: [
-      { key: "mall_pending_merchants", label: "待审核商家", icon: <HGIconPage type="table" /> },
-      { key: "mall_pending_products", label: "待审核商品", icon: <HGIconPage type="table" /> },
-      { key: "mall_pending_media", label: "已上架商品补图审核", icon: <HGIconPage type="table" /> },
-      { key: "mall_pending_edits", label: "已上架商品资料修改审核", icon: <HGIconPage type="table" /> },
+      {
+        key: "mall_pending_merchants",
+        label: "待审核商家",
+        icon: <HGIconPage type="table" />,
+      },
+      {
+        key: "mall_pending_products",
+        label: "待审核商品",
+        icon: <HGIconPage type="table" />,
+      },
+      {
+        key: "mall_pending_media",
+        label: "已上架商品补图审核",
+        icon: <HGIconPage type="table" />,
+      },
+      {
+        key: "mall_pending_edits",
+        label: "已上架商品资料修改审核",
+        icon: <HGIconPage type="table" />,
+      },
     ],
   },
   {
@@ -95,15 +168,31 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="config" />,
     children: [
       // 叶子 key 与 PAGE_MAP 对齐，在当前运维布局内打开诊断页面。
-      { key: "domain_detect", label: "域名检测", icon: <HGIconPage type="config" /> },
+      {
+        key: "domain_detect",
+        label: "域名检测",
+        icon: <HGIconPage type="config" />,
+      },
       {
         key: "system_basic",
         label: "基础配置",
         icon: <HGIconPage type="config" />,
         children: [
-          { key: "system_basic_site", label: "站点信息", icon: <HGIconPage type="config" /> },
-          { key: "system_basic_email", label: "邮件配置", icon: <HGIconPage type="config" /> },
-          { key: "system_basic_storage", label: "存储配置", icon: <HGIconPage type="config" /> },
+          {
+            key: "system_basic_site",
+            label: "站点信息",
+            icon: <HGIconPage type="config" />,
+          },
+          {
+            key: "system_basic_email",
+            label: "邮件配置",
+            icon: <HGIconPage type="config" />,
+          },
+          {
+            key: "system_basic_storage",
+            label: "存储配置",
+            icon: <HGIconPage type="config" />,
+          },
         ],
       },
       {
@@ -111,8 +200,16 @@ export const OPERATION_MENU_ITEMS = [
         label: "安全设置",
         icon: <HGIconPage type="shield" />,
         children: [
-          { key: "system_security_login", label: "登录策略", icon: <HGIconPage type="shield" /> },
-          { key: "system_security_password", label: "密码策略", icon: <HGIconPage type="shield" /> },
+          {
+            key: "system_security_login",
+            label: "登录策略",
+            icon: <HGIconPage type="shield" />,
+          },
+          {
+            key: "system_security_password",
+            label: "密码策略",
+            icon: <HGIconPage type="shield" />,
+          },
         ],
       },
       {
@@ -120,9 +217,21 @@ export const OPERATION_MENU_ITEMS = [
         label: "通知管理",
         icon: <HGIconPage type="config" />,
         children: [
-          { key: "system_notify_template", label: "通知模板", icon: <HGIconPage type="config" /> },
-          { key: "system_notify_channel", label: "通知渠道", icon: <HGIconPage type="config" /> },
-          { key: "system_notify_sms", label: "短信模板", icon: <HGIconPage type="config" /> },
+          {
+            key: "system_notify_template",
+            label: "通知模板",
+            icon: <HGIconPage type="config" />,
+          },
+          {
+            key: "system_notify_channel",
+            label: "通知渠道",
+            icon: <HGIconPage type="config" />,
+          },
+          {
+            key: "system_notify_sms",
+            label: "短信模板",
+            icon: <HGIconPage type="config" />,
+          },
         ],
       },
     ],

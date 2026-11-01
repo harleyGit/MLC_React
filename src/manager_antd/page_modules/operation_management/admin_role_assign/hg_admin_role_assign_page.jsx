@@ -11,21 +11,24 @@
  *    选择指定管理员
  *    勾选需要分配的角色（支持多选）
  *    提交分配结果
- * 
+ *
  * 2. admin_user_role 管理员角色关联表
  * 作用：绑定管理员账号与所属角色，一个管理员可兼任多角色，依托角色间接获取对应权限，区分后台人员操作权限层级。
  */
 import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
-import { HGFormPage as Form, HGFormItem as Item } from "../../../../components/hg_form/hg_form_page";
-import { HGInputSearch } from "../../../../components/hg_input/hg_input_page";
-import HGSelectPage from "../../../../components/hg_select/hg_select_page";
 import { HGCheckboxGroup } from "../../../../components/hg_checkbox/hg_checkbox_page";
+import {
+  HGFormPage as Form,
+  HGFormItem as Item,
+} from "../../../../components/hg_form/hg_form_page";
+import { HGInputSearch } from "../../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
+import HGSelectPage from "../../../../components/hg_select/hg_select_page";
+import styles from "./hg_admin_role_assign.module.css";
 import HGAdminRoleAssignVM, {
   INITIAL_FORM_VALUES,
 } from "./hg_admin_role_assign_vm";
-import styles from "./hg_admin_role_assign.module.css";
 
 /**
  * 管理员角色分配表单页面
@@ -61,7 +64,9 @@ class HGAdminRoleAssignPage extends Component {
         if (roleOptions.length === 0) {
           message.warning("暂无可分配角色，请先创建角色");
         } else if (res?.truncated) {
-          message.warning("角色数量较多，当前仅加载前 500 个角色，请通过角色管理精简可分配范围");
+          message.warning(
+            "角色数量较多，当前仅加载前 500 个角色，请通过角色管理精简可分配范围"
+          );
         }
       })
       .catch(() => {
@@ -78,7 +83,10 @@ class HGAdminRoleAssignPage extends Component {
     if (!searchText) {
       this.setState({ adminOptions: [], selectedAdmin: null });
       if (this.formRef.current) {
-        this.formRef.current.setFieldsValue({ admin_user_id: undefined, role_ids: [] });
+        this.formRef.current.setFieldsValue({
+          admin_user_id: undefined,
+          role_ids: [],
+        });
       }
       return;
     }
@@ -103,7 +111,9 @@ class HGAdminRoleAssignPage extends Component {
 
   handleAdminChange = (adminUserId) => {
     const { adminOptions } = this.state;
-    const selectedAdminOption = adminOptions.find((item) => item.value === String(adminUserId));
+    const selectedAdminOption = adminOptions.find(
+      (item) => item.value === String(adminUserId)
+    );
     this.setState({ selectedAdmin: selectedAdminOption?.raw || null });
     if (!adminUserId) {
       if (this.formRef.current) {
@@ -122,7 +132,9 @@ class HGAdminRoleAssignPage extends Component {
    */
   handleFinish = (values) => {
     void values;
-    message.warning("旧批量授权已停用，角色分配尚需接入 IAM 的 MFA 与双人审批流程");
+    message.warning(
+      "旧批量授权已停用，角色分配尚需接入 IAM 的 MFA 与双人审批流程"
+    );
   };
 
   /**
@@ -149,7 +161,9 @@ class HGAdminRoleAssignPage extends Component {
           className={styles.searchInput}
         />
         <p className={styles.searchTip}>
-          大数据表搜索使用 ID 精确匹配，或用户名、昵称、邮箱、手机号前缀匹配；最多返回 10 条候选，避免后台搜索拖慢千万级管理员表。
+          大数据表搜索使用 ID
+          精确匹配，或用户名、昵称、邮箱、手机号前缀匹配；最多返回 10
+          条候选，避免后台搜索拖慢千万级管理员表。
         </p>
       </div>
     );
@@ -236,7 +250,10 @@ class HGAdminRoleAssignPage extends Component {
     return (
       <div className={styles.adminRoleAssignContainer}>
         <h2 className={styles.formTitle}>管理员角色分配</h2>
-        <p role="status">旧版批量授权已停用；角色列表已迁移 IAM。此页面暂不支持角色分配，尚需接入 MFA 与双人审批流程。</p>
+        <p role="status">
+          旧版批量授权已停用；角色列表已迁移
+          IAM。此页面暂不支持角色分配，尚需接入 MFA 与双人审批流程。
+        </p>
         <Form
           ref={this.formRef}
           layout="vertical"
