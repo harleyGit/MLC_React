@@ -9,15 +9,18 @@
  *   HGUserProfilePage → HGUpdateUserProfilePage 页面传参（class 组件）
 */
 import React from "react";
+import { handleError } from "../../../api/HttpManagerV1";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../components/hg_card/hg_card_page";
 import HGCollectionView from "../../../components/hg_collection_view/hg_collection_view";
 import { HGInputSearch } from "../../../components/hg_input/hg_input_page";
 import HGLoading from "../../../components/hg_loading/hg_loading";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGModalPage from "../../../components/hg_modal/hg_modal_page";
 import HGSpacePage from "../../../components/hg_space/hg_space_page";
 import { LogOut } from "../../../logger/hg_logger";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
+import HGUserEditModal from "./hg_user_edit_modal";
 import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";
 
@@ -50,6 +53,11 @@ class HGUserProfilePage extends React.Component {
       },
       // 服务端是否还有下一页；供卡片列表分页条判断「下一页」可用性。
       hasMore: false,
+      // 卡片操作状态：编辑目标用户与提交中标记、待删除用户（确认弹窗）与提交中标记。
+      editingUser: null,
+      editSubmitting: false,
+      deletingUser: null,
+      deleteSubmitting: false,
       count: 0,
       refreshed: false,
     };
@@ -186,6 +194,89 @@ class HGUserProfilePage extends React.Component {
   };
 
   /**
+   * 按当前页码与关键词重新拉取列表；编辑/删除成功后的刷新入口。
+   */
+  refreshCurrentPage = () => {
+    const { pagination, keyword } = this.state;
+    this.fetchUsers(pagination.current, pagination.pageSize, keyword);
+  };
+
+  /**
+   * 打开编辑弹窗。
+   * @param {Object} user 待编辑用户。
+   */
+  handleEditClick = (user) => {
+    this.setState({ editingUser: user });
+  };
+
+  /**
+   * 关闭编辑弹窗；提交中不允许关闭，避免请求结果与界面状态不一致。
+   */
+  handleCancelEdit = () => {
+    if (this.state.editSubmitting) return;
+    this.setState({ editingUser: null });
+  };
+
+  /**
+   * 提交编辑：走 PUT /api/v1/profile/update?user_id=xxx，成功后刷新当前页。
+   * @param {Object} formInput 表单值（nickname / gender / signature）。
+   */
+  handleSubmitEdit = async (formInput) => {
+    const { editingUser, editSubmitting } = this.state;
+    if (!editingUser || editSubmitting) return;
+    this.setState({ editSubmitting: true });
+    try {
+      await HGUserVM.updateUserByUserId({
+        userId: editingUser.user_id,
+        ...formInput,
+      });
+      message.success("用户资料已更新");
+      this.setState({ editingUser: null });
+      this.refreshCurrentPage();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      this.setState({ editSubmitting: false });
+    }
+  };
+
+  /**
+   * 打开删除确认弹窗。
+   * @param {Object} user 待删除用户。
+   */
+  handleAskDelete = (user) => {
+    this.setState({ deletingUser: user });
+  };
+
+  /**
+   * 关闭删除确认弹窗；提交中不允许关闭。
+   */
+  handleCancelDelete = () => {
+    if (this.state.deleteSubmitting) return;
+    this.setState({ deletingUser: null });
+  };
+
+  /**
+   * 确认删除：走 DELETE /api/v1/profile/delete?user_id=xxx，成功后刷新当前页。
+   * 注意：后端删除路由尚未实现，联调前该请求会失败并弹错误提示。
+   */
+  handleConfirmDelete = async () => {
+    const { deletingUser, deleteSubmitting } = this.state;
+    if (!deletingUser || deleteSubmitting) return;
+    this.setState({ deleteSubmitting: true });
+    try {
+      await HGUserVM.deleteUserByUserId(deletingUser.user_id);
+      message.success("用户已删除");
+      this.setState({ deletingUser: null });
+      this.refreshCurrentPage();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      this.setState({ deleteSubmitting: false });
+    }
+  };
+
+  /**
    * 渲染页头工具区：搜索框与新增用户按钮。
    * @returns {React.ReactNode} 工具区 JSX。
    */
@@ -209,12 +300,47 @@ class HGUserProfilePage extends React.Component {
   };
 
   /**
-   * 渲染单张用户资料卡片：头像、昵称、性别、签名与全部元数据字段。
+   * 汇总用户卡片的元数据项；以后新增展示字段只需在此数组追加一项。
+   * @param {Object} user 用户对象。
+   * @returns {Array<{label: string, value: React.ReactNode}>} 元数据项列表。
+   */
+  userMetaItems = (user) => {
+    return [
+      { label: "用户ID", value: user.user_id ?? "-.-" },
+      { label: "公开ID", value: user.publicId ?? "-.-" },
+      { label: "手机号", value: user.phone ?? "-.-" },
+      { label: "记录编号", value: user.id ?? "-.-" },
+    ];
+  };
+
+  /**
+   * 渲染用户元数据栅格：位于头像区块下方，按容器宽度自适应多列、自动换行成多行。
+   * @param {Object} user 用户对象。
+   * @returns {React.ReactNode} 元数据栅格 JSX。
+   */
+  renderMetaGrid = (user) => {
+    const items = this.userMetaItems(user);
+    return (
+      <dl className={styles.metaGrid}>
+        {items.map((item) => (
+          <div key={item.label}>
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  };
+
+  /**
+   * 渲染单张用户资料卡片：头像、昵称、性别、签名、右侧操作按钮与全部元数据字段。
    * @param {Object} user 用户对象。
    * @returns {React.ReactNode} 用户卡片 JSX。
    */
   renderUserCard = (user) => {
     const displayName = user.nickname || user.user_name || "-.-";
+    // 任一写操作进行中时统一禁用其他卡片按钮，避免并发编辑/删除造成状态混乱。
+    const actionDisabled = this.state.editSubmitting || this.state.deleteSubmitting;
     return (
       <article className={styles.userCard}>
         <div className={styles.cardHead}>
@@ -249,25 +375,23 @@ class HGUserProfilePage extends React.Component {
               {user.signature ? `“${user.signature}”` : "这个人很酷，什么都没写。"}
             </p>
           </div>
+          <div className={styles.cardActions}>
+            <HGButtonPage
+              disabled={actionDisabled}
+              onClick={() => this.handleEditClick(user)}
+            >
+              编辑
+            </HGButtonPage>
+            <HGButtonPage
+              danger
+              disabled={actionDisabled}
+              onClick={() => this.handleAskDelete(user)}
+            >
+              删除
+            </HGButtonPage>
+          </div>
         </div>
-        <dl className={styles.metaGrid}>
-          <div>
-            <dt>用户ID</dt>
-            <dd>{user.user_id ?? "-.-"}</dd>
-          </div>
-          <div>
-            <dt>公开ID</dt>
-            <dd>{user.publicId ?? "-.-"}</dd>
-          </div>
-          <div>
-            <dt>手机号</dt>
-            <dd>{user.phone ?? "-.-"}</dd>
-          </div>
-          <div>
-            <dt>记录编号</dt>
-            <dd>{user.id ?? "-.-"}</dd>
-          </div>
-        </dl>
+        {this.renderMetaGrid(user)}
         <footer className={styles.cardFoot}>
           <span>创建于 {this.formatDateTime(user.created_at)}</span>
           <span>更新于 {this.formatDateTime(user.updated_at)}</span>
@@ -306,6 +430,51 @@ class HGUserProfilePage extends React.Component {
     );
   };
 
+  /**
+   * 渲染编辑弹窗；未打开时返回 null。
+   * @returns {React.ReactNode} 编辑弹窗 JSX。
+   */
+  renderEditModal = () => {
+    const { editingUser, editSubmitting } = this.state;
+    if (!editingUser) return null;
+    return (
+      <HGUserEditModal
+        user={editingUser}
+        submitting={editSubmitting}
+        onCancel={this.handleCancelEdit}
+        onSubmit={this.handleSubmitEdit}
+      />
+    );
+  };
+
+  /**
+   * 渲染删除确认弹窗；未选择待删除用户时返回 null。
+   * @returns {React.ReactNode} 删除确认弹窗 JSX。
+   */
+  renderDeleteModal = () => {
+    const { deletingUser, deleteSubmitting } = this.state;
+    if (!deletingUser) return null;
+    return (
+      <HGModalPage
+        visible
+        size="small"
+        title="删除用户"
+        closable={!deleteSubmitting}
+        onClose={this.handleCancelDelete}
+        okText={deleteSubmitting ? "删除中…" : "确认删除"}
+        cancelText="取消"
+        okType="danger"
+        onOk={this.handleConfirmDelete}
+        onCancel={this.handleCancelDelete}
+      >
+        <p>
+          确认删除用户 {deletingUser.user_name ?? deletingUser.user_id}？
+          删除后该用户将无法登录，此操作不可恢复。
+        </p>
+      </HGModalPage>
+    );
+  };
+
   render() {
     const { data, loading } = this.state;
     LogOut("🍎 用户列表数据：", data);
@@ -315,6 +484,8 @@ class HGUserProfilePage extends React.Component {
         <HGCardPage title="用户列表" extra={this.renderToolbar()}>
           {this.renderUserList()}
         </HGCardPage>
+        {this.renderEditModal()}
+        {this.renderDeleteModal()}
       </div>
     );
   }

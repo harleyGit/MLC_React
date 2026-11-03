@@ -35,4 +35,14 @@ export default class HGUserVM {
         throw err;
       });
   };
+
+  /* 按用户ID更新资料（管理操作）；可更新字段与本人资料更新一致（昵称/签名/性别/生日/头像）。 */
+  static updateUserByUserId = ({ userId, nickname, signature, gender }) => {
+    return HGNet.updateUserProfile({ userId, nickname, signature, gender });
+  };
+
+  /* 按用户ID删除用户；后端 /api/v1/profile/delete 尚未实现，联调前调用会失败。 */
+  static deleteUserByUserId = (userId) => {
+    return HGNet.deleteUser(userId);
+  };
 }

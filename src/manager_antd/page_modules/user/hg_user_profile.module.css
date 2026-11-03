@@ -126,10 +126,18 @@
   font-style: italic;
 }
 
-/* 元数据栅格：ID、公开ID、手机号、记录编号 */
+/* 卡片右侧操作区：编辑 / 删除按钮，始终贴头部右侧 */
+.cardActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* 元数据栅格：位于头像区块下方；auto-fill 按容器宽度分多列，条目增多时自动换行成多行 */
 .metaGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px 16px;
   margin: 0;
   padding: 12px 14px;

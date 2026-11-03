@@ -85,7 +85,8 @@ class HGNetManagerVM extends HGNetManager {
   }
 
   // 更新用户资料
-  updateUserProfile({ nickname, signature, gender, birth_month, avatar_url }) {
+  // userId 可选：传入时按 query user_id 定位目标用户（对齐 Go parseUpdateUserID：query 优先，缺省回退 JWT 本人）。
+  updateUserProfile({ userId, nickname, signature, gender, birth_month, avatar_url }) {
     const body = {};
     if (nickname !== undefined) {
       body.nickname = nickname;
@@ -103,7 +104,16 @@ class HGNetManagerVM extends HGNetManager {
     if (avatar_url !== undefined) {
       body.avatar_url = avatar_url;
     }
-    return this.put(HGMANAGER_API.PROFILE_UPDATE, body);
+    const url = userId
+      ? `${HGMANAGER_API.PROFILE_UPDATE}?user_id=${encodeURIComponent(userId)}`
+      : HGMANAGER_API.PROFILE_UPDATE;
+    return this.put(url, body);
+  }
+
+  // 删除用户（按 user_id）。
+  // 注意：后端 /api/v1/profile/delete 路由尚未实现，调用会得到 404/405，待后端补齐后联调。
+  deleteUser(userId) {
+    return this.delete(HGMANAGER_API.PROFILE_USER_DELETE, { params: { user_id: userId } });
   }
 
   // 上传头像（二进制流方式）
