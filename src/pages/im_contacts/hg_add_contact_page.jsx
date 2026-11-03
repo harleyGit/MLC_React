@@ -1,6 +1,6 @@
 /*
  * @Description: 添加联系人页面（仿微信「添加朋友」）：搜索 → 查找结果 → 申请添加 → 申请人资料，每步为独立整页。
- * 约束：类组件；render 只组装 renderXxx；单输入框自动识别账号 / 手机号 / 邮箱，不提供方式切换按钮；
+ * 约束：类组件；render 只组装 renderXxx；单输入框识别系统 ID / 自定义 ID，手机号 / 邮箱仅供演示；
  *       可图标化的操作一律使用 HGIconPage 图标按钮，文字仅用于标题、说明与无障碍标签；
  *       搜索与申请走真实 VM 请求链，服务端失败不伪造成功关系；debug 演示资料明确标注且不调用写接口。
  */
@@ -18,7 +18,7 @@ const HG_STEP_TITLES = Object.freeze({
   profile: "联系人资料",
 });
 
-/** 朋友权限选项：微信「朋友权限」二选一，仅作为申请表单本地草稿随申请提交。 */
+/** 朋友权限选项：仅供演示本地草稿；当前后端好友申请协议不保存朋友权限。 */
 const HG_PERMISSIONS = Object.freeze([
   { key: "all", label: "聊天、朋友圈、微信运动等", hint: "默认开放全部可见范围" },
   { key: "chat_only", label: "仅聊天", hint: "不看对方朋友圈与状态" },
@@ -36,8 +36,8 @@ class HGAddContactPage extends React.Component {
     hgError: "", // 当前整页的错误提示，空串表示无错误。
     hgResult: null, // 归一化后的联系人资料，null 表示尚未命中。
     hgRequestMessage: "", // 验证申请附言。
-    hgRemark: "", // 申请时设置的好友备注（本地草稿）。
-    hgPermission: "all", // 朋友权限选择。
+    hgRemark: "", // 申请页备注本地演示草稿，服务端尚不支持随申请保存。
+    hgPermission: "all", // 朋友权限本地演示选择，服务端尚不支持随申请保存。
     hgSending: false, // 申请提交中。
     hgSent: false, // 是否已向服务端成功提交申请；演示模式恒为 false。
     hgDemo: false, // 当前资料是否为明确标注的演示资料。
@@ -118,6 +118,7 @@ class HGAddContactPage extends React.Component {
 
   /** 仅 debug 可用的演示入口：创建明确标注的资料，后续发送不会调用写接口。 */
   hgUseDemo = () => {
+    if (import.meta.env.MODE !== "debug") return;
     const profile = HGAddContactVM.createDemoProfile(this.state.hgKeyword.trim());
     this.setState({ hgResult: profile, hgDemo: true, hgError: "", hgStep: "result" });
     this.hgShowToast("已进入演示资料，不会向服务端发送申请");
@@ -132,9 +133,9 @@ class HGAddContactPage extends React.Component {
     }));
   };
 
-  /** 发送申请：演示资料只推进 UI；真实资料走服务端，成功后才进入申请人资料页。 */
+  /** 发送申请：演示资料只推进 UI；真实资料仅提交后端支持的目标 ID 和附言。 */
   hgSubmitApply = async () => {
-    const { hgResult, hgDemo, hgRequestMessage, hgRemark, hgPermission, hgSending } = this.state;
+    const { hgResult, hgDemo, hgRequestMessage, hgSending } = this.state;
     if (hgSending || !hgResult) return;
     if (hgDemo) {
       this.setState({ hgSent: false, hgStep: "profile" });
@@ -142,11 +143,7 @@ class HGAddContactPage extends React.Component {
     }
     this.setState({ hgSending: true, hgError: "" });
     try {
-      await HGAddContactVM.sendFriendRequest(hgResult.userId, {
-        message: hgRequestMessage.trim(),
-        remark: hgRemark.trim(),
-        permission: hgPermission,
-      });
+      await HGAddContactVM.sendFriendRequest(hgResult.userId, hgRequestMessage.trim());
       if (this.hgUnmounted) return;
       this.setState({ hgSent: true, hgStep: "profile" });
     } catch {
@@ -221,7 +218,7 @@ class HGAddContactPage extends React.Component {
     return <p className={styles.errorText} role="alert">{this.state.hgError}</p>;
   }
 
-  /** 第一整页：单输入框自动识别账号 / 手机号 / 邮箱，三个支持方式只以图标提示，不提供切换按钮。 */
+  /** 第一整页：真实查询只支持系统 ID / 自定义 ID；手机号 / 邮箱只保留演示识别图标。 */
   renderSearchStep() {
     const { hgKeyword, hgSearching } = this.state;
     const detected = HGAddContactVM.getSearchConfig(hgKeyword);
@@ -232,14 +229,14 @@ class HGAddContactPage extends React.Component {
           <HGIconPage type="add-user" style={{ fontSize: 34, color: "inherit" }} />
         </div>
         <h2 className={styles.heroTitle}>添加朋友</h2>
-        <p className={styles.heroSub}>输入内容自动识别查找方式</p>
+        <p className={styles.heroSub}>输入系统 ID 或自定义 ID，精确查找用户</p>
 
         <form className={styles.searchBar} onSubmit={this.hgSearch}>
           <HGIconPage type="search" style={{ fontSize: 20, color: "#9a9a9a" }} />
           <input
             className={styles.searchInput}
             aria-label="查找联系人"
-            placeholder="账号 / 手机号 / 邮箱"
+            placeholder="系统 ID（U 开头）/ 自定义 ID"
             value={hgKeyword}
             maxLength={128}
             onChange={(event) => this.setState({ hgKeyword: event.target.value, hgError: "" })}
@@ -261,12 +258,14 @@ class HGAddContactPage extends React.Component {
 
         <div className={styles.wayRow}>
           {HG_SEARCH_TYPES.map((item) => (
-            <span key={item.key} className={styles.wayIcon} title={`支持${item.label}查找`} aria-label={`支持${item.label}查找`}>
+            <span key={item.key} className={styles.wayIcon}
+              title={item.serverType ? `支持${item.label}查找` : canDemo ? `${item.label}仅提供演示预览` : `${item.label}暂不支持`}
+              aria-label={item.serverType ? `支持${item.label}查找` : canDemo ? `${item.label}仅提供演示预览` : `${item.label}暂不支持`}>
               <HGIconPage type={item.icon} style={{ fontSize: 22, color: "inherit" }} />
             </span>
           ))}
         </div>
-        <p className={styles.wayHint}>支持账号、手机号、邮箱精确查找</p>
+        <p className={styles.wayHint}>真实接口仅支持系统 ID、自定义 ID；手机号/邮箱{canDemo ? "仅供演示预览" : "尚未开放"}</p>
 
         {canDemo && this.renderAction("emotion", "预览演示", this.hgUseDemo, styles.ghostIconBtn)}
       </div>
@@ -349,7 +348,7 @@ class HGAddContactPage extends React.Component {
             placeholder="仅自己可见，留空显示对方昵称"
             onChange={(event) => this.setState({ hgRemark: event.target.value })}
           />
-          <p className={styles.fieldHint}>备注与朋友权限随申请提交，最终以服务端支持的字段为准。</p>
+          <p className={styles.fieldHint}>备注与朋友权限仅用于本页演示，不会随申请提交或保存；真实申请只发送验证附言。</p>
         </div>
 
         <div className={styles.formCard}>
@@ -405,8 +404,8 @@ class HGAddContactPage extends React.Component {
       { label: "个性签名", icon: "edit", value: hgResult.signature || "暂无签名" },
       { label: "来源", icon: "search", value: hgResult.source },
       { label: "验证附言", icon: "mail", value: hgRequestMessage.trim() || "未填写" },
-      { label: "备注", icon: "plus", value: hgRemark.trim() || "未设置" },
-      { label: "朋友权限", icon: "lock", value: permission ? permission.label : "未设置" },
+      { label: "备注", icon: "plus", value: `${hgRemark.trim() || "未设置"}（仅预览，未保存）` },
+      { label: "朋友权限", icon: "lock", value: `${permission ? permission.label : "未设置"}（仅预览，未保存）` },
     ];
     return (
       <div className={styles.stepPage}>
