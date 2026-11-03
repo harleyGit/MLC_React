@@ -309,7 +309,6 @@ class HGUserProfilePage extends React.Component {
       { label: "用户ID", value: user.user_id ?? "-.-" },
       { label: "公开ID", value: user.publicId ?? "-.-" },
       { label: "手机号", value: user.phone ?? "-.-" },
-      { label: "记录编号", value: user.id ?? "-.-" },
     ];
   };
 

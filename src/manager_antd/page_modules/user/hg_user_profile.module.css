@@ -134,10 +134,10 @@
   margin-left: auto;
 }
 
-/* 元数据栅格：位于头像区块下方；auto-fill 按容器宽度分多列，条目增多时自动换行成多行 */
+/* 元数据栅格：位于头像区块下方；固定 2 列，条目增多时自动换行成多行 */
 .metaGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px 16px;
   margin: 0;
   padding: 12px 14px;
