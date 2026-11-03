@@ -75,6 +75,7 @@ export default class HGAddContactVM {
       username: profile.username || "",
       region: profile.region || "",
       signature: profile.signature || "",
+      avatarUrl: profile.avatarUrl || profile.avatar_url || "",
       source: `通过${config.label}查找`,
       friendStatus: profile.friendStatus || profile.friend_status || "unknown",
     };

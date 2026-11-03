@@ -403,6 +403,7 @@ class HGImContactsPage extends Component {
         onKeyDown={(event) => { if (event.key === "Enter") this.handleSearchUser(); }} placeholder="精确搜索 ID" />
       <button type="button" className={styles.outlineBtn} onClick={this.handleSearchUser} disabled={saving || !searchValue.trim()}>查找用户</button>
       {searchResult && <div className={styles.messageCard}>
+        {this.renderAvatar(searchResult, searchResult.userId, styles.avatarMedium)}
         <p>{searchResult.nickname || searchResult.publicId} · {searchResult.publicId}</p>
         <input className={styles.searchInput} aria-label="好友申请附言" value={requestMessage} maxLength={128}
           onChange={(event) => this.setState({ requestMessage: event.target.value })} placeholder="填写申请附言（可选）" />
@@ -416,7 +417,7 @@ class HGImContactsPage extends Component {
   };
 
   /**
-   * 渲染头像：按标识取色的首字符头像。
+   * 渲染头像：优先使用用户资料中的 URL；缺失或加载失败时展示首字占位。
    * @param {Object} contact 联系人或群组对象。
    * @param {string} seed 取色标识。
    * @param {string} sizeClass 尺寸样式类。
@@ -428,6 +429,8 @@ class HGImContactsPage extends Component {
       style={{ backgroundColor: HGImContactsVM.getAvatarColor(seed) }}
     >
       {HGImContactsVM.getAvatarText(contact)}
+      {contact?.avatarUrl && <img key={contact.avatarUrl} className={styles.avatarImage}
+        src={contact.avatarUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
     </div>
   );
 

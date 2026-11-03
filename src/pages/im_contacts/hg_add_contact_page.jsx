@@ -170,7 +170,7 @@ class HGAddContactPage extends React.Component {
     );
   }
 
-  /** 头像：沿用通讯录模块的取色与首字规则，尺寸由调用方指定。 */
+  /** 优先显示服务端头像 URL；未设置或图片加载失败时保留取色首字占位。 */
   renderAvatar(profile, sizeClass) {
     const seed = profile?.userId || profile?.publicId || "?";
     return (
@@ -180,6 +180,8 @@ class HGAddContactPage extends React.Component {
         aria-hidden="true"
       >
         {HGAddContactVM.getAvatarText(profile)}
+        {profile?.avatarUrl && <img key={profile.avatarUrl} className={styles.avatarImage}
+          src={profile.avatarUrl} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
       </span>
     );
   }
