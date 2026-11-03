@@ -2,7 +2,7 @@
  * @Description: 联系人页面，模仿微信电脑端通讯录：左侧联系人列表 + 右侧资料详情与编辑。
  * 职责：维护联系人/群组/好友申请/黑名单四类数据的选择、搜索、接受申请、资料修改、拉黑与删除等交互。
  * 约束：视图分类（联系人/新的朋友/群组）由个人中心「即时通信」菜单 children 通过 hgInitialFilter 下发；
- *       数据由 hg_im_contacts_vm 提供模拟实现，真实 Go IM 接口落地后仅替换 VM 数据源，本页面逻辑不变。
+ *       联系人数据通过 VM 真实接口获取，服务端失败时不伪造成功关系。
  */
 import React, { Component } from "react";
 import HGImContactsVM from "./hg_im_contacts_vm";
@@ -32,8 +32,15 @@ class HGImContactsPage extends Component {
       editForm: null, // { remark, tags, phone, description }
       confirmAction: null, // 'delete' | 'block'，触发前需二次确认
       toast: "",
+      error: "", // 空值表示加载正常，非空时展示错误及重试入口。
+      saving: false, // 写操作进行中禁用重复提交。
+      searchType: "public_id", // 新好友精确搜索类型，默认公开系统 ID，可切换自定义 ID。
+      searchValue: "", // 精确搜索输入；空值不调用服务端。
+      searchResult: null, // 搜索到的公开资料；null 表示尚无结果或已经清空。
+      requestMessage: "", // 申请附言，默认不填写，最多 128 字符。
     };
     this.toastTimer = null;
+    this.hgUnmounted = false; // 卸载后忽略旧请求响应。
   }
 
   componentDidMount() {
@@ -62,6 +69,7 @@ class HGImContactsPage extends Component {
   }
 
   componentWillUnmount() {
+    this.hgUnmounted = true;
     if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
@@ -88,15 +96,15 @@ class HGImContactsPage extends Component {
    * 加载联系人模块数据，并按当前视图过滤器选中默认项。
    */
   loadContacts = async () => {
-    const data = await HGImContactsVM.fetchContacts();
-    this.setState({
-      loading: false,
-      friends: data.friends,
-      groups: data.groups,
-      requests: data.requests,
-      blocked: data.blocked,
-      selected: this.pickDefaultSelection(this.state.activeFilter, data),
-    });
+    this.setState({ loading: true, error: "" });
+    try {
+      const data = await HGImContactsVM.fetchContacts();
+      if (this.hgUnmounted) return;
+      this.setState((state) => ({ loading: false, error: "", ...data,
+        selected: this.pickDefaultSelection(state.activeFilter, data) }));
+    } catch {
+      if (!this.hgUnmounted) this.setState({ loading: false, error: "联系人加载失败，请重试" });
+    }
   };
 
   /**
@@ -136,7 +144,7 @@ class HGImContactsPage extends Component {
    * @returns {Array<{key: string, title: string, type: string, items: Array}>} 列表分组配置。
    */
   getListSections = () => {
-    const { friends, groups, requests, keyword, activeFilter } = this.state;
+    const { friends, groups, requests, blocked, keyword, activeFilter } = this.state;
     const trimmed = keyword.trim();
     const sections = [];
 
@@ -171,6 +179,7 @@ class HGImContactsPage extends Component {
         items: matchedGroups,
       });
     }
+    if (blocked.length > 0 && !trimmed) sections.push({ key: "blocked", title: "黑名单", type: "blocked", items: blocked });
     return sections;
   };
 
@@ -222,8 +231,9 @@ class HGImContactsPage extends Component {
     }));
   };
 
-  /** 保存编辑：调用 VM 模拟接口并同步本地好友列表。 */
+  /** 保存编辑：服务端成功后才同步本地好友列表。 */
   handleEditSave = async () => {
+    if (this.state.saving) return;
     const { editForm } = this.state;
     const friend = this.getSelectedItem();
     if (!friend || !editForm) return;
@@ -237,41 +247,51 @@ class HGImContactsPage extends Component {
       phone: editForm.phone.trim(),
       description: editForm.description.trim(),
     };
-    await HGImContactsVM.saveFriendProfile(friend.userId, patch);
-    this.setState((prevState) => ({
-      editing: false,
-      editForm: null,
-      friends: prevState.friends.map((item) =>
-        item.userId === friend.userId ? { ...item, ...patch } : item,
-      ),
-    }));
-    this.showToast("联系人资料已更新");
+    this.setState({ saving: true });
+    try {
+      await HGImContactsVM.saveFriendProfile(friend.userId, patch);
+      if (this.hgUnmounted) return;
+      this.setState((state) => ({ editing: false, editForm: null,
+        friends: state.friends.map((item) => item.userId === friend.userId ? { ...item, ...patch } : item) }));
+      this.showToast("联系人资料已更新");
+    } catch { if (!this.hgUnmounted) this.showToast("保存失败，请重试"); }
+    finally { if (!this.hgUnmounted) this.setState({ saving: false }); }
   };
 
   /**
-   * 接受好友申请：模拟接口返回新好友资料后转入好友列表并选中。
+   * 接受好友申请：仅依据服务端确认的好友资料更新列表。
    * @param {Object} request 好友申请对象。
    */
   handleAcceptRequest = async (request) => {
-    const newFriend = await HGImContactsVM.acceptFriendRequest(request);
-    this.setState((prevState) => ({
-      requests: prevState.requests.filter((item) => item.requestId !== request.requestId),
-      friends: [...prevState.friends, newFriend],
-      selected: { type: "friend", id: newFriend.userId },
-    }));
-    this.showToast(`已添加 ${HGImContactsVM.getDisplayName(newFriend)} 为联系人`);
+    if (this.state.saving) return;
+    this.setState({ saving: true });
+    try {
+      const newFriend = await HGImContactsVM.acceptFriendRequest(request);
+      if (this.hgUnmounted) return;
+      if (!newFriend) { await this.loadContacts(); this.showToast("已接受申请，请刷新好友列表"); return; }
+      this.setState((state) => { const requests = state.requests.filter((item) => item.requestId !== request.requestId);
+        return { requests, friends: state.friends.some((item) => item.userId === newFriend.userId) ? state.friends : [...state.friends, newFriend],
+          selected: state.selected?.id === request.requestId ? this.pickDefaultSelection(state.activeFilter, { ...state, requests }) : state.selected }; });
+      this.showToast(`已添加 ${HGImContactsVM.getDisplayName(newFriend)} 为联系人`);
+    } catch { if (!this.hgUnmounted) this.showToast("接受申请失败，请重试"); }
+    finally { if (!this.hgUnmounted) this.setState({ saving: false }); }
   };
 
   /**
    * 拒绝好友申请：仅移除申请记录，保留历史由服务端负责。
    * @param {Object} request 好友申请对象。
    */
-  handleRejectRequest = (request) => {
-    this.setState((prevState) => ({
-      requests: prevState.requests.filter((item) => item.requestId !== request.requestId),
-      selected: prevState.selected && prevState.selected.id === request.requestId ? null : prevState.selected,
-    }));
-    this.showToast("已拒绝该好友申请");
+  handleRejectRequest = async (request) => {
+    if (this.state.saving) return;
+    this.setState({ saving: true });
+    try {
+      await HGImContactsVM.rejectFriendRequest(request);
+      if (this.hgUnmounted) return;
+      this.setState((state) => { const requests = state.requests.filter((item) => item.requestId !== request.requestId);
+        return { requests, selected: state.selected?.id === request.requestId ? this.pickDefaultSelection(state.activeFilter, { ...state, requests }) : state.selected }; });
+      this.showToast("已拒绝该好友申请");
+    } catch { if (!this.hgUnmounted) this.showToast("拒绝申请失败，请重试"); }
+    finally { if (!this.hgUnmounted) this.setState({ saving: false }); }
   };
 
   /** 进入删除好友确认态。 */
@@ -291,76 +311,108 @@ class HGImContactsPage extends Component {
 
   /**
    * 执行二次确认的操作：删除好友或加入黑名单。
-   * 约束：删除好友仅移除本地列表并提示保留历史聊天，真实逻辑由服务端控制。
+   * 约束：服务端提交后才移除本地关系；删除好友保留历史聊天。
    */
-  handleConfirmExecute = () => {
+  handleConfirmExecute = async () => {
+    if (this.state.saving) return;
     const { confirmAction } = this.state;
     const friend = this.getSelectedItem();
     if (!friend || !confirmAction) {
       this.setState({ confirmAction: null });
       return;
     }
-    if (confirmAction === "delete") {
-      this.setState((prevState) => ({
-        friends: prevState.friends.filter((item) => item.userId !== friend.userId),
-        selected: null,
-        confirmAction: null,
-      }));
-      this.showToast("已删除联系人，历史聊天记录仍会保留");
-      return;
-    }
-    const blockedRecord = {
-      userId: friend.userId,
-      publicId: friend.publicId,
-      username: friend.username,
-      nickname: friend.nickname,
-      remark: friend.remark || "",
-      region: friend.region || "未知",
-      signature: friend.signature || "",
-      blockNote: "手动加入黑名单",
-      blockedAt: "2026-11-01",
-    };
-    this.setState((prevState) => ({
-      friends: prevState.friends.filter((item) => item.userId !== friend.userId),
-      blocked: [...prevState.blocked, blockedRecord],
-      selected: null,
-      confirmAction: null,
-    }));
-    this.showToast("已加入黑名单，双方无法继续单聊");
+    this.setState({ saving: true });
+    let committed = false; // 服务端写入成功后，列表二次读取失败不能误报成写入失败。
+    try {
+      if (confirmAction === "delete") await HGImContactsVM.deleteFriend(friend.userId);
+      else await HGImContactsVM.blockFriend(friend.userId);
+      committed = true;
+      const blocked = confirmAction === "block" ? await HGImContactsVM.fetchBlocked() : this.state.blocked;
+      if (this.hgUnmounted) return;
+      this.setState((state) => { const friends = state.friends.filter((item) => item.userId !== friend.userId);
+        return { friends, blocked, selected: state.selected?.id === friend.userId ? this.pickDefaultSelection(state.activeFilter, { ...state, friends }) : state.selected, confirmAction: null }; });
+      this.showToast(confirmAction === "delete" ? "已删除联系人，历史聊天记录仍保留" : "已加入黑名单");
+    } catch { if (!this.hgUnmounted) {
+      if (committed) { this.setState({ confirmAction: null }); this.loadContacts(); }
+      this.showToast(committed ? "操作已提交，列表刷新失败，请重试" : "操作失败，请刷新后重试");
+    } }
+    finally { if (!this.hgUnmounted) this.setState({ saving: false }); }
   };
 
   /**
-   * 解除拉黑：将黑名单记录还原为好友并保持选中。
+   * 解除拉黑不会恢复好友，重新成为好友需双方同意。
    * @param {Object} record 黑名单记录。
    */
-  handleUnblock = (record) => {
-    const restoredFriend = {
-      userId: record.userId,
-      publicId: record.publicId,
-      username: record.username,
-      nickname: record.nickname,
-      remark: record.remark || "",
-      region: record.region || "未知",
-      signature: record.signature || "这个人很懒，什么都没有写。",
-      source: "黑名单解除后恢复",
-      phone: "",
-      email: "",
-      tags: [],
-      description: "",
-      starred: false,
-      friendSince: "2026-11-01",
-    };
-    this.setState((prevState) => ({
-      blocked: prevState.blocked.filter((item) => item.userId !== record.userId),
-      friends: [...prevState.friends, restoredFriend],
-      selected: { type: "friend", id: record.userId },
-    }));
-    this.showToast("已解除拉黑并恢复联系人");
+  handleUnblock = async (record) => {
+    if (this.state.saving) return;
+    this.setState({ saving: true });
+    try {
+      await HGImContactsVM.unblockFriend(record.userId);
+      if (this.hgUnmounted) return;
+      this.setState((state) => { const blocked = state.blocked.filter((item) => item.userId !== record.userId);
+        return { blocked, selected: state.selected?.id === record.userId ? (state.activeFilter === "contacts" && blocked[0]
+          ? { type: "blocked", id: blocked[0].userId } : this.pickDefaultSelection(state.activeFilter, state)) : state.selected }; });
+      this.showToast("已解除拉黑；重新成为好友需双方同意");
+    } catch { if (!this.hgUnmounted) this.showToast("解除拉黑失败，请重试"); }
+    finally { if (!this.hgUnmounted) this.setState({ saving: false }); }
   };
 
   /** 发消息按钮：聊天模块尚未接入，先给轻提示。 */
   handleStartChat = () => {
     this.showToast("聊天功能即将上线，敬请期待");
+  };
+
+  /** 搜索公开身份；不把精确搜索降级为手机号/邮箱枚举。 */
+  handleSearchUser = async () => {
+    const { searchType, searchValue, saving } = this.state;
+    if (saving || !searchValue.trim()) return;
+    this.setState({ saving: true, searchResult: null });
+    try {
+      const result = await HGImContactsVM.searchUser(searchType, searchValue.trim());
+      if (!this.hgUnmounted) this.setState({ searchResult: result });
+    } catch { if (!this.hgUnmounted) this.showToast("未找到用户或搜索失败"); }
+    finally { if (!this.hgUnmounted) this.setState({ saving: false }); }
+  };
+
+  /** 发送附言并等待对方同意，绝不在本地直接创建好友。 */
+  handleSendRequest = async () => {
+    const { searchResult, requestMessage, saving } = this.state;
+    if (!searchResult || saving) return;
+    this.setState({ saving: true });
+    try {
+      await HGImContactsVM.sendFriendRequest(searchResult.userId, requestMessage.trim());
+      if (!this.hgUnmounted) {
+        this.setState({ searchResult: null, requestMessage: "" });
+        if (searchResult.friendStatus === "incoming_pending") await this.loadContacts();
+        this.showToast(searchResult.friendStatus === "incoming_pending" ? "双方已同意，好友列表已刷新" : "申请已发送，等待对方同意");
+      }
+    } catch { if (!this.hgUnmounted) this.showToast("申请失败或双方已有待处理关系"); }
+    finally { if (!this.hgUnmounted) this.setState({ saving: false }); }
+  };
+
+  /** 联系人列表的添加好友入口，复用当前页面而非新增路由。 */
+  renderAddFriend = () => {
+    const { searchType, searchValue, searchResult, requestMessage, saving } = this.state;
+    return <div className={styles.searchWrap}>
+      <select className={styles.searchInput} aria-label="搜索方式" value={searchType}
+        onChange={(event) => this.setState({ searchType: event.target.value, searchResult: null })}>
+        <option value="public_id">系统 ID</option><option value="username">自定义 ID</option>
+      </select>
+      <input className={styles.searchInput} aria-label="添加好友 ID" value={searchValue} maxLength={255}
+        onChange={(event) => this.setState({ searchValue: event.target.value, searchResult: null })}
+        onKeyDown={(event) => { if (event.key === "Enter") this.handleSearchUser(); }} placeholder="精确搜索 ID" />
+      <button type="button" className={styles.outlineBtn} onClick={this.handleSearchUser} disabled={saving || !searchValue.trim()}>查找用户</button>
+      {searchResult && <div className={styles.messageCard}>
+        <p>{searchResult.nickname || searchResult.publicId} · {searchResult.publicId}</p>
+        <input className={styles.searchInput} aria-label="好友申请附言" value={requestMessage} maxLength={128}
+          onChange={(event) => this.setState({ requestMessage: event.target.value })} placeholder="填写申请附言（可选）" />
+        <button type="button" className={styles.primaryBtn} onClick={this.handleSendRequest}
+          disabled={saving || !["none", "incoming_pending"].includes(searchResult.friendStatus)}>
+          {searchResult.friendStatus === "incoming_pending" ? "同意对方申请" : "发送申请"}
+        </button>
+        {searchResult.friendStatus !== "none" && <p>当前状态：{searchResult.friendStatus}</p>}
+      </div>}
+    </div>;
   };
 
   /**
@@ -384,7 +436,7 @@ class HGImContactsPage extends Component {
    * @returns {React.ReactNode} 列表节点。
    */
   renderListPane = () => {
-    const { keyword, loading } = this.state;
+    const { keyword, loading, error } = this.state;
     const sections = this.getListSections();
     const hasContent = sections.some((section) => section.items.length > 0);
 
@@ -399,14 +451,16 @@ class HGImContactsPage extends Component {
             placeholder="搜索联系人 / 群组 / ID"
           />
         </div>
+        {this.state.activeFilter === "contacts" && this.renderAddFriend()}
         <div className={styles.listScroll}>
           {loading && <p className={styles.listTip}>联系人加载中…</p>}
-          {!loading && !hasContent && (
+          {error && <p className={styles.listTip}>{error} <button type="button" onClick={this.loadContacts}>重试</button></p>}
+          {!loading && !error && !hasContent && (
             <p className={styles.listTip}>
-              {keyword.trim() ? "没有匹配的联系人或群组" : "暂无内容"}
+              {keyword.trim() ? "没有匹配的联系人或群组" : this.state.activeFilter === "groups" ? "群组接口尚未接入" : "暂无内容"}
             </p>
           )}
-          {!loading &&
+          {!loading && !error &&
             sections.map((section) => {
               if (section.items.length === 0) return null;
               return (
@@ -437,11 +491,11 @@ class HGImContactsPage extends Component {
     const subText =
       type === "group"
         ? `${item.memberCount} 人`
-        : type === "request"
-          ? item.createdAt
+          : type === "request"
+            ? new Date(item.createdAt).toLocaleString("zh-CN")
           : item.nickname !== displayName
             ? `昵称：${item.nickname}`
-            : item.username || "";
+            : item.username || item.publicId || "";
     return (
       <button
         key={rowId}
@@ -537,9 +591,9 @@ class HGImContactsPage extends Component {
               <span className={styles.detailName}>{displayName}</span>
               {friend.starred && <span className={styles.starBadge}>★ 星标联系人</span>}
             </div>
-            <p className={styles.detailMeta}>
-              {friend.nickname !== displayName ? `昵称：${friend.nickname} · ` : ""}微信号：{friend.username}
-            </p>
+             <p className={styles.detailMeta}>
+              {friend.nickname !== displayName ? `昵称：${friend.nickname} · ` : ""}自定义 ID：{friend.username || "未设置"}
+             </p>
           </div>
         </div>
 
@@ -635,7 +689,7 @@ class HGImContactsPage extends Component {
         />
       </label>
       <label className={styles.editField}>
-        <span className={styles.editLabel}>电话</span>
+        <span className={styles.editLabel}>电话备忘</span>
         <input
           className={styles.editInput}
           type="text"
@@ -660,7 +714,7 @@ class HGImContactsPage extends Component {
         <button type="button" className={styles.outlineBtn} onClick={this.handleEditCancel}>
           取消
         </button>
-        <button type="button" className={styles.primaryBtn} onClick={this.handleEditSave}>
+          <button type="button" className={styles.primaryBtn} onClick={this.handleEditSave} disabled={this.state.saving}>
           保存
         </button>
       </div>
@@ -679,7 +733,7 @@ class HGImContactsPage extends Component {
         <button type="button" className={styles.outlineBtn} onClick={this.handleConfirmCancel}>
           取消
         </button>
-        <button type="button" className={styles.dangerSolidBtn} onClick={this.handleConfirmExecute}>
+        <button type="button" className={styles.dangerSolidBtn} onClick={this.handleConfirmExecute} disabled={this.state.saving}>
           确定
         </button>
       </div>
@@ -776,14 +830,14 @@ class HGImContactsPage extends Component {
         <button
           type="button"
           className={styles.primaryBtn}
-          onClick={() => this.handleAcceptRequest(request)}
+            onClick={() => this.handleAcceptRequest(request)} disabled={this.state.saving}
         >
           接受
         </button>
         <button
           type="button"
           className={styles.outlineBtn}
-          onClick={() => this.handleRejectRequest(request)}
+            onClick={() => this.handleRejectRequest(request)} disabled={this.state.saving}
         >
           拒绝
         </button>
@@ -805,7 +859,7 @@ class HGImContactsPage extends Component {
             <span className={styles.detailName}>{HGImContactsVM.getDisplayName(record)}</span>
             <span className={styles.blockedBadge}>已拉黑</span>
           </div>
-          <p className={styles.detailMeta}>微信号：{record.username}</p>
+          <p className={styles.detailMeta}>自定义 ID：{record.username || "未设置"}</p>
         </div>
       </div>
 
@@ -836,7 +890,7 @@ class HGImContactsPage extends Component {
         <button
           type="button"
           className={styles.primaryBtn}
-          onClick={() => this.handleUnblock(record)}
+          onClick={() => this.handleUnblock(record)} disabled={this.state.saving}
         >
           解除拉黑
         </button>
