@@ -1,8 +1,8 @@
 /*
  * @Description: 添加联系人页面（仿微信「添加朋友」）：搜索 → 查找结果 → 申请添加 → 申请人资料，每步为独立整页。
- * 约束：类组件；render 只组装 renderXxx；单输入框识别系统 ID / 自定义 ID，手机号 / 邮箱仅供演示；
+ * 约束：类组件；render 只组装 renderXxx；单输入框精确识别系统 ID / 用户 ID / 自定义 ID / 手机号 / 邮箱；
  *       可图标化的操作一律使用 HGIconPage 图标按钮，文字仅用于标题、说明与无障碍标签；
- *       搜索与申请走真实 VM 请求链，服务端失败不伪造成功关系；debug 演示资料明确标注且不调用写接口。
+ *       搜索与申请走真实 VM 请求链，服务端失败不伪造成功关系或联系人资料。
  */
 import React from "react";
 import HGIconPage from "../../components/hg_icon/hg_icon_page";
@@ -27,7 +27,6 @@ const HG_PERMISSIONS = Object.freeze([
 /** 仿微信添加朋友向导；pageNavigator / navigate 由 WithNavigation 注入，用于返回来源页。 */
 class HGAddContactPage extends React.Component {
   hgUnmounted = false; // 卸载后忽略异步回调，避免覆盖已销毁页面。
-  hgToastTimer = null; // 轻提示定时器，卸载时清理。
 
   state = {
     hgStep: "search", // 当前整页：search / result / apply / profile。
@@ -39,25 +38,11 @@ class HGAddContactPage extends React.Component {
     hgRemark: "", // 申请页备注本地演示草稿，服务端尚不支持随申请保存。
     hgPermission: "all", // 朋友权限本地演示选择，服务端尚不支持随申请保存。
     hgSending: false, // 申请提交中。
-    hgSent: false, // 是否已向服务端成功提交申请；演示模式恒为 false。
-    hgDemo: false, // 当前资料是否为明确标注的演示资料。
-    hgToast: "", // 轻提示文案。
   };
 
   componentWillUnmount() {
     this.hgUnmounted = true;
-    if (this.hgToastTimer) clearTimeout(this.hgToastTimer);
   }
-
-  /** 轻提示 2.4 秒自动消失，重复触发时重置计时器。 */
-  hgShowToast = (message) => {
-    if (this.hgToastTimer) clearTimeout(this.hgToastTimer);
-    this.setState({ hgToast: message });
-    this.hgToastTimer = setTimeout(() => {
-      if (!this.hgUnmounted) this.setState({ hgToast: "" });
-      this.hgToastTimer = null;
-    }, 2400);
-  };
 
   /** 退出页面：优先按导航器返回来源（聊天首页），缺少注入时回退到首页路由。 */
   hgClose = () => {
@@ -70,7 +55,7 @@ class HGAddContactPage extends React.Component {
   hgGoBack = () => {
     const { hgStep } = this.state;
     if (hgStep === "result") {
-      this.setState({ hgStep: "search", hgResult: null, hgDemo: false, hgError: "" });
+      this.setState({ hgStep: "search", hgResult: null, hgError: "" });
       return;
     }
     if (hgStep === "apply") {
@@ -85,7 +70,6 @@ class HGAddContactPage extends React.Component {
     this.setState({
       hgStep: "search", hgKeyword: "", hgError: "", hgResult: null,
       hgRequestMessage: "", hgRemark: "", hgPermission: "all",
-      hgSent: false, hgDemo: false,
     });
   };
 
@@ -108,20 +92,12 @@ class HGAddContactPage extends React.Component {
         this.setState({ hgError: "服务端未返回有效用户标识，请更换内容后重试" });
         return;
       }
-      this.setState({ hgResult: profile, hgDemo: false, hgStep: "result" });
+      this.setState({ hgResult: profile, hgStep: "result" });
     } catch {
       if (!this.hgUnmounted) this.setState({ hgError: "未找到该用户，或搜索服务暂不可用；请检查输入后重试" });
     } finally {
       if (!this.hgUnmounted) this.setState({ hgSearching: false });
     }
-  };
-
-  /** 仅 debug 可用的演示入口：创建明确标注的资料，后续发送不会调用写接口。 */
-  hgUseDemo = () => {
-    if (import.meta.env.MODE !== "debug") return;
-    const profile = HGAddContactVM.createDemoProfile(this.state.hgKeyword.trim());
-    this.setState({ hgResult: profile, hgDemo: true, hgError: "", hgStep: "result" });
-    this.hgShowToast("已进入演示资料，不会向服务端发送申请");
   };
 
   /** 从结果页进入申请表单，并按微信习惯预填一句验证附言。 */
@@ -133,19 +109,15 @@ class HGAddContactPage extends React.Component {
     }));
   };
 
-  /** 发送申请：演示资料只推进 UI；真实资料仅提交后端支持的目标 ID 和附言。 */
+  /** 发送申请：仅真实资料可以提交，服务端确认成功后才进入结果页。 */
   hgSubmitApply = async () => {
-    const { hgResult, hgDemo, hgRequestMessage, hgSending } = this.state;
+    const { hgResult, hgRequestMessage, hgSending } = this.state;
     if (hgSending || !hgResult) return;
-    if (hgDemo) {
-      this.setState({ hgSent: false, hgStep: "profile" });
-      return;
-    }
     this.setState({ hgSending: true, hgError: "" });
     try {
       await HGAddContactVM.sendFriendRequest(hgResult.userId, hgRequestMessage.trim());
       if (this.hgUnmounted) return;
-      this.setState({ hgSent: true, hgStep: "profile" });
+      this.setState({ hgStep: "profile" });
     } catch {
       if (!this.hgUnmounted) this.setState({ hgError: "申请发送失败，请稍后重试" });
     } finally {
@@ -218,27 +190,26 @@ class HGAddContactPage extends React.Component {
     return <p className={styles.errorText} role="alert">{this.state.hgError}</p>;
   }
 
-  /** 第一整页：真实查询只支持系统 ID / 自定义 ID；手机号 / 邮箱只保留演示识别图标。 */
+  /** 第一整页：按输入自动识别服务端支持的五种精确检索类型。 */
   renderSearchStep() {
     const { hgKeyword, hgSearching } = this.state;
     const detected = HGAddContactVM.getSearchConfig(hgKeyword);
-    const canDemo = import.meta.env.MODE === "debug";
     return (
       <div className={styles.stepPage}>
         <div className={styles.heroBadge}>
           <HGIconPage type="add-user" style={{ fontSize: 34, color: "inherit" }} />
         </div>
         <h2 className={styles.heroTitle}>添加朋友</h2>
-        <p className={styles.heroSub}>输入系统 ID 或自定义 ID，精确查找用户</p>
+        <p className={styles.heroSub}>输入系统 ID、用户 ID、手机号、邮箱或自定义 ID，精确查找用户</p>
 
         <form className={styles.searchBar} onSubmit={this.hgSearch}>
           <HGIconPage type="search" style={{ fontSize: 20, color: "#9a9a9a" }} />
           <input
             className={styles.searchInput}
             aria-label="查找联系人"
-            placeholder="系统 ID（U 开头）/ 自定义 ID"
+            placeholder="系统 ID / 用户 ID / 手机号 / 邮箱 / 自定义 ID"
             value={hgKeyword}
-            maxLength={128}
+            maxLength={254}
             onChange={(event) => this.setState({ hgKeyword: event.target.value, hgError: "" })}
           />
           <span className={styles.detectedIcon} title={`当前按${detected.label}查找`} aria-label={`当前按${detected.label}查找`}>
@@ -259,22 +230,19 @@ class HGAddContactPage extends React.Component {
         <div className={styles.wayRow}>
           {HG_SEARCH_TYPES.map((item) => (
             <span key={item.key} className={styles.wayIcon}
-              title={item.serverType ? `支持${item.label}查找` : canDemo ? `${item.label}仅提供演示预览` : `${item.label}暂不支持`}
-              aria-label={item.serverType ? `支持${item.label}查找` : canDemo ? `${item.label}仅提供演示预览` : `${item.label}暂不支持`}>
+              title={`支持${item.label}精确查找`} aria-label={`支持${item.label}精确查找`}>
               <HGIconPage type={item.icon} style={{ fontSize: 22, color: "inherit" }} />
             </span>
           ))}
         </div>
-        <p className={styles.wayHint}>真实接口仅支持系统 ID、自定义 ID；手机号/邮箱{canDemo ? "仅供演示预览" : "尚未开放"}</p>
-
-        {canDemo && this.renderAction("emotion", "预览演示", this.hgUseDemo, styles.ghostIconBtn)}
+        <p className={styles.wayHint}>五种方式均以真实接口返回的资料为准；手机号和邮箱不会展示在结果中</p>
       </div>
     );
   }
 
   /** 第二整页：展示服务端命中的联系人，主操作为圆形添加图标按钮。 */
   renderResultStep() {
-    const { hgResult, hgDemo } = this.state;
+    const { hgResult } = this.state;
     if (!hgResult) return null;
     const name = HGAddContactVM.getDisplayName(hgResult);
     const hint = this.hgRelationHint(hgResult.friendStatus);
@@ -285,7 +253,6 @@ class HGAddContactPage extends React.Component {
           {this.renderAvatar(hgResult, styles.avatarHero)}
           <div className={styles.resultNameRow}>
             <strong className={styles.resultName}>{name}</strong>
-            {hgDemo && <span className={styles.demoBadge}>演示</span>}
           </div>
           <p className={styles.resultMeta}>{hgResult.username || hgResult.publicId || "未设置账号"}</p>
           {hgResult.region && <p className={styles.resultMeta}>{hgResult.region}</p>}
@@ -307,7 +274,7 @@ class HGAddContactPage extends React.Component {
 
   /** 第三整页：微信式验证申请表单，字段头用图标 + 文字说明，提交为圆形图标按钮。 */
   renderApplyStep() {
-    const { hgResult, hgRequestMessage, hgRemark, hgPermission, hgSending, hgDemo } = this.state;
+    const { hgResult, hgRequestMessage, hgRemark, hgPermission, hgSending } = this.state;
     if (!hgResult) return null;
     const name = HGAddContactVM.getDisplayName(hgResult);
     return (
@@ -318,7 +285,6 @@ class HGAddContactPage extends React.Component {
             <strong className={styles.applyTargetName}>{name}</strong>
             <p className={styles.applyTargetMeta}>{hgResult.username || hgResult.publicId || "未设置账号"}</p>
           </div>
-          {hgDemo && <span className={styles.demoBadge}>演示</span>}
         </div>
 
         <div className={styles.formCard}>
@@ -376,8 +342,8 @@ class HGAddContactPage extends React.Component {
         {this.renderError()}
         <div className={styles.actionRow}>
           {this.renderAction(
-            hgDemo ? "emotion" : "check",
-            hgDemo ? "预览资料" : hgSending ? "发送中" : "发送申请",
+            "check",
+            hgSending ? "发送中" : "发送申请",
             this.hgSubmitApply,
             styles.primaryIconBtn,
             hgSending,
@@ -388,15 +354,12 @@ class HGAddContactPage extends React.Component {
     );
   }
 
-  /** 第四整页：具体申请人资料；资料行标签全部改用图标（title 保留语义），演示模式明确标注未发送。 */
+  /** 第四整页：真实检索资料和服务端确认的申请结果；未保存的表单草稿仍明确标注。 */
   renderProfileStep() {
-    const { hgResult, hgDemo, hgSent, hgRequestMessage, hgRemark, hgPermission } = this.state;
+    const { hgResult, hgRequestMessage, hgRemark, hgPermission } = this.state;
     if (!hgResult) return null;
     const name = HGAddContactVM.getDisplayName(hgResult);
     const permission = HG_PERMISSIONS.find((item) => item.key === hgPermission);
-    const statusText = hgDemo
-      ? "演示预览 · 未发送真实申请，也未建立好友关系"
-      : hgSent ? "好友申请已发送，等待对方验证" : "申请状态未确认，请返回重试";
     const rows = [
       { label: "账号", icon: "user", value: hgResult.username || hgResult.publicId || "未设置" },
       { label: "系统 ID", icon: "card", value: hgResult.publicId || "未设置" },
@@ -413,15 +376,14 @@ class HGAddContactPage extends React.Component {
           {this.renderAvatar(hgResult, styles.avatarHero)}
           <div className={styles.resultNameRow}>
             <strong className={styles.resultName}>{name}</strong>
-            {hgDemo && <span className={styles.demoBadge}>演示</span>}
           </div>
           <p className={styles.resultMeta}>{hgResult.username || hgResult.publicId || "未设置账号"}</p>
           {hgResult.signature && <p className={styles.resultSignature}>{hgResult.signature}</p>}
         </div>
 
-        <div className={`${styles.statusBar} ${hgDemo ? styles.statusBarDemo : ""}`} role="status">
-          <HGIconPage type={hgSent ? "check" : "emotion"} style={{ fontSize: 18, color: "inherit" }} />
-          <span>{statusText}</span>
+        <div className={styles.statusBar} role="status">
+          <HGIconPage type="check" style={{ fontSize: 18, color: "inherit" }} />
+          <span>好友申请已提交；最终关系状态以通讯录为准</span>
         </div>
 
         <div className={styles.infoCard}>
@@ -443,12 +405,6 @@ class HGAddContactPage extends React.Component {
     );
   }
 
-  /** 轻提示浮层；无内容时不渲染。 */
-  renderToast() {
-    if (!this.state.hgToast) return null;
-    return <div className={styles.toast} role="status">{this.state.hgToast}</div>;
-  }
-
   render() {
     const { hgStep } = this.state;
     return (
@@ -460,7 +416,6 @@ class HGAddContactPage extends React.Component {
           {hgStep === "apply" && this.renderApplyStep()}
           {hgStep === "profile" && this.renderProfileStep()}
         </main>
-        {this.renderToast()}
       </div>
     );
   }

@@ -258,15 +258,6 @@
   font-size: 32px;
 }
 
-.demoBadge {
-  padding: 2px 8px;
-  border: 1px solid #ffd591;
-  border-radius: 10px;
-  background: #fff3e0;
-  color: #c77700;
-  font-size: 11px;
-}
-
 /* ---------- 查找结果 / 申请人资料 整页 ---------- */
 .resultHero,
 .profileHero {
@@ -454,12 +445,6 @@
   font-size: 13px;
 }
 
-.statusBarDemo {
-  background: #fff7e6;
-  border-color: #ffd591;
-  color: #ad6800;
-}
-
 .infoCard {
   width: 100%;
   border: 1px solid #e5e5e5;
@@ -491,20 +476,6 @@
   flex: 1;
   color: #191919;
   word-break: break-all;
-}
-
-.toast {
-  position: absolute;
-  left: 50%;
-  bottom: 32px;
-  transform: translateX(-50%);
-  padding: 9px 16px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.78);
-  color: #fff;
-  font-size: 13px;
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 /* 键盘焦点可见性，保持与首页一致的可访问性约束。 */
