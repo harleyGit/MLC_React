@@ -22,6 +22,8 @@ import { hgPageNavigator } from "../../components/hg_navigation/hg_page_navigato
 const HGAboutPage = getHGPageConfig(PAGE.ABOUT).component;
 // 消息中心：站内通知与私信，沿用主布局鉴权。
 const HGMessageCenterPage = getHGPageConfig(PAGE.MESSAGE_CENTER).component;
+// 添加联系人：仿微信分步向导，由聊天首页侧栏「添加联系人」打开。
+const HGAddContactPage = getHGPageConfig(PAGE.ADD_CONTACT).component;
 const HGRegisterPage = getHGPageConfig(PAGE.REGISTER).component;
 const HGLoginPage = getHGPageConfig(PAGE.LOGIN).component;
 const HGForgetPasswordPage = getHGPageConfig(PAGE.FORGET_PASSWORD).component;
@@ -67,6 +69,8 @@ const WrappedHGWalletSpendingPage = WithNavigation(HGWalletSpendingPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
 const WrappedHGBiliAuthorSpacePage = WithNavigation(HGBiliAuthorSpacePage);
+// 添加联系人页需要 pageNavigator.back 返回来源，同样注入路由能力。
+const WrappedHGAddContactPage = WithNavigation(HGAddContactPage);
 
 const HGRouter = createBrowserRouter([
   //受保护的主布局路由
@@ -92,6 +96,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.MESSAGE_CENTER,
         element: hgLazyElement(<HGMessageCenterPage />, "正在加载消息中心..."),
+      },
+      {
+        path: ROUTE_PATH.ADD_CONTACT,
+        element: hgLazyElement(<WrappedHGAddContactPage />, "正在加载添加联系人..."),
       },
       {
         path: ROUTE_PATH.DEFAULT,

@@ -1,0 +1,534 @@
+/* 添加联系人向导：四步各自占满主内容区，为整页而非窄面板；操作按钮统一图标化。 */
+
+.pageRoot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100vh - 134px);
+  box-sizing: border-box;
+  background: #ededed;
+}
+
+/* ---------- 整页顶栏 ---------- */
+.pageHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  flex-shrink: 0;
+  padding: 0 20px;
+  box-sizing: border-box;
+  background: #f7f7f7;
+  border-bottom: 1px solid #dcdcdc;
+}
+
+.headerTitle {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #191919;
+}
+
+/* 通用图标按钮：颜色由按钮自身决定，图标以 currentColor 继承。 */
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #191919;
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.iconBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.primaryIconBtn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #07c160;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(7, 193, 96, 0.28);
+}
+
+.primaryIconBtn:hover {
+  background: #06ad56;
+}
+
+.ghostIconBtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  color: #576b95;
+}
+
+.ghostIconBtn:hover {
+  border-color: #07c160;
+  background: #f6fff9;
+}
+
+.actionRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 4px;
+}
+
+.actionItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionCaption {
+  font-size: 12px;
+  color: #888;
+}
+
+.pageContent {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 36px 20px 48px;
+  box-sizing: border-box;
+}
+
+/* 每一步为独立整页：居中内容列，铺满可用高度，不再是窄面板里的小卡片。 */
+.stepPage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* ---------- 搜索整页 ---------- */
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #e8f8ee;
+  color: #07c160;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #191919;
+}
+
+.heroSub {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 560px;
+  padding: 8px 8px 8px 16px;
+  box-sizing: border-box;
+  border: 1px solid #dcdcdc;
+  border-radius: 28px;
+  background: #fff;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #191919;
+  font-size: 15px;
+}
+
+.searchInput::placeholder {
+  color: #a6a6a6;
+}
+
+.detectedIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: #07c160;
+}
+
+.searchSubmit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #07c160;
+  color: #fff;
+  cursor: pointer;
+}
+
+.searchSubmit:hover {
+  background: #06ad56;
+}
+
+.searchSubmit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.errorText {
+  margin: 0;
+  font-size: 13px;
+  color: #fa5151;
+}
+
+.wayRow {
+  display: flex;
+  gap: 16px;
+}
+
+.wayIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  color: #6b7280;
+}
+
+.wayHint {
+  margin: 0;
+  font-size: 12px;
+  color: #a0a0a0;
+}
+
+/* ---------- 头像 ---------- */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.avatarMedium {
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+}
+
+.avatarHero {
+  width: 84px;
+  height: 84px;
+  border-radius: 10px;
+  font-size: 32px;
+}
+
+.demoBadge {
+  padding: 2px 8px;
+  border: 1px solid #ffd591;
+  border-radius: 10px;
+  background: #fff3e0;
+  color: #c77700;
+  font-size: 11px;
+}
+
+/* ---------- 查找结果 / 申请人资料 整页 ---------- */
+.resultHero,
+.profileHero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 28px 20px;
+  box-sizing: border-box;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.resultNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resultName {
+  font-size: 18px;
+  color: #191919;
+}
+
+.resultMeta {
+  margin: 0;
+  font-size: 12px;
+  color: #888;
+}
+
+.resultSignature {
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #f7f7f7;
+  font-size: 12px;
+  color: #666;
+}
+
+.relationHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #ad6800;
+  font-size: 13px;
+}
+
+/* ---------- 申请表单 整页 ---------- */
+.applyTarget {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.applyTargetInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.applyTargetName {
+  font-size: 15px;
+  color: #191919;
+}
+
+.applyTargetMeta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #888;
+}
+
+.formCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.fieldHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #07c160;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.fieldHead span {
+  color: #191919;
+}
+
+.fieldHint {
+  margin: 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.textarea,
+.textInput {
+  width: 100%;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border: 1px solid #d6d6d6;
+  border-radius: 6px;
+  background: #fff;
+  color: #191919;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.textarea:focus,
+.textInput:focus {
+  border-color: #07c160;
+}
+
+.textarea::placeholder,
+.textInput::placeholder {
+  color: #a6a6a6;
+}
+
+.radioRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.radioRow input {
+  margin-top: 3px;
+  accent-color: #07c160;
+}
+
+.radioMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radioLabel {
+  font-size: 14px;
+  color: #191919;
+}
+
+.radioHint {
+  font-size: 12px;
+  color: #999;
+}
+
+/* ---------- 申请人资料 整页 ---------- */
+.statusBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  border: 1px solid #b7ebc9;
+  border-radius: 8px;
+  background: #e8f8ee;
+  color: #06813f;
+  font-size: 13px;
+}
+
+.statusBarDemo {
+  background: #fff7e6;
+  border-color: #ffd591;
+  color: #ad6800;
+}
+
+.infoCard {
+  width: 100%;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: #07c160;
+}
+
+.infoValue {
+  flex: 1;
+  color: #191919;
+  word-break: break-all;
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  padding: 9px 16px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 键盘焦点可见性，保持与首页一致的可访问性约束。 */
+.pageRoot button:focus-visible,
+.pageRoot input:focus-visible,
+.pageRoot textarea:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .pageContent {
+    padding: 24px 12px 32px;
+  }
+
+  .stepPage {
+    gap: 14px;
+  }
+
+  .actionRow {
+    gap: 18px;
+  }
+
+  .searchBar {
+    padding-left: 12px;
+  }
+}

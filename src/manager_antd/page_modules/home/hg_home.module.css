@@ -55,6 +55,25 @@
   background: #e8f0fe;
 }
 
+/* 侧栏「添加联系人」图标按钮：只保留图标，文字通过 aria-label / title 提供。 */
+.sidebarIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #5b8def;
+  cursor: pointer;
+}
+
+.sidebarIconBtn:hover {
+  background: #e8f0fe;
+}
+
 /* 搜索框 */
 .searchBox {
   padding: 10px 12px;

@@ -38,4 +38,5 @@ export const ROUTE_PATH = Object.freeze({
   PERSONAL_CENTER: "/personal/center", //内容中心
   USER_SPACE: "/space/:uid", //用户空间页面（B站风格）
   CRAWLER_PLATFORM: "/crawler", //数据采集平台
+  ADD_CONTACT: "/im/contacts/add", //添加联系人（仿微信：搜索→添加申请→申请人资料），沿用主布局鉴权
 });

@@ -2,6 +2,7 @@ import React from "react";
 import HGChatInput from "../../../components/hg_chat_input/hg_chat_input";
 import HGIMCallPanel from "../../../components/hg_im_call/hg_im_call_panel";
 import HGIMMessageList from "../../../components/hg_im_messages/hg_im_message_list";
+import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
 import styles from "./hg_home.module.css";
@@ -190,10 +191,14 @@ export default class HGHomePage extends React.Component {
           </button>
           <button
             type="button"
-            className={styles.sidebarAction}
-            onClick={this.hgLogout}
+            className={styles.sidebarIconBtn}
+            aria-label="添加联系人"
+            title="添加联系人"
+            onClick={() =>
+              this.props.pageNavigator.open({ page: PAGE.ADD_CONTACT })
+            }
           >
-            退出
+            <HGIconPage type="add-user" style={{ fontSize: 18, color: "inherit" }} />
           </button>
         </div>
         <div className={styles.searchBox}>

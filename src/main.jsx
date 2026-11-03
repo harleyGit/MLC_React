@@ -11,6 +11,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import "./index.css";
 import reportWebVitals from "./optimize/reportWebVitals.js";
+import HGThemeUtils from "./utils/HGThemeUtils.jsx";
+
+// 启动时下发全局主题色（主色 #3c83f3），生成 :root 下的 --hg-color-* CSS 变量
+HGThemeUtils.applyTheme();
 
 createRoot(document.getElementById("root")).render(<App />);
 
