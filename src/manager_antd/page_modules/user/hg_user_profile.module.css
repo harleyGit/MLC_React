@@ -23,3 +23,143 @@
   font-size: 18px;
 }
 
+/* ===== 用户资料卡片 ===== */
+/* 配色引用 HGThemeUtils 下发的全局主题变量，回退值保证变量缺失时仍可读。 */
+.userCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--hg-color-surface, #ffffff);
+  border: 1px solid var(--hg-color-primary-border, #e8e4f5);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(31, 35, 41, 0.06);
+  box-sizing: border-box;
+}
+
+.cardHead {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* 头像底衬首字占位；图片加载失败时自动露出 */
+.avatarWrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--hg-color-primary-gradient, linear-gradient(135deg, #6c4cf1, #9a7bff));
+}
+
+.avatarFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.avatar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.headMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.userName {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--hg-color-text, #1f2430);
+}
+
+.genderTag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.genderMale {
+  background: #e8f1ff;
+  color: #2f6fed;
+}
+
+.genderFemale {
+  background: #ffecf3;
+  color: #e2498a;
+}
+
+.genderUnknown {
+  background: #f0f1f5;
+  color: #6b7280;
+}
+
+.nickname {
+  color: var(--hg-color-text-secondary, #8a90a3);
+  font-size: 13px;
+}
+
+.signature {
+  margin: 8px 0 0;
+  color: var(--hg-color-text-secondary, #5a6076);
+  font-size: 13px;
+  line-height: 1.7;
+  font-style: italic;
+}
+
+/* 元数据栅格：ID、公开ID、手机号、记录编号 */
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--hg-color-primary-light, #f7f6fd);
+  border-radius: 12px;
+}
+
+.metaGrid > div {
+  min-width: 0;
+}
+
+.metaGrid dt {
+  margin-bottom: 2px;
+  font-size: 12px;
+  color: var(--hg-color-text-secondary, #8a90a3);
+}
+
+.metaGrid dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--hg-color-text, #2b3040);
+  word-break: break-all;
+}
+
+.cardFoot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--hg-color-primary-border, #e6e2f2);
+  color: var(--hg-color-text-secondary, #9aa0b0);
+  font-size: 12px;
+}

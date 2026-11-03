@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-30 21:08:37
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-07-05 10:40:53
+ * @LastEditTime: 2026-11-03 20:49:17
  * @FilePath: /MLC_React/src/manager_antd/user/hg_user_profile_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
@@ -11,11 +11,11 @@
 import React from "react";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../components/hg_card/hg_card_page";
+import HGCollectionView from "../../../components/hg_collection_view/hg_collection_view";
 import { HGInputSearch } from "../../../components/hg_input/hg_input_page";
 import HGLoading from "../../../components/hg_loading/hg_loading";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGSpacePage from "../../../components/hg_space/hg_space_page";
-import HGTablePage from "../../../components/hg_table/hg_table_page";
 import { LogOut } from "../../../logger/hg_logger";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_profile.module.css";
@@ -23,9 +23,9 @@ import HGUserVM from "./hg_user_vm";
 
 /**
  * 用户资料列表页面
- * 职责：展示用户列表，支持搜索和 cursor 分页查询。
+ * 职责：以卡片列表展示用户资料（HGCollectionView），支持搜索和 cursor 分页查询。
  * 输入：props - 包含 navigate 方法（由 WithNavigation 注入），用于页面跳转。
- * 约束：使用 cursor 分页模式；搜索关键词自动去除首尾空格。
+ * 约束：使用 cursor 分页模式；搜索关键词自动去除首尾空格；卡片需完整展示用户全部字段。
  */
 class HGUserProfilePage extends React.Component {
   /**
@@ -48,6 +48,8 @@ class HGUserProfilePage extends React.Component {
         pageSize: 10,
         total: 0,
       },
+      // 服务端是否还有下一页；供卡片列表分页条判断「下一页」可用性。
+      hasMore: false,
       count: 0,
       refreshed: false,
     };
@@ -85,6 +87,7 @@ class HGUserProfilePage extends React.Component {
 
           return {
             data: res?.result ?? [],
+            hasMore: Boolean(res?.hasMore),
             pagination: {
               current: pageNum,
               pageSize,
@@ -103,7 +106,8 @@ class HGUserProfilePage extends React.Component {
   };
 
   /**
-   * 表格分页变化
+   * 卡片列表分页变化（HGCollectionView onChange 契约：{ current, pageSize }）。
+   * 约束：cursor 只按页序累积，翻页沿用 cursorByPage 中已知游标。
    */
   handleTableChange = (paginationInfo) => {
     const { keyword, pagination } = this.state;
@@ -146,118 +150,174 @@ class HGUserProfilePage extends React.Component {
     );
   };
 
+  /**
+   * 将 ISO 时间字符串格式化为本地「YYYY-MM-DD HH:mm」。
+   * @param {string} isoTime ISO 时间字符串。
+   * @returns {string} 本地时间文案；空值或非法时间返回占位符。
+   */
+  formatDateTime = (isoTime) => {
+    if (!isoTime) return "-.-";
+    const date = new Date(isoTime);
+    if (Number.isNaN(date.getTime())) return String(isoTime);
+    const pad = (num) => String(num).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  /**
+   * 性别编码转展示文案；未知编码统一显示「保密」。
+   * @param {number} gender 性别编码（1 男 / 2 女）。
+   * @returns {string} 展示文案。
+   */
+  genderLabel = (gender) => {
+    if (gender === 1) return "男";
+    if (gender === 2) return "女";
+    return "保密";
+  };
+
+  /**
+   * 性别展示文案对应的样式类名。
+   * @param {number} gender 性别编码。
+   * @returns {string} CSS Module 类名。
+   */
+  genderClass = (gender) => {
+    if (gender === 1) return styles.genderMale;
+    if (gender === 2) return styles.genderFemale;
+    return styles.genderUnknown;
+  };
+
+  /**
+   * 渲染页头工具区：搜索框与新增用户按钮。
+   * @returns {React.ReactNode} 工具区 JSX。
+   */
+  renderToolbar = () => {
+    return (
+      <HGSpacePage>
+        <HGInputSearch
+          placeholder="搜索用户名/昵称/手机号"
+          allowClear
+          onSearch={this.handleSearch}
+          style={{ width: 250 }}
+        />
+        <HGButtonPage
+          type="primary"
+          onClick={() => message.info("Add user clicked")}
+        >
+          Add User
+        </HGButtonPage>
+      </HGSpacePage>
+    );
+  };
+
+  /**
+   * 渲染单张用户资料卡片：头像、昵称、性别、签名与全部元数据字段。
+   * @param {Object} user 用户对象。
+   * @returns {React.ReactNode} 用户卡片 JSX。
+   */
+  renderUserCard = (user) => {
+    const displayName = user.nickname || user.user_name || "-.-";
+    return (
+      <article className={styles.userCard}>
+        <div className={styles.cardHead}>
+          <div className={styles.avatarWrap}>
+            <span className={styles.avatarFallback} aria-hidden="true">
+              {String(displayName).trim().charAt(0) || "?"}
+            </span>
+            {user.avatar_url ? (
+              <img
+                className={styles.avatar}
+                src={user.avatar_url}
+                alt={`${displayName} 的头像`}
+                loading="lazy"
+                onError={(event) => {
+                  // 头像加载失败时露出底衬首字占位，不阻断卡片其余内容。
+                  event.currentTarget.style.display = "none";
+                }}
+              />
+            ) : null}
+          </div>
+          <div className={styles.headMain}>
+            <div className={styles.nameRow}>
+              <span className={styles.userName}>{user.user_name ?? "-.-"}</span>
+              <span className={`${styles.genderTag} ${this.genderClass(user.gender)}`}>
+                {this.genderLabel(user.gender)}
+              </span>
+              {user.nickname ? (
+                <span className={styles.nickname}>昵称：{user.nickname}</span>
+              ) : null}
+            </div>
+            <p className={styles.signature}>
+              {user.signature ? `“${user.signature}”` : "这个人很酷，什么都没写。"}
+            </p>
+          </div>
+        </div>
+        <dl className={styles.metaGrid}>
+          <div>
+            <dt>用户ID</dt>
+            <dd>{user.user_id ?? "-.-"}</dd>
+          </div>
+          <div>
+            <dt>公开ID</dt>
+            <dd>{user.publicId ?? "-.-"}</dd>
+          </div>
+          <div>
+            <dt>手机号</dt>
+            <dd>{user.phone ?? "-.-"}</dd>
+          </div>
+          <div>
+            <dt>记录编号</dt>
+            <dd>{user.id ?? "-.-"}</dd>
+          </div>
+        </dl>
+        <footer className={styles.cardFoot}>
+          <span>创建于 {this.formatDateTime(user.created_at)}</span>
+          <span>更新于 {this.formatDateTime(user.updated_at)}</span>
+        </footer>
+      </article>
+    );
+  };
+
+  /**
+   * 渲染用户卡片列表（虚拟滚动 + 分页）。
+   * 约束：分页受控于页面 cursor 状态；换关键词时通过 resetKey 清空旧高度测量。
+   * @returns {React.ReactNode} HGCollectionView 实例 JSX。
+   */
+  renderUserList = () => {
+    const { data, loading, pagination, hasMore, keyword } = this.state;
+    return (
+      <HGCollectionView
+        items={data}
+        getKey={(user) => user.user_id || user.id}
+        renderCell={this.renderUserCard}
+        loading={loading}
+        hasMore={hasMore}
+        resetKey={keyword}
+        pageKey={pagination.current}
+        height={560}
+        ariaLabel="用户资料列表"
+        emptyText="暂无用户数据，换个关键词试试"
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          loadedCount: data.length,
+          hasMore,
+        }}
+        onChange={this.handleTableChange}
+      />
+    );
+  };
+
   render() {
-    const { data, loading, pagination } = this.state;
+    const { data, loading } = this.state;
     LogOut("🍎 用户列表数据：", data);
     return (
       <div className={styles.container}>
         <HGLoading fullscreen text="正在加载用户列表..." visible={loading} />
-        <HGCardPage
-          title="用户列表"
-          extra={
-            <HGSpacePage>
-              <HGInputSearch
-                placeholder="Search by name/email/phone"
-                allowClear
-                onSearch={this.handleSearch}
-                style={{ width: 250 }}
-              />
-              <HGButtonPage
-                type="primary"
-                onClick={() => message.info("Add user clicked")}
-              >
-                Add User
-              </HGButtonPage>
-            </HGSpacePage>
-          }
-        >
-          <HGTablePage
-            rowKey={(record) => record.userID}
-            columns={this.userTableColumns()}
-            dataSource={data}
-            loading={loading}
-            pagination={{
-              ...pagination,
-              showSizeChanger: true,
-              showQuickJumper: true,
-            }}
-            onChange={this.handleTableChange}
-          />
+        <HGCardPage title="用户列表" extra={this.renderToolbar()}>
+          {this.renderUserList()}
         </HGCardPage>
       </div>
     );
   }
-
-  /**
-   * 返回用户表格列配置数组。
-   * @returns {Array<Object>} 表格列配置，包含用户ID、用户名、手机号、邮箱等字段。
-   */
-  userTableColumns = () => {
-    return [
-      {
-        title: "用户ID",
-        dataIndex: "user_id",
-        width: 180,
-        render: (text) => {
-          return <span>{text}</span>;
-        },
-      },
-      {
-        title: "用户名",
-        dataIndex: "user_name",
-        width: 180,
-        render: (text) => {
-          return <span>{text ?? "-.-"}</span>;
-        },
-      },
-      {
-        title: "手机号",
-        dataIndex: "phone",
-        width: 80,
-        render: (text) => {
-          return <span>{text ?? "-.-"}</span>;
-        },
-      },
-      {
-        title: "📮邮箱",
-        dataIndex: "email",
-        width: 150,
-        render: (text) => {
-          return <span>{text ?? "-.-"}</span>;
-        },
-      },
-      {
-        title: "Password签名值✍️",
-        dataIndex: "passwordHash",
-        width: 180,
-        render: (text) => {
-          return <span>{text ?? "-.-"}</span>;
-        },
-      },
-      {
-        title: "Salt",
-        dataIndex: "salt",
-        width: 80,
-        render: () => "******",
-      },
-      {
-        title: "创建时间",
-        dataIndex: "created_at",
-        width: 80,
-        render: (text) => {
-          return <span>{text ?? "-.-"}</span>;
-        },
-      },
-      {
-        title: "更新时间",
-        dataIndex: "updated_at",
-        width: 80,
-        render: (text) => {
-          return <span>{text ?? "-.-"}</span>;
-        },
-      },
-    ];
-  };
 }
 
 const HGUserProfilePageWithNavigation = WithNavigation(HGUserProfilePage);
