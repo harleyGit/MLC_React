@@ -22,10 +22,14 @@ class HGUserEditModal extends React.Component {
     super(props);
     const user = props.user || {};
     this.state = {
+      // 受控表单：空字符串表示用户未设置该项；仅手机号/邮箱变化时发送安全字段请求。
       form: {
         nickname: user.nickname ?? user.user_name ?? "",
         gender: Number.isFinite(Number(user.gender)) ? Number(user.gender) : 0,
         signature: user.signature ?? "",
+        avatar_url: user.avatar_url ?? "",
+        phone: user.phone ?? "",
+        email: user.email ?? "",
       },
       errors: {}, // 字段级错误文案。
     };
@@ -62,10 +66,30 @@ class HGUserEditModal extends React.Component {
       this.setState({ errors: { nickname: "请输入昵称" } });
       return;
     }
+    const phone = this.state.form.phone.trim();
+    const email = this.state.form.email.trim();
+    const avatarURL = this.state.form.avatar_url.trim();
+    const errors = {};
+    if (phone !== (this.props.user?.phone ?? "") && !/^1\d{10}$/.test(phone)) {
+      errors.phone = "请输入 11 位手机号";
+    }
+    if (email !== (this.props.user?.email ?? "") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "请输入有效的邮箱地址";
+    }
+    if (avatarURL && !/^https?:\/\//i.test(avatarURL) && !avatarURL.startsWith("/uploads/")) {
+      errors.avatar_url = "头像 URL 需为 HTTPS/HTTP 地址或 /uploads/ 路径";
+    }
+    if (Object.keys(errors).length > 0) {
+      this.setState({ errors });
+      return;
+    }
     onSubmit?.({
       nickname,
       gender: this.state.form.gender,
       signature: this.state.form.signature.trim(),
+      avatar_url: avatarURL,
+      phone,
+      email,
     });
   };
 
@@ -89,7 +113,7 @@ class HGUserEditModal extends React.Component {
   };
 
   /**
-   * 渲染编辑表单：昵称、性别与个性签名。
+   * 渲染编辑表单：公开资料与账号联系方式；联系方式变化走独立安全接口。
    * @returns {React.ReactNode} 表单 JSX。
    */
   renderForm = () => {
@@ -140,6 +164,22 @@ class HGUserEditModal extends React.Component {
           />,
           null,
           `还可以输入 ${HG_SIGNATURE_MAX_LENGTH - form.signature.length} 个字符`
+        )}
+        {this.renderField(
+          "头像 URL",
+          <input className={`${styles.control} ${errors.avatar_url ? styles.controlError : ""}`} value={form.avatar_url} maxLength={512} placeholder="/uploads/user/avatar.png" onChange={(event) => this.handleFieldChange("avatar_url", event.target.value)} />,
+          errors.avatar_url
+        )}
+        {this.renderField(
+          "手机号",
+          <input className={`${styles.control} ${errors.phone ? styles.controlError : ""}`} type="tel" value={form.phone} maxLength={32} placeholder="请输入手机号" onChange={(event) => this.handleFieldChange("phone", event.target.value)} />,
+          errors.phone
+        )}
+        {this.renderField(
+          "邮箱",
+          <input className={`${styles.control} ${errors.email ? styles.controlError : ""}`} type="email" value={form.email} maxLength={255} placeholder="请输入邮箱" onChange={(event) => this.handleFieldChange("email", event.target.value)} />,
+          errors.email,
+          "管理员修改他人联系方式将写入审计记录"
         )}
       </form>
     );

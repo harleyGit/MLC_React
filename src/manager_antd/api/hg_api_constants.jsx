@@ -27,8 +27,9 @@ export const HGMANAGER_API = {
   VERIFY_CLICK_CAPTCHA: "/api/v1/auth/verify_click_captcha", // 验证点选验证码
   UserList: "/api/v1/profile/list", // 用户列表（对齐 Go UserMiddlewareGroup 的 /list 路由）
   PROFILE: "/api/v1/profile/info", // 获取用户信息
-  PROFILE_UPDATE: "/api/v1/profile/update", // 更新用户资料（PUT，query user_id 可指定目标用户，缺省为本人）
-  PROFILE_USER_DELETE: "/api/v1/profile/delete", // 删除用户（DELETE，query user_id）；注意：Go 后端路由尚未实现，联调前需后端补齐
+  PROFILE_UPDATE: "/api/v1/profile/update", // 昵称/性别/签名/头像 URL；query user_id 指定他人需 user:directory:write。
+  // 手机和邮箱属于账号安全字段，管理他人时仍走 PUT /security?user_id=... 并写审计。
+  PROFILE_USER_DELETE: "/api/v1/profile/delete", // 尚未上线：涉及资产、关联记录及登录会话处置，界面不可发起。
   AVATAR_UPLOAD: "/api/v1/profile/avatar", // 上传头像
   PROFILE_ADDRESSES: "/api/v1/profile/addresses", // 本人收货地址列表与新增
   PROFILE_ADDRESS_DETAIL: "/api/v1/profile/addresses/detail", // 本人收货地址详情、修改与删除（query id）

@@ -110,6 +110,17 @@ class HGNetManagerVM extends HGNetManager {
     return this.put(url, body);
   }
 
+  // 管理员直接更新他人账号联系方式；后端检查专用写权限并在事务内记录审计。
+  updateUserSecurityForAdmin({ userId, phone, email }) {
+    if (!userId) {
+      throw new Error("缺少目标用户 ID");
+    }
+    const body = {};
+    if (phone !== undefined) body.phone = phone;
+    if (email !== undefined) body.email = email;
+    return this.put(`${HGMANAGER_API.SECURITY_UPDATE_API_PATH}?user_id=${encodeURIComponent(userId)}`, body);
+  }
+
   // 删除用户（按 user_id）。
   // 注意：后端 /api/v1/profile/delete 路由尚未实现，调用会得到 404/405，待后端补齐后联调。
   deleteUser(userId) {

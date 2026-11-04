@@ -228,6 +228,8 @@ class HGUserProfilePage extends React.Component {
     try {
       await HGUserVM.updateUserByUserId({
         userId: editingUser.user_id,
+        previousPhone: editingUser.phone,
+        previousEmail: editingUser.email,
         ...formInput,
       });
       message.success("用户资料已更新");
@@ -235,6 +237,8 @@ class HGUserProfilePage extends React.Component {
       this.refreshCurrentPage();
     } catch (error) {
       handleError(error);
+      // 两次写入不能跨接口回滚，失败时仍需回源显示可能已成功的字段。
+      this.refreshCurrentPage();
     } finally {
       this.setState({ editSubmitting: false });
     }
@@ -383,7 +387,8 @@ class HGUserProfilePage extends React.Component {
             </HGButtonPage>
             <HGButtonPage
               danger
-              disabled={actionDisabled}
+              disabled
+              title="删除用户需要先完成关联记录和会话校验，当前暂不可用"
               onClick={() => this.handleAskDelete(user)}
             >
               删除

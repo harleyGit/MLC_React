@@ -36,12 +36,20 @@ export default class HGUserVM {
       });
   };
 
-  /* 按用户ID更新资料（管理操作）；可更新字段与本人资料更新一致（昵称/签名/性别/生日/头像）。 */
-  static updateUserByUserId = ({ userId, nickname, signature, gender }) => {
-    return HGNet.updateUserProfile({ userId, nickname, signature, gender });
+  /* 先更新联系方式，再更新公开资料；两次请求非原子操作，任一失败时调用方须刷新列表核对结果。 */
+  static updateUserByUserId = async ({ userId, nickname, signature, gender, avatar_url, phone, email, previousPhone, previousEmail }) => {
+    if (!userId) throw new Error("缺少目标用户 ID");
+    // 仅发送实际变化的安全字段，避免重复写入认证表及无意义的审计记录。
+    const securityChanges = {};
+    if (phone !== (previousPhone ?? "")) securityChanges.phone = phone;
+    if (email !== (previousEmail ?? "")) securityChanges.email = email;
+    if (Object.keys(securityChanges).length > 0) {
+      await HGNet.updateUserSecurityForAdmin({ userId, ...securityChanges });
+    }
+    return HGNet.updateUserProfile({ userId, nickname, signature, gender, avatar_url });
   };
 
-  /* 按用户ID删除用户；后端 /api/v1/profile/delete 尚未实现，联调前调用会失败。 */
+  /* 后端尚未提供安全的物理删除入口；页面禁用删除按钮，避免误调用。 */
   static deleteUserByUserId = (userId) => {
     return HGNet.deleteUser(userId);
   };

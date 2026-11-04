@@ -13,7 +13,7 @@ function hgProfileNet() {
   runInNewContext(code, {
     module, exports: module.exports,
     require: (dependency) => dependency.includes("hg_api_constants")
-      ? { HGMANAGER_API: { PROFILE_UPDATE: "/api/v1/profile/update" } }
+      ? { HGMANAGER_API: { PROFILE_UPDATE: "/api/v1/profile/update", SECURITY_UPDATE_API_PATH: "/api/v1/profile/security" } }
       : { default: HGNetStub, __esModule: true },
   });
   return module.exports.default;
@@ -25,6 +25,21 @@ test("局部更新仅传目标字段，性别零值与清空签名不丢失", ()
   assert.deepEqual(JSON.parse(JSON.stringify(gender.body)), { gender: 0 });
   assert.equal(gender.path, "/api/v1/profile/update");
   assert.deepEqual(JSON.parse(JSON.stringify(net.updateUserProfile({ signature: "" }).body)), { signature: "" });
+});
+
+test("指定他人时用编码后的 user_id 传递编辑目标，并保留可选头像字段", () => {
+  const net = hgProfileNet();
+  const request = net.updateUserProfile({ userId: "user+1", nickname: "小明", gender: 0, avatar_url: "/uploads/user/a.png" });
+  assert.equal(request.path, "/api/v1/profile/update?user_id=user%2B1");
+  assert.deepEqual(JSON.parse(JSON.stringify(request.body)), { nickname: "小明", gender: 0, avatar_url: "/uploads/user/a.png" });
+});
+
+test("管理员直接改手机号或邮箱时走独立安全接口，不传空密码或其他字段", () => {
+  const net = hgProfileNet();
+  const request = net.updateUserSecurityForAdmin({ userId: "user+1", phone: "19900000000" });
+  assert.equal(request.path, "/api/v1/profile/security?user_id=user%2B1");
+  assert.deepEqual(JSON.parse(JSON.stringify(request.body)), { phone: "19900000000" });
+  assert.throws(() => net.updateUserSecurityForAdmin({ phone: "19900000000" }), /缺少目标用户 ID/);
 });
 
 test("出生日期按 Go birth_date 格式传递，不再发送无效的 birth_month 字段", () => {
