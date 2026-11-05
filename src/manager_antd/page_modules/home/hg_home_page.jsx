@@ -1,8 +1,8 @@
 import React from "react";
 import HGChatInput from "../../../components/hg_chat_input/hg_chat_input";
+import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 import HGIMCallPanel from "../../../components/hg_im_call/hg_im_call_panel";
 import HGIMMessageList from "../../../components/hg_im_messages/hg_im_message_list";
-import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
 import styles from "./hg_home.module.css";
@@ -61,7 +61,8 @@ export default class HGHomePage extends React.Component {
   hgCheckOwner = () => {
     if (this.hgVM && !this.hgVM.hgAlive()) {
       this.hgVM.hgClose();
-      if (this.state.hgUpload?.url) URL.revokeObjectURL(this.state.hgUpload.url);
+      if (this.state.hgUpload?.url)
+        URL.revokeObjectURL(this.state.hgUpload.url);
       if (this.hgMounted)
         this.setState({
           hgSnapshot: null,
@@ -100,7 +101,12 @@ export default class HGHomePage extends React.Component {
   /** 切换会话时保留原会话的本机待发送气泡；确认消息进入窗口后释放本地预览。 */
   componentDidUpdate() {
     const hgUpload = this.state.hgUpload; // sent 仍等待连续补拉，不提前冒充已展示消息。
-    if (hgUpload?.state === "sent" && this.state.hgSnapshot?.messages.some((hgMessage) => hgMessage.messageId === hgUpload.messageId)) {
+    if (
+      hgUpload?.state === "sent" &&
+      this.state.hgSnapshot?.messages.some(
+        (hgMessage) => hgMessage.messageId === hgUpload.messageId
+      )
+    ) {
       this.hgUpdateUpload(null);
     }
   }
@@ -108,17 +114,31 @@ export default class HGHomePage extends React.Component {
   hgUpdateUpload = (hgUpdate) => {
     if (!this.hgMounted) return;
     if (!hgUpdate) {
-      if (this.state.hgUpload?.url) URL.revokeObjectURL(this.state.hgUpload.url);
+      if (this.state.hgUpload?.url)
+        URL.revokeObjectURL(this.state.hgUpload.url);
       this.setState({ hgUpload: null });
       return;
     }
     if (hgUpdate.file) {
-      if (this.state.hgUpload?.url) URL.revokeObjectURL(this.state.hgUpload.url);
-      const hgURL = ["image", "video"].includes(hgUpdate.messageType) ? URL.createObjectURL(hgUpdate.file) : ""; // 只用于本机未审核预览。
-      this.setState({ hgUpload: { ...hgUpdate, url: hgURL, fileName: hgUpdate.file.name || "录音", file: undefined } });
+      if (this.state.hgUpload?.url)
+        URL.revokeObjectURL(this.state.hgUpload.url);
+      const hgURL = ["image", "video"].includes(hgUpdate.messageType)
+        ? URL.createObjectURL(hgUpdate.file)
+        : ""; // 只用于本机未审核预览。
+      this.setState({
+        hgUpload: {
+          ...hgUpdate,
+          url: hgURL,
+          fileName: hgUpdate.file.name || "录音",
+          file: undefined,
+        },
+      });
     } else {
-      this.setState((hgPrevious) => hgPrevious.hgUpload?.clientMsgId === hgUpdate.clientMsgId
-        ? { hgUpload: { ...hgPrevious.hgUpload, ...hgUpdate } } : null);
+      this.setState((hgPrevious) =>
+        hgPrevious.hgUpload?.clientMsgId === hgUpdate.clientMsgId
+          ? { hgUpload: { ...hgPrevious.hgUpload, ...hgUpdate } }
+          : null
+      );
     }
   };
 
@@ -198,7 +218,10 @@ export default class HGHomePage extends React.Component {
               this.props.pageNavigator.open({ page: PAGE.ADD_CONTACT })
             }
           >
-            <HGIconPage type="add-user" style={{ fontSize: 18, color: "inherit" }} />
+            <HGIconPage
+              type="add-user"
+              style={{ fontSize: 18, color: "inherit" }}
+            />
           </button>
         </div>
         <div className={styles.searchBox}>
@@ -375,9 +398,15 @@ export default class HGHomePage extends React.Component {
               latestSeq={hgConversation.lastSeq}
               loading={hgSnapshot.loading}
               onHistory={(hgDirection) => this.hgVM.hgHistory(hgDirection)}
-              onHistoryError={(hgError) => this.hgVM.hgError(hgError, "历史翻页")}
+              onHistoryError={(hgError) =>
+                this.hgVM.hgError(hgError, "历史翻页")
+              }
               peerName={hgConversation.peer.name}
-              upload={this.state.hgUpload?.conversationId === hgSnapshot.activeId ? this.state.hgUpload : null}
+              upload={
+                this.state.hgUpload?.conversationId === hgSnapshot.activeId
+                  ? this.state.hgUpload
+                  : null
+              }
               api={this.hgVM.hgAPI}
               onDelete={this.hgDeleteMedia}
             />
@@ -385,7 +414,9 @@ export default class HGHomePage extends React.Component {
               api={this.hgVM.hgAPI}
               conversationId={hgSnapshot.activeId}
               onSend={(hgCommand) => this.hgVM.hgSend(hgCommand)}
-              onCall={(hgMediaType) => void this.hgCall.current?.hgCreate(hgMediaType)}
+              onCall={(hgMediaType) =>
+                void this.hgCall.current?.hgCreate(hgMediaType)
+              }
               callReady={hgSnapshot.deviceReady}
               onUploadChange={this.hgUpdateUpload}
               disabled={!this.hgVM.hgAlive()}
