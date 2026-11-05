@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-30 21:08:37
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-11-03 20:49:17
+ * @LastEditTime: 2026-11-05 20:49:01
  * @FilePath: /MLC_React/src/manager_antd/user/hg_user_profile_page.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
@@ -60,12 +60,20 @@ class HGUserProfilePage extends React.Component {
       deleteSubmitting: false,
       count: 0,
       refreshed: false,
+      // 签名完整内容悬浮窗：记录打开的用户及弹层定位（fixed 坐标），null 表示关闭。
+      signaturePopup: null,
     };
   }
 
   componentDidMount() {
     const { pagination } = this.state;
     this.fetchUsers(pagination.current, pagination.pageSize);
+    // 点击签名悬浮窗与触发图标以外的区域时统一关闭悬浮窗。
+    document.addEventListener("mousedown", this.handleGlobalMouseDownCloseSignature);
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener("mousedown", this.handleGlobalMouseDownCloseSignature);
   }
 
   /**
@@ -281,6 +289,128 @@ class HGUserProfilePage extends React.Component {
   };
 
   /**
+   * 截断签名为卡片内展示的短文案；超过 max 字时截断并追加省略号。
+   * @param {string} text 原始签名。
+   * @param {number} max 最大展示字数，默认 16。
+   * @returns {string} 截断后的文案。
+   */
+  truncateSignature = (text, max = 16) => {
+    const plain = String(text ?? "").trim();
+    if (plain.length <= max) return plain;
+    return `${plain.slice(0, max)}…`;
+  };
+
+  /**
+   * 点击签名展开图标：切换完整签名悬浮窗；按图标位置做 fixed 定位并防止超出视口。
+   * @param {Object} user 用户对象。
+   * @param {MouseEvent} event 点击事件，取 currentTarget 的位置作为弹层锚点。
+   */
+  handleToggleSignature = (user, event) => {
+    event.stopPropagation();
+    const { signaturePopup } = this.state;
+    const userId = user.user_id || user.id;
+
+    if (signaturePopup && signaturePopup.userId === userId) {
+      this.setState({ signaturePopup: null });
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    // 预估弹层高度约 160px：视口放不下时改为向上弹出。
+    const estimatedHeight = 160;
+    const placeAbove = rect.bottom + estimatedHeight > window.innerHeight;
+    const top = placeAbove
+      ? Math.max(8, rect.top - estimatedHeight - 8)
+      : rect.bottom + 8;
+    // 预估弹层最大宽度约 340px：避免右侧溢出视口。
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 348));
+
+    this.setState({
+      signaturePopup: {
+        userId,
+        name: user.nickname || user.user_name || "",
+        signature: String(user.signature ?? "").trim(),
+        top,
+        left,
+      },
+    });
+  };
+
+  /**
+   * 全局 mousedown：点击签名弹层与触发图标以外的区域时关闭悬浮窗。
+   * 通过 data-signature-layer 标记识别弹层内部点击，避免误关。
+   * @param {MouseEvent} event 文档级 mousedown 事件。
+   */
+  handleGlobalMouseDownCloseSignature = (event) => {
+    if (!this.state.signaturePopup) return;
+    if (event.target.closest && event.target.closest("[data-signature-layer]")) return;
+    this.setState({ signaturePopup: null });
+  };
+
+  /**
+   * 渲染完整签名悬浮窗（fixed 定位，挂在页面根节点下避免被虚拟列表裁剪）。
+   * @returns {React.ReactNode} 悬浮窗 JSX；未打开时返回 null。
+   */
+  renderSignaturePopup = () => {
+    const { signaturePopup } = this.state;
+    if (!signaturePopup) return null;
+    const { top, left, name, signature } = signaturePopup;
+    return (
+      <div
+        className={styles.signaturePopup}
+        data-signature-layer="popup"
+        style={{ top, left }}
+        role="tooltip"
+      >
+        <span className={styles.signaturePopupName}>{name} 的完整签名</span>
+        <p className={styles.signaturePopupText}>“{signature}”</p>
+      </div>
+    );
+  };
+
+  /**
+   * 渲染签名行：超过 16 字截断省略，尾部展开图标点击后弹出完整内容。
+   * @param {Object} user 用户对象。
+   * @returns {React.ReactNode} 签名行 JSX。
+   */
+  renderSignature = (user) => {
+    if (!user.signature) {
+      return <p className={styles.signature}>这个人很酷，什么都没写。</p>;
+    }
+    return (
+      <p className={styles.signatureRow}>
+        <span className={styles.signatureText}>
+          “{this.truncateSignature(user.signature)}”
+        </span>
+        <button
+          type="button"
+          className={styles.signatureToggle}
+          data-signature-layer="trigger"
+          title="查看完整签名"
+          aria-label="查看完整签名"
+          onClick={(event) => this.handleToggleSignature(user, event)}
+        >
+          <svg
+            viewBox="0 0 16 16"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="8" cy="8" r="6.5" />
+            <path d="M8 7.2v3.6" />
+            <path d="M8 4.8v.2" />
+          </svg>
+        </button>
+      </p>
+    );
+  };
+
+  /**
    * 渲染页头工具区：搜索框与新增用户按钮。
    * @returns {React.ReactNode} 工具区 JSX。
    */
@@ -313,6 +443,7 @@ class HGUserProfilePage extends React.Component {
       { label: "用户ID", value: user.user_id ?? "-.-" },
       { label: "公开ID", value: user.publicId ?? "-.-" },
       { label: "手机号", value: user.phone ?? "-.-" },
+      { label: "邮箱", value: user.email ?? "-.-" },
     ];
   };
 
@@ -341,7 +472,9 @@ class HGUserProfilePage extends React.Component {
    * @returns {React.ReactNode} 用户卡片 JSX。
    */
   renderUserCard = (user) => {
+    // 展示名优先取昵称，无昵称时回退用户名；两者同时存在且不同时，附注 @用户名。
     const displayName = user.nickname || user.user_name || "-.-";
+    const showSubName = Boolean(user.nickname && user.user_name && user.nickname !== user.user_name);
     // 任一写操作进行中时统一禁用其他卡片按钮，避免并发编辑/删除造成状态混乱。
     const actionDisabled = this.state.editSubmitting || this.state.deleteSubmitting;
     return (
@@ -366,17 +499,15 @@ class HGUserProfilePage extends React.Component {
           </div>
           <div className={styles.headMain}>
             <div className={styles.nameRow}>
-              <span className={styles.userName}>{user.user_name ?? "-.-"}</span>
+              <span className={styles.userName}>{displayName}</span>
               <span className={`${styles.genderTag} ${this.genderClass(user.gender)}`}>
                 {this.genderLabel(user.gender)}
               </span>
-              {user.nickname ? (
-                <span className={styles.nickname}>昵称：{user.nickname}</span>
+              {showSubName ? (
+                <span className={styles.userNameSub}>@{user.user_name}</span>
               ) : null}
             </div>
-            <p className={styles.signature}>
-              {user.signature ? `“${user.signature}”` : "这个人很酷，什么都没写。"}
-            </p>
+            {this.renderSignature(user)}
           </div>
           <div className={styles.cardActions}>
             <HGButtonPage
@@ -490,6 +621,7 @@ class HGUserProfilePage extends React.Component {
         </HGCardPage>
         {this.renderEditModal()}
         {this.renderDeleteModal()}
+        {this.renderSignaturePopup()}
       </div>
     );
   }
