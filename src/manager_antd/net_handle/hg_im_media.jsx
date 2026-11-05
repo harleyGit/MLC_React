@@ -65,6 +65,7 @@ export async function hgIMPrepareUpload(
  */
 export function hgIMPut(hgGrant, hgFile, hgSignal, hgProgress) {
   const hgTarget = hgIMEndpoint(hgGrant.uploadUrl, false);
+  hgSignal.throwIfAborted(); // 已取消的任务不再发出网络请求。
   return new Promise((hgResolve, hgReject) => {
     const hgRequest = new XMLHttpRequest(); // 仅访问预签名隔离区地址，不带任何业务凭据。
     hgRequest.open("PUT", hgTarget, true);
@@ -77,13 +78,8 @@ export function hgIMPut(hgGrant, hgFile, hgSignal, hgProgress) {
         hgProgress(Math.round((hgEvent.loaded * 100) / hgEvent.total));
     };
     hgRequest.onload = () => {
-      // responseURL 与目标不一致说明发生了重定向，视为失败。
-      if (
-        hgRequest.status >= 200 &&
-        hgRequest.status < 300 &&
-        (!hgRequest.responseURL || hgRequest.responseURL === hgTarget)
-      )
-        hgResolve();
+      // 只按最终状态码判定；不做 responseURL 严格比对，URL 序列化差异不应误判上传失败。
+      if (hgRequest.status >= 200 && hgRequest.status < 300) hgResolve();
       else hgReject(new Error("隔离区上传失败，可在凭据有效期内重试"));
     };
     hgRequest.onerror = () =>

@@ -26,14 +26,6 @@
   height: 100%;
   object-fit: contain;
 }
-.mediaPending {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: #7a828e;
-  font-size: 12px;
-}
 .playIcon {
   position: absolute;
   top: 50%;
@@ -45,18 +37,24 @@
   color: white;
   pointer-events: none;
 }
-.visualProgress {
+
+/* 加载/接收蒙层：半透明遮罩盖住媒体或卡片，居中展示进度 */
+.mediaWrap {
+  position: relative;
+}
+.mediaMask {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  box-sizing: border-box;
-  padding: 3px 8px;
-  background: #111b;
-  color: white;
-  font-size: 11px;
-  text-align: center;
-  pointer-events: none;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: rgb(17 24 39 / 45%);
+  color: #fff;
+  font-size: 12px;
 }
 
 /* 文件卡片：微信式彩色类型图标 + 名称 + 大小 */
@@ -102,14 +100,6 @@
   color: #9aa0a6;
   font-size: 12px;
 }
-.cardProgress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 2px 0;
-  color: #576b95;
-  font-size: 12px;
-}
 
 /* 语音气泡：弹跳柱条动画替代静态文字按钮 */
 .audioHint {
@@ -127,12 +117,10 @@
   font-size: 12px;
 }
 
-/* 右键/长按浮动菜单：微信式白色圆角面板，点击空白处关闭 */
+/* 右键/长按浮动菜单：固定定位弹在鼠标触发点，点击空白处关闭 */
 .ctxMenu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 60;
+  position: fixed;
+  z-index: 1200;
   display: flex;
   flex-direction: column;
   min-width: 132px;

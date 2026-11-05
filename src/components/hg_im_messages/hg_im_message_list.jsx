@@ -444,40 +444,49 @@ export default class HGIMMessageList extends React.Component {
               hgIsCard ? styles.bubbleFile : styles.bubbleMedia
             }`}
           >
-            {hgUpload.url && hgUpload.messageType === "image" && (
-              <img
-                className={styles.localMedia}
-                src={hgUpload.url}
-                alt="本机待发送图片"
-              />
-            )}
-            {hgUpload.url && hgUpload.messageType === "video" && (
-              <video
-                className={styles.localMedia}
-                src={hgUpload.url}
-                preload="metadata"
-                muted
-                playsInline
-              />
-            )}
-            {hgIsCard && (
-              <HGIMFileCard
-                name={hgUpload.fileName}
-                size={hgUpload.fileSize}
-                mime={hgUpload.messageType === "audio" ? "audio/mpeg" : ""}
-              />
-            )}
-            <div className={styles.progressRow} role="status">
-              {hgPending && (
-                <HGRingSpinner
-                  style={{ width: 14, height: 14, borderWidth: 2 }}
+            <div className={styles.mediaWrap}>
+              {hgUpload.url && hgUpload.messageType === "image" && (
+                <img
+                  className={styles.localMedia}
+                  src={hgUpload.url}
+                  alt="本机待发送图片"
                 />
               )}
-              <span className={hgSettled ? styles.statusFail : undefined}>
-                {hgStages[hgUpload.state] || "准备中"}
-                {hgPercent !== null ? ` ${hgPercent}%` : ""}
-              </span>
+              {hgUpload.url && hgUpload.messageType === "video" && (
+                <video
+                  className={styles.localMedia}
+                  src={hgUpload.url}
+                  preload="metadata"
+                  muted
+                  playsInline
+                />
+              )}
+              {hgIsCard && (
+                <HGIMFileCard
+                  name={hgUpload.fileName}
+                  size={hgUpload.fileSize}
+                  mime={hgUpload.messageType === "audio" ? "audio/mpeg" : ""}
+                />
+              )}
+              {hgPending && (
+                <div className={styles.mediaMask} role="status">
+                  <HGRingSpinner
+                    style={{ width: 20, height: 20, borderWidth: 2 }}
+                  />
+                  <span>
+                    {hgStages[hgUpload.state] || "准备中"}
+                    {hgPercent !== null ? ` ${hgPercent}%` : ""}
+                  </span>
+                </div>
+              )}
             </div>
+            {(hgSettled || hgUpload.state === "sent") && (
+              <div className={styles.progressRow} role="status">
+                <span className={hgSettled ? styles.statusFail : undefined}>
+                  {hgStages[hgUpload.state] || "准备中"}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </li>

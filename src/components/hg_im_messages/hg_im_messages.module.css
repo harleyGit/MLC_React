@@ -1,4 +1,7 @@
 .list {
+  /* 主题色变量：气泡配色统一从这里取，改主题只需改这两行 */
+  --hg-im-bubble-other: #ffffff;
+  --hg-im-bubble-mine: #00a1d6;
   list-style: none;
   margin: 0;
   padding: 16px 12px 8px;
@@ -52,13 +55,13 @@
   user-select: none;
 }
 
-/* 微信式气泡：左侧白色、右侧绿色，带同色尖角 */
+/* 主题色气泡：左侧白色、右侧主题色，尖嘴用 background:inherit 自动同色 */
 .bubble {
   position: relative;
   max-width: 100%;
   padding: 9px 13px;
   border-radius: 8px;
-  background: #fff;
+  background: var(--hg-im-bubble-other);
   color: #191919;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -76,41 +79,27 @@
   background: inherit;
 }
 .mine .bubble {
-  background: #95ec69;
+  background: var(--hg-im-bubble-mine);
+  color: #fff;
 }
 .mine .bubble::before {
   left: auto;
   right: -4px;
 }
 
-/* 图片/视频气泡：去掉内边距，媒体贴边展示；尖角保持会话侧配色 */
+/* 图片/视频气泡：去掉内边距，媒体贴边展示；背景与尖嘴随会话侧自动同色 */
 .bubbleMedia {
   padding: 0;
-  background: transparent;
-}
-.bubbleMedia::before {
-  background: #fff;
+  background: var(--hg-im-bubble-other);
 }
 .mine .bubbleMedia {
-  background: transparent;
-}
-.mine .bubbleMedia::before {
-  background: #95ec69;
+  background: var(--hg-im-bubble-mine);
 }
 
-/* 文件气泡：白底卡片承载文件卡片与进度行；我方尖角保持绿色 */
+/* 文件气泡：白底卡片承载文件卡片与进度行，尖嘴继承同色背景 */
 .bubbleFile {
   padding: 4px;
-  background: #fff;
-}
-.bubbleFile::before {
-  background: #fff;
-}
-.mine .bubbleFile {
-  background: #fff;
-}
-.mine .bubbleFile::before {
-  background: #95ec69;
+  background: var(--hg-im-bubble-other);
 }
 
 .duration {
@@ -144,13 +133,32 @@
   border-radius: 8px;
 }
 
-/* 待发送气泡的状态行：发送进度百分比或审核阶段 */
+/* 发送/接收蒙层：半透明遮罩盖住气泡内容，居中展示进度 */
+.mediaWrap {
+  position: relative;
+}
+.mediaMask {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: rgb(17 24 39 / 45%);
+  color: #fff;
+  font-size: 12px;
+}
+
+/* 待发送气泡的状态行：仅结算态（已提交/失败等）展示在气泡下方 */
 .progressRow {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 10px 2px;
-  color: #576b95;
+  color: var(--hg-im-bubble-mine, #00a1d6);
   font-size: 12px;
   white-space: nowrap;
 }

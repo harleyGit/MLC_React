@@ -16,6 +16,7 @@ export default class HGIMMediaPreview extends React.Component {
     hgError: "", // 权限或网络失败提示，空字符串表示无错误。
     hgExpanded: false, // 默认在气泡内；true 时展示同一 Blob 的放大弹窗。
     hgMenu: false, // 默认隐藏；右键或长按打开浮动菜单，点击空白处关闭。
+    hgMenuPos: null, // 菜单锚点：触发时的鼠标/手指视口坐标，固定定位展示。
     hgMeta: null, // 文件卡片元数据：审核状态返回的名称/大小/MIME；协议未提供时留空。
   };
   hgController = new AbortController(); // 卸载/撤销时取消未完成的分段读取。
@@ -25,6 +26,7 @@ export default class HGIMMediaPreview extends React.Component {
   hgLoading = false; // 在 React setState 提交前也阻止重复读取。
   hgDeleting = false; // 服务端撤销单飞，长按菜单连点不得重复请求。
   hgPressTimer = null; // 指针持续按住550ms才打开菜单，松开即取消。
+  hgPressPos = { x: 0, y: 0 }; // 长按起点的视口坐标，菜单弹在按下位置。
   hgDialog = React.createRef(); // 弹窗打开后聚焦，方便键盘关闭。
   hgRoot = React.createRef(); // 菜单外点击判定范围。
 
@@ -98,10 +100,19 @@ export default class HGIMMediaPreview extends React.Component {
     this.setState({ hgMenu: false });
   };
 
-  /** 右键/长按统一入口：先广播关闭其他实例，再打开本浮动菜单。 */
-  hgOpenMenu = () => {
+  /** 右键/长按统一入口：菜单弹在触发点的视口坐标，先广播关闭其他实例。 */
+  hgOpenMenu = (hgX, hgY) => {
     window.dispatchEvent(new CustomEvent("hg:im-ctx-menu", { detail: this }));
-    this.setState({ hgMenu: true });
+    // 按预估菜单尺寸夹在视口内，避免贴边溢出。
+    const hgLeft = Math.max(
+      4,
+      Math.min(hgX, (globalThis.innerWidth || 800) - 150)
+    );
+    const hgTop = Math.max(
+      4,
+      Math.min(hgY, (globalThis.innerHeight || 600) - 130)
+    );
+    this.setState({ hgMenu: true, hgMenuPos: { x: hgLeft, y: hgTop } });
   };
 
   /** 自动预览短期避开已拒绝附件；用户主动点击仍可重新向 Go 鉴权。 */
@@ -219,8 +230,12 @@ export default class HGIMMediaPreview extends React.Component {
 
   hgStartPress = (hgEvent) => {
     if (hgEvent.button !== 0) return;
+    this.hgPressPos = { x: hgEvent.clientX, y: hgEvent.clientY }; // 长按菜单弹在按下位置。
     clearTimeout(this.hgPressTimer);
-    this.hgPressTimer = setTimeout(() => this.hgOpenMenu(), 550);
+    this.hgPressTimer = setTimeout(
+      () => this.hgOpenMenu(this.hgPressPos.x, this.hgPressPos.y),
+      550
+    );
   };
 
   hgStopPress = () => {
@@ -230,7 +245,7 @@ export default class HGIMMediaPreview extends React.Component {
   hgContextMenu = (hgEvent) => {
     hgEvent.preventDefault();
     this.hgStopPress();
-    this.hgOpenMenu();
+    this.hgOpenMenu(hgEvent.clientX, hgEvent.clientY);
   };
 
   hgOpen = () => {
@@ -251,36 +266,28 @@ export default class HGIMMediaPreview extends React.Component {
     return <HGRingSpinner style={{ width: 20, height: 20, borderWidth: 2 }} />;
   }
 
-  /** 图片/视频未完成鉴权下载时的占位框，展示接收百分比。 */
-  hgPendingBox() {
+  /** 气泡蒙层：半透明遮罩盖住媒体/卡片，居中展示加载或接收进度。 */
+  hgMask(hgText) {
     return (
-      <div className={styles.mediaPending}>
+      <div className={styles.mediaMask} role="status">
         {this.hgSpinner()}
-        <span>
-          {this.state.hgProgress
-            ? `接收中 ${this.state.hgProgress}%`
-            : "准备接收…"}
-        </span>
+        <span>{hgText}</span>
       </div>
     );
   }
 
-  /** 文件气泡：微信式卡片（图标/名称/大小）+ 点击下载时的接收进度行。 */
+  /** 文件气泡：微信式卡片（图标/名称/大小），下载期间覆盖接收进度蒙层。 */
   hgFileBody() {
     const hgMeta = this.state.hgMeta || {};
     const hgName =
       hgMeta.name ||
       `附件-${String(this.props.message.content.mediaId).slice(0, 8)}`;
     return (
-      <>
+      <div className={styles.mediaWrap}>
         <HGIMFileCard name={hgName} size={hgMeta.size} mime={hgMeta.mime} />
-        {this.state.hgBusy && (
-          <div className={styles.cardProgress} role="status">
-            {this.hgSpinner()}
-            <span>接收中 {this.state.hgProgress}%</span>
-          </div>
-        )}
-      </>
+        {this.state.hgBusy &&
+          this.hgMask(`接收中 ${this.state.hgProgress}%`)}
+      </div>
     );
   }
 
@@ -290,43 +297,45 @@ export default class HGIMMediaPreview extends React.Component {
     if (hgKind === "file") return this.hgFileBody();
     if (hgKind === "audio")
       return (
-        <span className={styles.audioHint}>
-          <HGBounceBars size="small" />
-          <span>{this.state.hgURL ? "点击播放语音" : "语音"}</span>
+        <span className={styles.mediaWrap}>
+          <span className={styles.audioHint}>
+            <HGBounceBars size="small" />
+            <span>{this.state.hgURL ? "点击播放语音" : "语音"}</span>
+          </span>
+          {this.state.hgBusy &&
+            this.hgMask(`接收中 ${this.state.hgProgress}%`)}
         </span>
       );
     return (
       <div className={styles.mediaBox}>
-        {this.state.hgURL ? (
-          <>
-            {hgKind === "image" ? (
-              <img
-                src={this.state.hgURL}
-                alt="已审核聊天图片"
-                className={styles.media}
-              />
-            ) : (
-              <video
-                src={this.state.hgURL}
-                playsInline
-                preload="metadata"
-                className={styles.media}
-                onLoadedMetadata={(hgEvent) => {
-                  if (hgEvent.currentTarget.duration > 0.2)
-                    hgEvent.currentTarget.currentTime = 0.1;
-                }}
-              />
-            )}
-            {hgKind === "video" && <span className={styles.playIcon}>▶</span>}
-            {this.state.hgBusy && (
-              <div className={styles.visualProgress} role="status">
-                接收中 {this.state.hgProgress}%
-              </div>
-            )}
-          </>
-        ) : (
-          this.hgPendingBox()
+        {this.state.hgURL && hgKind === "image" && (
+          <img
+            src={this.state.hgURL}
+            alt="已审核聊天图片"
+            className={styles.media}
+          />
         )}
+        {this.state.hgURL && hgKind === "video" && (
+          <video
+            src={this.state.hgURL}
+            playsInline
+            preload="metadata"
+            className={styles.media}
+            onLoadedMetadata={(hgEvent) => {
+              if (hgEvent.currentTarget.duration > 0.2)
+                hgEvent.currentTarget.currentTime = 0.1;
+            }}
+          />
+        )}
+        {this.state.hgURL && hgKind === "video" && (
+          <span className={styles.playIcon}>▶</span>
+        )}
+        {this.state.hgBusy &&
+          this.hgMask(
+            this.state.hgProgress
+              ? `接收中 ${this.state.hgProgress}%`
+              : "准备接收…"
+          )}
       </div>
     );
   }
@@ -382,6 +391,10 @@ export default class HGIMMediaPreview extends React.Component {
             className={styles.ctxMenu}
             role="group"
             aria-label="附件操作菜单"
+            style={{
+              left: this.state.hgMenuPos?.x,
+              top: this.state.hgMenuPos?.y,
+            }}
           >
             <button type="button" onClick={() => void this.hgDownload()}>
               下载
