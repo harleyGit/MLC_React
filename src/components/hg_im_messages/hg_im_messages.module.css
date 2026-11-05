@@ -1,15 +1,159 @@
-.list { list-style: none; margin: 0; padding: 16px; flex: 1; min-height: 100px; overflow-y: auto; overscroll-behavior: contain; }
-.message { display: flex; align-items: flex-start; gap: 9px; padding-bottom: 16px; min-width: 0; }
-.mine { flex-direction: row-reverse; }
-.avatar { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 5px; background: #fff; color: #475569; font-size: 16px; font-weight: 600; overflow: hidden; }
-.mine .avatar { background: #89b7f5; color: #fff; }
-.messageBody { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: calc(100% - 47px); gap: 5px; }
-.mine .messageBody { align-items: flex-end; }
-.bubble { max-width: 100%; padding: 10px 14px; border-radius: 8px; background: #fff; color: #1f2937; white-space: pre-wrap; overflow-wrap: anywhere; }
-.mine .bubble { background: #d3ebff; }
-.message small { color: #64748b; font-size: 11px; overflow-wrap: anywhere; max-width: 100%; }
-.bubble button { cursor: pointer; border: 1px solid #b7c8df; background: white; padding: 5px 8px; border-radius: 5px; margin-right: 5px; }
-.empty, .hint { color: #64748b; text-align: center; padding: 8px; }
-.spacer { padding: 0; margin: 0; border: 0; pointer-events: none; }
-.localMedia { display: block; max-width: min(280px, 62vw); max-height: 220px; object-fit: contain; margin-bottom: 6px; }
-.bubble progress { display: block; max-width: 100%; margin-top: 6px; }
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 16px 12px 8px;
+  flex: 1;
+  min-height: 100px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #f5f5f5;
+}
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 14px;
+  min-width: 0;
+}
+.mine {
+  flex-direction: row-reverse;
+}
+
+/* 微信式头像：圆角方形，底色由名称哈希决定，首字符占位 */
+.avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  user-select: none;
+}
+
+.messageBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: calc(100% - 96px);
+}
+.mine .messageBody {
+  align-items: flex-end;
+}
+.timeChip {
+  align-self: center;
+  margin-bottom: 10px;
+  color: #9aa0a6;
+  font-size: 12px;
+  user-select: none;
+}
+
+/* 微信式气泡：左侧白色、右侧绿色，带同色尖角 */
+.bubble {
+  position: relative;
+  max-width: 100%;
+  padding: 9px 13px;
+  border-radius: 8px;
+  background: #fff;
+  color: #191919;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 3%);
+}
+.bubble::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: -4px;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  background: inherit;
+}
+.mine .bubble {
+  background: #95ec69;
+}
+.mine .bubble::before {
+  left: auto;
+  right: -4px;
+}
+
+/* 图片/视频气泡：去掉内边距，媒体贴边展示；尖角保持会话侧配色 */
+.bubbleMedia {
+  padding: 0;
+  background: transparent;
+}
+.bubbleMedia::before {
+  background: #fff;
+}
+.mine .bubbleMedia {
+  background: transparent;
+}
+.mine .bubbleMedia::before {
+  background: #95ec69;
+}
+
+/* 文件气泡：白底卡片承载文件卡片与进度行；我方尖角保持绿色 */
+.bubbleFile {
+  padding: 4px;
+  background: #fff;
+}
+.bubbleFile::before {
+  background: #fff;
+}
+.mine .bubbleFile {
+  background: #fff;
+}
+.mine .bubbleFile::before {
+  background: #95ec69;
+}
+
+.duration {
+  color: #191919;
+  font-size: 13px;
+}
+.empty,
+.hint {
+  color: #9aa0a6;
+  text-align: center;
+  padding: 10px 8px;
+  font-size: 12px;
+}
+.hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.spacer {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  pointer-events: none;
+}
+.localMedia {
+  display: block;
+  max-width: min(280px, 62vw);
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+/* 待发送气泡的状态行：发送进度百分比或审核阶段 */
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 2px;
+  color: #576b95;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.statusFail {
+  color: #fa5151;
+}

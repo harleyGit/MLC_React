@@ -59,24 +59,42 @@ export async function hgIMPrepareUpload(
   return hgGrant;
 }
 
-/** 浏览器生成 Content-Length，原样 PUT Blob；拒绝重定向且绝不携带 Go 的 JWT/公共头。 */
-export async function hgIMPut(hgGrant, hgFile, hgSignal) {
-  const hgResponse = await fetch(hgIMEndpoint(hgGrant.uploadUrl, false), {
-    method: "PUT",
-    body: hgFile,
-    credentials: "omit",
-    redirect: "error",
-    headers: {
-      "Content-Type": hgGrant.headers["Content-Type"],
-      "x-amz-acl": "private",
-    },
-    signal: AbortSignal.any([
-      hgSignal,
-      AbortSignal.timeout(hgFile.size > 128 * 1024 * 1024 ? 540000 : 120000),
-    ]),
+/**
+ * 浏览器生成 Content-Length，原样 PUT Blob；XHR 提供上传字节进度（fetch 不支持），
+ * 拒绝重定向且绝不携带 Go 的 JWT/公共头。hgProgress 可选，按已上传百分比回调。
+ */
+export function hgIMPut(hgGrant, hgFile, hgSignal, hgProgress) {
+  const hgTarget = hgIMEndpoint(hgGrant.uploadUrl, false);
+  return new Promise((hgResolve, hgReject) => {
+    const hgRequest = new XMLHttpRequest(); // 仅访问预签名隔离区地址，不带任何业务凭据。
+    hgRequest.open("PUT", hgTarget, true);
+    hgRequest.withCredentials = false; // 等价 fetch credentials:"omit"。
+    hgRequest.timeout = hgFile.size > 128 * 1024 * 1024 ? 540000 : 120000;
+    hgRequest.setRequestHeader("Content-Type", hgGrant.headers["Content-Type"]);
+    hgRequest.setRequestHeader("x-amz-acl", "private");
+    hgRequest.upload.onprogress = (hgEvent) => {
+      if (hgProgress && hgEvent.lengthComputable)
+        hgProgress(Math.round((hgEvent.loaded * 100) / hgEvent.total));
+    };
+    hgRequest.onload = () => {
+      // responseURL 与目标不一致说明发生了重定向，视为失败。
+      if (
+        hgRequest.status >= 200 &&
+        hgRequest.status < 300 &&
+        (!hgRequest.responseURL || hgRequest.responseURL === hgTarget)
+      )
+        hgResolve();
+      else hgReject(new Error("隔离区上传失败，可在凭据有效期内重试"));
+    };
+    hgRequest.onerror = () =>
+      hgReject(new Error("隔离区上传失败，可在凭据有效期内重试"));
+    hgRequest.ontimeout = () =>
+      hgReject(new Error("隔离区上传失败，可在凭据有效期内重试"));
+    hgRequest.onabort = () =>
+      hgReject(new DOMException("上传已取消", "AbortError"));
+    hgSignal.addEventListener("abort", () => hgRequest.abort(), { once: true });
+    hgRequest.send(hgFile);
   });
-  if (!hgResponse.ok) throw new Error("隔离区上传失败，可在凭据有效期内重试");
-  await hgResponse.body?.cancel();
 }
 
 /** 每段重新经 Go 授权；完成后在本地生成 Blob，不把带鉴权 URL 直接赋给媒体标签。 */

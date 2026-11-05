@@ -130,6 +130,7 @@ export default class HGHomePage extends React.Component {
           ...hgUpdate,
           url: hgURL,
           fileName: hgUpdate.file.name || "录音",
+          fileSize: hgUpdate.file.size, // 文件卡片展示大小；录音 Blob 也有真实字节数。
           file: undefined,
         },
       });

@@ -1,7 +1,46 @@
 import React from "react";
+import HGIMFileCard from "../hg_im_media/hg_im_file_card.jsx";
 import { HGIMMediaCache } from "../hg_im_media/hg_im_media_cache.js";
 import HGIMMediaPreview from "../hg_im_media/hg_im_media_preview.jsx";
+import { HGRingSpinner } from "../hg_loading_animations/hg_loading_animations.jsx";
 import styles from "./hg_im_messages.module.css";
+
+/** 头像底色盘：协议没有头像 URL，按名称哈希取色区分联系人。 */
+const HG_AVATAR_COLORS = [
+  "#5b8def",
+  "#f4a13a",
+  "#e2654f",
+  "#8464d6",
+  "#3cb371",
+  "#4fb0c6",
+  "#d67fb0",
+  "#7f9d4f",
+];
+
+/** 名称哈希映射到固定底色，同一联系人每次渲染颜色一致。 */
+function hgAvatarColor(hgName) {
+  let hgHash = 0;
+  for (const hgChar of String(hgName))
+    hgHash = (hgHash * 31 + hgChar.codePointAt(0)) >>> 0;
+  return HG_AVATAR_COLORS[hgHash % HG_AVATAR_COLORS.length];
+}
+
+/** 微信式时间展示：当天只到时分，跨天补日期。 */
+function hgFormatTime(hgStamp) {
+  const hgDate = new Date(hgStamp);
+  if (Number.isNaN(hgDate.getTime())) return "";
+  const hgNow = new Date();
+  const hgHour = String(hgDate.getHours()).padStart(2, "0");
+  const hgMinute = String(hgDate.getMinutes()).padStart(2, "0");
+  const hgHM = `${hgHour}:${hgMinute}`;
+  const hgSameDay =
+    hgDate.getFullYear() === hgNow.getFullYear() &&
+    hgDate.getMonth() === hgNow.getMonth() &&
+    hgDate.getDate() === hgNow.getDate();
+  return hgSameDay
+    ? hgHM
+    : `${hgDate.getMonth() + 1}月${hgDate.getDate()}日 ${hgHM}`;
+}
 
 /** 媒体只在进入列表可视区时自动读取；短暂离屏仍保持组件直到虚拟槽被复用。 */
 class HGIMVisibleMedia extends React.Component {
@@ -70,26 +109,42 @@ class HGIMMessageCell extends React.Component {
     this.hgObserver?.disconnect();
   }
 
+  /** 气泡形态跟随消息类型：文本常规，媒体无内边距，文件为白底卡片。 */
+  hgBubbleClass(hgKind) {
+    if (hgKind === "text" || !hgKind) return "";
+    return hgKind === "file" ? styles.bubbleFile : styles.bubbleMedia;
+  }
+
   render() {
     const hgMessage = this.props.message; // 相同 messageId 的气泡在滚动中维持媒体节点身份。
     const hgName = hgMessage.isSelf
       ? "我"
-      : this.props.peerName || hgMessage.senderId || "用户"; // 协议没有头像 URL，使用文本占位。
+      : this.props.peerName || hgMessage.senderId || "用户"; // 协议没有头像 URL，使用首字符 + 哈希底色占位。
+    const hgKind = hgMessage.messageType;
     return (
       <li
         ref={this.hgNode}
         className={`${styles.message} ${hgMessage.isSelf ? styles.mine : ""}`}
       >
-        <span className={styles.avatar} aria-label={`${hgName}的头像`}>
+        <span
+          className={styles.avatar}
+          style={{ background: hgAvatarColor(hgName) }}
+          aria-label={`${hgName}的头像`}
+        >
           {[...String(hgName)][0] || "用"}
         </span>
         <div className={styles.messageBody}>
-          <div className={styles.bubble}>
-            {hgMessage.messageType === "text" ? (
+          {hgMessage.createdAt ? (
+            <time className={styles.timeChip}>
+              {hgFormatTime(hgMessage.createdAt)}
+            </time>
+          ) : null}
+          <div className={`${styles.bubble} ${this.hgBubbleClass(hgKind)}`}>
+            {hgKind === "text" ? (
               <span>{hgMessage.content.text}</span>
             ) : (
               <div>
-                {["image", "video"].includes(hgMessage.messageType) ? (
+                {["image", "video"].includes(hgKind) ? (
                   <HGIMVisibleMedia
                     key={hgMessage.messageId}
                     api={this.props.api}
@@ -108,21 +163,14 @@ class HGIMMessageCell extends React.Component {
                   />
                 )}
                 {hgMessage.content.durationMs > 0 && (
-                  <span>
+                  <span className={styles.duration}>
                     {" "}
-                    {Math.ceil(hgMessage.content.durationMs / 1000)}秒
+                    {Math.ceil(hgMessage.content.durationMs / 1000)}&quot;
                   </span>
                 )}
               </div>
             )}
           </div>
-          <small>
-            {hgMessage.isSelf ? "我 · 已发送" : hgMessage.senderId} · #
-            {hgMessage.seq}
-            {hgMessage.createdAt
-              ? ` · ${new Date(hgMessage.createdAt).toLocaleString()}`
-              : ""}
-          </small>
         </div>
       </li>
     );
@@ -190,7 +238,11 @@ export default class HGIMMessageList extends React.Component {
 
   hgEstimate = (hgMessage) =>
     this.hgHeights.get(hgMessage.seq) ||
-    (["image", "video"].includes(hgMessage.messageType) ? 285 : 96); // 未测量行的保守占位高度。
+    (["image", "video"].includes(hgMessage.messageType)
+      ? 285
+      : hgMessage.messageType === "file"
+      ? 130
+      : 96); // 未测量行的保守占位高度。
 
   hgOffset(hgIndex) {
     let hgPixels = 0; // 当前至多 200 条；求和无需无界索引或第三方依赖。
@@ -349,7 +401,7 @@ export default class HGIMMessageList extends React.Component {
       this.hgExhausted.newer = false;
   }
 
-  /** 本机审核进度不作为已送达消息，也参与发送者头像排版。 */
+  /** 本机审核进度不作为已送达消息；微信式待发送气泡，展示真实发送百分比或阶段。 */
   renderUpload() {
     const hgUpload = this.props.upload; // 当前会话最多一条，切换会话时父组件过滤。
     if (!hgUpload) return null;
@@ -364,16 +416,34 @@ export default class HGIMMessageList extends React.Component {
       rejected: "审核未通过",
       deleted: "附件已撤销",
     }; // 不将阶段冒充字节进度。
+    const hgSettled = ["failed", "uncertain", "rejected", "deleted"].includes(
+      hgUpload.state
+    );
+    const hgPending = !hgSettled && hgUpload.state !== "sent";
+    const hgPercent =
+      hgUpload.state === "uploading" && Number.isFinite(hgUpload.progress)
+        ? hgUpload.progress
+        : null; // 只在 uploading 阶段展示 XHR 字节进度。
+    const hgIsCard = ["file", "audio"].includes(hgUpload.messageType);
     return (
       <li
         key={hgUpload.clientMsgId}
         className={`${styles.message} ${styles.mine}`}
       >
-        <span className={styles.avatar} aria-label="我的头像">
+        <span
+          className={styles.avatar}
+          style={{ background: hgAvatarColor("我") }}
+          aria-label="我的头像"
+        >
           我
         </span>
         <div className={styles.messageBody}>
-          <div className={styles.bubble}>
+          <time className={styles.timeChip}>{hgFormatTime(Date.now())}</time>
+          <div
+            className={`${styles.bubble} ${
+              hgIsCard ? styles.bubbleFile : styles.bubbleMedia
+            }`}
+          >
             {hgUpload.url && hgUpload.messageType === "image" && (
               <img
                 className={styles.localMedia}
@@ -390,14 +460,36 @@ export default class HGIMMessageList extends React.Component {
                 playsInline
               />
             )}
-            {!hgUpload.url && <span>📎 {hgUpload.fileName}</span>}
-            <span role="status">{hgStages[hgUpload.state] || "准备中"}</span>
-            {!["failed", "uncertain", "rejected", "deleted", "sent"].includes(
-              hgUpload.state
-            ) && <progress aria-label="附件处理进行中" />}
+            {hgIsCard && (
+              <HGIMFileCard
+                name={hgUpload.fileName}
+                size={hgUpload.fileSize}
+                mime={hgUpload.messageType === "audio" ? "audio/mpeg" : ""}
+              />
+            )}
+            <div className={styles.progressRow} role="status">
+              {hgPending && (
+                <HGRingSpinner
+                  style={{ width: 14, height: 14, borderWidth: 2 }}
+                />
+              )}
+              <span className={hgSettled ? styles.statusFail : undefined}>
+                {hgStages[hgUpload.state] || "准备中"}
+                {hgPercent !== null ? ` ${hgPercent}%` : ""}
+              </span>
+            </div>
           </div>
-          <small>我 · 本机待发送 · 未审核完成前对方不可见</small>
         </div>
+      </li>
+    );
+  }
+
+  /** 翻页提示：环形加载动画替代纯文本。 */
+  renderHint(hgText) {
+    return (
+      <li className={styles.hint} role="status">
+        <HGRingSpinner style={{ width: 14, height: 14, borderWidth: 2 }} />
+        {hgText}
       </li>
     );
   }
@@ -427,11 +519,8 @@ export default class HGIMMessageList extends React.Component {
         onTouchStart={this.hgTouchDown}
         onTouchEnd={this.hgTouchUp}
       >
-        {(this.hgRequest === "older" || this.props.loading) && (
-          <li className={styles.hint} role="status">
-            正在加载消息…
-          </li>
-        )}
+        {(this.hgRequest === "older" || this.props.loading) &&
+          this.renderHint("正在加载消息…")}
         {hgMessages.length > 0 && (
           <li
             className={styles.spacer}
@@ -462,11 +551,7 @@ export default class HGIMMessageList extends React.Component {
           <li className={styles.empty}>当前窗口暂无消息</li>
         )}
         {this.renderUpload()}
-        {this.hgRequest === "newer" && (
-          <li className={styles.hint} role="status">
-            正在加载更新消息…
-          </li>
-        )}
+        {this.hgRequest === "newer" && this.renderHint("正在加载更新消息…")}
       </ul>
     );
   }
