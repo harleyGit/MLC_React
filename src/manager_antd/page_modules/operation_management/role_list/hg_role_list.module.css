@@ -3,6 +3,12 @@
   min-width: 0;
 }
 
+/* 页头「创建角色」按钮内图标与文字的间距 */
+.headerActionIcon {
+  margin-right: 6px;
+  font-size: 14px;
+}
+
 /* 提示条 */
 .tipBar {
   display: flex;

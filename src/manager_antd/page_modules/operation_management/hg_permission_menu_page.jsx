@@ -2,27 +2,32 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-24 20:48:52
+ * @LastEditTime: 2026-11-04 20:39:13
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_permission_menu_page.jsx
  * @Description: 菜单权限新增/编辑表单页面
- * 
+ *
  * 管控系统菜单、按钮操作权限，实现不同账号看不同菜单、操作不同功能，支撑 RBAC 权限体系，做页面访问与操作鉴权拦截
  */
 import React, { Component } from "react";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
-import { HGFormPage as Form, HGFormItem as Item } from "../../../components/hg_form/hg_form_page";
-import HGInputPage, { HGInputTextArea } from "../../../components/hg_input/hg_input_page";
+import {
+  HGFormPage as Form,
+  HGFormItem as Item,
+} from "../../../components/hg_form/hg_form_page";
+import HGInputPage, {
+  HGInputTextArea,
+} from "../../../components/hg_input/hg_input_page";
 import HGInputNumberPage from "../../../components/hg_input_number/hg_input_number_page";
+import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGRadioGroup from "../../../components/hg_radio/hg_radio_page";
 import HGSwitchPage from "../../../components/hg_switch/hg_switch_page";
 import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
-import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import styles from "./hg_permission_menu.module.css";
 import HGPermissionMenuVM, {
   INITIAL_FORM_VALUES,
   MOCK_PARENT_TREE,
   PERMISSION_TYPE_OPTIONS,
 } from "./hg_permission_menu_vm";
-import styles from "./hg_permission_menu.module.css";
 
 /**
  * 菜单权限表单页面
@@ -92,7 +97,10 @@ class HGPermissionMenuPage extends Component {
       rules={HGPermissionMenuVM.getFormRules().code}
       className={styles.formItem}
     >
-      <HGInputPage placeholder="请输入权限编码，如：system:user:list" className={styles.inputField} />
+      <HGInputPage
+        placeholder="请输入权限编码，如：system:user:list"
+        className={styles.inputField}
+      />
     </Item>
   );
 
@@ -137,7 +145,10 @@ class HGPermissionMenuPage extends Component {
       rules={HGPermissionMenuVM.getFormRules().page_path}
       className={styles.formItem}
     >
-      <HGInputPage placeholder="请输入页面路由路径，如：/system/user" className={styles.inputField} />
+      <HGInputPage
+        placeholder="请输入页面路由路径，如：/system/user"
+        className={styles.inputField}
+      />
     </Item>
   );
 
@@ -146,11 +157,7 @@ class HGPermissionMenuPage extends Component {
    * @returns {React.ReactNode} TreeSelect 树形选择器
    */
   renderParentField = () => (
-    <Item
-      label="上级菜单"
-      name="parent_id"
-      className={styles.formItem}
-    >
+    <Item label="上级菜单" name="parent_id" className={styles.formItem}>
       <HGTreeSelectPage
         treeData={MOCK_PARENT_TREE}
         placeholder="请选择上级菜单（可为空）"

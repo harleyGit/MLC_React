@@ -235,6 +235,7 @@ const PAGE_MAP = {
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
   role_list: HGRoleListPage, //角色列表
   role_employee: HGEmployeeRolePage,
+  // 创建角色页已从左侧菜单收敛为角色列表页头按钮入口；此处保留映射供 onMenuSelect("role_create") 渲染。
   role_create: HGRoleCreatePage,
   permission_list: PermissionListPage,
   permission_menu: HGPermissionMenuPage,
@@ -264,6 +265,17 @@ const PAGE_MAP = {
 };
 
 /**
+ * 不在左侧菜单展示、但可由子页面跳转进入的页面面包屑兜底。
+ * 约束：key 与 PAGE_MAP 对齐，路径结构需与 HGSideMenuVM.findPathToKey 的返回保持一致。
+ */
+const HIDDEN_BREADCRUMB_PATHS = {
+  role_create: [
+    { key: "role", label: "角色管理" },
+    { key: "role_create", label: "创建角色" },
+  ],
+};
+
+/**
  * 运维管理主页面组件
  * 职责：左侧多级菜单 + 右侧内容区，根据选中菜单项渲染对应页面
  * 约束：使用 HGSideMenuPage 组件渲染菜单，PAGE_MAP 映射右侧内容
@@ -286,11 +298,13 @@ class HGOperationManagementPage extends Component {
 
   /**
    * 渲染面包屑导航：根据 selectedKey 显示完整路径（A > B > C）
+   * 说明：菜单中不存在的隐藏页面（如创建角色）回落到 HIDDEN_BREADCRUMB_PATHS。
    * @returns {React.ReactNode} 面包屑节点
    */
   renderBreadcrumb = () => {
     const { selectedKey } = this.state;
-    const path = HGSideMenuVM.findPathToKey(OPERATION_MENU_ITEMS, selectedKey);
+    const menuPath = HGSideMenuVM.findPathToKey(OPERATION_MENU_ITEMS, selectedKey);
+    const path = menuPath.length > 0 ? menuPath : HIDDEN_BREADCRUMB_PATHS[selectedKey];
     if (!path || path.length === 0) return null;
 
     return (
@@ -316,6 +330,7 @@ class HGOperationManagementPage extends Component {
 
   /**
    * 渲染右侧内容区：根据 selectedKey 从 PAGE_MAP 获取对应页面组件
+   * 约束：向子页面注入 onMenuSelect，供其在内容区内切换菜单（如角色列表跳转创建角色）；未使用的页面忽略该 prop。
    * @returns {React.ReactNode} 右侧内容区节点
    */
   renderContent = () => {
@@ -324,7 +339,7 @@ class HGOperationManagementPage extends Component {
     if (PageComponent) {
       return (
         <Suspense fallback={<HGLoading text="正在加载页面..." />}>
-          <PageComponent />
+          <PageComponent onMenuSelect={this.handleMenuSelect} />
         </Suspense>
       );
     }

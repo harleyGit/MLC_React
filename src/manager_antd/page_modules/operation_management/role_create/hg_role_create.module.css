@@ -1,5 +1,7 @@
+/* 创建角色页面样式：页面头 + 角色信息卡片 + 表单控件 */
 .roleCreateContainer {
-  max-width: 640px;
+  min-width: 0;
+  max-width: 720px;
 }
 
 .roleCreateInput,
@@ -7,10 +9,11 @@
   width: 100%;
 }
 
+/* 提交/重置操作区：与上方字段留出分组间距 */
 .roleCreateActions {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 24px;
 }
 
 .roleCreateButton {

@@ -1,14 +1,15 @@
 /*
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-07-05
- * @LastEditors: Harley harelysoa@qq.com
- * @LastEditTime: 2026-10-29 23:31:14
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-11-04 21:19:32
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/role_list/hg_role_list_page.jsx
- * @Description: 角色管理页面，默认 cursor 分页展示角色列表并支持编辑、删除
+ * @Description: 角色管理页面，默认 cursor 分页展示角色列表并支持编辑、删除、跳转创建角色
  */
 import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../../components/hg_card/hg_card_page";
+import HGIconPage from "../../../../components/hg_icon/hg_icon_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGPageHeaderPage from "../../../../components/hg_page_header/hg_page_header_page";
@@ -21,7 +22,7 @@ import HGRoleListVM, { ROLE_LIST_PAGE_SIZE } from "./hg_role_list_vm";
 
 /**
  * 角色管理页面。
- * 职责：展示角色 cursor 分页列表，支持编辑与删除角色。
+ * 职责：展示角色 cursor 分页列表，支持编辑与删除角色，并提供创建角色入口。
  * 性能约束：
  * - 使用 cursor 分页，避免 OFFSET 深分页扫描，应对千万级 role 表。
  * - 后端不返回实时 total，前端仅根据 hasMore 计算"至少 N 条"，避免 COUNT(*) 锁竞争。
@@ -146,6 +147,17 @@ class HGRoleListPage extends Component {
   handleRefresh = () => {
     const { pagination } = this.state;
     this.fetchRoleList(pagination.current, pagination.pageSize);
+  };
+
+  /**
+   * 进入创建角色页面。
+   * 边界：依赖运维管理容器注入的 onMenuSelect 切换到 role_create 菜单；未注入时不做跳转。
+   */
+  handleCreateRole = () => {
+    const { onMenuSelect } = this.props;
+    if (onMenuSelect) {
+      onMenuSelect("role_create");
+    }
   };
 
   /**
@@ -528,8 +540,9 @@ class HGRoleListPage extends Component {
           title="角色管理"
           description="维护平台角色定义，角色是权限的集合；用户通过绑定角色获得对应业务范围的操作能力。"
           extra={
-            <HGButtonPage onClick={this.handleRefresh} loading={loading}>
-              刷新
+            <HGButtonPage type="primary" onClick={this.handleCreateRole}>
+              <HGIconPage type="plus" className={styles.headerActionIcon} />
+              创建角色
             </HGButtonPage>
           }
         />

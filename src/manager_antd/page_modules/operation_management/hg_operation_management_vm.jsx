@@ -60,11 +60,7 @@ export const OPERATION_MENU_ITEMS = [
         label: "管理员工角色",
         icon: <HGIconPage type="user" />,
       },
-      {
-        key: "role_create",
-        label: "创建角色",
-        icon: <HGIconPage type="plus" />,
-      },
+      // 创建角色页不再单独占菜单，入口收敛到角色列表页头的「创建角色」按钮。
     ],
   },
   {
