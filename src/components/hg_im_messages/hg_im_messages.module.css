@@ -1,7 +1,8 @@
 .list {
-  /* 主题色变量：气泡配色统一从这里取，改主题只需改这两行；我方气泡取全站主题的微信绿 */
-  --hg-im-bubble-other: #ffffff;
-  --hg-im-bubble-mine: var(--hg-color-wechat-green, #95ec69);
+  /* 主题色变量：气泡配色统一从这里取，改主题只需改这两行。
+     我方用管理后台主题蓝；微信绿 #95ec69 已预注册在 HGThemeUtils（--hg-color-wechat-green），供后续其他场景使用 */
+  --hg-im-bubble-other: var(--hg-color-surface, #ffffff);
+  --hg-im-bubble-mine: var(--hg-color-primary, #2674c7);
   list-style: none;
   margin: 0;
   padding: 16px 12px 8px;
@@ -9,7 +10,7 @@
   min-height: 100px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: #f5f5f5;
+  background: var(--hg-color-background, #f0f7ff);
 }
 .message {
   display: flex;
@@ -87,7 +88,7 @@
   right: -4px;
 }
 
-/* 图片/视频气泡：去掉内边距，媒体贴边展示；背景与尖嘴随会话侧自动同色 */
+/* 图片/视频气泡：去掉内边距，媒体容器继承同一侧气泡颜色，避免出现分层底色。 */
 .bubbleMedia {
   padding: 0;
   background: var(--hg-im-bubble-other);
@@ -96,14 +97,17 @@
   background: var(--hg-im-bubble-mine);
 }
 
-/* 文件气泡：白底卡片承载文件卡片与进度行，尖嘴继承同色背景 */
+/* 文件气泡：卡片继承气泡背景，与文件消息保持同色。 */
 .bubbleFile {
   padding: 4px;
   background: var(--hg-im-bubble-other);
 }
+.mine .bubbleFile {
+  background: var(--hg-im-bubble-mine);
+}
 
 .duration {
-  color: #191919;
+  color: inherit;
   font-size: 13px;
 }
 .empty,

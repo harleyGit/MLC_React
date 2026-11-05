@@ -1,7 +1,6 @@
-/*
- * @Description: Web 整体主题色彩工具类：维护主色 #3c83f3 与派生色板，
- *              并通过 :root CSS 变量下发全站样式（var(--hg-color-xxx)）。
- */
+/* Web 整体主题色彩工具类：负责状态管理与 CSS 变量下发。 */
+
+import HGThemeColorComponent from "../components/hg_theme/hg_theme_color_component.jsx";
 
 /**
  * 主题色彩工具类（静态 API）。
@@ -20,26 +19,13 @@
  */
 export default class HGThemeUtils {
   /** 默认主色：全站品牌主题色 */
-  static DEFAULT_PRIMARY = "#3c83f3";
+  static DEFAULT_PRIMARY = HGThemeColorComponent.DEFAULT_PRIMARY;
 
   /** 品牌渐变末端点缀色（与顶栏渐变 #7768ef 保持一致） */
-  static GRADIENT_END = "#7768ef";
+  static GRADIENT_END = HGThemeColorComponent.GRADIENT_END;
 
   /** token -> :root CSS 变量名映射；全站样式统一从这里取变量名，避免手写不一致 */
-  static CSS_VAR_MAP = {
-    primary: "--hg-color-primary",
-    primaryHover: "--hg-color-primary-hover",
-    primaryActive: "--hg-color-primary-active",
-    primaryLight: "--hg-color-primary-light",
-    primaryBorder: "--hg-color-primary-border",
-    primaryGradient: "--hg-color-primary-gradient",
-    wechatGreen: "--hg-color-wechat-green",
-    text: "--hg-color-text",
-    textSecondary: "--hg-color-text-secondary",
-    background: "--hg-color-background",
-    surface: "--hg-color-surface",
-    border: "--hg-color-border",
-  };
+  static CSS_VAR_MAP = HGThemeColorComponent.CSS_VAR_MAP;
 
   /** 当前生效色板；懒初始化，首次取用时由 buildTheme(DEFAULT_PRIMARY) 构建 */
   static _themeColors = null;
@@ -51,18 +37,7 @@ export default class HGThemeUtils {
    * @returns {string} 小写 #rrggbb
    */
   static normalizeHex(hex) {
-    const raw = String(hex ?? "").trim().replace(/^#/, "");
-    if (/^[0-9a-fA-F]{3}$/.test(raw)) {
-      return `#${raw
-        .split("")
-        .map((ch) => ch + ch)
-        .join("")
-        .toLowerCase()}`;
-    }
-    if (/^[0-9a-fA-F]{6}$/.test(raw)) {
-      return `#${raw.toLowerCase()}`;
-    }
-    throw new Error(`HGThemeUtils: 非法颜色值 "${hex}"，仅支持 #rgb / #rrggbb`);
+    return HGThemeColorComponent.normalizeHex(hex);
   }
 
   /**
@@ -71,12 +46,7 @@ export default class HGThemeUtils {
    * @returns {[number, number, number]} [r, g, b]，各通道 0~255
    */
   static hexToRgb(hex) {
-    const full = HGThemeUtils.normalizeHex(hex);
-    return [
-      parseInt(full.slice(1, 3), 16),
-      parseInt(full.slice(3, 5), 16),
-      parseInt(full.slice(5, 7), 16),
-    ];
+    return HGThemeColorComponent.hexToRgb(hex);
   }
 
   /**
@@ -88,9 +58,7 @@ export default class HGThemeUtils {
    * @returns {string} 小写 #rrggbb
    */
   static rgbToHex(r, g, b) {
-    const clamp = (v) => Math.min(255, Math.max(0, Math.round(v)));
-    const to2 = (v) => clamp(v).toString(16).padStart(2, "0");
-    return `#${to2(r)}${to2(g)}${to2(b)}`;
+    return HGThemeColorComponent.rgbToHex(r, g, b);
   }
 
   /**
@@ -101,14 +69,7 @@ export default class HGThemeUtils {
    * @returns {string} 混合后的小写 #rrggbb
    */
   static mixHex(fromHex, toHex, ratio) {
-    const t = Number.isFinite(Number(ratio)) ? Math.min(1, Math.max(0, Number(ratio))) : 0;
-    const [fr, fg, fb] = HGThemeUtils.hexToRgb(fromHex);
-    const [tr, tg, tb] = HGThemeUtils.hexToRgb(toHex);
-    return HGThemeUtils.rgbToHex(
-      fr + (tr - fr) * t,
-      fg + (tg - fg) * t,
-      fb + (tb - fb) * t
-    );
+    return HGThemeColorComponent.mixHex(fromHex, toHex, ratio);
   }
 
   /**
@@ -118,9 +79,7 @@ export default class HGThemeUtils {
    * @returns {string} rgba(r, g, b, a)
    */
   static withAlpha(hex, alpha) {
-    const a = Number.isFinite(Number(alpha)) ? Math.min(1, Math.max(0, Number(alpha))) : 1;
-    const [r, g, b] = HGThemeUtils.hexToRgb(hex);
-    return `rgba(${r}, ${g}, ${b}, ${a})`;
+    return HGThemeColorComponent.withAlpha(hex, alpha);
   }
 
   /**
@@ -131,30 +90,7 @@ export default class HGThemeUtils {
    * @returns {object} token -> 颜色值的色板对象
    */
   static buildTheme(primaryHex) {
-    const primary = HGThemeUtils.normalizeHex(primaryHex);
-    return {
-      primary,
-      // hover/active：向黑色混合 10% / 20%，换主色后反馈色仍保持同色系
-      primaryHover: HGThemeUtils.mixHex(primary, "#000000", 0.1),
-      primaryActive: HGThemeUtils.mixHex(primary, "#000000", 0.2),
-      // 浅底/描边：向白色混合 90% / 70%，用于标签底、选中态描边等
-      primaryLight: HGThemeUtils.mixHex(primary, "#ffffff", 0.9),
-      primaryBorder: HGThemeUtils.mixHex(primary, "#ffffff", 0.7),
-      // 品牌渐变：深色起点 + 主色中段 + 固定紫调终点，与顶栏渐变风格一致
-      primaryGradient: `linear-gradient(112deg, ${HGThemeUtils.mixHex(
-        primary,
-        "#000000",
-        0.18
-      )} 0%, ${primary} 56%, ${HGThemeUtils.GRADIENT_END} 100%)`,
-      // 微信绿：IM 聊天气泡专用品牌色（微信交付风格），不随主色派生，固定值
-      wechatGreen: "#95ec69",
-      // 中性色：背景/描边与 App.css 的 --cm-hg-style、--cm-hg-border-level-2-color 对齐
-      text: "#1f2329",
-      textSecondary: "#646a73",
-      background: "#f5f7fa",
-      surface: "#ffffff",
-      border: "#dcdcdc",
-    };
+    return HGThemeColorComponent.buildTheme(primaryHex);
   }
 
   /**
@@ -217,7 +153,7 @@ export default class HGThemeUtils {
   }
 
   /**
-   * 恢复默认主题（主色 #3c83f3 及全部默认/派生 token）。
+   * 恢复默认主题（主题规范主交互色及全部默认/派生 token）。
    * @returns {object} 恢复后的完整色板
    */
   static resetTheme() {

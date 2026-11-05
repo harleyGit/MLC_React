@@ -7,6 +7,8 @@
   position: relative;
   touch-action: pan-y;
   cursor: pointer;
+  background: inherit;
+  color: inherit;
 }
 
 /* 图片/视频：微信式定宽预览框，占位与成图保持同一高度避免跳动 */
@@ -18,7 +20,7 @@
   aspect-ratio: 4 / 3;
   overflow: hidden;
   border-radius: 8px;
-  background: #ebedf0;
+  background: inherit;
 }
 .media {
   display: block;
@@ -66,8 +68,7 @@
   width: min(240px, 60vw);
   padding: 12px;
   border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+  background: inherit;
 }
 .fileIcon {
   display: grid;
@@ -93,11 +94,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #191919;
+  color: inherit;
   font-size: 14px;
 }
 .fileSize {
-  color: #9aa0a6;
+  color: inherit;
+  opacity: 0.72;
   font-size: 12px;
 }
 
@@ -106,7 +108,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #191919;
+  color: inherit;
   font-size: 14px;
 }
 
