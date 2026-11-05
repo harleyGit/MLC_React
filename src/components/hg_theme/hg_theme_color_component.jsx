@@ -9,6 +9,19 @@ export default class HGThemeColorComponent {
   /** 品牌渐变的紫色终点；与主题规范保持一致。 */
   static GRADIENT_END = "#8185f4";
 
+  /** 主题规范中的扩展色板；#Cpf0FF 为非法写法，按规范修正为 #CFF0FF。 */
+  static COLOR_PALETTE = {
+    bubbleMine: "#e0f2ff",
+    bubbleFile: "#f2f8ff",
+    iceBlue: "#b6dcff",
+    skyBlue: "#7cbaff",
+    actionBlue: "#3b82f6",
+    frostWhite: "#f5ffff",
+    powderBlue: "#b7dbff",
+    brightBlue: "#82beff",
+    frostBlue: "#cff0ff",
+  };
+
   /** 主题 token 到 CSS 变量的映射，业务样式只依赖语义变量。 */
   static CSS_VAR_MAP = {
     primary: "--hg-color-primary",
@@ -17,6 +30,8 @@ export default class HGThemeColorComponent {
     primaryLight: "--hg-color-primary-light",
     primaryBorder: "--hg-color-primary-border",
     primaryGradient: "--hg-color-primary-gradient",
+    bubbleMine: "--hg-color-bubble-mine",
+    bubbleFile: "--hg-color-bubble-file",
     wechatGreen: "--hg-color-wechat-green",
     text: "--hg-color-text",
     textSecondary: "--hg-color-text-secondary",
@@ -83,6 +98,7 @@ export default class HGThemeColorComponent {
     const primary = HGThemeColorComponent.normalizeHex(primaryHex);
     const mix = HGThemeColorComponent.mixHex;
     return {
+      ...HGThemeColorComponent.COLOR_PALETTE,
       primary,
       primaryHover: mix(primary, "#000000", 0.1),
       primaryActive: mix(primary, "#000000", 0.2),

@@ -2,7 +2,8 @@
   /* 主题色变量：气泡配色统一从这里取，改主题只需改这两行。
      我方用管理后台主题蓝；微信绿 #95ec69 已预注册在 HGThemeUtils（--hg-color-wechat-green），供后续其他场景使用 */
   --hg-im-bubble-other: var(--hg-color-surface, #ffffff);
-  --hg-im-bubble-mine: var(--hg-color-primary, #2674c7);
+  --hg-im-bubble-mine: var(--hg-color-bubble-mine, #e0f2ff);
+  --hg-im-bubble-file: var(--hg-color-bubble-file, #f2f8ff);
   list-style: none;
   margin: 0;
   padding: 16px 12px 8px;
@@ -100,10 +101,7 @@
 /* 文件气泡：卡片继承气泡背景，与文件消息保持同色。 */
 .bubbleFile {
   padding: 4px;
-  background: var(--hg-im-bubble-other);
-}
-.mine .bubbleFile {
-  background: var(--hg-im-bubble-mine);
+  background: var(--hg-im-bubble-file);
 }
 
 .duration {
