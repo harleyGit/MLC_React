@@ -33,6 +33,7 @@ export default class HGThemeUtils {
     primaryLight: "--hg-color-primary-light",
     primaryBorder: "--hg-color-primary-border",
     primaryGradient: "--hg-color-primary-gradient",
+    wechatGreen: "--hg-color-wechat-green",
     text: "--hg-color-text",
     textSecondary: "--hg-color-text-secondary",
     background: "--hg-color-background",
@@ -145,6 +146,8 @@ export default class HGThemeUtils {
         "#000000",
         0.18
       )} 0%, ${primary} 56%, ${HGThemeUtils.GRADIENT_END} 100%)`,
+      // 微信绿：IM 聊天气泡专用品牌色（微信交付风格），不随主色派生，固定值
+      wechatGreen: "#95ec69",
       // 中性色：背景/描边与 App.css 的 --cm-hg-style、--cm-hg-border-level-2-color 对齐
       text: "#1f2329",
       textSecondary: "#646a73",

@@ -1,7 +1,7 @@
 .list {
-  /* 主题色变量：气泡配色统一从这里取，改主题只需改这两行 */
+  /* 主题色变量：气泡配色统一从这里取，改主题只需改这两行；我方气泡取全站主题的微信绿 */
   --hg-im-bubble-other: #ffffff;
-  --hg-im-bubble-mine: #00a1d6;
+  --hg-im-bubble-mine: var(--hg-color-wechat-green, #95ec69);
   list-style: none;
   margin: 0;
   padding: 16px 12px 8px;
