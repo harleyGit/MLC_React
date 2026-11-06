@@ -49,7 +49,7 @@ export default class HGUserVM {
     return HGNet.updateUserProfile({ userId, nickname, signature, gender, avatar_url });
   };
 
-  /* 后端尚未提供安全的物理删除入口；页面禁用删除按钮，避免误调用。 */
+  /* 管理员删除无关联账号；后端检查权限和关联记录并撤销会话。 */
   static deleteUserByUserId = (userId) => {
     return HGNet.deleteUser(userId);
   };

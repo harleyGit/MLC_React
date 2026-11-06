@@ -29,7 +29,7 @@ export const HGMANAGER_API = {
   PROFILE: "/api/v1/profile/info", // 获取用户信息
   PROFILE_UPDATE: "/api/v1/profile/update", // 昵称/性别/签名/头像 URL；query user_id 指定他人需 user:directory:write。
   // 手机和邮箱属于账号安全字段，管理他人时仍走 PUT /security?user_id=... 并写审计。
-  PROFILE_USER_DELETE: "/api/v1/profile/delete", // 尚未上线：涉及资产、关联记录及登录会话处置，界面不可发起。
+  PROFILE_USER_DELETE: "/api/v1/profile/delete", // 管理员删除无关联用户并撤销会话。
   AVATAR_UPLOAD: "/api/v1/profile/avatar", // 上传头像
   PROFILE_ADDRESSES: "/api/v1/profile/addresses", // 本人收货地址列表与新增
   PROFILE_ADDRESS_DETAIL: "/api/v1/profile/addresses/detail", // 本人收货地址详情、修改与删除（query id）

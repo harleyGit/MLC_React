@@ -122,9 +122,10 @@ class HGNetManagerVM extends HGNetManager {
   }
 
   // 删除用户（按 user_id）。
-  // 注意：后端 /api/v1/profile/delete 路由尚未实现，调用会得到 404/405，待后端补齐后联调。
+  // 后端仅允许删除无关联的他人账号，并在删除时撤销会话；失败时由页面展示错误。
   deleteUser(userId) {
-    return this.delete(HGMANAGER_API.PROFILE_USER_DELETE, { params: { user_id: userId } });
+    // 关联校验跨多个权威表，超时须覆盖服务端有界事务及会话撤销，避免提交后前端误报超时。
+    return this.delete(HGMANAGER_API.PROFILE_USER_DELETE, { params: { user_id: userId }, timeout: 25000 });
   }
 
   // 上传头像（二进制流方式）

@@ -269,8 +269,7 @@ class HGUserProfilePage extends React.Component {
   };
 
   /**
-   * 确认删除：走 DELETE /api/v1/profile/delete?user_id=xxx，成功后刷新当前页。
-   * 注意：后端删除路由尚未实现，联调前该请求会失败并弹错误提示。
+   * 确认删除：仅无业务关联时允许删除，后端撤销会话；成功后重置游标重新加载首页。
    */
   handleConfirmDelete = async () => {
     const { deletingUser, deleteSubmitting } = this.state;
@@ -279,8 +278,9 @@ class HGUserProfilePage extends React.Component {
     try {
       await HGUserVM.deleteUserByUserId(deletingUser.user_id);
       message.success("用户已删除");
-      this.setState({ deletingUser: null });
-      this.refreshCurrentPage();
+      this.setState({ deletingUser: null, cursorByPage: { 1: 0 } }, () => {
+        this.fetchUsers(1, this.state.pagination.pageSize, this.state.keyword);
+      });
     } catch (error) {
       handleError(error);
     } finally {
@@ -518,8 +518,8 @@ class HGUserProfilePage extends React.Component {
             </HGButtonPage>
             <HGButtonPage
               danger
-              disabled
-              title="删除用户需要先完成关联记录和会话校验，当前暂不可用"
+              disabled={actionDisabled}
+              title="仅可删除无关联记录的用户；删除时会强制退出所有设备"
               onClick={() => this.handleAskDelete(user)}
             >
               删除
@@ -604,7 +604,7 @@ class HGUserProfilePage extends React.Component {
       >
         <p>
           确认删除用户 {deletingUser.user_name ?? deletingUser.user_id}？
-          删除后该用户将无法登录，此操作不可恢复。
+          仅无业务关联的账号可以删除；删除将强制退出所有设备且不可恢复。
         </p>
       </HGModalPage>
     );
