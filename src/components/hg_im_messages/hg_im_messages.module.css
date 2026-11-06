@@ -13,11 +13,18 @@
   overscroll-behavior: contain;
   background: var(--hg-color-background, #f0f7ff);
 }
+/* 消息项容器：时间行独立成行（微信式），下方头像与气泡同行起始，
+   保证气泡尖嘴能与头像垂直中心对齐——时间行不能再挤在气泡上方 */
 .message {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 14px;
+  min-width: 0;
+}
+.messageRow {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding-bottom: 14px;
   min-width: 0;
 }
 .mine {
@@ -72,7 +79,8 @@
 .bubble::before {
   content: "";
   position: absolute;
-  top: 14px;
+  /* 尖嘴中心对齐头像中心：头像 38px 高 → 中心 19px，尖嘴 9px → top = 19 - 4.5 = 14.5px */
+  top: 14.5px;
   left: -4px;
   width: 9px;
   height: 9px;

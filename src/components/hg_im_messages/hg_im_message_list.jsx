@@ -122,24 +122,26 @@ class HGIMMessageCell extends React.Component {
       : this.props.peerName || hgMessage.senderId || "用户"; // 协议没有头像 URL，使用首字符 + 哈希底色占位。
     const hgKind = hgMessage.messageType;
     return (
-      <li
-        ref={this.hgNode}
-        className={`${styles.message} ${hgMessage.isSelf ? styles.mine : ""}`}
-      >
-        <span
-          className={styles.avatar}
-          style={{ background: hgAvatarColor(hgName) }}
-          aria-label={`${hgName}的头像`}
+      <li ref={this.hgNode} className={styles.message}>
+        {hgMessage.createdAt ? (
+          <time className={styles.timeChip}>
+            {hgFormatTime(hgMessage.createdAt)}
+          </time>
+        ) : null}
+        <div
+          className={`${styles.messageRow} ${
+            hgMessage.isSelf ? styles.mine : ""
+          }`}
         >
-          {[...String(hgName)][0] || "用"}
-        </span>
-        <div className={styles.messageBody}>
-          {hgMessage.createdAt ? (
-            <time className={styles.timeChip}>
-              {hgFormatTime(hgMessage.createdAt)}
-            </time>
-          ) : null}
-          <div className={`${styles.bubble} ${this.hgBubbleClass(hgKind)}`}>
+          <span
+            className={styles.avatar}
+            style={{ background: hgAvatarColor(hgName) }}
+            aria-label={`${hgName}的头像`}
+          >
+            {[...String(hgName)][0] || "用"}
+          </span>
+          <div className={styles.messageBody}>
+            <div className={`${styles.bubble} ${this.hgBubbleClass(hgKind)}`}>
             {hgKind === "text" ? (
               <span>{hgMessage.content.text}</span>
             ) : (
@@ -170,6 +172,7 @@ class HGIMMessageCell extends React.Component {
                 )}
               </div>
             )}
+            </div>
           </div>
         </div>
       </li>
@@ -426,24 +429,22 @@ export default class HGIMMessageList extends React.Component {
         : null; // 只在 uploading 阶段展示 XHR 字节进度。
     const hgIsCard = ["file", "audio"].includes(hgUpload.messageType);
     return (
-      <li
-        key={hgUpload.clientMsgId}
-        className={`${styles.message} ${styles.mine}`}
-      >
-        <span
-          className={styles.avatar}
-          style={{ background: hgAvatarColor("我") }}
-          aria-label="我的头像"
-        >
-          我
-        </span>
-        <div className={styles.messageBody}>
-          <time className={styles.timeChip}>{hgFormatTime(Date.now())}</time>
-          <div
-            className={`${styles.bubble} ${
-              hgIsCard ? styles.bubbleFile : styles.bubbleMedia
-            }`}
+      <li key={hgUpload.clientMsgId} className={styles.message}>
+        <time className={styles.timeChip}>{hgFormatTime(Date.now())}</time>
+        <div className={`${styles.messageRow} ${styles.mine}`}>
+          <span
+            className={styles.avatar}
+            style={{ background: hgAvatarColor("我") }}
+            aria-label="我的头像"
           >
+            我
+          </span>
+          <div className={styles.messageBody}>
+            <div
+              className={`${styles.bubble} ${
+                hgIsCard ? styles.bubbleFile : styles.bubbleMedia
+              }`}
+            >
             <div className={styles.mediaWrap}>
               {hgUpload.url && hgUpload.messageType === "image" && (
                 <img
@@ -487,6 +488,7 @@ export default class HGIMMessageList extends React.Component {
                 </span>
               </div>
             )}
+            </div>
           </div>
         </div>
       </li>
