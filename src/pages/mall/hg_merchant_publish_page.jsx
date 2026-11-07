@@ -246,30 +246,27 @@ export default class HGMerchantPublishPage extends React.Component {
     if (this.hgWriteFlight) return;
     this.hgWriteFlight = true;
     this.setState({ hgBusy: true, hgError: "" });
+    let hgDeleted = 0; // 成功清理的前缀图片数；失败时保留其余图片与文件的顺序，允许重试。
     try {
-      for (const hgURL of [...this.state.hgUploadedImages]) {
+      for (const hgURL of this.state.hgUploadedImages) {
         await HGMallVM.deleteImage(hgURL);
-        if (this.hgMounted)
-          this.setState((hgState) => ({
-            hgUploadedImages: hgState.hgUploadedImages.filter(
-              (hgImage) => hgImage !== hgURL
-            ),
-            hgUnusedImages: hgState.hgUnusedImages.filter(
-              (hgImage) => hgImage !== hgURL
-            ),
-          }));
+        hgDeleted += 1;
       }
     } catch (hgError) {
       if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
       this.hgWriteFlight = false;
       if (this.hgMounted) {
-        this.hgReleasePreviews(this.state.hgSelectedPreviews);
+        const { hgSelectedImages, hgSelectedPreviews, hgUploadedImages } = this.state;
+        this.hgReleasePreviews(hgSelectedPreviews.slice(0, hgDeleted));
+        if (hgDeleted === hgUploadedImages.length)
+          this.hgReleasePreviews(hgSelectedPreviews.slice(hgDeleted));
         this.setState({
           hgBusy: false,
-          hgSelectedImages: [],
-          hgSelectedPreviews: [],
-          hgUploadedImages: [],
+          hgSelectedImages: hgDeleted === hgUploadedImages.length ? [] : hgSelectedImages.slice(hgDeleted),
+          hgSelectedPreviews: hgDeleted === hgUploadedImages.length ? [] : hgSelectedPreviews.slice(hgDeleted),
+          hgUploadedImages: hgUploadedImages.slice(hgDeleted),
+          hgUnusedImages: this.state.hgUnusedImages.filter((hgURL) => !hgUploadedImages.slice(0, hgDeleted).includes(hgURL)),
         });
       }
     }

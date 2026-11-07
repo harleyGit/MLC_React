@@ -112,13 +112,18 @@ export default class HGMerchantOrdersPage extends React.Component {
 
   /** 登记运单由服务端校验商家身份与订单状态；成功后仅提示，运输状态以订单详情为准。 */
   hgShip = (hgOrderId) => {
-    this.hgWrite(
-      () =>
-        HGMallVM.ship(
+    return this.hgWrite(
+      async () => {
+        await HGMallVM.ship(
           hgOrderId,
           this.state.hgShipping.carrier.trim(),
           this.state.hgShipping.trackingNumber.trim()
-        ),
+        );
+        if (this.hgMounted) {
+          this.setState({ hgShipping: { orderId: "", carrier: "", trackingNumber: "" } });
+          await this.hgLoadOrders(this.state.hgCursor);
+        }
+      },
       "运单已登记，请等待买家确认收货"
     );
   };

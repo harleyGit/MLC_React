@@ -234,3 +234,67 @@ test("我的商品页能查看本人旧商品两张待审补图", async () => {
   assert.match(hgText(hgInstance.render()), /尚未审核公开/);
   assert.deepEqual(hgImages(hgInstance.render()).filter((hgImage) => hgImage.alt?.includes("待审核补图")).map((hgImage) => hgImage.src), ["/uploads/pending-1.png", "/uploads/pending-2.png"]);
 });
+
+test("发布图片部分清理失败保留其余文件和地址，重试只删除剩余项", async () => {
+  const hgDeleted = []; // 接口实际接收的删除序列，包含失败的重试项。
+  let hgFail = true; // 第一次删除第二张时失败，模拟远端短暂错误。
+  const hgRevoked = []; // 成功删除的本地预览及最终放弃时的释放记录。
+  const hgInstance = hgMerchantPage("hg_merchant_publish_page.jsx", {
+    deleteImage: async (hgURL) => {
+      hgDeleted.push(hgURL);
+      if (hgURL === "/2" && hgFail) { hgFail = false; throw new Error("删除失败"); }
+    },
+    unusedImages: async () => ({ imageURLs: [] }),
+  }, { hgMerchant: { status: 1 } }, { revokeObjectURL: (hgURL) => hgRevoked.push(hgURL) });
+  hgInstance.state.hgSelectedImages = [{ name: "1" }, { name: "2" }];
+  hgInstance.state.hgSelectedPreviews = ["blob:1", "blob:2"];
+  hgInstance.state.hgUploadedImages = ["/1", "/2"];
+  await hgInstance.hgDiscardImages();
+  assert.deepEqual(Array.from(hgInstance.state.hgUploadedImages), ["/2"]);
+  assert.equal(hgInstance.state.hgSelectedImages[0].name, "2");
+  assert.deepEqual(hgRevoked, ["blob:1"]);
+  await hgInstance.hgDiscardImages();
+  assert.deepEqual(hgDeleted, ["/1", "/2", "/2"]);
+  assert.equal(hgInstance.state.hgUploadedImages.length, 0);
+  assert.deepEqual(hgRevoked, ["blob:1", "blob:2"]);
+});
+
+test("补图清理失败保留未删图片，编号查询清空后忽略迟到响应", async () => {
+  let hgResolve; // 延迟返回的精确查询结果，清空搜索后不允许恢复。
+  const hgInstance = hgMerchantPage("hg_merchant_products_page.jsx", {
+    deleteImage: async (hgURL) => { if (hgURL === "/2") throw new Error("暂不可删除"); },
+    mineDetail: () => new Promise((hgDone) => { hgResolve = hgDone; }),
+  }, { hgMerchant: { status: 1 } });
+  hgInstance.state.hgMediaProductId = "PRD_OLD";
+  hgInstance.state.hgMediaFiles = [{ name: "1" }, { name: "2" }];
+  hgInstance.state.hgMediaPreviews = ["blob:1", "blob:2"];
+  hgInstance.state.hgMediaURLs = ["/1", "/2"];
+  await hgInstance.hgDiscardMedia();
+  assert.equal(hgInstance.state.hgMediaProductId, "PRD_OLD");
+  assert.deepEqual(Array.from(hgInstance.state.hgMediaURLs), ["/2"]);
+  assert.equal(hgInstance.state.hgMediaFiles[0].name, "2");
+  hgInstance.state.hgQuery = "PRD_OLD";
+  const hgLookup = hgInstance.hgFindProduct();
+  const hgToolbar = hgInstance.renderToolbar(); // 查询正在进行时获取清空按钮。
+  hgToolbar.props.children[2].props.onClick();
+  hgResolve({ productId: "PRD_OLD" });
+  await hgLookup;
+  assert.equal(hgInstance.state.hgFoundProduct, null);
+  assert.equal(hgInstance.state.hgSearching, false);
+});
+
+test("发货成功刷新当前订单游标并清空运单，失败时仍可重试", async () => {
+  const hgRequests = []; // 当前页面请求的游标及表单提交记录。
+  let hgFail = true; // 第一次发货失败，不能提前清除商家填写的运单。
+  const hgInstance = hgMerchantPage("hg_merchant_orders_page.jsx", {
+    ship: async (...hgArgs) => { hgRequests.push(hgArgs); if (hgFail) { hgFail = false; throw new Error("发货失败"); } },
+    merchantOrders: async (hgCursor) => { hgRequests.push(hgCursor); return { list: [], hasMore: false, nextCursor: "" }; },
+  }, { hgMerchant: { status: 1 } });
+  hgInstance.state.hgCursor = "9";
+  hgInstance.state.hgShipping = { orderId: "ORD_1", carrier: "顺丰", trackingNumber: "SF123" };
+  await hgInstance.hgShip("ORD_1");
+  assert.equal(hgInstance.state.hgShipping.trackingNumber, "SF123");
+  await hgInstance.hgShip("ORD_1");
+  assert.deepEqual(hgRequests.map((hgEntry) => Array.isArray(hgEntry) ? hgEntry[0] : hgEntry), ["ORD_1", "ORD_1", "9"]);
+  assert.equal(hgInstance.state.hgShipping.orderId, "");
+});

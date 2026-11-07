@@ -42,6 +42,7 @@ export default class HGMerchantProductsPage extends React.Component {
   hgMounted = false; // 卸载后丢弃异步响应。
   hgMineSeq = 0; // 列表请求序号；快速翻页只接受最后一次响应。
   hgOwnMediaSeq = 0; // 补图状态请求序号；切换商品后忽略旧响应。
+  hgSearchSeq = 0; // 编号查询序号；编辑输入或清除后丢弃旧查询结果。
   hgWriteFlight = false; // 同步写入门闩，不依赖异步 setState 生效。
 
   componentDidMount() {
@@ -58,6 +59,7 @@ export default class HGMerchantProductsPage extends React.Component {
     this.hgReleasePreviews(this.state.hgMediaPreviews);
     this.hgMineSeq += 1;
     this.hgOwnMediaSeq += 1;
+    this.hgSearchSeq += 1;
   }
 
   hgMessage = (hgError) => hgError?.message || "请求失败，请重试";
@@ -104,18 +106,23 @@ export default class HGMerchantProductsPage extends React.Component {
     hgEvent?.preventDefault();
     const hgProductId = this.state.hgQuery.trim();
     if (!hgProductId) {
+      this.hgSearchSeq += 1;
       this.setState({ hgFoundProduct: null, hgError: "" });
       return;
     }
     if (this.state.hgSearching) return;
+    const hgSeq = ++this.hgSearchSeq;
     this.setState({ hgSearching: true, hgError: "", hgFoundProduct: null });
     try {
       const hgItem = await HGMallVM.mineDetail(hgProductId);
-      if (this.hgMounted) this.setState({ hgFoundProduct: hgItem });
+      if (this.hgMounted && hgSeq === this.hgSearchSeq)
+        this.setState({ hgFoundProduct: hgItem });
     } catch (hgError) {
-      if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
+      if (this.hgMounted && hgSeq === this.hgSearchSeq)
+        this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
-      if (this.hgMounted) this.setState({ hgSearching: false });
+      if (this.hgMounted && hgSeq === this.hgSearchSeq)
+        this.setState({ hgSearching: false });
     }
   };
 
@@ -301,22 +308,27 @@ export default class HGMerchantProductsPage extends React.Component {
     if (this.hgWriteFlight) return;
     this.hgWriteFlight = true;
     this.setState({ hgBusy: true, hgError: "" });
+    let hgDeleted = 0; // 成功删除的前缀数量；中断后剩余 URL 与本地文件继续一一对应。
     try {
-      for (const hgURL of [...this.state.hgMediaURLs]) {
+      for (const hgURL of this.state.hgMediaURLs) {
         await HGMallVM.deleteImage(hgURL);
+        hgDeleted += 1;
       }
     } catch (hgError) {
       if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
     } finally {
       this.hgWriteFlight = false;
       if (this.hgMounted) {
-        this.hgReleasePreviews(this.state.hgMediaPreviews);
+        const { hgMediaFiles, hgMediaPreviews, hgMediaURLs } = this.state;
+        this.hgReleasePreviews(hgMediaPreviews.slice(0, hgDeleted));
+        if (hgDeleted === hgMediaURLs.length)
+          this.hgReleasePreviews(hgMediaPreviews.slice(hgDeleted));
         this.setState({
           hgBusy: false,
-          hgMediaProductId: "",
-          hgMediaFiles: [],
-          hgMediaPreviews: [],
-          hgMediaURLs: [],
+          hgMediaProductId: hgDeleted === hgMediaURLs.length ? "" : this.state.hgMediaProductId,
+          hgMediaFiles: hgDeleted === hgMediaURLs.length ? [] : hgMediaFiles.slice(hgDeleted),
+          hgMediaPreviews: hgDeleted === hgMediaURLs.length ? [] : hgMediaPreviews.slice(hgDeleted),
+          hgMediaURLs: hgMediaURLs.slice(hgDeleted),
         });
       }
     }
@@ -377,9 +389,10 @@ export default class HGMerchantProductsPage extends React.Component {
             maxLength={64}
             placeholder="按商品编号查找，例如 PRD_..."
             aria-label="按商品编号查找"
-            onChange={(hgEvent) =>
-              this.setState({ hgQuery: hgEvent.target.value })
-            }
+            onChange={(hgEvent) => {
+              this.setState({ hgQuery: hgEvent.target.value, hgSearching: false, hgFoundProduct: null });
+              this.hgSearchSeq += 1;
+            }}
           />
         </div>
         <button type="submit" className={styles.btn} disabled={hgSearching}>
@@ -389,9 +402,10 @@ export default class HGMerchantProductsPage extends React.Component {
           type="button"
           className={styles.btnGhost}
           disabled={hgLoading}
-          onClick={() =>
-            this.setState({ hgQuery: "", hgFoundProduct: null, hgError: "" })
-          }
+          onClick={() => {
+            this.hgSearchSeq += 1;
+            this.setState({ hgQuery: "", hgSearching: false, hgFoundProduct: null, hgError: "" });
+          }}
         >
           清除查询
         </button>
