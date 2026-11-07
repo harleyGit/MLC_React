@@ -19,6 +19,7 @@ export default class HGMallCNYPage extends React.Component {
     coupons: [], // 当前商品最多 20 张可领券；切换商品清空。
     groups: [], // 当前商品最多 20 个招募团；切换商品清空。
     orders: [], // 本人当前最多 20 单；只在目录页展示。
+    ordersNext: "", // 本人订单下一页游标；空表示没有更多订单。
     order: null, // 订单详情；null 表示未获取。
     sandbox: false, // 当前后端进程是否显式启用 debug 模拟交易。
     quantity: "1", // 购买件数文本，服务端仅接受 1-10。
@@ -53,7 +54,7 @@ export default class HGMallCNYPage extends React.Component {
       const capabilities = await HGMallCNYVM.capabilities();
       if (!this.hgMounted || sequence !== this.hgSequence) return;
       this.setState({ sandbox: Boolean(capabilities.sandbox) });
-      if (!capabilities.sandbox) { this.setState({ loading: false, products: [], orders: [] }); return; }
+      if (!capabilities.sandbox) { this.setState({ loading: false, products: [], orders: [], ordersNext: "" }); return; }
       if (orderId) {
         const order = await HGMallCNYVM.order(orderId);
         if (this.hgMounted && sequence === this.hgSequence) this.setState({ order, loading: false });
@@ -62,7 +63,7 @@ export default class HGMallCNYPage extends React.Component {
         if (this.hgMounted && sequence === this.hgSequence) this.setState({ detail, coupons, groups, loading: false, quantity: "1", purchaseType: "single", groupId: "", couponId: "", address: "" });
       } else {
         const [page, orders] = await Promise.all([HGMallCNYVM.products(), HGMallCNYVM.orders()]);
-        if (this.hgMounted && sequence === this.hgSequence) this.setState({ products: page.list || [], next: page.nextCursor || "", orders: orders.list || [], loading: false });
+        if (this.hgMounted && sequence === this.hgSequence) this.setState({ products: page.list || [], next: page.nextCursor || "", orders: orders.list || [], ordersNext: orders.nextCursor || "", loading: false });
       }
     } catch (error) {
       if (this.hgMounted && sequence === this.hgSequence) this.setState({ error: error.message || "人民币商城加载失败", loading: false });
@@ -133,7 +134,7 @@ export default class HGMallCNYPage extends React.Component {
   };
 
   renderCatalog() {
-    const { products, orders, next, sandbox, publish: p, busy } = this.state;
+    const { products, orders, ordersNext, next, sandbox, publish: p, busy } = this.state;
     return <>
       <header className={styles.hero}><span className={styles.tag}>独立人民币 · 模拟交易</span><h1>发现好物，轻松拼单</h1><p>商品单价、优惠试算和拼团金额均由服务端计算；不扣 M币，也不进行真实支付宝收款。</p></header>
       {!sandbox && <p className={styles.warning}>当前未启用 debug 沙箱，付款、退款、下单及发布均不可用。</p>}
@@ -141,6 +142,7 @@ export default class HGMallCNYPage extends React.Component {
       {!products.length && <p className={styles.empty}>暂无独立人民币商品，商家可在下方创建沙箱商品。</p>}
       {next && <button disabled={busy} onClick={async () => { const page = await this.hgRun(() => HGMallCNYVM.products(next), "已加载下一页"); if (page) this.setState({ products: page.list || [], next: page.nextCursor || "" }); }}>下一页</button>}
       <h2>我的人民币订单</h2><div className={styles.orders}>{orders.map((order) => <Link key={order.orderId} to={ROUTE_PATH.MALL_CNY_ORDER.replace(":orderId", encodeURIComponent(order.orderId))}>{order.title} · {hgYuan(order.payableFen)} · {hgOrderState[order.status]}</Link>)}</div>
+      {ordersNext && <button disabled={busy} onClick={async () => { const page = await this.hgRun(() => HGMallCNYVM.orders(ordersNext), "已加载下一页订单"); if (page) this.setState({ orders: page.list || [], ordersNext: page.nextCursor || "" }); }}>订单下一页</button>}
       {sandbox && <section className={styles.panel}><h2>已审核商家 · 沙箱发布</h2><p>金额直接输入整数分；图片暂不支持绑定，发布后不能伪造他店图片。</p><div className={styles.form}>{[ ["title", "商品名称"], ["skuTitle", "规格"], ["priceFen", "单买价（分）"], ["groupPriceFen", "拼单价（分）"], ["groupMembers", "成团人数（0 为不拼团）"], ["stock", "库存（件）"] ].map(([field,label]) => <label key={field}>{label}<input value={p[field]} onChange={(event) => this.setState({ publish: { ...p, [field]: event.target.value } })} /></label>)}<label>商品介绍<textarea value={p.description} onChange={(event) => this.setState({ publish: { ...p, description: event.target.value } })} /></label></div><button disabled={busy} onClick={this.hgPublish}>发布人民币商品</button></section>}
     </>;
   }
