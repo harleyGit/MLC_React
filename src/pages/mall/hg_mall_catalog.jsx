@@ -103,6 +103,8 @@ export default class HGMallCatalog extends React.Component {
     hgMainImage: 0, // 详情页当前主图索引，展示图切换后归零，越界时回退到首图。
     hgDetailTab: "detail", // 详情页下半区当前标签：detail 为商品介绍，spec 为规格参数。
     hgDetailId: "", // 正在打开详情的商品 ID；加载期间用于显示骨架屏，避免闪烁回目录。
+    hgCreatedOrderId: "", // 本次成功创建的订单 ID；空字符串表示尚无可跳转的订单。
+    hgBrokenImages: [], // 当前目录页或商品详情中加载失败的图片 URL；切换商品或翻页时清空。
   };
 
   hgMounted = false; // 卸载后丢弃异步响应。
@@ -113,6 +115,7 @@ export default class HGMallCatalog extends React.Component {
   hgMerchantSeq = 0; // 本店商品页请求序号；快速翻页只接受最后一次响应。
   hgReviewSeq = 0; // 审核双列表请求序号；不同游标响应不可相互覆盖。
   hgOwnMediaSeq = 0; // 补图状态请求序号；切换商品后忽略旧响应。
+  hgLastProductId = ""; // 最近加载的商品 ID；重试同一详情时保留收货信息以复用原请求。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -160,15 +163,6 @@ export default class HGMallCatalog extends React.Component {
   /** 路由详情模式：由商品详情独立页注入 hgProductId，返回列表与关闭详情均走路由导航。 */
   hgIsRouteDetail = () => Boolean(this.props.hgProductId);
 
-  /** 目录卡片进入独立商品详情路由；保持浏览器链接语义，详情页可直达与分享。 */
-  hgOpenDetail = (hgProductId) => {
-    this.hgBuyRequestId = "";
-    hgPageNavigator.open({
-      page: PAGE.PRODUCT_DETAIL,
-      pathParams: { productId: hgProductId },
-    });
-  };
-
   /** 仅加载单个有界游标页，切换类目/翻页时旧响应不可覆盖新结果。 */
   hgLoadCatalog = async (
     hgCategory,
@@ -188,6 +182,7 @@ export default class HGMallCatalog extends React.Component {
       hgCursor,
       hgHistory,
       hgHistoryBase,
+      hgBrokenImages: [],
     });
     try {
       const hgPage = await HGMallVM.products(hgCategory, hgCursor);
@@ -218,6 +213,8 @@ export default class HGMallCatalog extends React.Component {
 
   hgShowDetail = async (hgProductId) => {
     const hgSeq = ++this.hgSeq;
+    const hgNewProduct = this.hgLastProductId !== hgProductId; // 仅切换商品时清空收件信息，网络重试不改变购买请求。
+    this.hgLastProductId = hgProductId;
     // 进入详情时重置主图与标签，并记录目标商品 ID 以便加载期展示骨架屏。
     this.setState({
       hgLoading: true,
@@ -226,6 +223,10 @@ export default class HGMallCatalog extends React.Component {
       hgMainImage: 0,
       hgDetailTab: "detail",
       hgDetailId: hgProductId,
+      hgNotice: "",
+      hgCreatedOrderId: "",
+      hgBrokenImages: [],
+      ...(hgNewProduct ? { hgBuyForm: { quantity: "1", receiverName: "", receiverPhone: "", receiverAddress: "" } } : {}),
     });
     try {
       const hgItem = await HGMallVM.detail(hgProductId);
@@ -233,7 +234,7 @@ export default class HGMallCatalog extends React.Component {
         this.setState({ hgDetail: hgItem });
     } catch (hgError) {
       if (this.hgMounted && this.hgSeq === hgSeq)
-        this.setState({ hgError: this.hgMessage(hgError) });
+        this.setState({ hgError: hgError?.status === 404 ? "商品不存在或已下架" : this.hgMessage(hgError) });
     } finally {
       if (this.hgMounted && this.hgSeq === hgSeq)
         this.setState({ hgLoading: false, hgDetailId: "" });
@@ -874,8 +875,12 @@ export default class HGMallCatalog extends React.Component {
         /* 仅保留实例级重试键。 */
       }
       this.setState({ hgPendingBuy: true });
+      // 只有响应包含服务端订单 ID 才算创建成功；异常时保留原幂等键。
+      let hgOrder = null;
       try {
-        await HGMallVM.buy({ ...hgRequest, requestId: hgRequestId });
+        // 创建订单返回的是待付款快照；仅用服务端订单 ID 导航，不以页面估算金额充当应付额。
+        hgOrder = await HGMallVM.buy({ ...hgRequest, requestId: hgRequestId });
+        if (!hgOrder?.orderId) throw new Error("订单创建结果未知，请核对我的订单或使用原请求重试");
       } catch (hgError) {
         // 明确拒绝的 4xx 不会扣款；超时、5xx 与网络断开时绝不替换幂等键。
         if (
@@ -899,13 +904,15 @@ export default class HGMallCatalog extends React.Component {
         /* 下次页面加载时可查询订单确认。 */
       }
       this.hgBuyRequestId = "";
-      if (this.hgMounted) {
+      // 路由参数在写请求期间变化时，不将旧商品的下单提示带到新商品详情。
+      if (this.hgMounted && (!this.hgIsRouteDetail() || this.props.hgProductId === hgRequest.productId)) {
         // 买家订单列表已迁入个人中心「我的订单」，这里只提示去那里支付。
         // 路由详情模式保留当前商品展示，让下单结果提示直接显示在详情页顶部。
         this.setState((hgState) => ({
           hgPendingBuy: false,
           hgNotice:
-            "订单已创建，商品库存预留15分钟；请在「个人中心 → 我的订单 → 待付款」中完成 M币支付",
+            "订单已创建，请在「个人中心 → 我的订单 → 待付款」中完成 M币支付",
+          hgCreatedOrderId: hgOrder.orderId,
           hgDetail: this.hgIsRouteDetail() ? hgState.hgDetail : null,
           hgDetailId: "",
           hgBuyForm: {
@@ -929,6 +936,12 @@ export default class HGMallCatalog extends React.Component {
     // 详情优先；加载期用骨架屏占位，避免短暂回显目录造成闪烁。
     if (hgDetail) return this.renderProductDetail();
     if (hgDetailId) return this.renderDetailSkeleton();
+    // 直达商品详情失败时只展示错误与返回入口，不回显未加载的商品目录。
+    if (this.hgIsRouteDetail()) return (
+      <div className={styles.shopEmpty}>
+        <button type="button" onClick={this.hgCloseDetail}>返回商品列表</button>
+      </div>
+    );
     return this.renderProductList();
   }
 
@@ -974,40 +987,28 @@ export default class HGMallCatalog extends React.Component {
               hgCategories.find(([hgCode]) => hgCode === hgItem.category)?.[1] ||
               "商品";
             return (
-              <article
+              <Link
                 key={hgItem.productId}
                 className={styles.shopGoodsCard}
-                onClick={() => this.hgOpenDetail(hgItem.productId)}
-                role="link"
-                tabIndex={0}
-                onKeyDown={(hgEvent) => {
-                  if (hgEvent.key === "Enter" || hgEvent.key === " ") {
-                    hgEvent.preventDefault();
-                    this.hgOpenDetail(hgItem.productId);
-                  }
-                }}
+                to={ROUTE_PATH.PRODUCT_DETAIL.replace(":productId", encodeURIComponent(hgItem.productId))}
               >
                 <div className={styles.shopGoodsThumb}>
-                  {hgItem.imageURLs?.length ? (
+                  {hgItem.imageURLs?.length && !this.state.hgBrokenImages.includes(hgItem.imageURLs[0]) ? (
                     <img
                       src={normalizeVideoCoverUrl(hgItem.imageURLs[0])}
                       alt={`${hgItem.title} 展示图`}
                       loading="lazy"
+                      onError={() => this.hgImageFailed(hgItem.imageURLs[0])}
                     />
                   ) : (
                     <span className={styles.shopGoodsPlaceholder}>
                       {hgLabel}
                     </span>
                   )}
-                  {hgItem.type === "PHYSICAL_PRODUCT" &&
-                    Number(hgItem.available) > 0 && (
-                      <span className={styles.shopGoodsBadge}>包邮</span>
-                    )}
                 </div>
                 <div className={styles.shopGoodsInfo}>
                   <h3 className={styles.shopGoodsTitle}>{hgItem.title}</h3>
                   <div className={styles.shopGoodsPrice}>
-                    <em>¥</em>
                     <b>{HGFormatCoin(hgItem.amount)}</b>
                     <small>M 币</small>
                   </div>
@@ -1024,7 +1025,7 @@ export default class HGMallCatalog extends React.Component {
                     )}
                   </div>
                 </div>
-              </article>
+              </Link>
             );
           })}
         </div>
@@ -1143,6 +1144,7 @@ export default class HGMallCatalog extends React.Component {
             src={hgCurrent}
             alt={`${hgDetail.title} · 展示图 ${(hgMainImage || 0) + 1}`}
             loading="lazy"
+            onError={() => this.hgImageFailed(hgImages[hgMainImage] || hgImages[0])}
           />
         </div>
         <div className={styles.shopGalleryThumbs}>
@@ -1155,7 +1157,7 @@ export default class HGMallCatalog extends React.Component {
               aria-label={`查看展示图 ${hgIndex + 1}`}
               onClick={() => this.hgSetMainImage(hgIndex)}
             >
-              <img src={normalizeVideoCoverUrl(hgURL)} alt="" loading="lazy" />
+              <img src={normalizeVideoCoverUrl(hgURL)} alt="" loading="lazy" onError={() => this.hgImageFailed(hgURL)} />
             </button>
           ))}
         </div>
@@ -1167,7 +1169,7 @@ export default class HGMallCatalog extends React.Component {
   renderProductDetail() {
     const { hgDetail, hgBusy, hgPendingBuy } = this.state;
     const hgImages = Array.isArray(hgDetail.imageURLs)
-      ? hgDetail.imageURLs
+      ? hgDetail.imageURLs.filter((hgURL) => !this.state.hgBrokenImages.includes(hgURL))
       : [];
     const hgCategoryLabel =
       hgCategories.find(([hgCode]) => hgCode === hgDetail.category)?.[1] ||
@@ -1193,18 +1195,8 @@ export default class HGMallCatalog extends React.Component {
 
             <div className={styles.shopPricePanel}>
               <div className={styles.shopPriceNow}>
-                <em>¥</em>
                 <b>{HGFormatCoin(hgDetail.amount)}</b>
                 <small>M 币</small>
-              </div>
-              <div className={styles.shopPriceTags}>
-                <span className={styles.shopPromoTag}>百亿补贴</span>
-                {hgDetail.type === "PHYSICAL_PRODUCT" && (
-                  <span className={styles.shopPromoTag}>包邮</span>
-                )}
-                {hgDetail.type === "PHYSICAL_PRODUCT" && !hgSoldOut && (
-                  <span className={styles.shopPromoTag}>极速退款</span>
-                )}
               </div>
             </div>
 
@@ -1261,21 +1253,6 @@ export default class HGMallCatalog extends React.Component {
                 </span>
               </div>
             )}
-
-            <div className={styles.shopServiceRow}>
-              <span className={styles.shopServiceItem}>
-                <i className={styles.shopServiceDot} /> 正品保障
-              </span>
-              <span className={styles.shopServiceItem}>
-                <i className={styles.shopServiceDot} />{" "}
-                {hgDetail.type === "PHYSICAL_PRODUCT"
-                  ? "极速退款"
-                  : "即时生效"}
-              </span>
-              <span className={styles.shopServiceItem}>
-                <i className={styles.shopServiceDot} /> 安全支付
-              </span>
-            </div>
 
             {hgDetail.type === "PHYSICAL_PRODUCT" ? (
               <>
@@ -1337,7 +1314,7 @@ export default class HGMallCatalog extends React.Component {
                 </p>
                 <div className={styles.shopBuyBar}>
                   <div className={styles.shopBuyTotal}>
-                    合计 <strong>{HGFormatCoin(hgTotal)}</strong> M 币
+                    参考合计 <strong>{HGFormatCoin(hgTotal)}</strong> M 币（以订单为准）
                   </div>
                   <button
                     type="button"
@@ -1351,12 +1328,11 @@ export default class HGMallCatalog extends React.Component {
                     className={styles.shopBuyPrimary}
                     disabled={
                       hgBusy ||
-                      hgPendingBuy ||
                       hgSoldOut ||
                       hgDetail.amount > 100000
                     }
                   >
-                    {hgSoldOut ? "已售罄" : "立即购买"}
+                    {hgSoldOut ? "已售罄" : hgPendingBuy ? "重试原订单请求" : "提交订单"}
                   </button>
                 </div>
               </>
@@ -1457,6 +1433,16 @@ export default class HGMallCatalog extends React.Component {
     this.hgBuyRequestId = "";
     this.setState((hgState) => ({
       hgBuyForm: { ...hgState.hgBuyForm, [hgKey]: hgValue },
+    }));
+  };
+
+  /** 图片加载失败只从当前展示集合移除该 URL，所有图片失效时回退类目占位。 */
+  hgImageFailed = (hgURL) => {
+    this.setState((hgState) => ({
+      hgBrokenImages: hgState.hgBrokenImages.includes(hgURL)
+        ? hgState.hgBrokenImages
+        : [...hgState.hgBrokenImages, hgURL],
+      hgMainImage: 0,
     }));
   };
 
@@ -2453,6 +2439,9 @@ export default class HGMallCatalog extends React.Component {
         {this.state.hgNotice && (
           <p role="status" className={styles.notice}>
             {this.state.hgNotice}
+            {this.state.hgCreatedOrderId && (
+              <> · <Link to={ROUTE_PATH.MALL_ORDER_DETAIL.replace(":orderId", encodeURIComponent(this.state.hgCreatedOrderId))}>查看订单并支付</Link></>
+            )}
           </p>
         )}
         {hgIsCatalog ? this.renderCatalog() : this.renderMerchant()}
