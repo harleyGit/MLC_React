@@ -582,18 +582,69 @@ export default class HGMerchantProductsPage extends React.Component {
     );
   }
 
-  /** 编辑资料表单：文字变更走审核，不影响价格、库存和订单快照。 */
+  /** 编辑资料面板：带商品预览头图、状态徽标与字数统计，文字变更走审核。 */
   renderEditForm() {
     if (!this.state.hgEditProductId) return null;
-    const { hgBusy, hgEditForm } = this.state;
+    const { hgBusy, hgEditForm, hgMine, hgFoundProduct } = this.state;
+    // 编辑中的商品快照：从列表或查找结果中定位，用于头图与状态展示。
+    const hgProduct =
+      hgMine.find((hgItem) => hgItem.productId === this.state.hgEditProductId) ||
+      (hgFoundProduct?.productId === this.state.hgEditProductId
+        ? hgFoundProduct
+        : null);
+    const hgCount = (hgValue, hgMax) => {
+      const hgLen = (hgValue || "").length;
+      return (
+        <span
+          className={`${styles.fieldCount} ${
+            hgLen >= hgMax - 10 ? styles.fieldCountWarn : ""
+          }`}
+        >
+          {hgLen}/{hgMax}
+        </span>
+      );
+    };
     return (
-      <form className={styles.form} onSubmit={this.hgSubmitEdit}>
-        <h3 className={styles.subTitle}>编辑商品资料</h3>
+      <form className={styles.editPanel} onSubmit={this.hgSubmitEdit}>
+        <div className={styles.editHead}>
+          {hgProduct?.imageURLs?.length ? (
+            <img
+              className={styles.editThumb}
+              src={normalizeVideoCoverUrl(hgProduct.imageURLs[0])}
+              alt={`${hgProduct.title} 封面`}
+            />
+          ) : (
+            <div className={`${styles.editThumb} ${styles.coverEmpty}`} />
+          )}
+          <div className={styles.editHeadInfo}>
+            <h3>{hgProduct?.title || "编辑商品资料"}</h3>
+            <span className={styles.productNo}>{this.state.hgEditProductId}</span>
+            <div className={styles.editStatusLine}>
+              {hgProduct && (
+                <span
+                  className={`${styles.badge} ${
+                    this.hgStatusBadge(hgProduct).className
+                  }`}
+                >
+                  {this.hgStatusBadge(hgProduct).label}
+                </span>
+              )}
+              <span className={styles.formHint}>
+                价格、库存与订单快照不会改变
+              </span>
+            </div>
+          </div>
+        </div>
         <p className={styles.formHint}>
-          审核通过前沿用当前资料；商品价格、库存和订单快照不会改变。
+          审核通过前，商品沿用当前公开资料；修改内容经管理员审核后才对外展示。
         </p>
-        <label>
-          商品名称
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
+            <span>
+              商品名称<span className={styles.req}>*</span>
+            </span>
+            {hgCount(hgEditForm.title, 128)}
+          </span>
           <input
             required
             maxLength={128}
@@ -607,9 +658,14 @@ export default class HGMerchantProductsPage extends React.Component {
               }))
             }
           />
-        </label>
-        <label>
-          简介（纯文本）
+        </div>
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
+            <span>
+              简介<span className={styles.req}>*</span>
+            </span>
+            {hgCount(hgEditForm.summary, 512)}
+          </span>
           <textarea
             required
             maxLength={512}
@@ -623,9 +679,12 @@ export default class HGMerchantProductsPage extends React.Component {
               }))
             }
           />
-        </label>
-        <label>
-          介绍（纯文本）
+        </div>
+        <div className={styles.field}>
+          <span className={styles.fieldLabel}>
+            <span>商品介绍</span>
+            {hgCount(hgEditForm.description, 4096)}
+          </span>
           <textarea
             maxLength={4096}
             value={hgEditForm.description}
@@ -638,7 +697,7 @@ export default class HGMerchantProductsPage extends React.Component {
               }))
             }
           />
-        </label>
+        </div>
         <div className={styles.actions}>
           <button type="submit" className={styles.btn} disabled={hgBusy}>
             提交修改审核

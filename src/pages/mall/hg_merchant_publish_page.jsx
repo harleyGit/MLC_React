@@ -1,5 +1,6 @@
 /*
  * @Description: 个人中心「商家中心 → 新增商品」页面：发布草稿、图片上传与未使用图片清理。
+ *               对标拼多多/京东的商品发布体验：分步式表单 + 实时发布预览 + 营销权益示意。
  */
 import React from "react";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
@@ -8,6 +9,31 @@ import HGMallVM from "./hg_mall_vm.js";
 import styles from "./hg_merchant_center.module.css";
 
 const hgDraftCategories = HG_MALL_CATEGORIES.filter(([hgCode]) => hgCode); // 发布表单不含「全部商品」占位类目。
+
+/** 当前后端开放能力的营销权益示意；未开放的权益仅展示，不伪造提交字段。 */
+const hgPerks = [
+  {
+    key: "groupBuy",
+    icon: "拼",
+    name: "拼单",
+    desc: "多人成团价，参考拼多多玩法",
+    available: false,
+  },
+  {
+    key: "member",
+    icon: "惠",
+    name: "会员折扣",
+    desc: "会员享专属折扣价",
+    available: false,
+  },
+  {
+    key: "mcoin",
+    icon: "M",
+    name: "M币抵扣",
+    desc: "结算时可用 M币抵扣",
+    available: true,
+  },
+];
 
 /**
  * 新增商品页。
@@ -301,156 +327,403 @@ export default class HGMerchantPublishPage extends React.Component {
     );
   }
 
-  /** 发布表单：类型、类目、文字资料、展示图片、规格与价格库存。 */
-  renderDraftForm() {
-    const { hgDraft, hgStock, hgBusy } = this.state;
+  /** 字段字数统计：标题/简介/介绍/规格的剩余额度提示。 */
+  renderCount(hgValue, hgMax) {
+    const hgLen = (hgValue || "").length;
+    const hgNear = hgLen >= hgMax - 10;
     return (
-      <form className={styles.form} onSubmit={this.hgPublish}>
-        <label>
-          类型
-          <select
-            value={hgDraft.type}
-            onChange={(hgEvent) => this.hgChangeType(hgEvent.target.value)}
-          >
-            <option value="PHYSICAL_PRODUCT">实物商品</option>
-            <option value="MEMBERSHIP">会员卡</option>
-          </select>
-        </label>
-        <label>
-          类目
-          <select
-            value={hgDraft.category}
-            onChange={(hgEvent) =>
-              this.hgUpdateDraft("category", hgEvent.target.value)
-            }
-          >
-            {hgDraftCategories
-              .filter(
-                ([hgCode]) =>
-                  hgDraft.type === "MEMBERSHIP"
-                    ? hgCode === "membership"
-                    : hgCode !== "membership"
-              )
-              .map(([hgCode, hgLabel]) => (
-                <option key={hgCode} value={hgCode}>
-                  {hgLabel}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label>
-          商品名称
-          <input
-            required
-            maxLength={128}
-            value={hgDraft.title}
-            onChange={(hgEvent) => this.hgUpdateDraft("title", hgEvent.target.value)}
-          />
-        </label>
-        <label>
-          简介（纯文本）
-          <textarea
-            required
-            maxLength={512}
-            value={hgDraft.summary}
-            onChange={(hgEvent) =>
-              this.hgUpdateDraft("summary", hgEvent.target.value)
-            }
-          />
-        </label>
-        <label>
-          商品介绍（纯文本）
-          <textarea
-            maxLength={4096}
-            value={hgDraft.description}
-            onChange={(hgEvent) =>
-              this.hgUpdateDraft("description", hgEvent.target.value)
-            }
-          />
-        </label>
-        <label>
-          展示图片（最多5张，每张不超过5 MiB；已选{" "}
-          {this.state.hgSelectedImages.length} 张）
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            disabled={
-              hgBusy ||
-              !!this.state.hgUploadedImages.length ||
-              this.state.hgSelectedImages.length >= 5
-            }
-            onChange={this.hgChooseImages}
-          />
-        </label>
-        {this.renderImagePreviews(
-          this.state.hgSelectedImages,
-          this.state.hgSelectedPreviews,
-          !!this.state.hgUploadedImages.length
-        )}
-        {!!this.state.hgUploadedImages.length && (
-          <div>
-            <button
-              type="button"
-              className={styles.btnGhost}
-              disabled={hgBusy}
-              onClick={this.hgDiscardImages}
-            >
-              清除已上传的图片
-            </button>
+      <span
+        className={`${styles.fieldCount} ${hgNear ? styles.fieldCountWarn : ""}`}
+      >
+        {hgLen}/{hgMax}
+      </span>
+    );
+  }
+
+  /** 类型 + 类目选择区。 */
+  renderTypeSection() {
+    const { hgDraft } = this.state;
+    return (
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIndex}>1</span>
+          <h3>商品分类</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <div className={styles.twoCol}>
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
+                <span>
+                  商品类型<span className={styles.req}>*</span>
+                </span>
+              </span>
+              <select
+                value={hgDraft.type}
+                onChange={(hgEvent) =>
+                  this.hgChangeType(hgEvent.target.value)
+                }
+              >
+                <option value="PHYSICAL_PRODUCT">实物商品</option>
+                <option value="MEMBERSHIP">会员卡</option>
+              </select>
+            </div>
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
+                <span>
+                  商品类目<span className={styles.req}>*</span>
+                </span>
+              </span>
+              <select
+                value={hgDraft.category}
+                onChange={(hgEvent) =>
+                  this.hgUpdateDraft("category", hgEvent.target.value)
+                }
+              >
+                {hgDraftCategories
+                  .filter(
+                    ([hgCode]) =>
+                      hgDraft.type === "MEMBERSHIP"
+                        ? hgCode === "membership"
+                        : hgCode !== "membership"
+                  )
+                  .map(([hgCode, hgLabel]) => (
+                    <option key={hgCode} value={hgCode}>
+                      {hgLabel}
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
-        )}
-        <label>
-          规格
-          <input
-            required
-            maxLength={128}
-            value={hgDraft.skuTitle}
-            onChange={(hgEvent) =>
-              this.hgUpdateDraft("skuTitle", hgEvent.target.value)
-            }
-          />
-        </label>
-        <label>
-          价格（整数 M币；实物不超过100000）
-          <input
-            required
-            type="number"
-            min="1"
-            max={
-              hgDraft.type === "PHYSICAL_PRODUCT"
-                ? "100000"
-                : "9007199254740991"
-            }
-            step="1"
-            value={hgDraft.amount}
-            onChange={(hgEvent) =>
-              this.hgUpdateDraft("amount", hgEvent.target.value)
-            }
-          />
-        </label>
-        {hgDraft.type === "PHYSICAL_PRODUCT" && (
-          <label>
-            初始可售库存（件）
+        </div>
+      </section>
+    );
+  }
+
+  /** 基础信息区：名称、简介、介绍。 */
+  renderBasicSection() {
+    const { hgDraft } = this.state;
+    return (
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIndex}>2</span>
+          <h3>基础信息</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>
+                商品名称<span className={styles.req}>*</span>
+              </span>
+              {this.renderCount(hgDraft.title, 128)}
+            </span>
             <input
               required
-              type="number"
-              min="1"
-              max="100000"
-              step="1"
-              value={hgStock}
+              maxLength={128}
+              placeholder="请输入商品名称，例如 X Pro 智能手机"
+              value={hgDraft.title}
               onChange={(hgEvent) =>
-                this.setState({ hgStock: hgEvent.target.value })
+                this.hgUpdateDraft("title", hgEvent.target.value)
               }
             />
-          </label>
-        )}
-        <div>
-          <button type="submit" className={styles.btn} disabled={hgBusy}>
-            提交商品审核
-          </button>
+          </div>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>
+                简介<span className={styles.req}>*</span>
+              </span>
+              {this.renderCount(hgDraft.summary, 512)}
+            </span>
+            <textarea
+              required
+              maxLength={512}
+              placeholder="一句话卖点，展示在商品卡片上"
+              value={hgDraft.summary}
+              onChange={(hgEvent) =>
+                this.hgUpdateDraft("summary", hgEvent.target.value)
+              }
+            />
+          </div>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>商品介绍</span>
+              {this.renderCount(hgDraft.description, 4096)}
+            </span>
+            <textarea
+              maxLength={4096}
+              placeholder="详细介绍商品规格、材质、使用说明等（纯文本）"
+              value={hgDraft.description}
+              onChange={(hgEvent) =>
+                this.hgUpdateDraft("description", hgEvent.target.value)
+              }
+            />
+          </div>
         </div>
-      </form>
+      </section>
+    );
+  }
+
+  /** 图片区：上传与预览。 */
+  renderImageSection() {
+    const { hgBusy } = this.state;
+    return (
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIndex}>3</span>
+          <h3>展示图片</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>
+                商品图片
+                <span className={styles.req}>*</span>
+              </span>
+              <span className={styles.fieldCount}>
+                已选 {this.state.hgSelectedImages.length}/5 张
+              </span>
+            </span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              disabled={
+                hgBusy ||
+                !!this.state.hgUploadedImages.length ||
+                this.state.hgSelectedImages.length >= 5
+              }
+              onChange={this.hgChooseImages}
+            />
+            <p className={styles.fieldHint}>
+              最多 5 张，支持 JPG / PNG / WebP，每张不超过 5 MiB；首图将作为商品主图。
+            </p>
+          </div>
+          {this.renderImagePreviews(
+            this.state.hgSelectedImages,
+            this.state.hgSelectedPreviews,
+            !!this.state.hgUploadedImages.length
+          )}
+          {!!this.state.hgUploadedImages.length && (
+            <div>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                disabled={hgBusy}
+                onClick={this.hgDiscardImages}
+              >
+                清除已上传的图片
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  /** 规格价格库存区。 */
+  renderSkuSection() {
+    const { hgDraft, hgStock } = this.state;
+    return (
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIndex}>4</span>
+          <h3>规格与价格</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>
+              <span>
+                规格<span className={styles.req}>*</span>
+              </span>
+              {this.renderCount(hgDraft.skuTitle, 128)}
+            </span>
+            <input
+              required
+              maxLength={128}
+              placeholder="例如：标准版 / 黑色 256GB"
+              value={hgDraft.skuTitle}
+              onChange={(hgEvent) =>
+                this.hgUpdateDraft("skuTitle", hgEvent.target.value)
+              }
+            />
+          </div>
+          <div className={styles.twoCol}>
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>
+                <span>
+                  价格（M币）<span className={styles.req}>*</span>
+                </span>
+              </span>
+              <input
+                required
+                type="number"
+                min="1"
+                max={
+                  hgDraft.type === "PHYSICAL_PRODUCT"
+                    ? "100000"
+                    : "9007199254740991"
+                }
+                step="1"
+                placeholder="整数 M币"
+                value={hgDraft.amount}
+                onChange={(hgEvent) =>
+                  this.hgUpdateDraft("amount", hgEvent.target.value)
+                }
+              />
+            </div>
+            {hgDraft.type === "PHYSICAL_PRODUCT" && (
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>
+                  <span>
+                    初始库存（件）<span className={styles.req}>*</span>
+                  </span>
+                </span>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  max="100000"
+                  step="1"
+                  placeholder="1-100000"
+                  value={hgStock}
+                  onChange={(hgEvent) =>
+                    this.setState({ hgStock: hgEvent.target.value })
+                  }
+                />
+              </div>
+            )}
+          </div>
+          {hgDraft.type === "PHYSICAL_PRODUCT" && (
+            <p className={styles.fieldHint}>
+              实物商品以 M币计价并占用库存，由商家手工发货。
+            </p>
+          )}
+          {hgDraft.type === "MEMBERSHIP" && (
+            <p className={styles.fieldHint}>会员卡仅作展示，暂不发放权益。</p>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  /** 营销与权益示意区：当前后端开放 M币，其余作为后续能力说明。 */
+  renderPerksSection() {
+    return (
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIndex}>5</span>
+          <h3>营销与权益</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <div className={styles.perks}>
+            {hgPerks.map((hgPerk) => (
+              <div className={styles.perkRow} key={hgPerk.key}>
+                <span className={styles.perkIcon}>{hgPerk.icon}</span>
+                <div className={styles.perkBody}>
+                  <div className={styles.perkName}>{hgPerk.name}</div>
+                  <div className={styles.perkDesc}>{hgPerk.desc}</div>
+                </div>
+                {hgPerk.available ? (
+                  <span className={styles.previewTag}>已支持</span>
+                ) : (
+                  <span className={styles.perkTag}>即将开放</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <p className={styles.fieldHint}>
+            当前版本仅开放 M币抵扣；拼单与会员折扣等能力将在后续版本接入。
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  /** 实时发布预览：仿商品详情卡，随表单即时更新。 */
+  renderPreview() {
+    const { hgDraft, hgStock, hgSelectedPreviews } = this.state;
+    const hgAmount = Number(hgDraft.amount);
+    const hgPriceValid = Number.isSafeInteger(hgAmount) && hgAmount > 0;
+    return (
+      <aside className={styles.preview} aria-label="发布预览">
+        <div className={styles.previewHead}>发布预览</div>
+        {hgSelectedPreviews.length ? (
+          <img
+            className={styles.previewCover}
+            src={hgSelectedPreviews[0]}
+            alt="商品主图预览"
+          />
+        ) : (
+          <div className={styles.previewCoverEmpty}>暂无商品图片</div>
+        )}
+        <div className={styles.previewBody}>
+          {hgDraft.title ? (
+            <h3 className={styles.previewTitle}>{hgDraft.title}</h3>
+          ) : (
+            <p className={styles.previewEmpty}>填写名称后在此预览</p>
+          )}
+          {hgPriceValid && (
+            <div className={styles.previewPrice}>
+              <b>{hgAmount.toLocaleString("zh-CN")}</b>
+              <small>M币</small>
+            </div>
+          )}
+          <div className={styles.previewMeta}>
+            {hgDraft.skuTitle && (
+              <span className={styles.previewTag}>{hgDraft.skuTitle}</span>
+            )}
+            {hgDraft.type === "PHYSICAL_PRODUCT" && hgStock && (
+              <span className={styles.previewTag}>库存 {hgStock} 件</span>
+            )}
+            {hgDraft.type === "MEMBERSHIP" && (
+              <span className={styles.previewTag}>会员卡</span>
+            )}
+          </div>
+          {hgDraft.summary && (
+            <p className={styles.previewSummary}>{hgDraft.summary}</p>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  /** 分步进度条：基础信息 → 图片 → 规格价格 → 提交。 */
+  renderStepper() {
+    const hgSteps = ["商品分类", "基础信息", "展示图片", "规格价格", "营销权益"];
+    return (
+      <div className={styles.stepper}>
+        {hgSteps.map((hgStep, hgIndex) => (
+          <div className={styles.stepperStep} key={hgStep}>
+            <span className={styles.stepperNum}>{hgIndex + 1}</span>
+            <span>{hgStep}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  /** 发布表单：分步式卡片布局，右侧实时预览。 */
+  renderDraftForm() {
+    const { hgBusy } = this.state;
+    return (
+      <div className={styles.publishLayout}>
+        <form className={styles.publishForm} onSubmit={this.hgPublish}>
+          {this.renderStepper()}
+          {this.renderTypeSection()}
+          {this.renderBasicSection()}
+          {this.renderImageSection()}
+          {this.renderSkuSection()}
+          {this.renderPerksSection()}
+          <div className={styles.submitBar}>
+            <p className={styles.submitHint}>
+              提交后进入审核，审核通过自动进入公开目录。
+            </p>
+            <button type="submit" className={styles.btn} disabled={hgBusy}>
+              提交商品审核
+            </button>
+          </div>
+        </form>
+        {this.renderPreview()}
+      </div>
     );
   }
 
@@ -459,29 +732,36 @@ export default class HGMerchantPublishPage extends React.Component {
     if (!this.state.hgUnusedImages.length) return null;
     const { hgBusy, hgUploadedImages } = this.state;
     return (
-      <div>
-        <h3 className={styles.subTitle}>未使用图片</h3>
-        <p className={styles.formHint}>
-          最多保留20张；可在此删除未绑定商品的图片，释放上传额度。
-        </p>
-        {this.state.hgUnusedImages.map((hgURL) => (
-          <span key={hgURL} className={styles.unusedItem}>
-            <img
-              src={normalizeVideoCoverUrl(hgURL)}
-              alt="未使用的商品图片"
-              loading="lazy"
-            />
-            <button
-              type="button"
-              className={`${styles.btnGhost} ${styles.btnSmall}`}
-              disabled={hgBusy || hgUploadedImages.includes(hgURL)}
-              onClick={() => this.hgRemoveUnusedImage(hgURL)}
-            >
-              删除
-            </button>
-          </span>
-        ))}
-      </div>
+      <section className={styles.sectionCard}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionIndex}>余</span>
+          <h3>未使用图片</h3>
+        </div>
+        <div className={styles.sectionBody}>
+          <p className={styles.fieldHint}>
+            最多保留20张；可在此删除未绑定商品的图片，释放上传额度。
+          </p>
+          <div>
+            {this.state.hgUnusedImages.map((hgURL) => (
+              <span key={hgURL} className={styles.unusedItem}>
+                <img
+                  src={normalizeVideoCoverUrl(hgURL)}
+                  alt="未使用的商品图片"
+                  loading="lazy"
+                />
+                <button
+                  type="button"
+                  className={`${styles.btnGhost} ${styles.btnSmall}`}
+                  disabled={hgBusy || hgUploadedImages.includes(hgURL)}
+                  onClick={() => this.hgRemoveUnusedImage(hgURL)}
+                >
+                  删除
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
     );
   }
 
