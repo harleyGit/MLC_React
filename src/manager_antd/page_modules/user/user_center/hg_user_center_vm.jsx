@@ -6,7 +6,10 @@
 export const USER_CENTER_MENU_KEYS = {
   UNPAID: "unpaid", // 我的订单 → 待付款（待支付与超时取消）。
   REVIEW: "review", // 我的订单 → 评价（已支付商品）。
-  MERCHANT: "merchant", // 商家中心 → 商家入驻申请及获批后的商品、订单管理工作台。
+  MERCHANT: "merchant", // 商家中心 → 商家入驻申请。
+  MERCHANT_PRODUCTS: "merchant_products", // 商家中心 → 我的商品（列表、资料修改、补图与归档）。
+  MERCHANT_PUBLISH: "merchant_publish", // 商家中心 → 新增商品（发布草稿与图片）。
+  MERCHANT_ORDERS: "merchant_orders", // 商家中心 → 本店实物订单与发货。
   CONTACTS: "im_contacts", // 即时通信 → 联系人（通讯录，好友按字母分组）。
   FRIEND_REQUESTS: "im_requests", // 即时通信 → 新的朋友（好友申请接受/拒绝）。
   IM_GROUPS: "im_groups", // 即时通信 → 群组（群聊列表与群资料）。
@@ -15,7 +18,7 @@ export const USER_CENTER_MENU_KEYS = {
 /**
  * 个人中心左侧菜单配置。
  * 约束：分组节点（含 children）只负责展开，只有叶子节点会触发内容区切换；
- *       「即时通信」的 children 顺序与联系人页面视图过滤器（hgInitialFilter）一一对应。
+ *       「商家中心」与「即时通信」的 children 顺序需与页面渲染分支保持一致。
  */
 export const USER_CENTER_MENU_ITEMS = [
   {
@@ -29,7 +32,12 @@ export const USER_CENTER_MENU_ITEMS = [
   {
     key: "merchant_center",
     label: "商家中心",
-    children: [{ key: USER_CENTER_MENU_KEYS.MERCHANT, label: "商家入驻申请" }],
+    children: [
+      { key: USER_CENTER_MENU_KEYS.MERCHANT, label: "商家入驻申请" },
+      { key: USER_CENTER_MENU_KEYS.MERCHANT_PRODUCTS, label: "我的商品" },
+      { key: USER_CENTER_MENU_KEYS.MERCHANT_PUBLISH, label: "新增商品" },
+      { key: USER_CENTER_MENU_KEYS.MERCHANT_ORDERS, label: "本店订单与发货" },
+    ],
   },
   {
     key: "im",

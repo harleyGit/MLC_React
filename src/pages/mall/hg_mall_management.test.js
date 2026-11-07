@@ -6,12 +6,12 @@ import { transformSync } from "@swc/core";
 import React from "react";
 import { HGFormatCoin } from "./hg_mall_amount.js";
 
-/** 加载真实商家组件并替换网络层；不读取浏览器登录态或请求本地服务。 */
-function hgMerchantPage(hgVM, hgProps = {}, hgURL = { createObjectURL: () => "blob:test", revokeObjectURL: () => {} }) {
+/** 加载真实商家子页面并替换网络层；不读取浏览器登录态或请求本地服务。 */
+function hgMerchantPage(hgPath, hgVM, hgProps = {}, hgURL = { createObjectURL: () => "blob:test", revokeObjectURL: () => {} }) {
   const hgModule = { exports: {} }; // 接收 SWC 转换后的 JSX 模块。
-  const hgSource = readFileSync(new URL("./hg_mall_catalog.jsx", import.meta.url), "utf8"); // 实际页面源码。
+  const hgSource = readFileSync(new URL(hgPath, import.meta.url), "utf8"); // 实际页面源码。
   const hgCode = transformSync(hgSource, {
-    filename: "hg_mall_catalog.jsx", jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" }, module: { type: "commonjs" },
+    filename: hgPath, jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" }, module: { type: "commonjs" },
   }).code; // 只转换 JSX，不修改组件逻辑。
   runInNewContext(hgCode, {
     module: hgModule, exports: hgModule.exports,
@@ -20,10 +20,11 @@ function hgMerchantPage(hgVM, hgProps = {}, hgURL = { createObjectURL: () => "bl
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
       if (hgDependency === "react-router-dom") return { Link: "a" };
-      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { PRODUCTS: "/products", MALL_ORDER_DETAIL: "/mall/orders/:orderId" } };
+      if (hgDependency.includes("hg_router_path")) return { ROUTE_PATH: { MALL_ORDER_DETAIL: "/mall/orders/:orderId" } };
       if (hgDependency.endsWith("hg_mall_vm.js")) return { default: hgVM, __esModule: true };
       if (hgDependency.endsWith("hg_mall_amount.js")) return { HGFormatCoin };
       if (hgDependency.endsWith("hg_bili_media_url.js")) return { normalizeVideoCoverUrl: (hgURL) => hgURL };
+      if (hgDependency.endsWith("hg_mall_categories.js")) return { HG_MALL_CATEGORIES: [], __esModule: true };
       return { default: {}, __esModule: true };
     },
   });
@@ -45,63 +46,92 @@ function hgImages(hgNode) {
   return [...(hgNode.type === "img" ? [{ src: hgNode.props.src, alt: hgNode.props.alt }] : []), ...hgImages(hgNode.props.children)];
 }
 
-test("个人中心商家工作台保留旧商品列表与补图入口", async () => {
-  const hgInstance = hgMerchantPage({
-    merchant: async () => ({ status: 1, shopName: "测试店铺" }),
-    mine: async () => ({ list: [{ productId: "PRD_OLD", title: "旧商品", summary: "展示", amount: 12, status: 1, lifecycleStatus: 1, imageURLs: [] }], hasMore: false, nextCursor: "" }),
-    unusedImages: async () => { throw new Error("辅助接口不可用"); },
-    merchantOrders: async () => ({ list: [], hasMore: false, nextCursor: "" }),
-  }, { hgInitialView: "merchant" });
-  hgInstance.hgSelectView("merchant");
-  for (let hgIndex = 0; hgIndex < 10; hgIndex += 1) await Promise.resolve();
-  const hgRendered = hgText(hgInstance.renderMerchantProducts());
+test("我的商品页保留旧商品列表与补图入口", () => {
+  const hgInstance = hgMerchantPage(
+    "hg_merchant_products_page.jsx",
+    {},
+    { hgMerchant: { status: 1, shopName: "测试店铺" } }
+  );
+  hgInstance.state.hgMine = [
+    { productId: "PRD_OLD", title: "旧商品", summary: "展示", amount: 12, status: 1, lifecycleStatus: 1, imageURLs: [] },
+  ];
+  const hgRendered = hgText(hgInstance.render());
   assert.match(hgRendered, /PRD_OLD/);
   assert.match(hgRendered, /增添图片/);
   assert.match(hgRendered, /编辑资料/);
   assert.match(hgRendered, /归档商品/);
 });
 
+test("独立挂载时自读商家状态，未获批只展示入驻引导", async () => {
+  const hgVM = {
+    merchant: async () => ({ status: 0, shopName: "新店" }),
+    mine: () => assert.fail("未获批商家不得读取商品列表"),
+  };
+  const hgInstance = hgMerchantPage("hg_merchant_products_page.jsx", hgVM);
+  hgInstance.componentDidMount();
+  for (let hgIndex = 0; hgIndex < 10; hgIndex += 1) await Promise.resolve();
+  assert.equal(hgInstance.state.hgMerchant.status, 0);
+  assert.match(hgText(hgInstance.render()), /商家入驻申请/);
+});
+
 test("发布与补图可分次多选并预览，移除和卸载会释放 blob URL", () => {
   const hgRevoked = []; // 已释放的本地 blob 地址，初始为空。
   let hgSequence = 0; // 预览编号，确保每张选择生成不同的本地地址。
-  const hgInstance = hgMerchantPage({}, { hgInitialView: "merchant" }, {
+  const hgURL = {
     createObjectURL: () => `blob:mall-${++hgSequence}`,
-    revokeObjectURL: (hgURL) => hgRevoked.push(hgURL),
-  });
+    revokeObjectURL: (hgAddress) => hgRevoked.push(hgAddress),
+  };
   const hgFile = (hgName) => ({ name: hgName, type: "image/png", size: 128 }); // 未上传的合法图片选择项。
-  hgInstance.hgChooseImages({ target: { files: [hgFile("封面.png"), hgFile("侧面.png")], value: "chosen" } });
-  hgInstance.hgChooseImages({ target: { files: [hgFile("细节.png")], value: "chosen" } });
-  assert.equal(hgInstance.state.hgSelectedImages.length, 3);
-  const hgPreview = hgInstance.renderImagePreviews(hgInstance.state.hgSelectedImages, hgInstance.state.hgSelectedPreviews); // 选择后立即出现的预览节点。
+  const hgPublish = hgMerchantPage(
+    "hg_merchant_publish_page.jsx",
+    {},
+    { hgMerchant: { status: 1 } },
+    hgURL
+  );
+  hgPublish.hgChooseImages({ target: { files: [hgFile("封面.png"), hgFile("侧面.png")], value: "chosen" } });
+  hgPublish.hgChooseImages({ target: { files: [hgFile("细节.png")], value: "chosen" } });
+  assert.equal(hgPublish.state.hgSelectedImages.length, 3);
+  const hgPreview = hgPublish.renderImagePreviews(hgPublish.state.hgSelectedImages, hgPublish.state.hgSelectedPreviews); // 选择后立即出现的预览节点。
   assert.match(hgText(hgPreview), /封面.png/);
   assert.deepEqual(hgImages(hgPreview).map((hgImage) => hgImage.src), ["blob:mall-1", "blob:mall-2", "blob:mall-3"]);
-  hgInstance.hgRemovePreview(1);
-  assert.equal(hgInstance.state.hgSelectedImages.length, 2);
+  hgPublish.hgRemovePreview(1);
+  assert.equal(hgPublish.state.hgSelectedImages.length, 2);
   assert.deepEqual(hgRevoked, ["blob:mall-2"]);
-  hgInstance.state.hgMediaProductId = "PRD_OLD";
-  hgInstance.state.hgFoundProduct = { productId: "PRD_OLD", imageURLs: ["/uploads/one.png", "/uploads/two.png"] };
-  hgInstance.hgChooseMedia({ target: { files: [hgFile("补图1.png"), hgFile("补图2.png")], value: "chosen" } });
-  hgInstance.hgChooseMedia({ target: { files: [hgFile("补图3.png")], value: "chosen" } });
-  assert.equal(hgInstance.state.hgMediaFiles.length, 3);
-  hgInstance.hgChooseMedia({ target: { files: [hgFile("超额.png")], value: "chosen" } });
-  assert.equal(hgInstance.state.hgMediaFiles.length, 3);
-  hgInstance.componentWillUnmount();
+  hgPublish.componentWillUnmount(); // 释放剩余发布草稿预览。
+  const hgProducts = hgMerchantPage(
+    "hg_merchant_products_page.jsx",
+    {},
+    { hgMerchant: { status: 1 } },
+    hgURL
+  );
+  hgProducts.state.hgMediaProductId = "PRD_OLD";
+  hgProducts.state.hgFoundProduct = { productId: "PRD_OLD", imageURLs: ["/uploads/one.png", "/uploads/two.png"] };
+  hgProducts.hgChooseMedia({ target: { files: [hgFile("补图1.png"), hgFile("补图2.png")], value: "chosen" } });
+  hgProducts.hgChooseMedia({ target: { files: [hgFile("补图3.png")], value: "chosen" } });
+  assert.equal(hgProducts.state.hgMediaFiles.length, 3);
+  hgProducts.hgChooseMedia({ target: { files: [hgFile("超额.png")], value: "chosen" } });
+  assert.equal(hgProducts.state.hgMediaFiles.length, 3);
+  hgProducts.componentWillUnmount(); // 释放补图预览。
   assert.deepEqual(hgRevoked.sort(), ["blob:mall-1", "blob:mall-2", "blob:mall-3", "blob:mall-4", "blob:mall-5", "blob:mall-6"].sort());
 });
 
 test("补图只使用一个图片选择框，单选和多选后一次提交全部图片", async () => {
   const hgUploaded = []; // 本次上传的文件名，初始为空。
   let hgStaged = null; // 提交审核的图片 URL；未提交前为 null。
-  const hgInstance = hgMerchantPage({
-    uploadImage: async (hgFile) => {
-      hgUploaded.push(hgFile.name);
-      return { imageURL: `/uploads/${hgFile.name}` };
+  const hgInstance = hgMerchantPage(
+    "hg_merchant_products_page.jsx",
+    {
+      uploadImage: async (hgFile) => {
+        hgUploaded.push(hgFile.name);
+        return { imageURL: `/uploads/${hgFile.name}` };
+      },
+      stageMedia: async (hgProductId, hgURLs) => {
+        assert.equal(hgProductId, "PRD_OLD");
+        hgStaged = Array.from(hgURLs);
+      },
     },
-    stageMedia: async (hgProductId, hgURLs) => {
-      assert.equal(hgProductId, "PRD_OLD");
-      hgStaged = Array.from(hgURLs);
-    },
-  }, { hgInitialView: "merchant" }); // 替换上传接口，不访问真实服务。
+    { hgMerchant: { status: 1 } }
+  ); // 替换上传接口，不访问真实服务。
   hgInstance.state.hgMediaProductId = "PRD_OLD";
   hgInstance.state.hgFoundProduct = { productId: "PRD_OLD", imageURLs: ["/uploads/one.png"] };
   const hgFindMediaInputs = (hgNode) => {
@@ -109,7 +139,7 @@ test("补图只使用一个图片选择框，单选和多选后一次提交全�
     if (!React.isValidElement(hgNode)) return [];
     return [...(hgNode.type === "input" && hgNode.props.type === "file" ? [hgNode] : []), ...hgFindMediaInputs(hgNode.props.children)];
   }; // 只查真实补图表单中的图片选择框。
-  const hgInputs = hgFindMediaInputs(hgInstance.renderMerchantProducts());
+  const hgInputs = hgFindMediaInputs(hgInstance.render());
   assert.equal(hgInputs.length, 1);
   assert.equal(hgInputs[0].props.multiple, true);
   assert.equal(hgInputs[0].props.webkitdirectory, undefined);
@@ -138,13 +168,17 @@ test("Shift 一次选中5张或更多时接收剩余名额，并只提交预览�
   for (const hgCase of hgCases) {
     const hgUploaded = []; // 当前用例实际上传的图片名，初始为空。
     let hgStaged = null; // 当前用例提交审核的 URL；未提交时为 null。
-    const hgInstance = hgMerchantPage({
-      uploadImage: async (hgFile) => {
-        hgUploaded.push(hgFile.name);
-        return { imageURL: `/uploads/${hgFile.name}` };
+    const hgInstance = hgMerchantPage(
+      "hg_merchant_products_page.jsx",
+      {
+        uploadImage: async (hgFile) => {
+          hgUploaded.push(hgFile.name);
+          return { imageURL: `/uploads/${hgFile.name}` };
+        },
+        stageMedia: async (_, hgURLs) => { hgStaged = Array.from(hgURLs); },
       },
-      stageMedia: async (_, hgURLs) => { hgStaged = Array.from(hgURLs); },
-    }, { hgInitialView: "merchant" });
+      { hgMerchant: { status: 1 } }
+    );
     hgInstance.state.hgMediaProductId = "PRD_OLD";
     hgInstance.state.hgFoundProduct = { productId: "PRD_OLD", imageURLs: Array.from({ length: hgCase.existing }, () => "/uploads/old.png") };
     const hgTarget = { files: Array.from({ length: hgCase.chosen }, (_, hgIndex) => ({ name: `补图${hgIndex + 1}.png`, type: "image/png", size: 128 })), value: "chosen" };
@@ -167,16 +201,17 @@ test("Shift 一次选中5张或更多时接收剩余名额，并只提交预览�
 test("按商品编号精确读取旧商品并从列表归档后仍能查询历史", async () => {
   const hgArchived = []; // 捕获真实页面提交的商品编号，初始为空。
   const hgItem = { productId: "PRD_OLD", title: "旧商品", summary: "展示", amount: 12, status: 1, lifecycleStatus: 1, imageURLs: [] }; // 本人商品快照。
-  const hgInstance = hgMerchantPage({
-    merchant: async () => ({ status: 1, shopName: "测试店铺" }),
-    mine: async () => ({ list: [hgItem], hasMore: false, nextCursor: "" }),
-    unusedImages: async () => ({ imageURLs: [] }),
-    merchantOrders: async () => ({ list: [], hasMore: false, nextCursor: "" }),
-    mineDetail: async (hgID) => { assert.equal(hgID, "PRD_OLD"); return hgItem; },
-    archive: async (hgID) => { hgArchived.push(hgID); },
-  }, { hgInitialView: "merchant" });
-  hgInstance.state.hgMerchantQuery = " PRD_OLD ";
-  await hgInstance.hgFindMerchantProduct();
+  const hgInstance = hgMerchantPage(
+    "hg_merchant_products_page.jsx",
+    {
+      mine: async () => ({ list: [hgItem], hasMore: false, nextCursor: "" }),
+      mineDetail: async (hgID) => { assert.equal(hgID, "PRD_OLD"); return hgItem; },
+      archive: async (hgID) => { hgArchived.push(hgID); },
+    },
+    { hgMerchant: { status: 1, shopName: "测试店铺" } }
+  );
+  hgInstance.state.hgQuery = " PRD_OLD ";
+  await hgInstance.hgFindProduct();
   assert.equal(hgInstance.state.hgFoundProduct.productId, "PRD_OLD");
   hgInstance.hgArchiveProduct("PRD_OLD");
   for (let hgIndex = 0; hgIndex < 10; hgIndex += 1) await Promise.resolve();
@@ -184,7 +219,7 @@ test("按商品编号精确读取旧商品并从列表归档后仍能查询历�
   assert.equal(hgInstance.state.hgFoundProduct.lifecycleStatus, 2);
 });
 
-test("个人中心商家工作台能查看本人旧商品两张待审补图", async () => {
+test("我的商品页能查看本人旧商品两张待审补图", async () => {
   const hgVM = {
     pendingMerchants: () => assert.fail("普通商家不应探测审核列表"),
     ownPendingMedia: async (hgProductId) => {
@@ -192,10 +227,10 @@ test("个人中心商家工作台能查看本人旧商品两张待审补图", as
       return { productId: hgProductId, imageURLs: ["/uploads/pending-1.png", "/uploads/pending-2.png"] };
     },
   };
-  const hgInstance = hgMerchantPage(hgVM, { hgInitialView: "merchant" });
+  const hgInstance = hgMerchantPage("hg_merchant_products_page.jsx", hgVM, { hgMerchant: { status: 1 } });
   hgInstance.state.hgMine = [{ productId: "PRD_OLD", title: "旧商品", status: 1, lifecycleStatus: 1, amount: 90, imageURLs: [] }];
   await hgInstance.hgLoadOwnMedia("PRD_OLD");
   assert.equal(hgInstance.state.hgPendingOwnMedia.length, 2);
-  assert.match(hgText(hgInstance.renderMerchantProducts()), /尚未审核公开/);
-  assert.deepEqual(hgImages(hgInstance.renderMerchantProducts()).filter((hgImage) => hgImage.alt?.includes("待审核补图")).map((hgImage) => hgImage.src), ["/uploads/pending-1.png", "/uploads/pending-2.png"]);
+  assert.match(hgText(hgInstance.render()), /尚未审核公开/);
+  assert.deepEqual(hgImages(hgInstance.render()).filter((hgImage) => hgImage.alt?.includes("待审核补图")).map((hgImage) => hgImage.src), ["/uploads/pending-1.png", "/uploads/pending-2.png"]);
 });

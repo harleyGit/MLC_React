@@ -1,0 +1,175 @@
+/* ===== 商家中心子页面（我的商品 / 新增商品 / 本店订单与发货）共享版式 ===== */
+/* 延续商城工作台紫色调（#6c4cf1），浅色主题：白卡片 + 浅紫描边 + 彩色状态徽标。 */
+.page { display: grid; gap: 16px; color: #1b1e2b; }
+.page * { box-sizing: border-box; }
+.page button { font: inherit; cursor: pointer; }
+.page button:disabled { cursor: not-allowed; opacity: .45; }
+.page a { color: #6c4cf1; }
+.page a:focus-visible, .page button:focus-visible { outline: 2px solid #6c4cf1; outline-offset: 3px; }
+
+/* 白底卡片容器：每张子页面一个主面板。 */
+.panel { border: 1px solid #e6e8f0; border-radius: 14px; background: white; padding: 20px 22px; box-shadow: 0 1px 2px rgba(27,30,43,.04); }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 6px; }
+.head h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 19px; }
+.head h2::before { content: ""; width: 4px; height: 18px; border-radius: 2px; background: linear-gradient(180deg, #8f76ff, #6c4cf1); }
+.headSmall { color: #8b92a8; font-size: 13px; }
+.desc { margin: 0 0 16px; color: #5a6076; font-size: 13px; line-height: 1.7; }
+
+/* 顶部工具条：圆角搜索框 + 操作按钮。 */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.search { flex: 1 1 240px; max-width: 380px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #dcd3ff; border-radius: 999px; background: #fbfaff; }
+.search input { flex: 1; min-width: 0; padding: 9px 0; border: 0; background: none; font: inherit; color: #1b1e2b; }
+.search input:focus { outline: none; }
+.searchIcon { color: #8f76ff; font-weight: 700; }
+
+/* 按钮体系：主操作渐变紫、次操作白底描边、危险操作红描边。 */
+.btn { border: 1px solid #6c4cf1; border-radius: 9px; padding: 8px 16px; background: linear-gradient(115deg, #6c4cf1, #8f76ff); color: white; font-weight: 600; }
+.btnGhost { border: 1px solid #dcd3ff; border-radius: 9px; padding: 8px 16px; background: white; color: #6c4cf1; font-weight: 600; }
+.btnDanger { border: 1px solid #f3c1c6; border-radius: 9px; padding: 8px 14px; background: white; color: #bc273b; font-weight: 600; }
+.btnSmall { padding: 5px 12px; border-radius: 8px; font-size: 13px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* 商品卡片网格：两列，悬浮上移加紫晕。 */
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.card { min-width: 0; border: 1px solid #e6e8f0; border-radius: 12px; overflow: hidden; background: white; transition: transform .18s ease, box-shadow .18s ease; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(108,76,241,.10); }
+.cover { display: block; width: 100%; height: 150px; object-fit: cover; background: #f5f6fa; }
+.coverEmpty { display: grid; place-items: center; height: 150px; color: white; font-weight: 700; background: linear-gradient(130deg, #8f76ff, #6c4cf1); }
+.body { display: grid; gap: 8px; padding: 14px 16px 16px; }
+.body h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.productNo { color: #8b92a8; font-size: 12px; }
+.summary { margin: 0; color: #5a6076; font-size: 13px; overflow-wrap: anywhere; }
+.metaRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.price { color: #d6263a; font-weight: 800; font-size: 16px; }
+.coin { color: #8b92a8; font-size: 12px; font-weight: 400; }
+.imageCount { color: #8b92a8; font-size: 12px; }
+
+/* 状态徽标：上架绿、待审琥珀、驳回红、归档灰、发货蓝。 */
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.badgeOn { color: #0c7a43; background: #e6f7ee; }
+.badgePending { color: #92580a; background: #fdf3df; }
+.badgeRejected { color: #bc273b; background: #fff1f3; }
+.badgeArchived { color: #5a6076; background: #eef0f5; }
+.badgeShipping { color: #1d5fd1; background: #e9f1ff; }
+
+/* 表单：标签在上、控件铺满，统一浅紫描边。 */
+.form { display: grid; gap: 12px; max-width: 560px; }
+.form label { display: grid; gap: 5px; font-size: 13px; color: #5a6076; }
+.form input, .form select, .form textarea { width: 100%; padding: 9px 11px; border: 1px solid #dcd3ff; border-radius: 8px; font: inherit; color: #1b1e2b; background: white; }
+.form textarea { min-height: 90px; resize: vertical; }
+.formHint { margin: 0; color: #8b92a8; font-size: 12px; line-height: 1.6; }
+.subTitle { margin: 20px 0 10px; font-size: 15px; }
+
+/* 图片网格：选择预览与待审补图共用。 */
+.imgGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 10px; max-width: 560px; }
+.imgItem { display: grid; gap: 6px; min-width: 0; margin: 0; padding: 8px; border: 1px solid #e6e8f0; border-radius: 9px; }
+.imgItem img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; }
+.imgItem figcaption { font-size: 12px; color: #5a6076; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unusedItem { display: inline-grid; gap: 6px; margin: 6px 8px 0 0; }
+.unusedItem img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+
+/* 反馈条：成功绿、错误红、加载灰。 */
+.noticeBar { margin: 0; padding: 11px 14px; border: 1px solid #bfe8cd; border-radius: 10px; background: #f0fbf4; color: #0c7a43; }
+.errorBar { margin: 0; padding: 11px 14px; border-radius: 10px; background: #fff1f3; color: #bc273b; }
+.loading { margin: 0; padding: 24px; text-align: center; color: #8b92a8; }
+
+/* 空态与引导：虚线浅紫面板。 */
+.empty { display: grid; justify-items: center; gap: 8px; margin: 24px 0 8px; padding: 40px 20px; text-align: center; color: #5a6076; background: #fbfaff; border: 1px dashed #dcd3ff; border-radius: 14px; }
+.empty strong { font-size: 15px; color: #1b1e2b; }
+
+/* 待审补图面板。 */
+.pendingPanel { display: grid; gap: 10px; margin-top: 16px; padding: 14px 16px; border: 1px solid #dcd3ff; border-radius: 12px; background: #fbfaff; overflow-wrap: anywhere; }
+.pendingPanel h3 { margin: 0; font-size: 14px; }
+.pendingPanel p { margin: 0; color: #5a6076; font-size: 13px; }
+
+/* 分页。 */
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 16px; }
+.pager button { border: 1px solid #dcd3ff; border-radius: 8px; background: white; color: #6c4cf1; padding: 7px 14px; }
+
+/* 订单卡片：交易快照 + 收件信息块 + 运单登记表单。 */
+.orderCard { display: grid; gap: 10px; margin-top: 14px; padding: 16px; border: 1px solid #e6e8f0; border-radius: 12px; background: white; overflow-wrap: anywhere; }
+.orderTop { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.orderTitle { margin: 0; font-size: 15px; }
+.orderNo { margin: 0; color: #8b92a8; font-size: 12px; }
+.orderMeta { margin: 0; color: #5a6076; font-size: 13px; }
+.receiver { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; background: #f7f8fc; color: #4b5164; font-size: 13px; }
+.receiver b { color: #1b1e2b; }
+.tracking { margin: 0; color: #5a6076; font-size: 13px; }
+.orderLink { font-weight: 600; }
+.shipForm { display: grid; gap: 10px; padding: 12px; border: 1px dashed #dcd3ff; border-radius: 10px; background: #fbfaff; }
+.shipGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-width: 560px; }
+.shipGrid label { display: grid; gap: 5px; font-size: 13px; color: #5a6076; }
+.shipGrid input { padding: 9px 11px; border: 1px solid #dcd3ff; border-radius: 8px; font: inherit; color: #1b1e2b; }
+
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .shipGrid { grid-template-columns: 1fr; } }
+
+/* ===== 电商发布体验：分步导航、左右分栏、实时预览、权益示意（对标拼多多/京东） ===== */
+
+/* 分步进度条：发布流程指引。 */
+.stepper { display: flex; gap: 6px; margin: 4px 0 20px; }
+.stepperStep { flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #e6e8f0; border-radius: 10px; background: #fbfbfd; color: #8b92a8; font-size: 13px; }
+.stepperStepActive { border-color: #6c4cf1; background: linear-gradient(115deg, #6c4cf1, #8f76ff); color: white; font-weight: 600; box-shadow: 0 4px 12px rgba(108,76,241,.18); }
+.stepperNum { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #e6e8f0; color: #5a6076; font-size: 12px; font-weight: 700; }
+.stepperStepActive .stepperNum { background: rgba(255,255,255,.24); color: white; }
+
+/* 发布主布局：左表单 + 右实时预览，窄屏堆叠。 */
+.publishLayout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.publishForm { display: grid; gap: 14px; }
+.sectionCard { border: 1px solid #e6e8f0; border-radius: 12px; background: white; overflow: hidden; }
+.sectionHead { display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-bottom: 1px solid #f0f1f6; background: #fbfbfd; }
+.sectionHead h3 { margin: 0; font-size: 14px; }
+.sectionIndex { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: #6c4cf1; color: white; font-size: 12px; font-weight: 700; }
+.sectionBody { display: grid; gap: 13px; padding: 16px; }
+
+/* 表单字段组与字数统计。 */
+.field { display: grid; gap: 6px; }
+.fieldLabel { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #5a6076; }
+.fieldLabel .req { color: #d6263a; margin-left: 2px; }
+.fieldCount { font-size: 12px; color: #8b92a8; }
+.fieldCountWarn { color: #d6263a; }
+.field input, .field select, .field textarea { width: 100%; padding: 9px 11px; border: 1px solid #dcd3ff; border-radius: 8px; font: inherit; color: #1b1e2b; background: white; }
+.field textarea { min-height: 88px; resize: vertical; }
+.fieldHint { margin: 0; color: #8b92a8; font-size: 12px; line-height: 1.6; }
+
+/* 类型与类目：两列并排。 */
+.twoCol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+/* 权益示意：电商营销开关样式（当前后端未开放，仅作展示说明）。 */
+.perks { display: grid; gap: 10px; }
+.perkRow { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid #e6e8f0; border-radius: 10px; background: #fbfbfd; }
+.perkIcon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #f1edff; color: #6c4cf1; font-size: 16px; }
+.perkBody { flex: 1; }
+.perkName { font-size: 13px; font-weight: 600; color: #1b1e2b; }
+.perkDesc { font-size: 12px; color: #8b92a8; }
+.perkTag { padding: 2px 9px; border-radius: 999px; background: #fff1f3; color: #bc273b; font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+/* 提交区：固定吸底提示 + 主按钮。 */
+.submitBar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #e6e8f0; border-radius: 12px; background: #fbfbfd; }
+.submitHint { margin: 0; color: #8b92a8; font-size: 12px; }
+.submitBar .btn { padding: 10px 22px; font-size: 14px; }
+
+/* 实时发布预览卡片：仿商品详情卡。 */
+.preview { position: sticky; top: 16px; display: grid; gap: 0; border: 1px solid #e6e8f0; border-radius: 14px; overflow: hidden; background: white; box-shadow: 0 6px 20px rgba(27,30,43,.06); }
+.previewHead { display: flex; align-items: center; gap: 8px; padding: 12px 15px; background: linear-gradient(115deg, #6c4cf1, #8f76ff); color: white; font-size: 13px; font-weight: 600; }
+.previewCover { width: 100%; aspect-ratio: 1; object-fit: cover; background: #f5f6fa; }
+.previewCoverEmpty { display: grid; place-items: center; width: 100%; aspect-ratio: 1; color: #b7bdd0; background: #f5f6fa; font-size: 13px; }
+.previewBody { display: grid; gap: 9px; padding: 14px 16px 16px; }
+.previewTitle { margin: 0; font-size: 15px; line-height: 1.45; color: #1b1e2b; overflow-wrap: anywhere; }
+.previewPrice { display: flex; align-items: baseline; gap: 5px; }
+.previewPrice b { color: #d6263a; font-size: 24px; font-weight: 800; }
+.previewPrice small { color: #8b92a8; font-size: 12px; }
+.previewMeta { display: flex; flex-wrap: wrap; gap: 8px; }
+.previewTag { padding: 2px 9px; border-radius: 999px; background: #f1edff; color: #6c4cf1; font-size: 11px; font-weight: 600; }
+.previewSummary { margin: 0; color: #5a6076; font-size: 12px; line-height: 1.6; }
+.previewEmpty { padding: 26px 18px; text-align: center; color: #b7bdd0; font-size: 13px; }
+
+/* 编辑面板：商品预览头图 + 表单。 */
+.editPanel { display: grid; gap: 14px; margin-top: 16px; padding: 16px; border: 1px solid #6c4cf1; border-radius: 14px; background: #fbfaff; }
+.editHead { display: flex; gap: 14px; align-items: center; }
+.editThumb { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; background: #f5f6fa; flex: none; }
+.editHeadInfo { display: grid; gap: 4px; min-width: 0; }
+.editHeadInfo h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.editHeadInfo .productNo { font-size: 12px; }
+.editStatusLine { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+@media (max-width: 900px) { .publishLayout { grid-template-columns: 1fr; } .preview { position: static; } }

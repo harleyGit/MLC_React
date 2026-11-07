@@ -7,6 +7,9 @@ import HGSideMenuVM from "../../../../components/menu_component/hg_side_menu_vm"
 import HGMallPaidOrdersPage from "../../../../pages/mall/hg_mall_paid_orders_page";
 import HGMallPendingOrdersPage from "../../../../pages/mall/hg_mall_pending_orders_page";
 import HGMallCatalog from "../../../../pages/mall/hg_mall_catalog";
+import HGMerchantProductsPage from "../../../../pages/mall/hg_merchant_products_page";
+import HGMerchantPublishPage from "../../../../pages/mall/hg_merchant_publish_page";
+import HGMerchantOrdersPage from "../../../../pages/mall/hg_merchant_orders_page";
 import HGImContactsPage from "../../../../pages/im_contacts/hg_im_contacts_page";
 import HGUserCenterVM, {
   USER_CENTER_MENU_ITEMS,
@@ -74,7 +77,17 @@ class HGUserCenterPage extends Component {
       return <HGMallPaidOrdersPage />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT) {
-      return <HGMallCatalog hgInitialView="merchant" />;
+      // 商家入驻申请只展示申请卡片；商品、发布与订单由下面的子菜单各自渲染。
+      return <HGMallCatalog hgInitialView="merchant" hgMerchantSection="apply" />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_PRODUCTS) {
+      return <HGMerchantProductsPage />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_PUBLISH) {
+      return <HGMerchantPublishPage />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_ORDERS) {
+      return <HGMerchantOrdersPage />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.CONTACTS) {
       return <HGImContactsPage hgInitialFilter="contacts" pageNavigator={this.props.pageNavigator} />;

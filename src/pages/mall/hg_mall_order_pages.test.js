@@ -156,14 +156,14 @@ const hgPending = {
 
 test("本店订单行打开商家授权详情，待付款与评价两页操作列打开本人详情", () => {
   const hgInstance = hgPage(
-    "hg_mall_catalog.jsx",
+    "hg_merchant_orders_page.jsx",
     {},
-    { hgInitialView: "merchant" }
+    { hgMerchant: { status: 1 } }
   );
-  hgInstance.state.hgSellerOrders = [
+  hgInstance.state.hgOrders = [
     { ...hgPending, orderId: "MORD_3", tradeStatus: 2 },
   ];
-  assert.deepEqual(hgLinks(hgInstance.renderSellerOrders()), [
+  assert.deepEqual(hgLinks(hgInstance.render()), [
     "/mall/orders/MORD_3?merchant=1",
   ]);
 

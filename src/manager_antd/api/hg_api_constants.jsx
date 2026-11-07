@@ -41,6 +41,22 @@ export const HGMANAGER_API = {
   WALLET_RECHARGE_PAY: "/api/v1/wallet/recharge/orders/pay", // 充值付款入口
   WALLET_RECHARGE_RECORDS: "/api/v1/recharge/records", // 当前用户充值记录
   MALL_PRODUCTS: "/api/v1/mall/products", // 审核通过的商品目录
+  MALL_CNY_PRODUCTS: "/api/v1/mall/cny/products", // 独立人民币商品目录
+  MALL_CNY_DETAIL: "/api/v1/mall/cny/products/detail", // 人民币商品详情
+  MALL_CNY_PUBLISH: "/api/v1/mall/cny/products/publish", // debug 沙箱商家发布
+  MALL_CNY_COUPON_CREATE: "/api/v1/mall/cny/coupons/create", // debug 沙箱创建券
+  MALL_CNY_COUPONS: "/api/v1/mall/cny/coupons", // 商品券模板
+  MALL_CNY_CLAIM: "/api/v1/mall/cny/coupons/claim", // 领取本人商品券
+  MALL_CNY_PREVIEW: "/api/v1/mall/cny/orders/preview", // 服务端人民币报价
+  MALL_CNY_BUY: "/api/v1/mall/cny/orders", // 幂等预占库存创建订单
+  MALL_CNY_GROUPS: "/api/v1/mall/cny/groups", // 招募中拼团
+  MALL_CNY_GROUP: "/api/v1/mall/cny/groups/detail", // 拼团进度
+  MALL_CNY_ORDERS: "/api/v1/mall/cny/orders", // 本人订单列表
+  MALL_CNY_ORDER: "/api/v1/mall/cny/orders/detail", // 本人订单详情
+  MALL_CNY_PAY: "/api/v1/mall/cny/orders/pay", // debug 模拟支付宝付款
+  MALL_CNY_CANCEL: "/api/v1/mall/cny/orders/cancel", // 取消待支付订单
+  MALL_CNY_REFUND: "/api/v1/mall/cny/orders/refund", // debug 模拟全额退款
+  MALL_CNY_CAPABILITIES: "/api/v1/mall/cny/capabilities", // 当前进程沙箱能力
   MALL_ADMIN_STATUS: "/api/v1/mall/admin-status", // 服务端当前有效管理员身份
   MALL_PRODUCT_IMAGE: "/api/v1/mall/products/image", // 本人商家上传展示图片
   MALL_PRODUCT_IMAGE_DELETE: "/api/v1/mall/products/image/delete", // 清理本人未发布图片

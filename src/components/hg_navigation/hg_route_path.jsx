@@ -12,6 +12,9 @@ export const ROUTE_PATH = Object.freeze({
   MESSAGE_CENTER: "/message", //消息中心（站内通知 + 私信）
   PRODUCTS: "/products", //产品
   PRODUCT_DETAIL: "/products/:productId", //商品详情独立路由；由商品列表卡片导航进入，可直达与分享
+  MALL_CNY: "/mall/cny", // 独立人民币沙箱商城，不复用 M币商品 ID
+  MALL_CNY_DETAIL: "/mall/cny/products/:productId", // 人民币商品详情及服务端试算
+  MALL_CNY_ORDER: "/mall/cny/orders/:orderId", // 本人模拟交易订单
   MALL_ORDER_DETAIL: "/mall/orders/:orderId", // 本人商品订单详情；商家查询由独立权限接口处理
   DEFAULT: "/", //默认路由
   HOME: "/home", //首页
