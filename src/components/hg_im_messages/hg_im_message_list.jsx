@@ -3,6 +3,7 @@ import HGIMFileCard from "../hg_im_media/hg_im_file_card.jsx";
 import { HGIMMediaCache } from "../hg_im_media/hg_im_media_cache.js";
 import HGIMMediaPreview from "../hg_im_media/hg_im_media_preview.jsx";
 import { HGRingSpinner } from "../hg_loading_animations/hg_loading_animations.jsx";
+import { hgFormatMessageTime, hgMessageDividerAt } from "./hg_im_message_time.js";
 import styles from "./hg_im_messages.module.css";
 
 /** 头像底色盘：协议没有头像 URL，按名称哈希取色区分联系人。 */
@@ -23,23 +24,6 @@ function hgAvatarColor(hgName) {
   for (const hgChar of String(hgName))
     hgHash = (hgHash * 31 + hgChar.codePointAt(0)) >>> 0;
   return HG_AVATAR_COLORS[hgHash % HG_AVATAR_COLORS.length];
-}
-
-/** 微信式时间展示：当天只到时分，跨天补日期。 */
-function hgFormatTime(hgStamp) {
-  const hgDate = new Date(hgStamp);
-  if (Number.isNaN(hgDate.getTime())) return "";
-  const hgNow = new Date();
-  const hgHour = String(hgDate.getHours()).padStart(2, "0");
-  const hgMinute = String(hgDate.getMinutes()).padStart(2, "0");
-  const hgHM = `${hgHour}:${hgMinute}`;
-  const hgSameDay =
-    hgDate.getFullYear() === hgNow.getFullYear() &&
-    hgDate.getMonth() === hgNow.getMonth() &&
-    hgDate.getDate() === hgNow.getDate();
-  return hgSameDay
-    ? hgHM
-    : `${hgDate.getMonth() + 1}月${hgDate.getDate()}日 ${hgHM}`;
 }
 
 /** 媒体只在进入列表可视区时自动读取；短暂离屏仍保持组件直到虚拟槽被复用。 */
@@ -123,9 +107,9 @@ class HGIMMessageCell extends React.Component {
     const hgKind = hgMessage.messageType;
     return (
       <li ref={this.hgNode} className={styles.message}>
-        {hgMessage.createdAt ? (
-          <time className={styles.timeChip}>
-            {hgFormatTime(hgMessage.createdAt)}
+        {this.props.showTime ? (
+          <time className={styles.timeChip} dateTime={this.props.sentAt}>
+            {hgFormatMessageTime(this.props.sentAt, this.props.now)}
           </time>
         ) : null}
         <div
@@ -194,7 +178,9 @@ export default class HGIMMessageList extends React.Component {
   hgTouchStart = null; // 手指起点纵坐标；null 表示没有顶端下拉手势。
   hgTouchEndStart = null; // 底端上拉手势起点；null 表示未在底端触摸。
   hgPinToBottom = true; // 首次测量前保持最新消息在底部；用户上滑后关闭。
-  state = { hgTop: 0, hgViewport: 500 }; // 当前滚动偏移和容器可视高度，单位 px。
+  hgClock = null; // 每分钟刷新本地日期/时区；卸载后清理。
+  hgTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone; // 设备时区变更时清空旧行高。
+  state = { hgTop: 0, hgViewport: 500, hgNow: new Date() }; // 滚动位置/可视高度（px）及本机展示时钟。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -204,6 +190,9 @@ export default class HGIMMessageList extends React.Component {
       : null;
     this.hgResize?.observe(hgNode);
     window.addEventListener("resize", this.hgUpdateViewport);
+    document.addEventListener("visibilitychange", this.hgRefreshTime);
+    window.addEventListener("focus", this.hgRefreshTime);
+    this.hgClock = window.setInterval(this.hgRefreshTime, 60 * 1000);
     this.hgUpdateViewport();
     this.hgScrollToBottom();
   }
@@ -212,6 +201,9 @@ export default class HGIMMessageList extends React.Component {
     this.hgMounted = false;
     this.hgResize?.disconnect();
     window.removeEventListener("resize", this.hgUpdateViewport);
+    document.removeEventListener("visibilitychange", this.hgRefreshTime);
+    window.removeEventListener("focus", this.hgRefreshTime);
+    window.clearInterval(this.hgClock);
     cancelAnimationFrame(this.hgFrame);
     this.hgCache.hgClear();
   }
@@ -257,6 +249,17 @@ export default class HGIMMessageList extends React.Component {
   hgUpdateViewport = () => {
     if (this.hgMounted && this.hgList.current)
       this.setState({ hgViewport: this.hgList.current.clientHeight || 500 });
+  };
+
+  /** 午夜、设备时钟或时区变化只重算展示；时区变更会使分隔线行高失效。 */
+  hgRefreshTime = () => {
+    if (!this.hgMounted || document.visibilityState === "hidden") return;
+    const hgTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (hgTimezone !== this.hgTimezone) {
+      this.hgTimezone = hgTimezone;
+      this.hgHeights.clear();
+    }
+    this.setState({ hgNow: new Date() });
   };
 
   hgScheduleScroll = () => {
@@ -377,6 +380,13 @@ export default class HGIMMessageList extends React.Component {
 
   componentDidUpdate(hgPrevious, hgState, hgSnapshot) {
     if (hgPrevious.messages !== this.props.messages) {
+      const hgPreviousNeighbors = new Map(hgPrevious.messages.map((hgMessage, hgIndex) =>
+        [hgMessage.seq, hgPrevious.messages[hgIndex - 1]?.seq])); // 分页/删除改变前驱时重新测量分隔线。
+      this.props.messages.forEach((hgMessage, hgIndex) => {
+        if (hgPreviousNeighbors.has(hgMessage.seq) &&
+          hgPreviousNeighbors.get(hgMessage.seq) !== this.props.messages[hgIndex - 1]?.seq)
+          this.hgHeights.delete(hgMessage.seq);
+      });
       const hgValid = new Set(
         this.props.messages.map((hgMessage) => hgMessage.seq)
       ); // 限制测量表随历史窗口移动增长。
@@ -430,7 +440,6 @@ export default class HGIMMessageList extends React.Component {
     const hgIsCard = ["file", "audio"].includes(hgUpload.messageType);
     return (
       <li key={hgUpload.clientMsgId} className={styles.message}>
-        <time className={styles.timeChip}>{hgFormatTime(Date.now())}</time>
         <div className={`${styles.messageRow} ${styles.mine}`}>
           <span
             className={styles.avatar}
@@ -539,18 +548,22 @@ export default class HGIMMessageList extends React.Component {
             aria-hidden="true"
           />
         )}
-        {hgMessages.slice(hgStart, hgEnd).map((hgMessage) => (
-          <HGIMMessageCell
+        {hgMessages.slice(hgStart, hgEnd).map((hgMessage, hgOffset) => {
+          const hgSentAt = hgMessage.sentAt || hgMessage.createdAt; // 兼容旧版 Go 协议。
+          return <HGIMMessageCell
             key={hgMessage.messageId}
             message={hgMessage}
+            sentAt={hgSentAt}
+            now={this.state.hgNow}
+            showTime={hgMessageDividerAt(hgMessages, hgStart + hgOffset)}
             peerName={this.props.peerName}
             api={this.props.api}
             cache={this.hgCache}
             scrollRef={this.hgList}
             onDelete={this.props.onDelete}
             onHeight={this.hgMeasure}
-          />
-        ))}
+          />;
+        })}
         {hgMessages.length > 0 && (
           <li
             className={styles.spacer}

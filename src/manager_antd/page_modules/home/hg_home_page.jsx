@@ -3,6 +3,7 @@ import HGChatInput from "../../../components/hg_chat_input/hg_chat_input";
 import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 import HGIMCallPanel from "../../../components/hg_im_call/hg_im_call_panel";
 import HGIMMessageList from "../../../components/hg_im_messages/hg_im_message_list";
+import { hgFormatConversationTime } from "../../../components/hg_im_messages/hg_im_message_time.js";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { logout } from "../../auth/hg_auth";
 import styles from "./hg_home.module.css";
@@ -15,6 +16,7 @@ export default class HGHomePage extends React.Component {
   hgMounted = false; // 防止异步回调覆盖卸载页面。
   hgCall = React.createRef(); // 来电指针交给独立通话控制组件。
   hgCreating = false; // 单聊创建防连点，不依赖异步 setState。
+  hgClock = null; // 每分钟更新会话列表本地时间；卸载后停止。
   state = {
     hgSnapshot: null, // VM 权威视图，初始 null 表示尚未启动。
     hgSearch: "", // 仅过滤当前已加载会话，不冒充服务端全量搜索。
@@ -23,6 +25,7 @@ export default class HGHomePage extends React.Component {
     hgUpload: null, // 仅发送方本机的待审核气泡；null 表示没有未同步完的附件。
     hgNotice: "", // 页面操作结果或权限错误。
     hgInvalidOwner: false, // 账号切换/退出时清空聊天 DOM 和媒体设备。
+    hgNow: new Date(), // 会话最近活动时间的本机显示基准，跨午夜或时区变更时更新。
   };
 
   componentDidMount() {
@@ -44,6 +47,8 @@ export default class HGHomePage extends React.Component {
     window.addEventListener(HG_IM_RECONNECT_EVENT, this.hgReconnect);
     window.addEventListener("online", this.hgWake);
     document.addEventListener("visibilitychange", this.hgWake);
+    window.addEventListener("focus", this.hgRefreshTime);
+    this.hgClock = window.setInterval(this.hgRefreshTime, 60 * 1000);
     void this.hgVM.hgStart();
   }
 
@@ -56,6 +61,8 @@ export default class HGHomePage extends React.Component {
     window.removeEventListener(HG_IM_RECONNECT_EVENT, this.hgReconnect);
     window.removeEventListener("online", this.hgWake);
     document.removeEventListener("visibilitychange", this.hgWake);
+    window.removeEventListener("focus", this.hgRefreshTime);
+    window.clearInterval(this.hgClock);
   }
 
   hgCheckOwner = () => {
@@ -75,9 +82,16 @@ export default class HGHomePage extends React.Component {
   hgWake = () => {
     this.hgCheckOwner();
     if (document.visibilityState === "visible") {
+      this.hgRefreshTime();
       this.hgVM?.hgSchedule();
       void this.hgCall.current?.hgRefresh();
     }
+  };
+
+  /** 页面恢复或本地日历变化时重算会话时间，不改变服务端更新时间。 */
+  hgRefreshTime = () => {
+    if (this.hgMounted && document.visibilityState !== "hidden")
+      this.setState({ hgNow: new Date() });
   };
 
   /** 顶栏再次点击 Chat 时复用当前 VM；首次进页由 hgStart 自动连接。 */
@@ -277,8 +291,11 @@ export default class HGHomePage extends React.Component {
                 {[...hgConversation.peer.name][0] || "友"}
               </span>
               <span className={styles.conversationInfo}>
-                <span className={styles.conversationName}>
-                  {hgConversation.peer.name}
+                <span className={styles.conversationTopRow}>
+                  <span className={styles.conversationName}>{hgConversation.peer.name}</span>
+                  <time className={styles.conversationTime} dateTime={hgConversation.updatedAt}>
+                    {hgFormatConversationTime(hgConversation.updatedAt, this.state.hgNow)}
+                  </time>
                 </span>
                 <span className={styles.conversationPreview}>
                   会话 {hgConversation.conversationId} · 最新序号{" "}

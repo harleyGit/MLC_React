@@ -59,6 +59,7 @@
 .timeChip {
   align-self: center;
   margin-bottom: 10px;
+  white-space: nowrap;
   color: #9aa0a6;
   font-size: 12px;
   user-select: none;
