@@ -15,6 +15,8 @@ export const ROUTE_PATH = Object.freeze({
   MALL_CNY: "/mall/cny", // 独立人民币沙箱商城，不复用 M币商品 ID
   MALL_CNY_DETAIL: "/mall/cny/products/:productId", // 人民币商品详情及服务端试算
   MALL_CNY_ORDER: "/mall/cny/orders/:orderId", // 本人模拟交易订单
+  COMMERCE_PRODUCTS: "/mall/commerce", // 生产人民币商品只读目录，当前不接支付
+  COMMERCE_DETAIL: "/mall/commerce/:productId", // 已审核已上架商品详情
   MALL_ORDER_DETAIL: "/mall/orders/:orderId", // 本人商品订单详情；商家查询由独立权限接口处理
   DEFAULT: "/", //默认路由
   HOME: "/home", //首页

@@ -42,6 +42,24 @@ export const HGMANAGER_API = {
   WALLET_RECHARGE_RECORDS: "/api/v1/recharge/records", // 当前用户充值记录
   MALL_PRODUCTS: "/api/v1/mall/products", // 审核通过的商品目录
   MALL_CNY_PRODUCTS: "/api/v1/mall/cny/products", // 独立人民币商品目录
+  COMMERCE_CATEGORIES: "/api/v1/commerce/merchant/categories", // 生产 CNY 本店叶子类目
+  COMMERCE_CATEGORY_CREATE: "/api/v1/commerce/admin/categories", // 平台维护类目
+  COMMERCE_CREATE: "/api/v1/commerce/merchant/products", // CNY 商品草稿，需幂等请求头
+  COMMERCE_EDIT: "/api/v1/commerce/merchant/products/edit", // 本人草稿编辑
+  COMMERCE_MINE: "/api/v1/commerce/merchant/products", // 本人 CNY 商品游标页
+  COMMERCE_MINE_DETAIL: "/api/v1/commerce/merchant/products/detail", // 本人草稿详情
+  COMMERCE_PRODUCTS: "/api/v1/commerce/products", // 已审核已上架公开目录
+  COMMERCE_DETAIL: "/api/v1/commerce/products/detail", // 公开线上版本详情
+  COMMERCE_SUBMIT: "/api/v1/commerce/merchant/products/submit", // 草稿提交审核
+  COMMERCE_PUBLISH: "/api/v1/commerce/merchant/products/publish", // 审核后上架
+  COMMERCE_UNPUBLISH: "/api/v1/commerce/merchant/products/unpublish", // 本店商品下架
+  COMMERCE_ARCHIVE: "/api/v1/commerce/merchant/products/archive", // 本人商品永久归档
+  COMMERCE_PENDING: "/api/v1/commerce/admin/products/pending", // 管理员待审游标页
+  COMMERCE_PENDING_DETAIL: "/api/v1/commerce/admin/products/detail", // 待审草稿详情
+  COMMERCE_REVIEW: "/api/v1/commerce/admin/products/decision", // 管理员审核决定
+  COMMERCE_IMAGE: "/api/v1/commerce/merchant/images", // 本人商品图片上传
+  COMMERCE_IMAGES_UNUSED: "/api/v1/commerce/merchant/images/unused", // 未使用资产
+  COMMERCE_IMAGE_DELETE: "/api/v1/commerce/merchant/images/delete", // 本人未绑定资产清理
   MALL_CNY_DETAIL: "/api/v1/mall/cny/products/detail", // 人民币商品详情
   MALL_CNY_PUBLISH: "/api/v1/mall/cny/products/publish", // debug 沙箱商家发布
   MALL_CNY_COUPON_CREATE: "/api/v1/mall/cny/coupons/create", // debug 沙箱创建券

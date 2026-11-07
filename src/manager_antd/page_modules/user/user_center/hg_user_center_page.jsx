@@ -10,6 +10,7 @@ import HGMallCatalog from "../../../../pages/mall/hg_mall_catalog";
 import HGMerchantProductsPage from "../../../../pages/mall/hg_merchant_products_page";
 import HGMerchantPublishPage from "../../../../pages/mall/hg_merchant_publish_page";
 import HGMerchantOrdersPage from "../../../../pages/mall/hg_merchant_orders_page";
+import HGMerchantCommercePage from "../../../../pages/mall/hg_merchant_commerce_page";
 import HGImContactsPage from "../../../../pages/im_contacts/hg_im_contacts_page";
 import HGUserCenterVM, {
   USER_CENTER_MENU_ITEMS,
@@ -88,6 +89,9 @@ class HGUserCenterPage extends Component {
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_ORDERS) {
       return <HGMerchantOrdersPage />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE) {
+      return <HGMerchantCommercePage />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.CONTACTS) {
       return <HGImContactsPage hgInitialFilter="contacts" pageNavigator={this.props.pageNavigator} />;

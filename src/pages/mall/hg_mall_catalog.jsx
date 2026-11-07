@@ -472,7 +472,7 @@ export default class HGMallCatalog extends React.Component {
     return (
       <>
         <p className={styles.shopFilterHint}>
-          人民币独立交易与 M币商城互不混用 · <Link to={ROUTE_PATH.MALL_CNY}>进入人民币拼团沙箱</Link>
+          人民币商品与 M币商城互不混用 · <Link to={ROUTE_PATH.COMMERCE_PRODUCTS}>查看已审核人民币商品</Link> · <Link to={ROUTE_PATH.MALL_CNY}>进入 debug 拼团沙箱</Link>
         </p>
         <nav className={styles.shopCategoryBar} aria-label="商品类目">
           {hgCategories.map(([hgCode, hgLabel]) => (

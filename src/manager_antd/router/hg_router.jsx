@@ -71,6 +71,7 @@ const WrappedHGMallOrderPage = WithNavigation(HGMallOrderPage);
 // 详情页需要读取路由参数 productId，注入导航能力。
 const WrappedHGProductDetailPage = WithNavigation(HGProductDetailPage);
 const WrappedHGMallCNYPage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_mall_cny_page.jsx")));
+const WrappedHGCommerceCatalogPage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_commerce_catalog_page.jsx")));
 const WrappedHGWalletSpendingPage = WithNavigation(HGWalletSpendingPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
@@ -106,6 +107,14 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.MALL_CNY_ORDER,
         element: hgLazyElement(<WrappedHGMallCNYPage />, "正在加载模拟订单..."),
+      },
+      {
+        path: ROUTE_PATH.COMMERCE_PRODUCTS,
+        element: hgLazyElement(<WrappedHGCommerceCatalogPage />, "正在加载人民币商品..."),
+      },
+      {
+        path: ROUTE_PATH.COMMERCE_DETAIL,
+        element: hgLazyElement(<WrappedHGCommerceCatalogPage />, "正在加载人民币商品详情..."),
       },
       {
         path: ROUTE_PATH.MALL_ORDER_DETAIL,

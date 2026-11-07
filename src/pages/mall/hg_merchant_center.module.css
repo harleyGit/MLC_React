@@ -173,3 +173,17 @@
 .editStatusLine { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 @media (max-width: 900px) { .publishLayout { grid-template-columns: 1fr; } .preview { position: static; } }
+
+/* 生产 CNY 草稿沿用商家中心白卡片、紫蓝主操作；移动端 SKU 表单按列换行。 */
+.commerceFieldset { display: grid; gap: 12px; min-width: 0; padding: 18px; border: 1px solid var(--color-border, #d6e7f9); border-radius: 14px; background: var(--color-bg-surface, #fff); }
+.commerceFieldset legend { padding: 0 8px; font-weight: 700; color: var(--color-text-title, #172b4d); }
+.commerceFieldset:disabled { opacity: .7; }
+.commerceReviewDetail { display: grid; gap: 10px; margin-top: 12px; padding: 16px; border: 1px solid var(--color-border, #d6e7f9); border-radius: 12px; background: var(--color-bg-surface, #fff); }
+.commerceDescription { white-space: pre-wrap; overflow-wrap: anywhere; }
+.commerceSku { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; border: 1px solid var(--color-border, #d6e7f9); border-radius: 12px; background: var(--color-bg-subtle, #f6faff); }
+.commerceSku label { display: grid; gap: 5px; color: var(--color-text-secondary, #61758e); font-size: 13px; }
+.commerceSku input, .commerceFieldset input, .commerceFieldset select, .commerceFieldset textarea, .toolbar > input, .pendingPanel input { min-width: 0; padding: 9px 11px; border: 1px solid var(--color-border, #d6e7f9); border-radius: 9px; color: var(--color-text, #172b4d); background: var(--color-bg-surface, #fff); font: inherit; }
+.commerceSku input:focus-visible, .commerceFieldset input:focus-visible, .commerceFieldset select:focus-visible, .commerceFieldset textarea:focus-visible, .toolbar > input:focus-visible, .pendingPanel input:focus-visible { outline: 2px solid var(--color-border-focus, #4294e0); outline-offset: 2px; }
+.commerceFieldset .imgGrid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+@media (max-width: 760px) { .commerceSku { grid-template-columns: 1fr; } .toolbar > input { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .card { transition: none; } .card:hover { transform: none; } }
