@@ -227,3 +227,52 @@
 
 @media (max-width: 980px) { .shopDetailCard { grid-template-columns: 1fr; } .shopSkeletonMedia { width: 100%; height: auto; aspect-ratio: 1 / 1; } }
 @media (max-width: 620px) { .shopGoodsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .shopReceiverGrid { grid-template-columns: 1fr; } }
+
+/* 借鉴电商详情的图片优先与清晰购买层级，仍采用 MLC 品牌蓝；只作用于商城视图。 */
+.shopStage {
+  --hg-mall-primary: var(--color-primary, #2674c7);
+  --hg-mall-primary-hover: var(--color-primary-hover, #195fa8);
+  --hg-mall-soft: var(--color-primary-soft, #eaf4ff);
+  --hg-mall-border: var(--color-border, #d6e7f9);
+  --hg-mall-text: var(--color-text, #172b4d);
+  --hg-mall-muted: var(--color-text-secondary, #61758e);
+}
+.shopStage .shopCategoryBar { border-color: var(--hg-mall-border); }
+.shopStage .shopCategoryBar button:hover { color: var(--hg-mall-primary); background: var(--hg-mall-soft); }
+.shopStage .shopCategoryBar button[aria-pressed="true"] { background: var(--hg-mall-primary); box-shadow: none; }
+.shopStage .shopFilterHint, .shopStage .shopGoodsPrice, .shopStage .shopPriceNow,
+.shopStage .shopBuyTotal strong, .shopStage .shopCrumbCurrent,
+.shopStage .shopDetailTabs button[aria-pressed="true"] { color: var(--hg-mall-primary); }
+.shopStage .shopGoodsCard { border-color: var(--hg-mall-border); border-radius: 14px; }
+.shopStage .shopGoodsCard:hover, .shopStage .shopGoodsCard:focus-visible {
+  border-color: var(--hg-mall-primary);
+  box-shadow: 0 12px 32px rgb(26 59 102 / 12%);
+  outline: 2px solid var(--hg-mall-primary);
+  outline-offset: 2px;
+}
+.shopStage .shopGoodsTitle, .shopStage .shopInfoTitle, .shopStage .shopShopName { color: var(--hg-mall-text); }
+.shopStage .shopGoodsMeta, .shopStage .shopInfoSummary, .shopStage .shopStockHint { color: var(--hg-mall-muted); }
+.shopStage .shopDetailCard, .shopStage .shopDetailSection { border-color: var(--hg-mall-border); box-shadow: 0 4px 18px rgb(26 59 102 / 6%); }
+.shopStage .shopPricePanel { background: var(--hg-mall-soft); }
+.shopStage .shopShopTag, .shopStage .shopSpecChip { color: var(--hg-mall-primary); background: var(--hg-mall-soft); border-color: var(--hg-mall-border); }
+.shopStage .shopGalleryThumb[aria-pressed="true"] { border-color: var(--hg-mall-primary); }
+.shopStage .shopField input:focus, .shopStage .shopField textarea:focus { border-color: var(--hg-mall-primary); box-shadow: 0 0 0 3px rgb(66 148 224 / 22%); }
+.shopStage .shopBuyPrimary { background: var(--hg-mall-primary); box-shadow: 0 6px 14px rgb(26 59 102 / 14%); }
+.shopStage .shopBuyPrimary:hover:not(:disabled) { background: var(--hg-mall-primary-hover); filter: none; }
+.shopStage .shopBuyPrimary:disabled { background: var(--hg-mall-border); box-shadow: none; }
+.shopStage .shopBuyGhost:hover, .shopStage .shopBreadcrumb button:hover, .shopStage .shopPager button { color: var(--hg-mall-primary); border-color: var(--hg-mall-border); }
+.shopStage .shopDetailTabs button[aria-pressed="true"]::after { background: var(--hg-mall-primary); }
+.shopStage .shopGoodsCard:focus-visible, .shopStage button:focus-visible, .shopStage input:focus-visible, .shopStage textarea:focus-visible {
+  outline: 2px solid var(--hg-mall-primary);
+  outline-offset: 2px;
+}
+@media (max-width: 620px) {
+  .shopStage .shopDetailCard { padding: 14px; gap: 18px; }
+  .shopStage .shopInfoTitle { font-size: 20px; }
+  .shopStage .shopBuyBar { position: sticky; bottom: 0; z-index: 2; margin: 0 -14px -14px; padding: 12px 14px calc(12px + env(safe-area-inset-bottom)); background: var(--color-bg-surface, #fff); border-top: 1px solid var(--hg-mall-border); box-shadow: 0 -8px 20px rgb(26 59 102 / 8%); }
+  .shopStage .shopBuyPrimary { min-width: 130px; }
+  .shopStage .shopDetailSection { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shopStage .shopGoodsCard, .shopStage .shopSkeletonMedia, .shopStage .shopSkeletonLine { transition: none; animation: none; }
+}
