@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
+import { PAGE } from "../../components/hg_navigation/hg_page_registry";
+import { hgPageNavigator } from "../../components/hg_navigation/hg_page_navigator";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import { HGFormatCoin } from "./hg_mall_amount.js";
 import { HGAdvanceMallPage } from "./hg_mall_cursor.js";
@@ -121,10 +123,25 @@ export default class HGMallCatalog extends React.Component {
     } catch {
       /* 禁用存储时仍保留当前组件内的幂等键。 */
     }
+    // 路由详情模式（商品详情独立页）：只加载当前商品，不请求目录列表。
+    if (this.hgIsRouteDetail()) {
+      this.hgShowDetail(this.props.hgProductId);
+      return;
+    }
     if (this.state.hgView === "merchant") {
       this.hgLoadMerchant();
       this.hgLoadSellerOrders();
     } else this.hgLoadCatalog("", "", []);
+  }
+
+  /** 同一路由复用组件实例：路由参数变化时必须重载详情，不能沿用旧商品。 */
+  componentDidUpdate(hgPrevProps) {
+    const hgNextProductId = this.props.hgProductId;
+    if (
+      hgNextProductId &&
+      hgPrevProps.hgProductId !== hgNextProductId
+    )
+      this.hgShowDetail(hgNextProductId);
   }
 
   componentWillUnmount() {
@@ -139,6 +156,18 @@ export default class HGMallCatalog extends React.Component {
   }
 
   hgMessage = (hgError) => hgError?.message || "商城请求失败，请重试";
+
+  /** 路由详情模式：由商品详情独立页注入 hgProductId，返回列表与关闭详情均走路由导航。 */
+  hgIsRouteDetail = () => Boolean(this.props.hgProductId);
+
+  /** 目录卡片进入独立商品详情路由；保持浏览器链接语义，详情页可直达与分享。 */
+  hgOpenDetail = (hgProductId) => {
+    this.hgBuyRequestId = "";
+    hgPageNavigator.open({
+      page: PAGE.PRODUCT_DETAIL,
+      pathParams: { productId: hgProductId },
+    });
+  };
 
   /** 仅加载单个有界游标页，切换类目/翻页时旧响应不可覆盖新结果。 */
   hgLoadCatalog = async (
@@ -872,11 +901,12 @@ export default class HGMallCatalog extends React.Component {
       this.hgBuyRequestId = "";
       if (this.hgMounted) {
         // 买家订单列表已迁入个人中心「我的订单」，这里只提示去那里支付。
-        this.setState({
+        // 路由详情模式保留当前商品展示，让下单结果提示直接显示在详情页顶部。
+        this.setState((hgState) => ({
           hgPendingBuy: false,
           hgNotice:
             "订单已创建，商品库存预留15分钟；请在「个人中心 → 我的订单 → 待付款」中完成 M币支付",
-          hgDetail: null,
+          hgDetail: this.hgIsRouteDetail() ? hgState.hgDetail : null,
           hgDetailId: "",
           hgBuyForm: {
             quantity: "1",
@@ -884,7 +914,7 @@ export default class HGMallCatalog extends React.Component {
             receiverPhone: "",
             receiverAddress: "",
           },
-        });
+        }));
       }
     } catch (hgError) {
       if (this.hgMounted) this.setState({ hgError: this.hgMessage(hgError) });
@@ -947,17 +977,13 @@ export default class HGMallCatalog extends React.Component {
               <article
                 key={hgItem.productId}
                 className={styles.shopGoodsCard}
-                onClick={() => {
-                  this.hgBuyRequestId = "";
-                  this.hgShowDetail(hgItem.productId);
-                }}
+                onClick={() => this.hgOpenDetail(hgItem.productId)}
                 role="link"
                 tabIndex={0}
                 onKeyDown={(hgEvent) => {
                   if (hgEvent.key === "Enter" || hgEvent.key === " ") {
                     hgEvent.preventDefault();
-                    this.hgBuyRequestId = "";
-                    this.hgShowDetail(hgItem.productId);
+                    this.hgOpenDetail(hgItem.productId);
                   }
                 }}
               >
@@ -1079,7 +1105,12 @@ export default class HGMallCatalog extends React.Component {
         <span className={styles.shopCrumbSep}>/</span>
         <button
           type="button"
-          onClick={() => this.hgLoadCatalog(this.state.hgDetail?.category || "", "", [])}
+          // 路由详情模式从面包屑切类目同样返回目录页，不在详情路由内嵌列表。
+          onClick={() =>
+            this.hgIsRouteDetail()
+              ? this.hgCloseDetail()
+              : this.hgLoadCatalog(this.state.hgDetail?.category || "", "", [])
+          }
         >
           {hgCategoryLabel}
         </button>
@@ -1449,9 +1480,13 @@ export default class HGMallCatalog extends React.Component {
     this.hgUpdateBuy("quantity", String(hgNext));
   };
 
-  /** 关闭详情返回目录，保留当前类目与页码，清空目标 ID 防止骨架屏残留。 */
+  /** 关闭详情返回目录；路由详情模式导航到商品列表页，内联模式仅还原本地状态。 */
   hgCloseDetail = () => {
     this.hgBuyRequestId = "";
+    if (this.hgIsRouteDetail()) {
+      hgPageNavigator.open({ page: PAGE.PRODUCTS });
+      return;
+    }
     this.setState({ hgDetail: null, hgDetailId: "", hgMainImage: 0 });
   };
 
@@ -2404,7 +2439,12 @@ export default class HGMallCatalog extends React.Component {
             {this.state.hgError}{" "}
             <button
               type="button"
-              onClick={() => this.hgSelectView(this.state.hgView)}
+              // 路由详情模式重试当前商品；目录与工作台按各自视图重载。
+              onClick={() =>
+                this.hgIsRouteDetail()
+                  ? this.hgShowDetail(this.props.hgProductId)
+                  : this.hgSelectView(this.state.hgView)
+              }
             >
               重试
             </button>

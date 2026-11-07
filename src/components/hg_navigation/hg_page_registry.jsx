@@ -17,6 +17,7 @@ const components = {
   MESSAGE_CENTER: lazy(() => import("../../manager_antd/page_modules/message_center/hg_message_center_page")), // 消息中心：通知分类 + 私信 IM。
   ADD_CONTACT: lazy(() => import("../../pages/im_contacts/hg_add_contact_page")), // 添加联系人：由聊天首页侧栏进入的分步向导页。
   PRODUCTS: lazy(() => import("../../manager_antd/page_modules/product/hg_ products_page")),
+  PRODUCT_DETAIL: lazy(() => import("../../manager_antd/page_modules/product/hg_product_detail_page")), // 商品详情独立路由页。
   MALL_ORDER_DETAIL: lazy(() => import("../../pages/mall/hg_mall_order_page.jsx")), // 商品订单详情独立路由。
   DEFAULT: HGHomePage,
   HOME: HGHomePage,

@@ -2,6 +2,7 @@ import HGIMAPI from "../../net_handle/hg_im_api";
 import { hgIMOwner, hgIMSession } from "../../storage/hg_im_session";
 import HGIMRealtime from "./hg_im_realtime";
 import { HG_IM_CONNECTION_EVENT } from "./hg_im_connection_events";
+import { hgIMPageAfter } from "./hg_im_history_floor.js";
 
 /** JSON 数字协议超过 JS 安全整数时拒绝推进游标，避免静默漏消息。 */
 export function hgIMSeq(hgValue) {
@@ -35,6 +36,8 @@ export default class HGHomeVM {
   hgSelection = 0; // 历史窗口版本，切换会话/翻页使旧响应失效。
   hgClosed = false; // 关闭后禁止发出状态、ACK 或新请求。
   hgListCursor = ""; // 会话主键倒序游标，不按时间猜测。
+  hgFeaturedId = ""; // 从联系人明确打开的会话暂置列表首位；新消息仍按服务端同步。
+  hgHiddenIDs = new Map(); // 本页已删除会话及当时 seq；服务端新消息到达时可重新出现。
   hgWindowAfter = null; // 当前连续历史水位；null 表示尚未建立快照。
   hgLoadingSelection = null; // 同一窗口补拉单飞；null 表示当前无请求。
   hgFollow = true; // true 追最新，false 停留历史页不被轮询覆盖。
@@ -205,10 +208,13 @@ export default class HGHomeVM {
     for (const hgItem of hgResult.list) {
       hgIMSeq(hgItem.lastSeq); hgIMSeq(hgItem.lastReadSeq);
       if (!/^[1-9]\d*$/.test(hgItem.conversationId)) throw new Error("会话 ID 不合法");
+      const hgHiddenSeq = this.hgHiddenIDs.get(hgItem.conversationId); // 新到消息才解除本地隐藏。
+      if (hgHiddenSeq !== undefined && hgItem.lastSeq <= hgHiddenSeq) continue;
+      if (hgHiddenSeq !== undefined) this.hgHiddenIDs.delete(hgItem.conversationId);
       hgMap.set(hgItem.conversationId, hgItem);
     }
     if (hgMore || !this.hgListCursor) this.hgListCursor = hgResult.list.at(-1)?.conversationId || this.hgListCursor;
-    await this.hgEmit({ conversations: [...hgMap.values()].sort((hgLeft, hgRight) => BigInt(hgLeft.conversationId) > BigInt(hgRight.conversationId) ? -1 : 1).slice(0, 300),
+    await this.hgEmit({ conversations: [...hgMap.values()].sort((hgLeft, hgRight) => hgLeft.conversationId === this.hgFeaturedId ? -1 : hgRight.conversationId === this.hgFeaturedId ? 1 : BigInt(hgLeft.conversationId) > BigInt(hgRight.conversationId) ? -1 : 1).slice(0, 300),
       moreConversations: hgMore || hgMap.size <= 30 ? hgResult.list.length === 30 : this.hgState.moreConversations });
   }
 
@@ -217,10 +223,44 @@ export default class HGHomeVM {
     if (!hgPeer.trim() || new TextEncoder().encode(hgPeer.trim()).length > 128) throw new Error("请输入有效用户 ID");
     const hgResult = await this.hgAPI.hgCreateConversation(hgPeer.trim()); // 服务端验证双方身份与唯一会话。
     if (!this.hgAlive()) return;
-    if (!this.hgState.conversations.some((hgItem) => hgItem.conversationId === hgResult.conversationId)) {
-      await this.hgEmit({ conversations: [...this.hgState.conversations.slice(0, 299), { conversationId: hgResult.conversationId, peer: { userId: hgPeer.trim(), name: hgPeer.trim() }, lastSeq: 0, lastReadSeq: 0 }] });
-    }
+    if (!/^[1-9]\d*$/.test(hgResult?.conversationId) || hgResult.conversation?.conversationId !== hgResult.conversationId) throw new Error("会话创建响应不合法");
+    hgIMSeq(hgResult.conversation.lastSeq);
+    this.hgFeaturedId = hgResult.conversationId;
+    this.hgHiddenIDs.delete(hgResult.conversationId);
+    await this.hgEmit({ conversations: [hgResult.conversation, ...this.hgState.conversations.filter((hgItem) => hgItem.conversationId !== hgResult.conversationId)].slice(0, 300) });
     await this.hgSelect(hgResult.conversationId);
+  }
+
+  /** 免打扰只写本人设置；服务端确认后再更新会话快照。 */
+  async hgSetMuted(hgID, hgMuted) {
+    await this.hgAPI.hgSetMuted(hgID, hgMuted);
+    if (!this.hgAlive()) return;
+    await this.hgEmit({ conversations: this.hgState.conversations.map((hgItem) => hgItem.conversationId === hgID ? { ...hgItem, muted: hgMuted } : hgItem) });
+  }
+
+  /** 每轮最多清理 400 条，避免网络请求失控；未完成时明确要求用户重试，不隐藏会话。 */
+  async hgDeleteConversation(hgID) {
+    let hgBaseSeq = 0; // 首轮由服务端固定水位，后续批次不得隐去删除期间的新消息。
+    for (let hgBatch = 0; hgBatch < 20; hgBatch++) {
+      const hgResult = await this.hgAPI.hgDeleteConversation(hgID, hgBaseSeq);
+      if (!this.hgAlive()) return;
+      hgIMSeq(hgResult?.baseSeq);
+      hgBaseSeq = hgResult.baseSeq;
+      if (hgResult.hasMore === false) {
+        this.hgHiddenIDs.set(hgID, hgBaseSeq);
+        if (this.hgFeaturedId === hgID) this.hgFeaturedId = "";
+        if (this.hgState.activeId === hgID) {
+          this.hgSelection += 1;
+          this.hgWindowAfter = null;
+        }
+        await this.hgEmit({ error: "", conversations: this.hgState.conversations.filter((hgItem) => hgItem.conversationId !== hgID),
+          ...(this.hgState.activeId === hgID ? { activeId: "", messages: [] } : {}) });
+        this.hgSchedule();
+        return;
+      }
+      if (hgResult.hasMore !== true) throw new Error("删除响应不合法");
+    }
+    throw new Error("历史记录较多，本次已清理部分，请再次点击删除继续清理");
   }
 
   async hgSelect(hgID) {
@@ -244,12 +284,10 @@ export default class HGHomeVM {
       const hgConversation = this.hgState.conversations.find((hgItem) => hgItem.conversationId === hgID); // 最新列表快照。
       let hgAfter = hgReset || this.hgWindowAfter === null ? Math.max(0, (hgConversation?.lastSeq || 0) - 50) : this.hgWindowAfter;
       for (let hgPage = 0; hgPage < 2 && this.hgAlive(); hgPage++) {
-        const hgList = hgIMMessages(await this.hgAPI.hgMessages(hgID, hgAfter)); // 每轮最多两页；剩余由下一轮继续。
+        const hgResult = await this.hgAPI.hgMessages(hgID, hgAfter); // 每轮最多两页；剩余由下一轮继续。
+        const hgList = hgIMMessages(hgResult);
         if (!this.hgAlive() || hgSelection !== this.hgSelection || !this.hgFollow) return;
-        for (const hgItem of hgList) {
-          if (hgItem.seq !== hgAfter + 1) throw new Error("消息序号不连续，请重新同步");
-          hgAfter = hgItem.seq;
-        }
+        hgAfter = hgIMPageAfter(hgList, hgAfter, hgResult.floorSeq);
         const hgMap = new Map((hgReset && hgPage === 0 ? [] : this.hgState.messages).map((hgItem) => [hgItem.messageId, hgItem]));
         hgList.forEach((hgItem) => hgMap.set(hgItem.messageId, hgItem));
         this.hgWindowAfter = hgAfter;
@@ -269,16 +307,14 @@ export default class HGHomeVM {
     this.hgFollow = false;
     await this.hgEmit({ loading: true });
     try {
-      const hgList = hgIMMessages(await this.hgAPI.hgMessages(hgID, hgAfter));
+      const hgResult = await this.hgAPI.hgMessages(hgID, hgAfter);
+      const hgList = hgIMMessages(hgResult);
       if (hgVersion !== this.hgSelection || !this.hgAlive()) return 0;
-      let hgExpected = hgAfter; // 翻页仍按连续 seq 验证，不能因服务端缺页跳过未展示消息。
-      for (const hgItem of hgList) {
-        if (hgItem.seq !== ++hgExpected) throw new Error("消息序号不连续，请重新同步");
-      }
+      hgIMPageAfter(hgList, hgAfter, hgResult.floorSeq); // 仅允许服务端确证的历史前缀缺口。
       const hgCurrent = this.hgState.messages; // 可能已有实时响应；只接受同会话同版本数据。
       const hgEdge = hgDirection === "older" ? hgCurrent[0]?.seq : hgCurrent.at(-1)?.seq; // 本次需要紧邻的序号。
       const hgAdjacent = hgDirection === "older" ? hgList.filter((hgItem) => hgItem.seq < hgEdge) : hgList.filter((hgItem) => hgItem.seq > hgEdge);
-      if (hgAdjacent.length && (hgDirection === "older" ? hgAdjacent.at(-1).seq !== hgEdge - 1 : hgAdjacent[0].seq !== hgEdge + 1)) throw new Error("消息序号不连续，请重新同步");
+      if (hgAdjacent.length && (hgDirection === "older" ? hgAdjacent.at(-1).seq !== hgEdge - 1 : hgAdjacent[0].seq !== hgEdge + 1 && !(hgEdge < hgResult.floorSeq && hgAdjacent[0].seq === hgResult.floorSeq))) throw new Error("消息序号不连续，请重新同步");
       if (hgAdjacent.length) {
         const hgMessages = (hgDirection === "older" ? [...hgAdjacent, ...hgCurrent].slice(0, 200) : [...hgCurrent, ...hgAdjacent].slice(-200)); // 有界窗口。
         const hgLastSeq = this.hgState.conversations.find((hgItem) => hgItem.conversationId === hgID)?.lastSeq || 0;

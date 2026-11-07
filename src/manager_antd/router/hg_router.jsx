@@ -28,6 +28,8 @@ const HGRegisterPage = getHGPageConfig(PAGE.REGISTER).component;
 const HGLoginPage = getHGPageConfig(PAGE.LOGIN).component;
 const HGForgetPasswordPage = getHGPageConfig(PAGE.FORGET_PASSWORD).component;
 const HGProducts = getHGPageConfig(PAGE.PRODUCTS).component;
+// 商品详情独立路由页：路由参数注入 productId，复用 HGMallCatalog 的详情与购买链路。
+const HGProductDetailPage = getHGPageConfig(PAGE.PRODUCT_DETAIL).component;
 const HGMallOrderPage = getHGPageConfig(PAGE.MALL_ORDER_DETAIL).component;
 const HGEditUserPage = getHGPageConfig(PAGE.EDIT_USER_INFO).component;
 const HGAddressBookPage = getHGPageConfig(PAGE.ADDRESS_BOOK).component;
@@ -58,6 +60,7 @@ const hgLazyElement = (element, text = "正在加载页面...") => (
 // 包装布局组件以支持类组件访问路由方法
 const WrappedHGTopNavLayout = WithNavigation(HGTopNavLayout);
 const WrappedHGHomePage = WithNavigation(HGHomePage);
+const WrappedHGUserCenterPage = WithNavigation(HGUserCenterPage);
 const WrappedHGEditUserPage = WithNavigation(HGEditUserPage);
 const WrappedHGAddressBookPage = WithNavigation(HGAddressBookPage);
 const WrappedHGWalletPage = WithNavigation(HGWalletPage);
@@ -65,6 +68,8 @@ const WrappedHGWalletRechargePage = WithNavigation(HGWalletRechargePage);
 // 为记录页注入 location，浏览器后退或路由重新进入时刷新记录。
 const WrappedHGWalletRecordsPage = WithNavigation(HGWalletRecordsPage);
 const WrappedHGMallOrderPage = WithNavigation(HGMallOrderPage);
+// 详情页需要读取路由参数 productId，注入导航能力。
+const WrappedHGProductDetailPage = WithNavigation(HGProductDetailPage);
 const WrappedHGWalletSpendingPage = WithNavigation(HGWalletSpendingPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
@@ -84,6 +89,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.PRODUCTS,
         element: hgLazyElement(<HGProducts />),
+      },
+      {
+        path: ROUTE_PATH.PRODUCT_DETAIL,
+        element: hgLazyElement(<WrappedHGProductDetailPage />, "正在加载商品详情..."),
       },
       {
         path: ROUTE_PATH.MALL_ORDER_DETAIL,
@@ -127,7 +136,7 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.USER_CENTER,
-        element: hgLazyElement(<HGUserCenterPage />),
+        element: hgLazyElement(<WrappedHGUserCenterPage />),
       },
       {
         path: ROUTE_PATH.WALLET,

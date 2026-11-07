@@ -138,6 +138,8 @@ export const HGMANAGER_API = {
   NOTIFICATION_DELETE: "/api/v1/notifications/delete", // 用户级删除通知
   NOTIFICATION_PREFERENCES: "/api/v1/notification/preferences", // 通知偏好读写
   IM_CONVERSATIONS: "/api/v1/im/conversations", // 会话列表
+  IM_CONVERSATION_MUTED: "/api/v1/im/conversations/muted", // 本人会话免打扰
+  IM_CONVERSATION_DELETE: "/api/v1/im/conversations/delete", // 有界删除旧历史并隐藏本人会话
   IM_CONVERSATION_MESSAGES: "/api/v1/im/messages", // 会话历史（conversationId + afterSeq）
   IM_CONVERSATION_READ: "/api/v1/im/read", // 上报已读位置
   IM_SEND: "/api/v1/im/messages", // 发送私信（clientMsgId 幂等）

@@ -2,18 +2,18 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-02-01 22:54:01
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-10-30 20:44:00
+ * @LastEditTime: 2026-11-07 17:52:15
  * @FilePath: /MLC_React/src/manager_antd/page_modules/product/hg_ products_page.jsx
- * @Description: 商品页面外壳（PC 端），目录与详情由 HGMallCatalog 渲染。
+ * @Description: 商品列表页面外壳（PC 端），目录由 HGMallCatalog 渲染；详情走独立路由页。
  */
 import React, { Component } from "react";
 import HGMallCatalog from "../../../pages/mall/hg_mall_catalog.jsx";
 import styles from "./hg_ products.module.css";
 
 /**
- * HGProducts 商品页面外壳。
- * 职责：仅提供 PC 端页面容器、标题条与说明；商品目录与详情交互全部委托给 HGMallCatalog，
- * 不在此处复制请求链或商品状态，保持与商家工作台同一数据源。
+ * HGProducts 商品列表页面外壳。
+ * 职责：仅提供 PC 端页面容器、标题条与说明；商品目录交互委托给 HGMallCatalog，
+ * 点击卡片跳转独立商品详情路由页（/products/:productId），不在此处内联渲染详情。
  */
 class HGProducts extends Component {
   /** 页头条：标题 + 说明，提示当前为公开商品目录。 */
@@ -23,7 +23,7 @@ class HGProducts extends Component {
         <div className={styles.shopHeaderMain}>
           <h1 className={styles.shopTitle}>商品</h1>
           <p className={styles.shopSubtitle}>
-            浏览全部已审核商品，点击卡片查看详情并下单。
+            浏览全部已审核商品，点击卡片进入商品详情页。
           </p>
         </div>
       </header>

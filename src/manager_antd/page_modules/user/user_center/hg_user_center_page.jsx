@@ -77,13 +77,13 @@ class HGUserCenterPage extends Component {
       return <HGMallCatalog hgInitialView="merchant" />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.CONTACTS) {
-      return <HGImContactsPage hgInitialFilter="contacts" />;
+      return <HGImContactsPage hgInitialFilter="contacts" pageNavigator={this.props.pageNavigator} />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.FRIEND_REQUESTS) {
-      return <HGImContactsPage hgInitialFilter="requests" />;
+      return <HGImContactsPage hgInitialFilter="requests" pageNavigator={this.props.pageNavigator} />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.IM_GROUPS) {
-      return <HGImContactsPage hgInitialFilter="groups" />;
+      return <HGImContactsPage hgInitialFilter="groups" pageNavigator={this.props.pageNavigator} />;
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;
   };

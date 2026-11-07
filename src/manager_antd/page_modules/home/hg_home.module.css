@@ -104,6 +104,39 @@
   overscroll-behavior: contain; /* 滚到底后不再把滚动传给页面，避免聊天区被顶出视口 */
 }
 
+.conversationWrap { position: relative; }
+.conversationWrap .conversationItem { padding-right: 34px; }
+.conversationMore {
+  position: absolute;
+  right: 10px;
+  top: 17px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+}
+.conversationMore:hover, .conversationMore[aria-expanded="true"] { background: #e2e8f0; }
+.conversationMenu {
+  position: absolute;
+  z-index: 10;
+  right: 8px;
+  top: 42px;
+  width: 222px;
+  padding: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 16%);
+}
+.conversationMenu button { display: block; width: 100%; padding: 8px; border: 0; border-radius: 5px; background: transparent; text-align: left; cursor: pointer; }
+.conversationMenu button:hover { background: #f1f5f9; }
+.conversationConfirm p { margin: 6px 8px; font-size: 12px; line-height: 1.5; color: #b42318; }
+.conversationConfirm button:first-of-type { color: #b42318; }
+.mutedBadge { flex-shrink: 0; color: #64748b; font-size: 10px; }
+
 .conversationItem {
   display: flex;
   align-items: center;
@@ -277,5 +310,8 @@
   .searchBox { padding: 4px 10px; }
   .conversationList { display: flex; flex-shrink: 0; min-height: 65px; overflow: auto; }
   .conversationItem { min-width: 170px; width: 170px; padding: 6px; }
+  .conversationWrap { flex-shrink: 0; }
+  .conversationMore { top: 13px; right: 2px; }
+  .conversationMenu { position: fixed; top: auto; bottom: 20px; right: 12px; }
   .chatMain { min-height: 0; }
 }

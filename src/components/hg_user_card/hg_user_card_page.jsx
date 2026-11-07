@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-30
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-08-14 20:46:32
+ * @LastEditTime: 2026-11-07 17:34:57
  * @FilePath: /MLC_React/src/components/hg_user_card/hg_user_card_page.jsx
  * @Description: 用户信息卡片组件，展示头像、昵称、简介、关注/粉丝/播放量统计
  */
