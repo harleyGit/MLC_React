@@ -521,6 +521,7 @@ export default class HGHomePage extends React.Component {
                 this.hgVM.hgError(hgError, "历史翻页")
               }
               peerName={hgConversation.peer.name}
+              peerId={hgConversation.peer.userId}
               upload={
                 this.state.hgUpload?.conversationId === hgSnapshot.activeId
                   ? this.state.hgUpload

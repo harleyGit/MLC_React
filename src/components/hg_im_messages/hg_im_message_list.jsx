@@ -3,10 +3,12 @@ import HGIMFileCard from "../hg_im_media/hg_im_file_card.jsx";
 import { HGIMMediaCache } from "../hg_im_media/hg_im_media_cache.js";
 import HGIMMediaPreview from "../hg_im_media/hg_im_media_preview.jsx";
 import { HGRingSpinner } from "../hg_loading_animations/hg_loading_animations.jsx";
+import HGUserProfileStorage from "../../manager_antd/storage/hg_user_profile_storage";
+import { hgIMOwner } from "../../manager_antd/storage/hg_im_session";
 import { hgFormatMessageTime, hgMessageDividerAt } from "./hg_im_message_time.js";
 import styles from "./hg_im_messages.module.css";
 
-/** 头像底色盘：协议没有头像 URL，按名称哈希取色区分联系人。 */
+/** 头像缺失或加载失败时按名称哈希取色，保留可识别的文字占位。 */
 const HG_AVATAR_COLORS = [
   "#5b8def",
   "#f4a13a",
@@ -24,6 +26,21 @@ function hgAvatarColor(hgName) {
   for (const hgChar of String(hgName))
     hgHash = (hgHash * 31 + hgChar.codePointAt(0)) >>> 0;
   return HG_AVATAR_COLORS[hgHash % HG_AVATAR_COLORS.length];
+}
+
+/** 统一渲染真实头像和文字兜底；URL 变化时重建图片以清除旧的加载失败状态。 */
+class HGIMAvatar extends React.Component {
+  render() {
+    const hgName = this.props.name; // 占位字与无障碍名称，资料为空时仍显示默认字。
+    const hgURL = this.props.url; // 仅使用当前账号/会话对应的公开头像 URL；空值展示首字。
+    return (
+      <span className={styles.avatar} style={{ background: hgAvatarColor(hgName) }} aria-label={`${hgName}的头像`}>
+        {[...String(hgName)][0] || "用"}
+        {hgURL && <img key={hgURL} className={styles.avatarImage} src={hgURL} alt=""
+          onError={(hgEvent) => { hgEvent.currentTarget.style.display = "none"; }} />}
+      </span>
+    );
+  }
 }
 
 /** 媒体只在进入列表可视区时自动读取；短暂离屏仍保持组件直到虚拟槽被复用。 */
@@ -103,7 +120,7 @@ class HGIMMessageCell extends React.Component {
     const hgMessage = this.props.message; // 相同 messageId 的气泡在滚动中维持媒体节点身份。
     const hgName = hgMessage.isSelf
       ? "我"
-      : this.props.peerName || hgMessage.senderId || "用户"; // 协议没有头像 URL，使用首字符 + 哈希底色占位。
+      : this.props.peerName || hgMessage.senderId || "用户"; // 缺少资料时仍保留首字符占位。
     const hgKind = hgMessage.messageType;
     return (
       <li ref={this.hgNode} className={styles.message}>
@@ -117,13 +134,7 @@ class HGIMMessageCell extends React.Component {
             hgMessage.isSelf ? styles.mine : ""
           }`}
         >
-          <span
-            className={styles.avatar}
-            style={{ background: hgAvatarColor(hgName) }}
-            aria-label={`${hgName}的头像`}
-          >
-            {[...String(hgName)][0] || "用"}
-          </span>
+          <HGIMAvatar name={hgName} url={hgMessage.isSelf ? this.props.selfAvatarUrl : this.props.peerAvatarUrl} />
           <div className={styles.messageBody}>
             <div className={`${styles.bubble} ${this.hgBubbleClass(hgKind)}`}>
             {hgKind === "text" ? (
@@ -180,7 +191,13 @@ export default class HGIMMessageList extends React.Component {
   hgPinToBottom = true; // 首次测量前保持最新消息在底部；用户上滑后关闭。
   hgClock = null; // 每分钟刷新本地日期/时区；卸载后清理。
   hgTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone; // 设备时区变更时清空旧行高。
-  state = { hgTop: 0, hgViewport: 500, hgNow: new Date() }; // 滚动位置/可视高度（px）及本机展示时钟。
+  state = {
+    hgTop: 0, // 当前滚动位置（px）；初始在列表顶部。
+    hgViewport: 500, // 可视高度估计值（px），挂载后由实际容器更新。
+    hgNow: new Date(), // 本机展示时钟，每分钟刷新一次。
+    hgSelfAvatarUrl: "", // 本人头像 URL；空字符串表示未设置、未读取或读取失败。
+    hgPeerAvatarUrl: "", // 当前会话对方头像 URL；空字符串时展示首字。
+  };
 
   componentDidMount() {
     this.hgMounted = true;
@@ -195,7 +212,25 @@ export default class HGIMMessageList extends React.Component {
     this.hgClock = window.setInterval(this.hgRefreshTime, 60 * 1000);
     this.hgUpdateViewport();
     this.hgScrollToBottom();
+    this.hgLoadAvatars();
   }
+
+  /** 只读取当前会话双方资料，避免按消息数发起 N+1 请求；异步结果按账号和组件生命周期丢弃。 */
+  hgLoadAvatars = () => {
+    const hgOwner = hgIMOwner(); // 挂载时的登录账号；账号切换后不显示旧响应。
+    const hgPeerId = this.props.peerId; // 当前会话对方 ID，缺失时不请求公开资料。
+    const hgCached = HGUserProfileStorage.getUserProfile(); // 同账号短期缓存；失效时再请求本人资料。
+    if (hgCached?.user_id === hgOwner && typeof (hgCached.avatar_url || hgCached.avatarUrl) === "string")
+      this.setState({ hgSelfAvatarUrl: hgCached.avatar_url || hgCached.avatarUrl });
+    else void this.props.api.hgSelfProfile().then((hgSelf) => {
+      if (this.hgMounted && hgIMOwner() === hgOwner && hgSelf?.user_id === hgOwner)
+        this.setState({ hgSelfAvatarUrl: hgSelf.avatar_url || hgSelf.avatarUrl || "" });
+    }).catch(() => { /* 本人资料暂不可用时继续显示首字，不影响聊天。 */ });
+    if (hgPeerId) void this.props.api.hgPeerProfile(hgPeerId).then((hgPeer) => {
+      if (this.hgMounted && hgIMOwner() === hgOwner && hgPeer?.userId === hgPeerId)
+        this.setState({ hgPeerAvatarUrl: hgPeer.avatarUrl || "" });
+    }).catch(() => { /* 好友资料不可用时继续显示首字。 */ });
+  };
 
   componentWillUnmount() {
     this.hgMounted = false;
@@ -441,13 +476,7 @@ export default class HGIMMessageList extends React.Component {
     return (
       <li key={hgUpload.clientMsgId} className={styles.message}>
         <div className={`${styles.messageRow} ${styles.mine}`}>
-          <span
-            className={styles.avatar}
-            style={{ background: hgAvatarColor("我") }}
-            aria-label="我的头像"
-          >
-            我
-          </span>
+          <HGIMAvatar name="我" url={this.state.hgSelfAvatarUrl} />
           <div className={styles.messageBody}>
             <div
               className={`${styles.bubble} ${
@@ -557,6 +586,8 @@ export default class HGIMMessageList extends React.Component {
             now={this.state.hgNow}
             showTime={hgMessageDividerAt(hgMessages, hgStart + hgOffset)}
             peerName={this.props.peerName}
+            selfAvatarUrl={this.state.hgSelfAvatarUrl}
+            peerAvatarUrl={this.state.hgPeerAvatarUrl}
             api={this.props.api}
             cache={this.hgCache}
             scrollRef={this.hgList}

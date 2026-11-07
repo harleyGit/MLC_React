@@ -13,6 +13,8 @@ export default class HGIMAPI {
   }
 
   hgConversations = (cursor = "") => HGNet.get(HGAPI.IM_CONVERSATIONS, cursor ? { cursor } : {}, this.hgOptions);
+  hgSelfProfile = () => HGNet.get(HGAPI.PROFILE, {}, this.hgOptions);
+  hgPeerProfile = (userId) => HGNet.get(HGAPI.IM_CONTACT_PROFILE, { userId }, this.hgOptions);
   hgCreateConversation = (peerId) => HGNet.post(HGAPI.IM_CONVERSATIONS, { peerId }, this.hgOptions);
   hgSetMuted = (conversationId, muted) => HGNet.post(HGAPI.IM_CONVERSATION_MUTED, { conversationId, muted }, this.hgOptions);
   hgDeleteConversation = (conversationId, baseSeq) => HGNet.post(HGAPI.IM_CONVERSATION_DELETE, { conversationId, baseSeq }, this.hgOptions);
