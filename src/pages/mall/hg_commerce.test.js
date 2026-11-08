@@ -49,10 +49,26 @@ test("创建草稿响应丢失时沿用同一正文和幂等键重试", async ()
   await hgInstance.hgSave({ preventDefault() {} });
   assert.match(hgInstance.state.hgError, /结果未知/);
   assert.equal(hgInstance.state.hgPendingCreate.requestId, "req-stable");
+  hgInstance.state.hgCategories = []; // 类目列表重新加载为空时，原创建请求仍须可重试。
+  assert.equal(hgInstance.renderDraftActions().props.children[0].props.children[0].props.disabled, false);
   await hgInstance.hgSave({ preventDefault() {} });
   assert.deepEqual(hgCalls[0], hgCalls[1]);
   assert.equal(hgInstance.state.hgPendingCreate, null);
   assert.equal(hgInstance.state.hgError, "");
+});
+
+test("无可选类目时保存按钮可操作但不能绕过类目必填校验", async () => {
+  let hgCreates = 0; // 未选择经营类目时不得调用创建接口。
+  const hgInstance = hgPage({ create: async () => { hgCreates += 1; } });
+  const hgButton = hgInstance.renderDraftActions().props.children[0].props.children[0]; // fieldset 外的保存按钮。
+  assert.equal(hgButton.props.disabled, false);
+  const hgCategoryHint = hgInstance.renderDraftDetails().props.children[1]; // 空类目提示说明恢复操作。
+  assert.match(hgCategoryHint.props.children, /暂无可经营的普通叶子类目/);
+  await hgInstance.hgSave({ preventDefault() {} });
+  assert.match(hgInstance.state.hgError, /请选择类目/);
+  assert.equal(hgCreates, 0);
+  hgInstance.state.hgBusy = true;
+  assert.equal(hgInstance.renderDraftActions().props.children[0].props.children[0].props.disabled, true);
 });
 
 test("已驳回商品不可直接重审，审核前必须先展开完整待审版本", async () => {

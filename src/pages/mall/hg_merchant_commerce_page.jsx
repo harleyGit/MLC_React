@@ -536,211 +536,227 @@ export default class HGMerchantCommercePage extends React.Component {
     );
   }
 
-  renderDraft() {
-    const { hgDraft, hgCategories, hgBusy, hgPendingCreate } = this.state;
+  /** 草稿基本信息；类目仅展示服务端返回的可经营叶子类目。 */
+  renderDraftDetails() {
+    const { hgDraft, hgCategories } = this.state; // 当前输入与服务端允许选择的类目，空列表表示暂无可选类目。
     return (
-      <form className={styles.publishForm} onSubmit={this.hgSave}>
-        <fieldset
-          className={styles.commerceFieldset}
-          disabled={hgBusy || !!hgPendingCreate}
-        >
-          <legend>
-            {this.state.hgEditing ? "编辑待审版本" : "创建人民币商品草稿"}
-          </legend>
-          <p className={styles.fieldHint}>
-            本期仅开放普通实物商品，人民币商品尚不能下单支付；不会影响 M币商品。
-          </p>
-          <div className={styles.field}>
-            <label htmlFor="commerce-category">经营类目</label>
-            <select
-              id="commerce-category"
-              required
-              value={hgDraft.categoryId}
-              onChange={(hgEvent) =>
-                this.hgUpdateDraft("categoryId", hgEvent.target.value)
-              }
-            >
-              <option value="">请选择已启用叶子类目</option>
-              {hgCategories.map((hgCategory) => (
-                <option
-                  key={hgCategory.categoryId}
-                  value={hgCategory.categoryId}
-                >
-                  {hgCategory.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="commerce-title">商品名称</label>
-            <input
-              id="commerce-title"
-              required
-              maxLength={120}
-              value={hgDraft.title}
-              onChange={(hgEvent) =>
-                this.hgUpdateDraft("title", hgEvent.target.value)
-              }
-            />
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="commerce-subtitle">副标题</label>
-            <input
-              id="commerce-subtitle"
-              maxLength={200}
-              value={hgDraft.subtitle}
-              onChange={(hgEvent) =>
-                this.hgUpdateDraft("subtitle", hgEvent.target.value)
-              }
-            />
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="commerce-description">纯文本介绍</label>
-            <textarea
-              id="commerce-description"
-              maxLength={4096}
-              value={hgDraft.description}
-              onChange={(hgEvent) =>
-                this.hgUpdateDraft("description", hgEvent.target.value)
-              }
-            />
-          </div>
-          <div className={styles.field}>
-            <label htmlFor="commerce-images">
-              展示图片（1-20张，首图为主图）
-            </label>
-            <input
-              id="commerce-images"
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              onChange={this.hgChooseImages}
-            />
-          </div>
-          <div className={styles.imgGrid}>
-            {hgDraft.imageURLs.map((hgURL) => (
-              <div key={hgURL} className={styles.imgItem}>
-                <img src={normalizeVideoCoverUrl(hgURL)} alt="已绑定商品图片" />
-                <button
-                  type="button"
-                  className={styles.btnGhost}
-                  onClick={() =>
-                    this.hgUpdateDraft(
-                      "imageURLs",
-                      hgDraft.imageURLs.filter((hgImage) => hgImage !== hgURL)
-                    )
-                  }
-                >
-                  不用于新版
-                </button>
-              </div>
-            ))}
-            {this.state.hgPreviews.map((hgURL, hgIndex) => (
-              <div key={hgURL} className={styles.imgItem}>
-                <img src={hgURL} alt="本地图片预览" />
-                <button
-                  type="button"
-                  className={styles.btnGhost}
-                  disabled={!!this.state.hgUploaded.length}
-                  onClick={() => this.hgRemoveLocalImage(hgIndex)}
-                >
-                  移除此图
-                </button>
-              </div>
-            ))}
-          </div>
-          <h3 className={styles.subTitle}>销售规格（最多200款）</h3>
-          {hgDraft.skus.map((hgSKU, hgIndex) => (
-            <div
-              className={styles.commerceSku}
-              key={`${this.state.hgEditing || "new"}-${hgIndex}`}
-            >
-              <label>
-                编码
-                <input
-                  required
-                  maxLength={64}
-                  value={hgSKU.skuCode}
-                  onChange={(hgEvent) =>
-                    this.hgSku(hgIndex, "skuCode", hgEvent.target.value)
-                  }
-                />
-              </label>
-              <label>
-                规格（例：颜色:黑色,容量:256GB）
-                <input
-                  value={hgSKU.specs}
-                  onChange={(hgEvent) =>
-                    this.hgSku(hgIndex, "specs", hgEvent.target.value)
-                  }
-                />
-              </label>
-              <label>
-                单买价（元）
-                <input
-                  required
-                  inputMode="decimal"
-                  value={hgSKU.price}
-                  onChange={(hgEvent) =>
-                    this.hgSku(hgIndex, "price", hgEvent.target.value)
-                  }
-                />
-              </label>
-              <label>
-                初始库存（件）
-                <input
-                  required
-                  inputMode="numeric"
-                  value={hgSKU.stock}
-                  onChange={(hgEvent) =>
-                    this.hgSku(hgIndex, "stock", hgEvent.target.value)
-                  }
-                />
-              </label>
-              {hgDraft.skus.length > 1 && (
-                <button
-                  type="button"
-                  className={styles.btnGhost}
-                  onClick={() =>
-                    this.hgUpdateDraft(
-                      "skus",
-                      hgDraft.skus.filter((_, hgOffset) => hgOffset !== hgIndex)
-                    )
-                  }
-                >
-                  移除规格
-                </button>
-              )}
-            </div>
-          ))}
-          <button
-            type="button"
-            className={styles.btnGhost}
-            disabled={hgDraft.skus.length >= 200}
-            onClick={() =>
-              this.hgUpdateDraft("skus", [
-                ...hgDraft.skus,
-                { skuCode: "", specs: "", price: "", stock: "" },
-              ])
+      <>
+        <div className={styles.field}>
+          <label htmlFor="commerce-category">经营类目</label>
+          <select
+            id="commerce-category"
+            required
+            value={hgDraft.categoryId}
+            onChange={(hgEvent) =>
+              this.hgUpdateDraft("categoryId", hgEvent.target.value)
             }
           >
-            添加规格
-          </button>
-        </fieldset>
-        <div className={styles.actions}>
-          <button
-            type="submit"
-            className={styles.btn}
-            disabled={hgBusy || !hgCategories.length}
+            <option value="">请选择已启用叶子类目</option>
+            {hgCategories.map((hgCategory) => (
+              <option
+                key={hgCategory.categoryId}
+                value={hgCategory.categoryId}
+              >
+                {hgCategory.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {!hgCategories.length && !hgDraft.categoryId && (
+          <p className={styles.fieldHint}>
+            暂无可经营的普通叶子类目，请联系管理员创建或启用类目后再保存草稿。
+          </p>
+        )}
+        <div className={styles.field}>
+          <label htmlFor="commerce-title">商品名称</label>
+          <input
+            id="commerce-title"
+            required
+            maxLength={120}
+            value={hgDraft.title}
+            onChange={(hgEvent) =>
+              this.hgUpdateDraft("title", hgEvent.target.value)
+            }
+          />
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="commerce-subtitle">副标题</label>
+          <input
+            id="commerce-subtitle"
+            maxLength={200}
+            value={hgDraft.subtitle}
+            onChange={(hgEvent) =>
+              this.hgUpdateDraft("subtitle", hgEvent.target.value)
+            }
+          />
+        </div>
+        <div className={styles.field}>
+          <label htmlFor="commerce-description">纯文本介绍</label>
+          <textarea
+            id="commerce-description"
+            maxLength={4096}
+            value={hgDraft.description}
+            onChange={(hgEvent) =>
+              this.hgUpdateDraft("description", hgEvent.target.value)
+            }
+          />
+        </div>
+      </>
+    );
+  }
+
+  /** 已绑定图片与本地预览分开展示；未上传前可移除本地图片。 */
+  renderDraftImages() {
+    const { hgDraft, hgPreviews, hgUploaded } = this.state; // 图片 URL、预览及已上传项均属于当前草稿批次。
+    return (
+      <>
+        <div className={styles.field}>
+          <label htmlFor="commerce-images">
+            展示图片（1-20张，首图为主图）
+          </label>
+          <input
+            id="commerce-images"
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            onChange={this.hgChooseImages}
+          />
+        </div>
+        <div className={styles.imgGrid}>
+          {hgDraft.imageURLs.map((hgURL) => (
+            <div key={hgURL} className={styles.imgItem}>
+              <img src={normalizeVideoCoverUrl(hgURL)} alt="已绑定商品图片" />
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() =>
+                  this.hgUpdateDraft(
+                    "imageURLs",
+                    hgDraft.imageURLs.filter((hgImage) => hgImage !== hgURL)
+                  )
+                }
+              >
+                不用于新版
+              </button>
+            </div>
+          ))}
+          {hgPreviews.map((hgURL, hgIndex) => (
+            <div key={hgURL} className={styles.imgItem}>
+              <img src={hgURL} alt="本地图片预览" />
+              <button
+                type="button"
+                className={styles.btnGhost}
+                disabled={!!hgUploaded.length}
+                onClick={() => this.hgRemoveLocalImage(hgIndex)}
+              >
+                移除此图
+              </button>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  /** 单行 SKU 保留原有输入顺序和最多 200 款的限制。 */
+  renderDraftSkus() {
+    const { hgDraft, hgEditing } = this.state; // SKU 输入来自当前草稿；编辑 ID 用于区分创建与编辑的列表键。
+    return (
+      <>
+        <h3 className={styles.subTitle}>销售规格（最多200款）</h3>
+        {hgDraft.skus.map((hgSKU, hgIndex) => (
+          <div
+            className={styles.commerceSku}
+            key={`${hgEditing || "new"}-${hgIndex}`}
           >
+            <label>
+              编码
+              <input
+                required
+                maxLength={64}
+                value={hgSKU.skuCode}
+                onChange={(hgEvent) =>
+                  this.hgSku(hgIndex, "skuCode", hgEvent.target.value)
+                }
+              />
+            </label>
+            <label>
+              规格（例：颜色:黑色,容量:256GB）
+              <input
+                value={hgSKU.specs}
+                onChange={(hgEvent) =>
+                  this.hgSku(hgIndex, "specs", hgEvent.target.value)
+                }
+              />
+            </label>
+            <label>
+              单买价（元）
+              <input
+                required
+                inputMode="decimal"
+                value={hgSKU.price}
+                onChange={(hgEvent) =>
+                  this.hgSku(hgIndex, "price", hgEvent.target.value)
+                }
+              />
+            </label>
+            <label>
+              初始库存（件）
+              <input
+                required
+                inputMode="numeric"
+                value={hgSKU.stock}
+                onChange={(hgEvent) =>
+                  this.hgSku(hgIndex, "stock", hgEvent.target.value)
+                }
+              />
+            </label>
+            {hgDraft.skus.length > 1 && (
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() =>
+                  this.hgUpdateDraft(
+                    "skus",
+                    hgDraft.skus.filter((_, hgOffset) => hgOffset !== hgIndex)
+                  )
+                }
+              >
+                移除规格
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          className={styles.btnGhost}
+          disabled={hgDraft.skus.length >= 200}
+          onClick={() =>
+            this.hgUpdateDraft("skus", [
+              ...hgDraft.skus,
+              { skuCode: "", specs: "", price: "", stock: "" },
+            ])
+          }
+        >
+          添加规格
+        </button>
+      </>
+    );
+  }
+
+  /** 保存与重置保持在 fieldset 外，结果未知时允许重试原创建请求。 */
+  renderDraftActions() {
+    const { hgBusy, hgPendingCreate, hgUploaded } = this.state; // 写入中禁用操作；待确认请求只允许原样重试。
+    return (
+      <>
+        <div className={styles.actions}>
+          <button type="submit" className={styles.btn} disabled={hgBusy}>
             {hgPendingCreate ? "重试同一次创建" : "保存草稿"}
           </button>
           <button
             type="button"
             className={styles.btnGhost}
-            disabled={
-              hgBusy || !!hgPendingCreate || !!this.state.hgUploaded.length
-            }
+            disabled={hgBusy || !!hgPendingCreate || !!hgUploaded.length}
             onClick={() => {
               this.hgRelease();
               this.setState({
@@ -761,6 +777,30 @@ export default class HGMerchantCommercePage extends React.Component {
             创建结果未知，表单已冻结；请用同一请求重试，不要重复创建。
           </p>
         )}
+      </>
+    );
+  }
+
+  /** 草稿表单组装；冻结待确认的创建正文，但不阻断同一请求的重试。 */
+  renderDraft() {
+    const { hgBusy, hgPendingCreate } = this.state; // fieldset 禁用期间不允许修改请求正文。
+    return (
+      <form className={styles.publishForm} onSubmit={this.hgSave}>
+        <fieldset
+          className={styles.commerceFieldset}
+          disabled={hgBusy || !!hgPendingCreate}
+        >
+          <legend>
+            {this.state.hgEditing ? "编辑待审版本" : "创建人民币商品草稿"}
+          </legend>
+          <p className={styles.fieldHint}>
+            本期仅开放普通实物商品，人民币商品尚不能下单支付；不会影响 M币商品。
+          </p>
+          {this.renderDraftDetails()}
+          {this.renderDraftImages()}
+          {this.renderDraftSkus()}
+        </fieldset>
+        {this.renderDraftActions()}
       </form>
     );
   }
