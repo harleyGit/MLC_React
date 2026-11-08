@@ -44,6 +44,8 @@ export const HGMANAGER_API = {
   MALL_CNY_PRODUCTS: "/api/v1/mall/cny/products", // 独立人民币商品目录
   COMMERCE_CATEGORIES: "/api/v1/commerce/merchant/categories", // 生产 CNY 本店叶子类目
   COMMERCE_CATEGORY_CREATE: "/api/v1/commerce/admin/categories", // 平台维护类目
+  COMMERCE_CATEGORY_EDIT: "/api/v1/commerce/admin/categories/edit", // 平台维护类目编辑；后端尚未实现，为前端预留契约
+  COMMERCE_CATEGORY_DELETE: "/api/v1/commerce/admin/categories/delete", // 平台维护类目删除；后端尚未实现，为前端预留契约
   COMMERCE_CREATE: "/api/v1/commerce/merchant/products", // CNY 商品草稿，需幂等请求头
   COMMERCE_EDIT: "/api/v1/commerce/merchant/products/edit", // 本人草稿编辑
   COMMERCE_MINE: "/api/v1/commerce/merchant/products", // 本人 CNY 商品游标页
@@ -60,6 +62,20 @@ export const HGMANAGER_API = {
   COMMERCE_IMAGE: "/api/v1/commerce/merchant/images", // 本人商品图片上传
   COMMERCE_IMAGES_UNUSED: "/api/v1/commerce/merchant/images/unused", // 未使用资产
   COMMERCE_IMAGE_DELETE: "/api/v1/commerce/merchant/images/delete", // 本人未绑定资产清理
+  COMMERCE_STOCK: "/api/v1/commerce/merchant/inventory", // 本店 debug 库存版本与数量
+  COMMERCE_STOCK_ADJUST: "/api/v1/commerce/merchant/inventory/adjust", // 本店 debug 有审计的盘点
+  COMMERCE_QUOTE: "/api/v1/commerce/orders/preview", // 生产 CNY debug 服务端报价
+  COMMERCE_ORDER_CREATE: "/api/v1/commerce/orders", // 生产 CNY debug 库存预占
+  COMMERCE_ORDERS: "/api/v1/commerce/orders", // 本人订单游标页
+  COMMERCE_ORDER_DETAIL: "/api/v1/commerce/orders/detail", // 本人订单详情
+  COMMERCE_ORDER_PAY: "/api/v1/commerce/orders/payment", // 仅创建 debug 模拟待回调尝试
+  COMMERCE_ORDER_CANCEL: "/api/v1/commerce/orders/cancel", // 本人未付订单取消
+  COMMERCE_ORDER_REFUND: "/api/v1/commerce/orders/refund", // 本人模拟未发货退款
+  COMMERCE_SELLER_ORDERS: "/api/v1/commerce/merchant/orders", // 本店已付订单游标页
+  COMMERCE_SELLER_DETAIL: "/api/v1/commerce/merchant/orders/detail", // 本店已付订单详情
+  COMMERCE_ORDER_SHIP: "/api/v1/commerce/merchant/orders/ship", // 本店模拟已付订单发货
+  COMMERCE_SIM_SETTLE: "/api/v1/commerce/admin/simulated-payment/settle", // 审核员触发独立模拟验签事件
+  COMMERCE_SIM_RECONCILE: "/api/v1/commerce/admin/simulated-payment/reconcile", // 审核员只读模拟漂移
   MALL_CNY_DETAIL: "/api/v1/mall/cny/products/detail", // 人民币商品详情
   MALL_CNY_PUBLISH: "/api/v1/mall/cny/products/publish", // debug 沙箱商家发布
   MALL_CNY_COUPON_CREATE: "/api/v1/mall/cny/coupons/create", // debug 沙箱创建券

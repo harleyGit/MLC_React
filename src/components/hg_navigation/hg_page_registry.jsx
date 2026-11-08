@@ -18,7 +18,16 @@ const components = {
   ADD_CONTACT: lazy(() => import("../../pages/im_contacts/hg_add_contact_page")), // 添加联系人：由聊天首页侧栏进入的分步向导页。
   PRODUCTS: lazy(() => import("../../manager_antd/page_modules/product/hg_ products_page")),
   PRODUCT_DETAIL: lazy(() => import("../../manager_antd/page_modules/product/hg_product_detail_page")), // 商品详情独立路由页。
+  MALL_CNY: lazy(() => import("../../pages/mall/hg_mall_cny_page.jsx")), // 人民币沙箱商城（列表/详情/模拟订单共用页面）。
+  MALL_CNY_DETAIL: lazy(() => import("../../pages/mall/hg_mall_cny_page.jsx")),
+  MALL_CNY_ORDER: lazy(() => import("../../pages/mall/hg_mall_cny_page.jsx")),
+  COMMERCE_PRODUCTS: lazy(() => import("../../pages/mall/hg_commerce_catalog_page.jsx")), // 生产人民币商品只读目录。
+  COMMERCE_DETAIL: lazy(() => import("../../pages/mall/hg_commerce_catalog_page.jsx")),
+  COMMERCE_DEBUG_TRADE: lazy(() => import("../../pages/mall/hg_commerce_debug_trade_page.jsx")), // 隔离模拟交易工作台。
   MALL_ORDER_DETAIL: lazy(() => import("../../pages/mall/hg_mall_order_page.jsx")), // 商品订单详情独立路由。
+  COMMERCE_CATEGORY_CREATE: lazy(() => import("../../pages/mall/hg_commerce_category_create_page.jsx")), // 平台普通类目新建页。
+  COMMERCE_CATEGORY_EDIT: lazy(() => import("../../pages/mall/hg_commerce_category_edit_page.jsx")), // 平台普通类目编辑页。
+  COMMERCE_CATEGORY_DELETE: lazy(() => import("../../pages/mall/hg_commerce_category_delete_page.jsx")), // 平台普通类目删除确认页。
   DEFAULT: HGHomePage,
   HOME: HGHomePage,
   USER_PROFILE: lazy(() => import("../../manager_antd/page_modules/user/hg_user_profile_page")),

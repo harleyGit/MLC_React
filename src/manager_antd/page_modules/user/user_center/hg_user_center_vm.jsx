@@ -11,6 +11,7 @@ export const USER_CENTER_MENU_KEYS = {
   MERCHANT_PUBLISH: "merchant_publish", // 商家中心 → 新增商品（发布草稿与图片）。
   MERCHANT_ORDERS: "merchant_orders", // 商家中心 → 本店实物订单与发货。
   MERCHANT_COMMERCE: "merchant_commerce", // 独立生产人民币商品草稿、审核与上架；不包含交易。
+  MERCHANT_COMMERCE_CATEGORY: "merchant_commerce_category", // 平台普通类目管理（列表、新建、编辑与删除）。
   CONTACTS: "im_contacts", // 即时通信 → 联系人（通讯录，好友按字母分组）。
   FRIEND_REQUESTS: "im_requests", // 即时通信 → 新的朋友（好友申请接受/拒绝）。
   IM_GROUPS: "im_groups", // 即时通信 → 群组（群聊列表与群资料）。
@@ -39,6 +40,7 @@ export const USER_CENTER_MENU_ITEMS = [
       { key: USER_CENTER_MENU_KEYS.MERCHANT_PUBLISH, label: "新增商品" },
       { key: USER_CENTER_MENU_KEYS.MERCHANT_ORDERS, label: "本店订单与发货" },
       { key: USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE, label: "人民币商品·发布审核" },
+      { key: USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE_CATEGORY, label: "普通类目管理" },
     ],
   },
   {

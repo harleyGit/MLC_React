@@ -8,7 +8,10 @@ import React from "react";
 /** 编译真实源码；仅允许显式依赖替身，不提供浏览器、网络或任意 require。 */
 function hgLoadSource(hgPath, hgDependencies = {}) {
   const hgModule = { exports: {} };
-  const hgCode = transformSync(readFileSync(new URL(hgPath, import.meta.url), "utf8"), {
+  // Node VM 不支持 import.meta；页面里的 Vite 环境判断以 debug 常量替换，仅影响测试转换。
+  const hgSource = readFileSync(new URL(hgPath, import.meta.url), "utf8")
+    .replace(/import\.meta\.env\.MODE/g, '"debug"');
+  const hgCode = transformSync(hgSource, {
     filename: hgPath,
     jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" },
     module: { type: "commonjs" },
@@ -89,8 +92,15 @@ test("真实路由为首页、商品订单、钱包及独立记录页注入导�
   });
   const hgHome = hgLoadSource("../../manager_antd/page_modules/home/hg_home_page.jsx", {
     "../../../components/hg_button/hg_button_page": "button",
+    "../../../components/hg_chat_input/hg_chat_input": "div", // 首页聊天输入组件替身；本例只验证路由注入。
+    "../../../components/hg_icon/hg_icon_page": "div",
+    "../../../components/hg_im_call/hg_im_call_panel": "div",
+    "../../../components/hg_im_messages/hg_im_message_list": "div",
+    "../../../components/hg_im_messages/hg_im_message_time.js": { hgFormatConversationTime: () => "" },
     "../../auth/hg_auth": { logout: () => assert.fail("此例不退出登录") },
     "./hg_home.module.css": {},
+    "./hg_home_vm": { default: function HGHomeVMStub() {} },
+    "./hg_im_connection_events": { HG_IM_RECONNECT_EVENT: "hg-im-reconnect" },
     "../../../components/hg_navigation/hg_page_registry": hgRegistry,
   }).default;
   const hgWallet = hgLoadSource("../../manager_antd/page_modules/user/wallet/hg_wallet_page.jsx", {
@@ -158,8 +168,8 @@ test("真实路由为首页、商品订单、钱包及独立记录页注入导�
     hgAssertInjection(hgPage, hgHarness);
     assert.equal(hgPage.type, hgExpected);
 
-    // 首页直接实例化真实类型；钱包复用路由注入 props，不触发 lazy 加载或挂载请求。
-    if (hgExpected === hgHome) new hgPage.type(hgPage.props).viewPersonalProfile();
+    // 首页直接实例化真实类型即可；旧版资料入口方法已随首页重构移除，不再断言其导航行为。
+    if (hgExpected === hgHome) new hgPage.type(hgPage.props);
     if (hgPath === "/account/wallet") {
       const hgInstance = new hgWallet(hgPage.props);
       hgInstance.handleBack();
@@ -167,9 +177,8 @@ test("真实路由为首页、商品订单、钱包及独立记录页注入导�
     }
   }
   assert.deepEqual(hgHarness.hgCalls.map((hgCall) => hgCall.page), [
-    hgRegistry.PAGE.USER_PROFILE, hgRegistry.PAGE.USER_PROFILE,
     hgRegistry.PAGE.EDIT_USER_INFO, hgRegistry.PAGE.WALLET_RECHARGE,
   ]);
-  assert.equal(hgHarness.hgCalls[3].params.source, "wallet");
-  assert.equal(typeof hgHarness.hgCalls[3].onSuccess, "function");
+  assert.equal(hgHarness.hgCalls[1].params.source, "wallet");
+  assert.equal(typeof hgHarness.hgCalls[1].onSuccess, "function");
 });

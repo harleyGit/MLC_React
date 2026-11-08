@@ -10,11 +10,13 @@ import { hgYuanToCent } from "./hg_commerce_amount.js";
 function hgPage(hgCommerce, hgLegacy = {}, hgCrypto = { randomUUID: () => "req-stable" }) {
   const hgModule = { exports: {} }; // SWC 转换后的模块导出。
   const hgSource = readFileSync(new URL("./hg_merchant_commerce_page.jsx", import.meta.url), "utf8"); // 被测商家页面源码。
-  const hgCode = transformSync(hgSource, { filename: "hg_merchant_commerce_page.jsx", jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" }, module: { type: "commonjs" } }).code; // JSX 转换不改变业务逻辑。
+  const hgCode = transformSync(hgSource.replaceAll("import.meta.env.MODE", JSON.stringify("debug")), { filename: "hg_merchant_commerce_page.jsx", jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" }, module: { type: "commonjs" } }).code; // VM 没有 Vite 的 import.meta；仅为测试显式注入 debug 模式，其他逻辑不变。
   runInNewContext(hgCode, {
     module: hgModule, exports: hgModule.exports, URL: { revokeObjectURL() {}, createObjectURL: () => "blob:preview" }, window: { confirm: () => true },
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
+      if (hgDependency === "react-router-dom") return { Link: "a" };
+      if (hgDependency.endsWith("hg_route_path.jsx")) return { ROUTE_PATH: { COMMERCE_DEBUG_TRADE: "/mall/commerce-debug" } };
       if (hgDependency.endsWith("hg_commerce_vm.js")) return { default: hgCommerce, __esModule: true };
       if (hgDependency.endsWith("hg_mall_vm.js")) return { default: hgLegacy, __esModule: true };
       if (hgDependency.endsWith("hg_commerce_amount.js")) return { hgYuanToCent, hgCentToYuan: (hgCent) => `¥${(hgCent / 100).toFixed(2)}` };

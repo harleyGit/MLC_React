@@ -56,7 +56,8 @@ export default class HGCommerceCatalogPage extends React.Component {
         {hgDetail.imageURLs?.length && <div className={styles.imgGrid}>{hgDetail.imageURLs.map((hgURL, hgIndex) => <img key={hgURL} src={normalizeVideoCoverUrl(hgURL)} alt={`商品展示图 ${hgIndex + 1}`} loading="lazy" />)}</div>}
         <h1>{hgDetail.title}</h1><p>{hgDetail.subtitle}</p><p>{hgDetail.description}</p>
         <div className={styles.commerceSku}>{hgDetail.skus?.map((hgSKU) => <div key={hgSKU.skuId}><strong>{hgSKU.skuCode}</strong><p>{Object.entries(hgSKU.specs || {}).map(([hgKey, hgValue]) => `${hgKey}：${hgValue}`).join(" · ") || "默认规格"}</p><span className={styles.price}>{hgCentToYuan(hgSKU.priceCent)}</span></div>)}</div>
-        <p className={styles.formHint}>当前仅展示审核价格与规格，库存数字不是可购买保证。</p>
+        <p className={styles.formHint}>公开价格不代表已锁库存或已完成付款；正式支付宝/微信支付尚未开放。</p>
+        {import.meta.env.MODE === "debug" && <Link to={`${ROUTE_PATH.COMMERCE_DEBUG_TRADE}?productId=${encodeURIComponent(hgDetail.productId)}`}>前往隔离模拟下单与支付测试（不是真实付款）</Link>}
       </> : this.props.params?.productId ? <div className={styles.empty}>找不到这件已上架的商品</div> : <>
         <div className={styles.grid}>{hgItems.map((hgItem) => this.renderCard(hgItem))}</div>
         {!hgItems.length && <div className={styles.empty}><strong>暂无已上架商品</strong><span>商家完成审核并确认上架后即可在此展示。</span></div>}

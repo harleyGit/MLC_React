@@ -11,6 +11,7 @@ import HGMerchantProductsPage from "../../../../pages/mall/hg_merchant_products_
 import HGMerchantPublishPage from "../../../../pages/mall/hg_merchant_publish_page";
 import HGMerchantOrdersPage from "../../../../pages/mall/hg_merchant_orders_page";
 import HGMerchantCommercePage from "../../../../pages/mall/hg_merchant_commerce_page";
+import HGCommerceCategoryPage from "../../../../pages/mall/hg_commerce_category_page";
 import HGImContactsPage from "../../../../pages/im_contacts/hg_im_contacts_page";
 import HGUserCenterVM, {
   USER_CENTER_MENU_ITEMS,
@@ -92,6 +93,10 @@ class HGUserCenterPage extends Component {
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE) {
       return <HGMerchantCommercePage />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE_CATEGORY) {
+      // 类目管理列表；新建/编辑/删除由列表页内的路由链接进入独立页面。
+      return <HGCommerceCategoryPage />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.CONTACTS) {
       return <HGImContactsPage hgInitialFilter="contacts" pageNavigator={this.props.pageNavigator} />;

@@ -1,4 +1,6 @@
 import React from "react";
+import { Link } from "react-router-dom";
+import { ROUTE_PATH } from "../../components/hg_navigation/hg_route_path.jsx";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import { hgCentToYuan, hgYuanToCent } from "./hg_commerce_amount.js";
 import HGCommerceVM from "./hg_commerce_vm.js";
@@ -38,8 +40,6 @@ export default class HGMerchantCommercePage extends React.Component {
     hgPendingNext: "", // 管理员审核队列下一页游标。
     hgReviewDetail: null, // 当前选中的待审版本全量资料；null 表示尚未打开详情。
     hgReason: "", // 拒绝商品时的必要纯文本原因；空字符串不可用于驳回。
-    hgCategoryName: "", // 管理员创建普通类目时的名称；空表示未填写。
-    hgCategoryParent: "", // 管理员创建类目的上级 ID；空表示一级。
     hgLoading: true, // 首次加载请求期间展示等待反馈。
     hgBusy: false, // 写操作同步门闩对应的视图禁用状态。
     hgError: "", // 最近一次失败提示，空表示没有错误。
@@ -397,20 +397,6 @@ export default class HGMerchantCommercePage extends React.Component {
       await this.hgLoadPending();
       if (this.hgMounted) this.setState({ hgReason: "" });
     }, "审核结果已保存");
-
-  hgCreateCategory = (hgEvent) => {
-    hgEvent.preventDefault();
-    this.hgWrite(async () => {
-      await HGCommerceVM.createCategory({
-        name: this.state.hgCategoryName.trim(),
-        parentId: this.state.hgCategoryParent.trim(),
-        regulated: false,
-      });
-      if (this.hgMounted)
-        this.setState({ hgCategoryName: "", hgCategoryParent: "" });
-      if (this.state.hgMerchant?.status === 1) await this.hgReloadMerchant();
-    }, "类目已创建；只有普通叶子类目可供发布");
-  };
 
   hgDeleteImage = (hgURL) =>
     this.hgWrite(async () => {
@@ -794,7 +780,7 @@ export default class HGMerchantCommercePage extends React.Component {
             {this.state.hgEditing ? "编辑待审版本" : "创建人民币商品草稿"}
           </legend>
           <p className={styles.fieldHint}>
-            本期仅开放普通实物商品，人民币商品尚不能下单支付；不会影响 M币商品。
+            普通实物商品的正式支付宝/微信支付尚未开放；debug 隔离模拟交易不影响 M币商品。
           </p>
           {this.renderDraftDetails()}
           {this.renderDraftImages()}
@@ -815,6 +801,7 @@ export default class HGMerchantCommercePage extends React.Component {
       },
     }));
 
+  /** 平台审核区只保留待审队列；普通类目维护已独立为「普通类目管理」子菜单页面。 */
   renderAdmin() {
     if (!this.state.hgCanReview) return null;
     return (
@@ -823,33 +810,6 @@ export default class HGMerchantCommercePage extends React.Component {
           <h3>平台审核 · 人民币商品</h3>
         </div>
         <div className={styles.sectionBody}>
-          <form className={styles.actions} onSubmit={this.hgCreateCategory}>
-            <input
-              aria-label="新类目名称"
-              required
-              maxLength={64}
-              placeholder="新普通类目名称"
-              value={this.state.hgCategoryName}
-              onChange={(hgEvent) =>
-                this.setState({ hgCategoryName: hgEvent.target.value })
-              }
-            />
-            <input
-              aria-label="上级类目 ID"
-              placeholder="上级 ID，一级留空"
-              value={this.state.hgCategoryParent}
-              onChange={(hgEvent) =>
-                this.setState({ hgCategoryParent: hgEvent.target.value })
-              }
-            />
-            <button
-              type="submit"
-              className={styles.btnGhost}
-              disabled={this.state.hgBusy}
-            >
-              添加普通类目
-            </button>
-          </form>
           {this.state.hgPending.length ? (
             this.state.hgPending.map((hgItem) => (
               <div key={hgItem.productId} className={styles.pendingPanel}>
@@ -980,9 +940,9 @@ export default class HGMerchantCommercePage extends React.Component {
             )}
           </div>
           <p className={styles.desc}>
-            与 M币商品及 debug
-            模拟商城独立；目前只支持普通实物商品的草稿、审核和展示。尚未开放人民币下单或付款。
+            与 M币商品及旧 debug 模拟商城独立；正式人民币付款仍未开放，debug 可在独立测试工作台验证模拟交易。
           </p>
+          {import.meta.env.MODE === "debug" && <p><Link to={ROUTE_PATH.COMMERCE_DEBUG_TRADE}>打开隔离模拟交易工作台（库存盘点 / 本店发货）</Link></p>}
           {hgLoading ? (
             <p role="status" className={styles.loading}>
               正在加载商家商品...

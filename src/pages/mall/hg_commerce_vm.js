@@ -5,6 +5,9 @@ export default class HGCommerceVM {
   static hgRequest(method, key, params) { return HGMallVM.request(method, key, params); }
   static categories() { return this.hgRequest("get", "COMMERCE_CATEGORIES"); }
   static createCategory(body) { return this.hgRequest("post", "COMMERCE_CATEGORY_CREATE", body); }
+  // 编辑/删除为前端预留契约：后端实现前调用会失败，页面须如实展示服务端错误。
+  static editCategory(categoryId, body) { return this.hgPostWithQuery("COMMERCE_CATEGORY_EDIT", categoryId, body); }
+  static deleteCategory(categoryId) { return this.hgRequest("post", "COMMERCE_CATEGORY_DELETE", { categoryId }); }
   static mine(cursor = "") { return this.hgRequest("get", "COMMERCE_MINE", { cursor }); }
   static mineDetail(productId) { return this.hgRequest("get", "COMMERCE_MINE_DETAIL", { productId }); }
   static products(cursor = "") { return this.hgRequest("get", "COMMERCE_PRODUCTS", { cursor }); }
@@ -19,6 +22,22 @@ export default class HGCommerceVM {
   static review(productId, approve, reason = "") { return this.hgRequest("post", "COMMERCE_REVIEW", { productId, approve, reason }); }
   static unusedImages() { return this.hgRequest("get", "COMMERCE_IMAGES_UNUSED"); }
   static deleteImage(imageURL) { return this.hgRequest("post", "COMMERCE_IMAGE_DELETE", { imageURL }); }
+  /** debug 交易使用同一 JWT/签名网络层；pre/prod 的真实支付不复用这些模拟接口。 */
+  static addresses() { return this.hgRequest("get", "PROFILE_ADDRESSES"); }
+  static stock(productId, skuCode) { return this.hgRequest("get", "COMMERCE_STOCK", { productId, skuCode }); }
+  static adjustStock(body) { return this.hgRequest("post", "COMMERCE_STOCK_ADJUST", body); }
+  static quote(body) { return this.hgRequest("post", "COMMERCE_QUOTE", body); }
+  static order(body) { return this.hgRequest("post", "COMMERCE_ORDER_CREATE", body); }
+  static orders(cursor = "") { return this.hgRequest("get", "COMMERCE_ORDERS", { cursor }); }
+  static orderDetail(orderId) { return this.hgRequest("get", "COMMERCE_ORDER_DETAIL", { orderId }); }
+  static pay(orderId) { return this.hgRequest("post", "COMMERCE_ORDER_PAY", { orderId }); }
+  static cancel(orderId) { return this.hgRequest("post", "COMMERCE_ORDER_CANCEL", { orderId }); }
+  static refund(orderId) { return this.hgRequest("post", "COMMERCE_ORDER_REFUND", { orderId }); }
+  static sellerOrders(cursor = "") { return this.hgRequest("get", "COMMERCE_SELLER_ORDERS", { cursor }); }
+  static sellerDetail(orderId) { return this.hgRequest("get", "COMMERCE_SELLER_DETAIL", { orderId }); }
+  static ship(body) { return this.hgRequest("post", "COMMERCE_ORDER_SHIP", body); }
+  static settle(orderId) { return this.hgRequest("post", "COMMERCE_SIM_SETTLE", { orderId }); }
+  static reconcile(orderId) { return this.hgRequest("get", "COMMERCE_SIM_RECONCILE", { orderId }); }
 
   /** 创建草稿以独立请求头承载幂等键，失败后调用方必须重放同一正文和 key。 */
   static async create(body, requestId) {

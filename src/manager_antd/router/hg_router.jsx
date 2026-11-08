@@ -72,6 +72,11 @@ const WrappedHGMallOrderPage = WithNavigation(HGMallOrderPage);
 const WrappedHGProductDetailPage = WithNavigation(HGProductDetailPage);
 const WrappedHGMallCNYPage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_mall_cny_page.jsx")));
 const WrappedHGCommerceCatalogPage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_commerce_catalog_page.jsx")));
+const WrappedHGCommerceDebugTradePage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_commerce_debug_trade_page.jsx")));
+// 类目新建/编辑/删除为独立路由页；编辑与删除需要路由参数，均注入导航能力。
+const WrappedHGCommerceCategoryCreatePage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_commerce_category_create_page.jsx")));
+const WrappedHGCommerceCategoryEditPage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_commerce_category_edit_page.jsx")));
+const WrappedHGCommerceCategoryDeletePage = WithNavigation(React.lazy(() => import("../../pages/mall/hg_commerce_category_delete_page.jsx")));
 const WrappedHGWalletSpendingPage = WithNavigation(HGWalletSpendingPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
@@ -115,6 +120,22 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.COMMERCE_DETAIL,
         element: hgLazyElement(<WrappedHGCommerceCatalogPage />, "正在加载人民币商品详情..."),
+      },
+      {
+        path: ROUTE_PATH.COMMERCE_DEBUG_TRADE,
+        element: hgLazyElement(<WrappedHGCommerceDebugTradePage />, "正在加载隔离模拟交易..."),
+      },
+      {
+        path: ROUTE_PATH.COMMERCE_CATEGORY_CREATE,
+        element: hgLazyElement(<WrappedHGCommerceCategoryCreatePage />, "正在加载新建类目..."),
+      },
+      {
+        path: ROUTE_PATH.COMMERCE_CATEGORY_EDIT,
+        element: hgLazyElement(<WrappedHGCommerceCategoryEditPage />, "正在加载类目编辑..."),
+      },
+      {
+        path: ROUTE_PATH.COMMERCE_CATEGORY_DELETE,
+        element: hgLazyElement(<WrappedHGCommerceCategoryDeletePage />, "正在加载类目删除..."),
       },
       {
         path: ROUTE_PATH.MALL_ORDER_DETAIL,
