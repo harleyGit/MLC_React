@@ -4,6 +4,7 @@ import HGMallVM from "./hg_mall_vm.js";
 export default class HGCommerceVM {
   static hgRequest(method, key, params) { return HGMallVM.request(method, key, params); }
   static categories() { return this.hgRequest("get", "COMMERCE_CATEGORIES"); }
+  static adminCategories() { return this.hgRequest("get", "COMMERCE_ADMIN_CATEGORIES"); }
   static createCategory(body) { return this.hgRequest("post", "COMMERCE_CATEGORY_CREATE", body); }
   // 编辑/删除为前端预留契约：后端实现前调用会失败，页面须如实展示服务端错误。
   static editCategory(categoryId, body) { return this.hgPostWithQuery("COMMERCE_CATEGORY_EDIT", categoryId, body); }

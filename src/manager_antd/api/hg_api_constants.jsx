@@ -43,6 +43,7 @@ export const HGMANAGER_API = {
   MALL_PRODUCTS: "/api/v1/mall/products", // 审核通过的商品目录
   MALL_CNY_PRODUCTS: "/api/v1/mall/cny/products", // 独立人民币商品目录
   COMMERCE_CATEGORIES: "/api/v1/commerce/merchant/categories", // 生产 CNY 本店叶子类目
+  COMMERCE_ADMIN_CATEGORIES: "/api/v1/commerce/admin/categories", // 平台审核员独立查询普通叶子类目
   COMMERCE_CATEGORY_CREATE: "/api/v1/commerce/admin/categories", // 平台维护类目
   COMMERCE_CATEGORY_EDIT: "/api/v1/commerce/admin/categories/edit", // 平台维护类目编辑；后端尚未实现，为前端预留契约
   COMMERCE_CATEGORY_DELETE: "/api/v1/commerce/admin/categories/delete", // 平台维护类目删除；后端尚未实现，为前端预留契约

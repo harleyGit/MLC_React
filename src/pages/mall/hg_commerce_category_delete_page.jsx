@@ -35,7 +35,7 @@ export default class HGCommerceCategoryDeletePage extends React.Component {
       return;
     }
     try {
-      const hgCategories = await HGCommerceVM.categories();
+      const hgCategories = await HGCommerceVM.adminCategories();
       if (!this.hgMounted) return;
       const hgTarget = (hgCategories || []).find(
         (hgItem) => hgItem.categoryId === hgID

@@ -127,7 +127,7 @@ const HG_CATEGORIES = [
 ];
 
 test("类目列表加载服务端数据并按审核权渲染管理入口", async () => {
-  const hgCommerce = { categories: async () => HG_CATEGORIES };
+  const hgCommerce = { adminCategories: async () => HG_CATEGORIES, categories: async () => { throw new Error("不应调用商家接口"); } };
   const hgInstance = hgPage("hg_commerce_category_page.jsx", hgCommerce, {
     reviewAccess: async () => ({ canReview: true }),
   });
@@ -163,16 +163,17 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
   );
 });
 
-test("无审核权时列表仍展示但不渲染任何管理入口", async () => {
-  const hgCommerce = { categories: async () => HG_CATEGORIES };
+test("无审核权时不读取平台类目并给出缺失权限说明", async () => {
+  const hgCommerce = { adminCategories: async () => { throw new Error("不应调用管理接口"); } };
   const hgInstance = hgPage("hg_commerce_category_page.jsx", hgCommerce, {
     reviewAccess: async () => ({ canReview: false }),
   });
   await hgInstance.hgLoad();
   assert.equal(hgInstance.state.hgCanReview, false);
+  assert.match(hgInstance.state.hgError, /mall:merchant:review/);
   assert.equal(hgInstance.renderToolbar(), null);
   assert.deepEqual(hgCollectLinks(hgInstance.renderActions(HG_CATEGORIES[0])), []);
-  // 权限接口失败同样降级为只读展示，不阻断类目加载。
+  // 权限接口失败不能退化为商家接口读取平台数据。
   const hgFallback = hgPage("hg_commerce_category_page.jsx", hgCommerce, {
     reviewAccess: async () => {
       throw new Error("无权限");
@@ -180,7 +181,7 @@ test("无审核权时列表仍展示但不渲染任何管理入口", async () =>
   });
   await hgFallback.hgLoad();
   assert.equal(hgFallback.state.hgCanReview, false);
-  assert.equal(hgFallback.state.hgError, "");
+  assert.match(hgFallback.state.hgError, /无权限/);
 });
 
 test("新建类目页提交名称与上级并以普通类目创建", async () => {
@@ -206,7 +207,7 @@ test("新建类目页提交名称与上级并以普通类目创建", async () =>
 test("编辑类目页从列表解析当前名称并提交到预留接口", async () => {
   const hgCalls = [];
   const hgCommerce = {
-    categories: async () => HG_CATEGORIES,
+    adminCategories: async () => HG_CATEGORIES,
     editCategory: async (hgID, hgBody) => {
       hgCalls.push({ hgID, hgBody });
       return { categoryId: hgID, name: hgBody.name, depth: 2 };
@@ -235,7 +236,7 @@ test("编辑类目页从列表解析当前名称并提交到预留接口", async
 test("删除类目页展示目标信息并确认提交到预留接口", async () => {
   const hgCalls = [];
   const hgCommerce = {
-    categories: async () => HG_CATEGORIES,
+    adminCategories: async () => HG_CATEGORIES,
     deleteCategory: async (hgID) => {
       hgCalls.push(hgID);
       return {};

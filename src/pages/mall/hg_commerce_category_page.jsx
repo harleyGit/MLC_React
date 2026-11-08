@@ -11,12 +11,12 @@ const HG_CATEGORY_DEPTH_LABELS = { 1: "一级", 2: "二级", 3: "三级" };
 
 /**
  * 平台普通类目管理列表页（个人中心「商家中心 → 普通类目管理」子菜单内容）。
- * 职责：表格展示当前可经营叶子类目；审核员从右上角进入新建页、行内进入编辑/删除页。
- * 约束：数据来自服务端可经营类目接口，受监管或已禁用类目不在本页；写权限由服务端最终校验。
+ * 职责：表格展示平台普通叶子类目；审核员从右上角进入新建页、行内进入编辑/删除页。
+  * 约束：数据来自管理员类目接口，受监管或已禁用类目不在本页；读写权限由服务端最终校验。
  */
 export default class HGCommerceCategoryPage extends React.Component {
   state = {
-    hgCategories: [], // 服务端返回的可经营叶子类目；空表示尚无类目。
+    hgCategories: [], // 服务端返回的平台普通叶子类目；空表示尚无类目或当前无权限。
     hgCanReview: false, // 现有商城审核权限接口结果；无权限不展示管理入口。
     hgLoading: true, // 首次加载状态，避免误显示空表。
     hgError: "", // 最近一次失败提示；空表示无错误。
@@ -33,18 +33,25 @@ export default class HGCommerceCategoryPage extends React.Component {
     this.hgMounted = false;
   }
 
-  /** 类目与审核权并行读取；权限接口失败只降级隐藏管理入口，不阻断类目展示。 */
+  /** 先确认审核权再读取管理员类目，避免将商家类目接口当作平台入口。 */
   hgLoad = async () => {
     this.setState({ hgLoading: true, hgError: "" });
     try {
-      const [hgCategories, hgAccess] = await Promise.all([
-        HGCommerceVM.categories(),
-        HGMallVM.reviewAccess().catch(() => null),
-      ]);
+      const hgAccess = await HGMallVM.reviewAccess(); // 平台管理入口的服务端权限结果。
+      if (!hgAccess?.canReview) {
+        if (this.hgMounted)
+          this.setState({
+            hgCategories: [],
+            hgCanReview: false,
+            hgError: "需要商城审核权限 mall:merchant:review 才能管理平台类目",
+          });
+        return;
+      }
+      const hgCategories = await HGCommerceVM.adminCategories(); // 审核员专属列表，不要求商家身份。
       if (!this.hgMounted) return;
       this.setState({
         hgCategories: hgCategories || [],
-        hgCanReview: Boolean(hgAccess?.canReview),
+        hgCanReview: true,
       });
     } catch (hgError) {
       if (this.hgMounted)
