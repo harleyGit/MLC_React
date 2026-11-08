@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import { ROUTE_PATH } from "../../components/hg_navigation/hg_route_path.jsx";
 import HGTablePage from "../../components/hg_table/hg_table_page";
 import HGCommerceVM from "./hg_commerce_vm.js";
@@ -93,6 +94,14 @@ export default class HGCommerceCategoryPage extends React.Component {
   hgColumns = () => [
     { title: "类目 ID", dataIndex: "categoryId", width: 220 },
     { title: "类目名称", dataIndex: "name", width: 240 },
+    {
+      title: "类目图片",
+      dataIndex: "imageURL",
+      width: 140,
+      render: (hgURL) => hgURL
+        ? <img className={styles.editThumb} src={normalizeVideoCoverUrl(hgURL)} alt="类目图片" loading="lazy" />
+        : <span className={styles.fieldHint}>无图</span>,
+    },
     {
       title: "层级",
       dataIndex: "depth",

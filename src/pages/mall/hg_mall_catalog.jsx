@@ -5,14 +5,14 @@ import { PAGE } from "../../components/hg_navigation/hg_page_registry";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import { HGFormatCoin } from "./hg_mall_amount.js";
+import { HG_MALL_CATEGORIES as hgCategories } from "./hg_mall_categories.js";
 import { HGAdvanceMallPage } from "./hg_mall_cursor.js";
 import styles from "./hg_mall_page.module.css";
 import { hgSecureRequestId } from "./hg_mall_security.js";
 import HGMallVM from "./hg_mall_vm.js";
-import { HG_MALL_CATEGORIES as hgCategories } from "./hg_mall_categories.js";
+import HGMerchantOrdersPage from "./hg_merchant_orders_page";
 import HGMerchantProductsPage from "./hg_merchant_products_page";
 import HGMerchantPublishPage from "./hg_merchant_publish_page";
-import HGMerchantOrdersPage from "./hg_merchant_orders_page";
 
 const hgPendingBuyKey = "mlc.mall.pending-buy"; // 仅在会话内保存幂等键和请求摘要，不落盘收件隐私明文。
 
@@ -472,7 +472,9 @@ export default class HGMallCatalog extends React.Component {
     return (
       <>
         <p className={styles.shopFilterHint}>
-          人民币商品与 M币商城互不混用 · <Link to={ROUTE_PATH.COMMERCE_PRODUCTS}>查看已审核人民币商品</Link> · <Link to={ROUTE_PATH.MALL_CNY}>进入 debug 拼团沙箱</Link>
+          人民币商品与 M币商城互不混用 ·{" "}
+          <Link to={ROUTE_PATH.COMMERCE_PRODUCTS}>查看已审核人民币商品</Link> ·{" "}
+          <Link to={ROUTE_PATH.MALL_CNY}>进入 debug 拼团沙箱</Link>
         </p>
         <nav className={styles.shopCategoryBar} aria-label="商品类目">
           {hgCategories.map(([hgCode, hgLabel]) => (

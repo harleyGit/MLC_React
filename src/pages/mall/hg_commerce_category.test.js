@@ -200,8 +200,44 @@ test("新建类目页提交名称与上级并以普通类目创建", async () =>
   assert.equal(hgCalls[0].name, "零食");
   assert.equal(hgCalls[0].parentId, "");
   assert.equal(hgCalls[0].regulated, false);
+  assert.equal(hgCalls[0].imageURL, "");
   assert.equal(hgInstance.state.hgNotice, "类目已创建");
   assert.equal(hgInstance.state.hgError, "");
+});
+
+test("选择类目图片后创建失败复用已上传 URL，不重复上传", async () => {
+  let hgUploads = 0; // 同一次草稿在写失败后只上传一次图片。
+  const hgBodies = []; // 创建重试提交相同图片 URL。
+  const hgInstance = hgPage("hg_commerce_category_create_page.jsx", {
+    uploadCategoryImage: async () => { hgUploads += 1; return { imageURL: "/category.png" }; },
+    createCategory: async (hgBody) => {
+      hgBodies.push(hgBody);
+      if (hgBodies.length === 1) throw new Error("服务失败");
+      return { categoryId: "1" };
+    },
+  });
+  hgInstance.hgChooseImage({ target: { files: [{ type: "image/png", size: 1024 }], value: "" } });
+  hgInstance.setState({ hgName: "类目" });
+  await hgInstance.hgSubmit({ preventDefault() {} });
+  assert.match(hgInstance.state.hgError, /服务失败/);
+  assert.equal(hgInstance.state.hgImageURL, "/category.png");
+  await hgInstance.hgSubmit({ preventDefault() {} });
+  assert.equal(hgUploads, 1);
+  assert.equal(hgBodies.length, 2);
+  assert.equal(hgBodies[0].imageURL, "/category.png");
+  assert.equal(hgBodies[1].imageURL, "/category.png");
+  assert.equal(hgInstance.state.hgNotice, "类目已创建");
+});
+
+test("无效类目名称在上传前拒绝，不占用对象存储", async () => {
+  let hgUploads = 0; // 无效输入不能导致上传副作用。
+  const hgInstance = hgPage("hg_commerce_category_create_page.jsx", {
+    uploadCategoryImage: async () => { hgUploads += 1; },
+  });
+  hgInstance.hgChooseImage({ target: { files: [{ type: "image/png", size: 1024 }], value: "" } });
+  await hgInstance.hgSubmit({ preventDefault() {} });
+  assert.equal(hgUploads, 0);
+  assert.match(hgInstance.state.hgError, /有效的类目名称/);
 });
 
 test("编辑类目页从列表解析当前名称并提交到预留接口", async () => {

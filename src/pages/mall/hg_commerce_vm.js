@@ -6,6 +6,20 @@ export default class HGCommerceVM {
   static categories() { return this.hgRequest("get", "COMMERCE_CATEGORIES"); }
   static adminCategories() { return this.hgRequest("get", "COMMERCE_ADMIN_CATEGORIES"); }
   static createCategory(body) { return this.hgRequest("post", "COMMERCE_CATEGORY_CREATE", body); }
+  static unusedCategoryImages() { return this.hgRequest("get", "COMMERCE_CATEGORY_IMAGES_UNUSED"); }
+  static deleteCategoryImage(imageURL) { return this.hgRequest("post", "COMMERCE_CATEGORY_IMAGE_DELETE", { imageURL }); }
+  /** 管理员类目图片直接传二进制；仍由现有请求层处理 JWT、签名和响应。 */
+  static async uploadCategoryImage(file) {
+    const [{ default: hgNet }, { HGMANAGER_API }] = await Promise.all([
+      import("../../manager_antd/net_handle/hg_net_manager_vm.jsx"),
+      import("../../manager_antd/api/hg_api_constants.jsx"),
+    ]);
+    const hgExt = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[file.type]; // 仅允许后端支持的图片类型。
+    if (!hgExt) throw new Error("类目图片只支持 JPG、PNG、WebP");
+    return hgNet.post(`${HGMANAGER_API.COMMERCE_CATEGORY_IMAGE}?ext=${hgExt}`, file, {
+      headers: { "Content-Type": file.type }, timeout: 60000,
+    });
+  }
   // 编辑/删除为前端预留契约：后端实现前调用会失败，页面须如实展示服务端错误。
   static editCategory(categoryId, body) { return this.hgPostWithQuery("COMMERCE_CATEGORY_EDIT", categoryId, body); }
   static deleteCategory(categoryId) { return this.hgRequest("post", "COMMERCE_CATEGORY_DELETE", { categoryId }); }

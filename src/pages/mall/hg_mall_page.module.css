@@ -276,3 +276,9 @@
 @media (prefers-reduced-motion: reduce) {
   .shopStage .shopGoodsCard, .shopStage .shopSkeletonMedia, .shopStage .shopSkeletonLine { transition: none; animation: none; }
 }
+
+/* 目录列表价格（renderProductList）：中信红金额 #C8102E，辅助中性色 #222222 / #FFFFFF。
+   置于主题层之后靠后声明，覆盖上方 .shopStage .shopGoodsPrice 的品牌蓝。 */
+.shopStage .shopGoodsPrice { color: #c8102e; background: #ffffff; }
+.shopStage .shopGoodsPrice b { color: #c8102e; }
+.shopStage .shopGoodsPrice small { color: #222222; }
