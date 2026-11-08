@@ -12,7 +12,7 @@ function hgPage(hgCommerce, hgLegacy = {}, hgCrypto = { randomUUID: () => "req-s
   const hgSource = readFileSync(new URL("./hg_merchant_commerce_page.jsx", import.meta.url), "utf8"); // 被测商家页面源码。
   const hgCode = transformSync(hgSource, { filename: "hg_merchant_commerce_page.jsx", jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" }, module: { type: "commonjs" } }).code; // JSX 转换不改变业务逻辑。
   runInNewContext(hgCode, {
-    module: hgModule, exports: hgModule.exports, URL: { revokeObjectURL() {} }, window: { confirm: () => true },
+    module: hgModule, exports: hgModule.exports, URL: { revokeObjectURL() {}, createObjectURL: () => "blob:preview" }, window: { confirm: () => true },
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
       if (hgDependency.endsWith("hg_commerce_vm.js")) return { default: hgCommerce, __esModule: true };
@@ -67,4 +67,41 @@ test("已驳回商品不可直接重审，审核前必须先展开完整待审�
   const hgRendered = hgInstance.renderCard(hgRejected);
   const hgButtons = React.Children.toArray(hgRendered.props.children[1].props.children[3].props.children).filter((hgChild) => React.isValidElement(hgChild) && hgChild.type === "button");
   assert.ok(!hgButtons.some((hgButton) => hgButton.props.children === "提交审核"));
+});
+
+// Go 空切片序列化为 null；页面在数据边界兜底，列表为空时渲染不得抛 undefined.map。
+test("后端返回空列表(null)时整页渲染不崩溃", async () => {
+  const hgCommerce = {
+    categories: async () => null, // 新环境尚无类目时 result 为 null。
+    mine: async () => null,
+    unusedImages: async () => null,
+    pending: async () => null,
+    mineDetail: async () => ({ productId: "CPRD_1", version: 1, categoryId: "1", title: "t", subtitle: "", description: "" }), // 缺省 imageURLs/skus。
+  };
+  const hgInstance = hgPage(hgCommerce, { merchant: async () => ({ status: 1 }), reviewAccess: async () => ({ canReview: true }) });
+  await hgInstance.hgLoad();
+  assert.equal(hgInstance.state.hgCategories.length, 0);
+  assert.equal(hgInstance.state.hgProducts.length, 0);
+  assert.equal(hgInstance.state.hgPending.length, 0);
+  assert.doesNotThrow(() => { hgInstance.render(); }); // 商家视图含草稿表单与图片网格。
+  await hgInstance.hgEdit("CPRD_1"); // 详情缺省 SKU 字段也不能崩溃。
+  assert.equal(hgInstance.state.hgError, "");
+  assert.doesNotThrow(() => { hgInstance.render(); });
+});
+
+test("支持选择 AVIF 图片且单次草稿最多绑定20张", () => {
+  const hgInstance = hgPage({});
+  const hgAVIF = { type: "image/avif", size: 1024 }; // mac06.avif 等本地 AVIF 文件。
+  hgInstance.hgChooseImages({ target: { files: [hgAVIF], value: "" } });
+  assert.equal(hgInstance.state.hgFiles.length, 1, "AVIF 应被接受");
+  assert.equal(hgInstance.state.hgError, "");
+  hgInstance.hgChooseImages({ target: { files: Array.from({ length: 19 }, () => hgAVIF), value: "" } }); // 累计 20 张。
+  assert.equal(hgInstance.state.hgFiles.length, 20);
+  assert.equal(hgInstance.state.hgError, "");
+  hgInstance.hgChooseImages({ target: { files: [hgAVIF], value: "" } }); // 第 21 张须被拒绝。
+  assert.equal(hgInstance.state.hgFiles.length, 20);
+  assert.match(hgInstance.state.hgError, /最多20张/);
+  const hgHEIC = { type: "image/heic", size: 1024 }; // 未开放格式仍拒绝。
+  hgInstance.hgChooseImages({ target: { files: [hgHEIC], value: "" } });
+  assert.match(hgInstance.state.hgError, /最多20张 JPG\/PNG\/WebP\/AVIF/);
 });

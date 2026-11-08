@@ -16,6 +16,7 @@ const HG_SIGN_STRIP_PREFIXES = [
   "/api/v1/wallet",
   "/api/v1/recharge",
   "/api/v1/mall",
+  "/api/v1/commerce", // 生产 CNY 商品独立模块；缺失会导致 commerce 全部请求签名路径与后端不一致而被拒。
   "/api/v1/test",
   "/auth",
   "/user",

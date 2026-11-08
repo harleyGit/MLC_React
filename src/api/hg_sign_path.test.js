@@ -89,6 +89,27 @@ test("商城接口签名使用模块内路径，查询参数不参与签名", ()
   assert.equal(normalizeSignPath("/api/v1/mall_extra/products"), "/api/v1/mall_extra/products");
 });
 
+// 生产 CNY 商品为独立 commerce 模块；若遗漏剥离，商家发布链路所有请求会签名失败。
+test("commerce 接口签名使用模块内路径，查询参数不参与签名", () => {
+  for (const [hgURL, hgPath] of [
+    ["/api/v1/commerce/merchant/categories", "/merchant/categories"],
+    ["/api/v1/commerce/merchant/products", "/merchant/products"],
+    ["/api/v1/commerce/merchant/products?cursor=", "/merchant/products"],
+    ["/api/v1/commerce/merchant/products/detail?productId=CPRD_1", "/merchant/products/detail"],
+    ["/api/v1/commerce/merchant/products/edit?productId=CPRD_1", "/merchant/products/edit"],
+    ["/api/v1/commerce/merchant/products/submit", "/merchant/products/submit"],
+    ["/api/v1/commerce/merchant/products/publish", "/merchant/products/publish"],
+    ["/api/v1/commerce/merchant/images?ext=png", "/merchant/images"],
+    ["/api/v1/commerce/admin/products/pending", "/admin/products/pending"],
+    ["/api/v1/commerce/admin/products/decision", "/admin/products/decision"],
+    ["/api/v1/commerce/products", "/products"],
+  ]) {
+    assert.equal(normalizeSignPath(new URL(hgURL, "http://localhost:5174").pathname), hgPath);
+  }
+  assert.equal(normalizeSignPath("/api/v1/commerce"), "/");
+  assert.equal(normalizeSignPath("/api/v1/commerce_extra/products"), "/api/v1/commerce_extra/products");
+});
+
 test("normalizeSignPath preserves paths outside registered module prefixes", () => {
   assert.equal(normalizeSignPath("/health"), "/health");
 });

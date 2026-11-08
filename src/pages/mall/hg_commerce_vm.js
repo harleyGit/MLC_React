@@ -43,8 +43,9 @@ export default class HGCommerceVM {
       import("../../manager_antd/net_handle/hg_net_manager_vm.jsx"),
       import("../../manager_antd/api/hg_api_constants.jsx"),
     ]);
-    const hgExt = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[file.type]; // 仅限表单验证通过后的扩展名。
-    if (!hgExt) throw new Error("只支持 JPG、PNG 和 WebP 图片");
+    // 仅限表单验证通过后的扩展名；AVIF 与 JPG/PNG/WebP 同链上传与展示。
+    const hgExt = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" }[file.type];
+    if (!hgExt) throw new Error("只支持 JPG、PNG、WebP 和 AVIF 图片");
     return hgNet.post(`${HGMANAGER_API.COMMERCE_IMAGE}?ext=${hgExt}`, file, { headers: { "Content-Type": file.type }, timeout: 60000 });
   }
 }
