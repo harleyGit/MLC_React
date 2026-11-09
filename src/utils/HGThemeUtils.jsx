@@ -5,7 +5,7 @@ import HGThemeColorComponent from "../components/hg_theme/hg_theme_color_compone
 /**
  * 主题色彩工具类（静态 API）。
  * 职责：
- * - 维护主题色板：主色 #3c83f3 及派生色（hover/active/浅底/描边/品牌渐变）与中性色；
+ * - 维护主题色板：蓝色主色及派生色（hover/active/浅底/描边/品牌渐变）、中性色与场景化红色；
  * - 通过 :root CSS 变量下发主题，全局样式用 var(--hg-color-xxx) 引用；
  * - 支持运行时换主色（applyTheme({ primary })），派生色随主色重新计算。
  * 边界：
@@ -84,7 +84,7 @@ export default class HGThemeUtils {
 
   /**
    * 由主色构建完整主题色板。
-   * 职责：派生 hover/active/浅底/描边/品牌渐变，并附带中性色 token。
+   * 职责：派生 hover/active/浅底/描边/品牌渐变，并附带中性色与红色语义 token。
    * 边界：仅做固定比例黑白混合与字符串拼装，不校验业务语义。
    * @param {string} primaryHex 主色（#rgb / #rrggbb）
    * @returns {object} token -> 颜色值的色板对象

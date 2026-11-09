@@ -9,7 +9,7 @@ export default class HGThemeColorComponent {
   /** 品牌渐变的紫色终点；与主题规范保持一致。 */
   static GRADIENT_END = "#8185f4";
 
-  /** 主题规范中的扩展色板；#Cpf0FF 为非法写法，按规范修正为 #CFF0FF。 */
+  /** 主题规范中的扩展色板；红色优先用于价格、行情、警示、活动和场景化按钮，不替代全站蓝色主色。 */
   static COLOR_PALETTE = {
     bubbleMine: "#e0f2ff",
     bubbleFile: "#f2f8ff",
@@ -20,6 +20,16 @@ export default class HGThemeColorComponent {
     powderBlue: "#b7dbff",
     brightBlue: "#82beff",
     frostBlue: "#cff0ff",
+    zhongxinBrandRed: "#ea494a", // 中信主题红：活动或品牌展示。
+    zhongxinBackgroundRed: "#e8423a", // 背景主题红 02：红色主题背景或大面积装饰。
+    zhongxinAccentRed: "#ec6767", // 中信红 2：柔和强调、图标或装饰。
+    kLineRed: "#c53225", // K 线红线：上涨行情线条。
+    buttonRed: "#e64642", // 常规场景化红色按钮背景。
+    buttonRedStrong: "#da332a", // 深红按钮背景：优先用于白色小字按钮。
+    buttonRedSoft: "#eb5b55", // 柔和红色按钮背景或辅助态。
+    buttonRedBright: "#e84038", // 鲜明红色按钮背景或重点操作。
+    priceRed: "#e83e36", // 价格、金额及需要强调的警示文字。
+    indexRiseRed: "#d65e53", // 上证指数等上涨行情数字。
   };
 
   /** 主题 token 到 CSS 变量的映射，业务样式只依赖语义变量。 */
@@ -32,6 +42,16 @@ export default class HGThemeColorComponent {
     primaryGradient: "--hg-color-primary-gradient",
     bubbleMine: "--hg-color-bubble-mine",
     bubbleFile: "--hg-color-bubble-file",
+    zhongxinBrandRed: "--hg-color-zhongxin-brand-red",
+    zhongxinBackgroundRed: "--hg-color-zhongxin-background-red",
+    zhongxinAccentRed: "--hg-color-zhongxin-accent-red",
+    kLineRed: "--hg-color-k-line-red",
+    buttonRed: "--hg-color-button-red",
+    buttonRedStrong: "--hg-color-button-red-strong",
+    buttonRedSoft: "--hg-color-button-red-soft",
+    buttonRedBright: "--hg-color-button-red-bright",
+    priceRed: "--hg-color-price-red",
+    indexRiseRed: "--hg-color-index-rise-red",
     wechatGreen: "--hg-color-wechat-green",
     text: "--hg-color-text",
     textSecondary: "--hg-color-text-secondary",
