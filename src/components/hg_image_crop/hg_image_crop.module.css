@@ -47,13 +47,109 @@
   margin: 0 auto;
   overflow: hidden;
   background: var(--color-ocean, #1a3b66);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.cropViewport:active {
+  cursor: grabbing;
+}
+
+.cropViewport:focus-visible {
+  outline: 3px solid var(--color-border-focus, #4294e0);
+  outline-offset: 3px;
+}
+
+.cropViewport_round {
+  clip-path: circle(closest-side);
+}
+
+.cropViewport_ellipse {
+  border-radius: 50%;
+}
+
+.cropViewport_round .cropFrame,
+.cropViewport_ellipse .cropFrame {
+  border-radius: 50%;
 }
 
 .cropViewport img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 100ms ease;
+  pointer-events: none;
+}
+
+.moveTools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-text-secondary, #61758e);
+  font-size: 12px;
+}
+
+.moveTools button {
+  flex: none;
+  padding: 4px 10px;
+  color: var(--color-primary, #2674c7);
+  border: 1px solid var(--color-border, #d6e7f9);
+  border-radius: 6px;
+  background: var(--color-bg-surface, #fff);
+  cursor: pointer;
+}
+
+.shapeSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.shapeSelector legend {
+  float: left;
+  width: 76px;
+  color: var(--color-text-secondary, #61758e);
+  font-size: 13px;
+}
+
+.shapeSelector label {
+  cursor: pointer;
+}
+
+.shapeSelector input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shapeSelector span {
+  display: block;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border, #d6e7f9);
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.shapeSelector input:checked + span {
+  color: var(--color-primary, #2674c7);
+  border-color: var(--color-primary, #2674c7);
+  background: var(--color-primary-soft, #edf6ff);
+}
+
+.shapeSelector input:focus-visible + span {
+  outline: 2px solid var(--color-border-focus, #4294e0);
+  outline-offset: 2px;
+}
+
+.shapeSelector input:disabled + span,
+.moveTools button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .cropFrame {
