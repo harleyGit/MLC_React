@@ -23,7 +23,8 @@ export default class HGMallVM {
     ]);
     const hgExt = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp"; // 仅在页面校验通过后调用。
     return HGNet.post(`${HGMANAGER_API.MALL_PRODUCT_IMAGE}?ext=${hgExt}`, file, {
-      headers: { "Content-Type": file.type }, timeout: 60000,
+      // 原始二进制上传须与 API Guard 的空正文摘要协议一致；服务端仍校验 ext 和图片魔数。
+      headers: { "Content-Type": "application/octet-stream" }, timeout: 60000,
     });
   }
   static deleteImage(imageURL) { return this.request("post", "MALL_PRODUCT_IMAGE_DELETE", { imageURL }); }

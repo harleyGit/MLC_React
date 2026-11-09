@@ -17,7 +17,8 @@ export default class HGCommerceVM {
     const hgExt = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" }[file.type]; // 仅允许后端支持的图片类型。
     if (!hgExt) throw new Error("类目图片只支持 JPG、PNG、WebP");
     return hgNet.post(`${HGMANAGER_API.COMMERCE_CATEGORY_IMAGE}?ext=${hgExt}`, file, {
-      headers: { "Content-Type": file.type }, timeout: 60000,
+      // API Guard 对原始二进制统一按空正文摘要验签；真实格式由 ext 与服务端图片魔数校验。
+      headers: { "Content-Type": "application/octet-stream" }, timeout: 60000,
     });
   }
   // 编辑/删除为前端预留契约：后端实现前调用会失败，页面须如实展示服务端错误。
@@ -80,6 +81,6 @@ export default class HGCommerceVM {
     // 仅限表单验证通过后的扩展名；AVIF 与 JPG/PNG/WebP 同链上传与展示。
     const hgExt = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif" }[file.type];
     if (!hgExt) throw new Error("只支持 JPG、PNG、WebP 和 AVIF 图片");
-    return hgNet.post(`${HGMANAGER_API.COMMERCE_IMAGE}?ext=${hgExt}`, file, { headers: { "Content-Type": file.type }, timeout: 60000 });
+    return hgNet.post(`${HGMANAGER_API.COMMERCE_IMAGE}?ext=${hgExt}`, file, { headers: { "Content-Type": "application/octet-stream" }, timeout: 60000 });
   }
 }

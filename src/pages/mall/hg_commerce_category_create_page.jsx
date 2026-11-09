@@ -1,4 +1,5 @@
 import React from "react";
+import HGUpload from "../../components/hg_upload/hg_upload.jsx";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import HGCommerceVM from "./hg_commerce_vm.js";
 import styles from "./hg_merchant_center.module.css";
@@ -41,10 +42,13 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
   hgLoadUnused = async () => {
     try {
       const hgResult = await HGCommerceVM.unusedCategoryImages(); // 服务端有界返回的本人未绑定图片。
-      if (this.hgMounted) this.setState({ hgUnused: hgResult?.imageURLs || [] });
+      if (this.hgMounted)
+        this.setState({ hgUnused: hgResult?.imageURLs || [] });
     } catch (hgError) {
       if (this.hgMounted)
-        this.setState({ hgError: hgError?.message || "未使用类目图片加载失败" });
+        this.setState({
+          hgError: hgError?.message || "未使用类目图片加载失败",
+        });
     }
   };
 
@@ -61,29 +65,47 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
     }
   };
 
-  /** 选择时只验证类型和大小；真正内容校验由服务端上传器执行。 */
-  hgChooseImage = (hgEvent) => {
-    const hgFile = hgEvent.target.files?.[0] || null; // 一次仅选择一张，空表示取消选择。
-    hgEvent.target.value = "";
-    if (!hgFile) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) || hgFile.size < 1 || hgFile.size > 5 << 20) {
-      this.setState({ hgError: "类目图片只支持 JPG、PNG、WebP，每张不超过 5 MiB" });
+  /** 上传组件选择前只验证类型和大小；真正内容校验由服务端上传器执行。 */
+  hgBeforeChooseImage = (hgFile) => {
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(hgFile.type) ||
+      hgFile.size < 1 ||
+      hgFile.size > 5 << 20
+    ) {
+      this.setState({
+        hgError: "类目图片只支持 JPG、PNG、WebP，每张不超过 5 MiB",
+      });
+      return false;
+    }
+    return hgFile;
+  };
+
+  /** 接收照片墙文件列表；当前业务限制一张图片，空列表表示移除本地选择。 */
+  hgChooseImage = (hgChange) => {
+    const hgFileList = hgChange.fileList; // 新上传组件提供列表；旧调用方可继续传原生 input 事件。
+    const hgItem = hgFileList?.[0] || null; // maxCount=1，首项即当前类目图片。
+    const hgLegacyFile = hgChange.target?.files?.[0] || null; // 兼容既有直接调用和渐进迁移场景。
+    if (hgChange.target) hgChange.target.value = "";
+    const hgFile = hgItem?.originFileObj || hgLegacyFile; // 服务端已有图片没有本地 File。
+    if (hgLegacyFile && this.hgBeforeChooseImage(hgLegacyFile) === false) return;
+    if (!hgFile) {
+      if (this.state.hgPreview) URL.revokeObjectURL(this.state.hgPreview);
+      this.setState({ hgFile: null, hgPreview: "" });
       return;
     }
     if (this.state.hgPreview) URL.revokeObjectURL(this.state.hgPreview);
-    this.setState({ hgFile, hgPreview: URL.createObjectURL(hgFile), hgImageURL: "", hgError: "" });
+    this.setState({
+      hgFile,
+      hgPreview: URL.createObjectURL(hgFile),
+      hgImageURL: "",
+      hgError: "",
+    });
   };
 
   /** 改用本人已有图片时释放旧预览地址，不自动清理其他待绑定对象。 */
   hgUseImage = (hgURL) => {
     if (this.state.hgPreview) URL.revokeObjectURL(this.state.hgPreview);
     this.setState({ hgFile: null, hgPreview: "", hgImageURL: hgURL });
-  };
-
-  /** 只清除本地选择；上传成功的资产必须走服务端清理接口。 */
-  hgClearLocalImage = () => {
-    if (this.state.hgPreview) URL.revokeObjectURL(this.state.hgPreview);
-    this.setState({ hgFile: null, hgPreview: "" });
   };
 
   /** 未绑定的服务端图片可删除；失败保留当前选择，避免静默丢失可恢复资产。 */
@@ -103,8 +125,11 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
             : {}),
         }));
       }
+      return true;
     } catch (hgError) {
-      if (this.hgMounted) this.setState({ hgError: hgError?.message || "图片清理失败" });
+      if (this.hgMounted)
+        this.setState({ hgError: hgError?.message || "图片清理失败" });
+      return false;
     } finally {
       this.hgFlight = false;
       if (this.hgMounted) this.setState({ hgBusy: false });
@@ -129,12 +154,16 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
       if (!hgName || /[<>\r\n\0]/.test(hgName))
         throw new Error("请填写 1-64 字的类目名称，且不能包含 < > 或换行符");
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(hgCategoryId))
-        throw new Error("类目 ID 须为 1-64 位字母、数字、连字符或下划线，例如 DIG-0001");
+        throw new Error(
+          "类目 ID 须为 1-64 位字母、数字、连字符或下划线，例如 DIG-0001"
+        );
       if (hgParentId && !/^[A-Za-z0-9_-]{1,64}$/.test(hgParentId))
         throw new Error("上级类目 ID 须从下拉列表选择；留空表示创建一级类目");
       let hgImageURL = this.state.hgImageURL; // 已上传图片在创建失败后沿用，避免重复占用额度。
       if (this.state.hgFile && !hgImageURL) {
-        const hgResult = await HGCommerceVM.uploadCategoryImage(this.state.hgFile);
+        const hgResult = await HGCommerceVM.uploadCategoryImage(
+          this.state.hgFile
+        );
         if (!hgResult?.imageURL) throw new Error("类目图片上传响应异常");
         hgImageURL = hgResult.imageURL;
         if (this.hgMounted) this.setState({ hgImageURL });
@@ -160,7 +189,8 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
         });
       }
     } catch (hgError) {
-      if (this.hgMounted) this.setState({ hgError: hgError?.message || "创建失败，请重试" });
+      if (this.hgMounted)
+        this.setState({ hgError: hgError?.message || "创建失败，请重试" });
     } finally {
       this.hgFlight = false;
       if (this.hgMounted) this.setState({ hgBusy: false });
@@ -169,38 +199,52 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
 
   /** 图片选择与预览不参与普通类目名称的受控输入。 */
   renderImageField() {
-    const { hgPreview, hgImageURL } = this.state; // 图片选择状态；空 URL 表示尚未上传或已清理。
+    const { hgFile, hgPreview, hgImageURL, hgBusy } = this.state; // 图片选择状态；空 URL 表示尚未上传或已清理。
+    const hgFileList = hgPreview
+      ? [
+          {
+            uid: "category-local-image",
+            name: hgFile?.name || "类目图片",
+            status: "done",
+            type: hgFile?.type || "image/*",
+            originFileObj: hgFile,
+            url: hgPreview,
+          },
+        ]
+      : hgImageURL
+        ? [
+            {
+              uid: "category-uploaded-image",
+              name: "已上传类目图片",
+              status: "done",
+              type: "image/*",
+              url: normalizeVideoCoverUrl(hgImageURL),
+            },
+          ]
+        : []; // 受控照片墙列表，本地选择与服务端资产最多展示其一。
     return (
       <div className={styles.field}>
-        <label htmlFor="category-image">类目图片（可选，JPG/PNG/WebP，最多 5 MiB）</label>
-        <input
+        <label htmlFor="category-image">
+          类目图片（可选，JPG/PNG/WebP，最多 5 MiB）
+        </label>
+        <HGUpload
           id="category-image"
-          type="file"
           accept="image/jpeg,image/png,image/webp"
-          disabled={!!hgImageURL}
+          fileList={hgFileList}
+          maxCount={1}
+          multiple={false}
+          disabled={hgBusy}
+          beforeUpload={this.hgBeforeChooseImage}
           onChange={this.hgChooseImage}
+          onRemove={() =>
+            hgImageURL ? this.hgDeleteImage(hgImageURL) : true
+          }
+          uploadText="选择图片"
         />
-        {(hgPreview || hgImageURL) && (
-          <img
-            className={styles.editThumb}
-            src={hgPreview || normalizeVideoCoverUrl(hgImageURL)}
-            alt="待创建类目图片预览"
-          />
-        )}
         {hgImageURL && (
           <p className={styles.fieldHint}>
             图片已上传；创建失败时可直接重试，不会重复上传。
           </p>
-        )}
-        {hgPreview && !hgImageURL && (
-          <button type="button" className={styles.btnGhost} onClick={this.hgClearLocalImage}>
-            移除本地图片
-          </button>
-        )}
-        {hgImageURL && (
-          <button type="button" className={styles.btnGhost} onClick={() => this.hgDeleteImage(hgImageURL)}>
-            清理已上传图片
-          </button>
         )}
       </div>
     );
@@ -217,10 +261,20 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
           {hgUnused.map((hgURL) => (
             <div key={hgURL} className={styles.imgItem}>
               <img src={normalizeVideoCoverUrl(hgURL)} alt="未绑定类目图片" />
-              <button type="button" className={styles.btnGhost} disabled={hgBusy} onClick={() => this.hgUseImage(hgURL)}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                disabled={hgBusy}
+                onClick={() => this.hgUseImage(hgURL)}
+              >
                 使用此图
               </button>
-              <button type="button" className={styles.btnGhost} disabled={hgBusy} onClick={() => this.hgDeleteImage(hgURL)}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                disabled={hgBusy}
+                onClick={() => this.hgDeleteImage(hgURL)}
+              >
                 清理
               </button>
             </div>
@@ -231,7 +285,8 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
   }
 
   render() {
-    const { hgCategoryId, hgName, hgParentId, hgBusy, hgError, hgNotice } = this.state; // 类目基本字段及写入反馈。
+    const { hgCategoryId, hgName, hgParentId, hgBusy, hgError, hgNotice } =
+      this.state; // 类目基本字段及写入反馈。
     return (
       <main className={styles.page} aria-label="新建普通类目">
         {hgError && (

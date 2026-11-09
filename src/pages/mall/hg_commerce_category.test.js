@@ -76,6 +76,34 @@ function hgPage(hgSourceName, hgCommerce, hgLegacy = {}) {
   return hgInstance;
 }
 
+/** 加载真实商城 VM，并替换网络层以核对原始二进制上传协议。 */
+function hgCommerceVM(hgPost) {
+  const hgModule = { exports: {} };
+  const hgSource = readFileSync(new URL("./hg_commerce_vm.js", import.meta.url), "utf8");
+  const hgCode = transformSync(hgSource, {
+    filename: "hg_commerce_vm.js",
+    jsc: { parser: { syntax: "ecmascript" }, target: "es2022" },
+    module: { type: "commonjs" },
+  }).code;
+  runInNewContext(hgCode, {
+    module: hgModule,
+    exports: hgModule.exports,
+    require: (hgDependency) => {
+      if (hgDependency.endsWith("hg_mall_vm.js"))
+        return { default: class {}, __esModule: true };
+      if (hgDependency.endsWith("hg_net_manager_vm.jsx"))
+        return { default: { post: hgPost }, __esModule: true };
+      if (hgDependency.endsWith("hg_api_constants.jsx"))
+        return {
+          HGMANAGER_API: { COMMERCE_CATEGORY_IMAGE: "/api/v1/commerce/admin/categories/images" },
+          __esModule: true,
+        };
+      return {};
+    },
+  });
+  return hgModule.exports.default;
+}
+
 /** 深度查找元素树中首个指定类型的元素。 */
 function hgFindElement(hgNode, hgType) {
   if (!hgNode || typeof hgNode !== "object") return null;
@@ -125,6 +153,20 @@ const HG_CATEGORIES = [
   { categoryId: "11", name: "数码", depth: 1 },
   { categoryId: "12", name: "手机", depth: 2 },
 ];
+
+test("类目图片以 API Guard 约定的原始二进制类型上传", async () => {
+  const hgCalls = [];
+  const HGCommerceVM = hgCommerceVM(async (...hgArgs) => {
+    hgCalls.push(hgArgs);
+    return { imageURL: "/category.png" };
+  });
+  const hgFile = { type: "image/png", size: 1024 };
+  await HGCommerceVM.uploadCategoryImage(hgFile);
+  assert.equal(hgCalls.length, 1);
+  assert.equal(hgCalls[0][0], "/api/v1/commerce/admin/categories/images?ext=png");
+  assert.equal(hgCalls[0][1], hgFile);
+  assert.equal(hgCalls[0][2].headers["Content-Type"], "application/octet-stream");
+});
 
 test("类目列表加载服务端数据并按审核权渲染管理入口", async () => {
   const hgCommerce = { adminCategories: async () => HG_CATEGORIES, categories: async () => { throw new Error("不应调用商家接口"); } };
