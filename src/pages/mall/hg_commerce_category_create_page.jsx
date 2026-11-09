@@ -5,13 +5,15 @@ import styles from "./hg_merchant_center.module.css";
 
 /**
  * 新建平台普通类目页（独立路由，由类目管理列表右上角进入）。
- * 职责：提交类目名称、可选上级 ID 和本人上传的可选图片；成功后提示并支持返回列表。
+ * 职责：提交类目业务 ID、名称、可选上级 ID 和本人上传的可选图片；成功后提示并支持返回列表。
  * 约束：本期仅创建 regulated=false 的普通类目；图片只允许管理员本人未绑定的资产。
  */
 export default class HGCommerceCategoryCreatePage extends React.Component {
   state = {
+    hgCategoryId: "", // 新类目业务 ID；1-64 位 ASCII 字母、数字、连字符或下划线。
     hgName: "", // 新类目名称；1-64 字符，服务端最终校验。
-    hgParentId: "", // 上级类目 ID 文本；空表示一级类目。
+    hgParentId: "", // 上级类目业务 ID（来自管理端列表）；空表示一级类目。
+    hgAdminCategories: [], // 管理端类目列表；用于上级下拉选择，避免手输非法 ID。
     hgFile: null, // 本次选中的本地图片；null 表示未选择。
     hgPreview: "", // 当前文件的 blob 预览地址；空表示无本地预览，卸载时释放。
     hgImageURL: "", // 已上传的本管理员类目图片 URL；空表示无图片，失败重试不重复上传。
@@ -27,6 +29,7 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
   componentDidMount() {
     this.hgMounted = true;
     this.hgLoadUnused();
+    this.hgLoadCategories();
   }
 
   componentWillUnmount() {
@@ -42,6 +45,19 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
     } catch (hgError) {
       if (this.hgMounted)
         this.setState({ hgError: hgError?.message || "未使用类目图片加载失败" });
+    }
+  };
+
+  /** 加载管理端类目列表供上级下拉选择；失败不阻塞表单，仅可创建一级类目。 */
+  hgLoadCategories = async () => {
+    try {
+      const hgList = await HGCommerceVM.adminCategories(); // GET /admin/categories，含字符串业务 categoryId。
+      if (this.hgMounted) this.setState({ hgAdminCategories: hgList || [] });
+    } catch (hgError) {
+      if (this.hgMounted)
+        this.setState({
+          hgError: hgError?.message || "类目列表加载失败，暂只能创建一级类目",
+        });
     }
   };
 
@@ -108,9 +124,14 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
     this.setState({ hgBusy: true, hgError: "", hgNotice: "" });
     try {
       const hgName = this.state.hgName.trim(); // 创建请求名称，空或非法文本应先于上传拒绝。
+      const hgCategoryId = this.state.hgCategoryId.trim(); // 新类目业务 ID，由管理员明确填写。
       const hgParentId = this.state.hgParentId.trim(); // 上级 ID；空表示一级类目。
-      if (!hgName || /[<>\r\n\0]/.test(hgName) || (hgParentId && !/^[1-9]\d{0,19}$/.test(hgParentId)))
-        throw new Error("请填写有效的类目名称和上级类目 ID");
+      if (!hgName || /[<>\r\n\0]/.test(hgName))
+        throw new Error("请填写 1-64 字的类目名称，且不能包含 < > 或换行符");
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(hgCategoryId))
+        throw new Error("类目 ID 须为 1-64 位字母、数字、连字符或下划线，例如 DIG-0001");
+      if (hgParentId && !/^[A-Za-z0-9_-]{1,64}$/.test(hgParentId))
+        throw new Error("上级类目 ID 须从下拉列表选择；留空表示创建一级类目");
       let hgImageURL = this.state.hgImageURL; // 已上传图片在创建失败后沿用，避免重复占用额度。
       if (this.state.hgFile && !hgImageURL) {
         const hgResult = await HGCommerceVM.uploadCategoryImage(this.state.hgFile);
@@ -119,6 +140,7 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
         if (this.hgMounted) this.setState({ hgImageURL });
       }
       await HGCommerceVM.createCategory({
+        categoryId: hgCategoryId,
         name: hgName,
         parentId: hgParentId,
         regulated: false, // 本期仅开放普通类目，受监管类目由后端单独维护。
@@ -128,6 +150,7 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
         if (this.state.hgPreview) URL.revokeObjectURL(this.state.hgPreview);
         this.setState({
           hgNotice: "类目已创建",
+          hgCategoryId: "",
           hgName: "",
           hgParentId: "",
           hgFile: null,
@@ -208,7 +231,7 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
   }
 
   render() {
-    const { hgName, hgParentId, hgBusy, hgError, hgNotice } = this.state; // 类目基本字段及写入反馈。
+    const { hgCategoryId, hgName, hgParentId, hgBusy, hgError, hgNotice } = this.state; // 类目基本字段及写入反馈。
     return (
       <main className={styles.page} aria-label="新建普通类目">
         {hgError && (
@@ -232,6 +255,22 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
             <fieldset className={styles.commerceFieldset} disabled={hgBusy}>
               <legend>类目信息</legend>
               <div className={styles.field}>
+                <label htmlFor="category-id">类目 ID</label>
+                <input
+                  id="category-id"
+                  required
+                  maxLength={64}
+                  placeholder="例如 DIG-0001"
+                  value={hgCategoryId}
+                  onChange={(hgEvent) =>
+                    this.setState({ hgCategoryId: hgEvent.target.value })
+                  }
+                />
+                <p className={styles.fieldHint}>
+                  仅支持字母、数字、连字符和下划线；创建后作为稳定业务标识。
+                </p>
+              </div>
+              <div className={styles.field}>
                 <label htmlFor="category-name">类目名称</label>
                 <input
                   id="category-name"
@@ -244,17 +283,24 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
                 />
               </div>
               <div className={styles.field}>
-                <label htmlFor="category-parent">上级类目 ID（可选）</label>
-                <input
+                <label htmlFor="category-parent">上级类目（可选）</label>
+                {/* 上级 ID 来自已存在类目，下拉选择避免手输不存在的业务标识。 */}
+                <select
                   id="category-parent"
-                  maxLength={32}
                   value={hgParentId}
                   onChange={(hgEvent) =>
                     this.setState({ hgParentId: hgEvent.target.value })
                   }
-                />
+                >
+                  <option value="">一级类目（无上级）</option>
+                  {this.state.hgAdminCategories.map((hgItem) => (
+                    <option key={hgItem.categoryId} value={hgItem.categoryId}>
+                      {hgItem.name}（ID: {hgItem.categoryId}）
+                    </option>
+                  ))}
+                </select>
                 <p className={styles.fieldHint}>
-                  填写已有类目 ID 则创建其子类目；留空创建一级类目。
+                  选择已有类目则创建其子类目；选「一级类目」则不设上级。
                 </p>
               </div>
               {this.renderImageField()}

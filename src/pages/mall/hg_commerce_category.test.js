@@ -193,10 +193,11 @@ test("新建类目页提交名称与上级并以普通类目创建", async () =>
     },
   };
   const hgInstance = hgPage("hg_commerce_category_create_page.jsx", hgCommerce);
-  hgInstance.setState({ hgName: " 零食 ", hgParentId: "" });
+  hgInstance.setState({ hgCategoryId: "FOOD-0001", hgName: " 零食 ", hgParentId: "" });
   await hgInstance.hgSubmit({ preventDefault() {} });
   // 跨 VM 上下文数组原型不同，deepEqual 会误报；逐字段断言。
   assert.equal(hgCalls.length, 1);
+  assert.equal(hgCalls[0].categoryId, "FOOD-0001");
   assert.equal(hgCalls[0].name, "零食");
   assert.equal(hgCalls[0].parentId, "");
   assert.equal(hgCalls[0].regulated, false);
@@ -217,7 +218,7 @@ test("选择类目图片后创建失败复用已上传 URL，不重复上传", a
     },
   });
   hgInstance.hgChooseImage({ target: { files: [{ type: "image/png", size: 1024 }], value: "" } });
-  hgInstance.setState({ hgName: "类目" });
+  hgInstance.setState({ hgCategoryId: "CAT-0001", hgName: "类目" });
   await hgInstance.hgSubmit({ preventDefault() {} });
   assert.match(hgInstance.state.hgError, /服务失败/);
   assert.equal(hgInstance.state.hgImageURL, "/category.png");
@@ -229,7 +230,7 @@ test("选择类目图片后创建失败复用已上传 URL，不重复上传", a
   assert.equal(hgInstance.state.hgNotice, "类目已创建");
 });
 
-test("无效类目名称在上传前拒绝，不占用对象存储", async () => {
+test("无效类目名称或 ID 在上传前拒绝，不占用对象存储", async () => {
   let hgUploads = 0; // 无效输入不能导致上传副作用。
   const hgInstance = hgPage("hg_commerce_category_create_page.jsx", {
     uploadCategoryImage: async () => { hgUploads += 1; },
@@ -237,7 +238,44 @@ test("无效类目名称在上传前拒绝，不占用对象存储", async () =>
   hgInstance.hgChooseImage({ target: { files: [{ type: "image/png", size: 1024 }], value: "" } });
   await hgInstance.hgSubmit({ preventDefault() {} });
   assert.equal(hgUploads, 0);
-  assert.match(hgInstance.state.hgError, /有效的类目名称/);
+  assert.match(hgInstance.state.hgError, /类目名称/);
+  hgInstance.setState({ hgName: "数码影音", hgCategoryId: "非法 ID" });
+  await hgInstance.hgSubmit({ preventDefault() {} });
+  assert.equal(hgUploads, 0);
+  assert.match(hgInstance.state.hgError, /类目 ID/);
+});
+
+test("DIG-0001 可作为新类目 ID，上级类目从管理端列表下拉选择", async () => {
+  const hgCalls = [];
+  const hgCommerce = {
+    adminCategories: async () => HG_CATEGORIES,
+    createCategory: async (hgBody) => { hgCalls.push(hgBody); return { categoryId: "30" }; },
+  };
+  const hgInstance = hgPage("hg_commerce_category_create_page.jsx", hgCommerce);
+  await hgInstance.hgLoadCategories();
+  assert.equal(hgInstance.state.hgAdminCategories.length, 2);
+
+  // 渲染出下拉选项：一级 + 两个已有业务 ID，杜绝手输不存在的上级。
+  hgInstance.setState({ hgCategoryId: "DIG-0001", hgName: "数码影音" });
+  const hgSelect = hgFindElement(hgInstance.render(), "select");
+  assert.ok(hgSelect, "上级类目必须是下拉选择");
+  assert.equal(hgSelect.props.value, "");
+  const hgOptions = React.Children.toArray(hgSelect.props.children);
+  assert.equal(hgOptions.length, 3);
+  assert.equal(hgOptions[1].props.value, "11");
+
+  // 选择上级后同时提交自定义类目 ID 与已有上级 ID。
+  hgInstance.setState({ hgParentId: "11" });
+  await hgInstance.hgSubmit({ preventDefault() {} });
+  assert.equal(hgCalls.length, 1);
+  assert.equal(hgCalls[0].categoryId, "DIG-0001");
+  assert.equal(hgCalls[0].parentId, "11");
+
+  // 兜底校验：下拉状态被篡改为包含空格的非法 ID 时仍拒绝。
+  hgInstance.setState({ hgCategoryId: "DIG-0002", hgName: "数码影音", hgParentId: "BAD ID" });
+  await hgInstance.hgSubmit({ preventDefault() {} });
+  assert.equal(hgCalls.length, 1, "校验失败不得发起创建请求");
+  assert.match(hgInstance.state.hgError, /下拉列表/);
 });
 
 test("编辑类目页从列表解析当前名称并提交到预留接口", async () => {
