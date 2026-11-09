@@ -50,6 +50,10 @@ const HGCoinOperationsPage = lazy(() =>
 const HGRechargeSkuPage = lazy(() =>
   import("./hg_recharge_sku/hg_recharge_sku_page")
 );
+// 平台商品类目管理复用商城业务页，运维菜单仅提供独立入口。
+const HGCommerceCategoryPage = lazy(() =>
+  import("../../../pages/mall/hg_commerce_category_page.jsx")
+);
 const HGPendingMerchantReviewPage = lazy(() =>
   import("./mall_review/hg_mall_review_page").then((module) => ({
     default: module.HGPendingMerchantReviewPage,
@@ -257,7 +261,8 @@ const PAGE_MAP = {
   bilibili_douga_tags: HGBilibiliTagPage,
   coin_operations: HGCoinOperationsPage,
   hg_recharge_sku: HGRechargeSkuPage,
-  // 商城审核：四类待审资源分别维护独立列表状态，避免菜单切换时混用游标。
+  // 商城管理：商品类目独立维护；四类待审资源分别维护列表状态，避免菜单切换时混用游标。
+  mall_commerce_categories: HGCommerceCategoryPage,
   mall_pending_merchants: HGPendingMerchantReviewPage,
   mall_pending_products: HGPendingProductReviewPage,
   mall_pending_media: HGPendingMediaReviewPage,

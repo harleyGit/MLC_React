@@ -137,6 +137,11 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="config" />,
     children: [
       {
+        key: "mall_commerce_categories",
+        label: "商品类目",
+        icon: <HGIconPage type="table" />,
+      },
+      {
         key: "mall_pending_merchants",
         label: "待审核商家",
         icon: <HGIconPage type="table" />,
