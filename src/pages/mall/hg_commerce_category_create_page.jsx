@@ -1,4 +1,5 @@
 import React from "react";
+import HGImageCrop from "../../components/hg_image_crop/hg_image_crop.jsx";
 import HGUpload from "../../components/hg_upload/hg_upload.jsx";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import HGCommerceVM from "./hg_commerce_vm.js";
@@ -227,20 +228,22 @@ export default class HGCommerceCategoryCreatePage extends React.Component {
         <label htmlFor="category-image">
           类目图片（可选，JPG/PNG/WebP，最多 5 MiB）
         </label>
-        <HGUpload
-          id="category-image"
-          accept="image/jpeg,image/png,image/webp"
-          fileList={hgFileList}
-          maxCount={1}
-          multiple={false}
-          disabled={hgBusy}
-          beforeUpload={this.hgBeforeChooseImage}
-          onChange={this.hgChooseImage}
-          onRemove={() =>
-            hgImageURL ? this.hgDeleteImage(hgImageURL) : true
-          }
-          uploadText="选择图片"
-        />
+        <HGImageCrop aspect={1} outputWidth={800} rotationSlider>
+          <HGUpload
+            id="category-image"
+            accept="image/jpeg,image/png,image/webp"
+            fileList={hgFileList}
+            maxCount={1}
+            multiple={false}
+            disabled={hgBusy}
+            beforeUpload={this.hgBeforeChooseImage}
+            onChange={this.hgChooseImage}
+            onRemove={() =>
+              hgImageURL ? this.hgDeleteImage(hgImageURL) : true
+            }
+            uploadText="选择并裁切图片"
+          />
+        </HGImageCrop>
         {hgImageURL && (
           <p className={styles.fieldHint}>
             图片已上传；创建失败时可直接重试，不会重复上传。
