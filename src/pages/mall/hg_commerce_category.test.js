@@ -151,7 +151,7 @@ function hgCollectText(hgNode, hgOut = []) {
 
 const HG_CATEGORIES = [
   { categoryId: "11", name: "数码", depth: 1 },
-  { categoryId: "12", name: "手机", depth: 2 },
+  { categoryId: "12", parentId: "11", name: "手机", depth: 2, imageURL: "/old.png" },
 ];
 
 test("类目图片以 API Guard 约定的原始二进制类型上传", async () => {
@@ -320,25 +320,45 @@ test("DIG-0001 可作为新类目 ID，上级类目从管理端列表下拉选�
   assert.match(hgInstance.state.hgError, /下拉列表/);
 });
 
-test("编辑类目页从列表解析当前名称并提交到预留接口", async () => {
+test("编辑类目页可修改 ID、名称、上级和图片", async () => {
   const hgCalls = [];
+  let hgUploads = 0;
   const hgCommerce = {
     adminCategories: async () => HG_CATEGORIES,
+    unusedCategoryImages: async () => ({ imageURLs: [] }),
+    uploadCategoryImage: async () => {
+      hgUploads += 1;
+      return { imageURL: "/new.png" };
+    },
     editCategory: async (hgID, hgBody) => {
       hgCalls.push({ hgID, hgBody });
-      return { categoryId: hgID, name: hgBody.name, depth: 2 };
+      return { ...hgBody, depth: 1 };
     },
   };
   const hgPageModule = hgPage("hg_commerce_category_edit_page.jsx", hgCommerce);
   hgPageModule.props = { params: { categoryId: "12" } };
   await hgPageModule.hgLoad();
+  assert.equal(hgPageModule.state.hgCategoryId, "12");
   assert.equal(hgPageModule.state.hgName, "手机");
+  assert.equal(hgPageModule.state.hgParentId, "11");
+  assert.equal(hgPageModule.state.hgImageURL, "/old.png");
   assert.equal(hgPageModule.state.hgLoaded, true);
-  hgPageModule.setState({ hgName: "手机配件" });
+  hgPageModule.setState({
+    hgCategoryId: "PHONE-0001",
+    hgName: "手机配件",
+    hgParentId: "",
+    hgFile: { type: "image/png", size: 1024, name: "new.png" },
+    hgImageURL: "",
+  });
   await hgPageModule.hgSubmit({ preventDefault() {} });
   assert.equal(hgCalls.length, 1);
   assert.equal(hgCalls[0].hgID, "12");
+  assert.equal(hgCalls[0].hgBody.categoryId, "PHONE-0001");
   assert.equal(hgCalls[0].hgBody.name, "手机配件");
+  assert.equal(hgCalls[0].hgBody.parentId, "");
+  assert.equal(hgCalls[0].hgBody.imageURL, "/new.png");
+  assert.equal(hgUploads, 1);
+  assert.equal(hgPageModule.state.hgOriginalId, "PHONE-0001");
   assert.equal(hgPageModule.state.hgNotice, "类目已更新");
 
   // 目标不在可经营列表中时不允许提交编辑。

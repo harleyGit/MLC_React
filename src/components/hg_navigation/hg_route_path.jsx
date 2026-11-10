@@ -19,7 +19,7 @@ export const ROUTE_PATH = Object.freeze({
   COMMERCE_DETAIL: "/mall/commerce/:productId", // 已审核已上架商品详情
   COMMERCE_DEBUG_TRADE: "/mall/commerce-debug", // 仅 Vite debug 可见的隔离模拟交易工作台
   COMMERCE_CATEGORY_CREATE: "/mall/commerce/category/create", // 平台普通类目新建页（类目管理列表右上角进入）
-  COMMERCE_CATEGORY_EDIT: "/mall/commerce/category/:categoryId/edit", // 平台普通类目编辑页（编辑接口为前端预留契约）
+  COMMERCE_CATEGORY_EDIT: "/mall/commerce/category/:categoryId/edit", // 平台普通叶子类目编辑页
   COMMERCE_CATEGORY_DELETE: "/mall/commerce/category/:categoryId/delete", // 平台普通类目停用确认页
   MALL_ORDER_DETAIL: "/mall/orders/:orderId", // 本人商品订单详情；商家查询由独立权限接口处理
   DEFAULT: "/", //默认路由

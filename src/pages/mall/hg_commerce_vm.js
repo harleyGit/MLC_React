@@ -21,7 +21,7 @@ export default class HGCommerceVM {
       headers: { "Content-Type": "application/octet-stream" }, timeout: 60000,
     });
   }
-  // 编辑/删除为前端预留契约：后端实现前调用会失败，页面须如实展示服务端错误。
+  // 类目编辑以查询参数传原 ID，请求体 categoryId 为修改后的 ID。
   static editCategory(categoryId, body) { return this.hgPostWithQuery("COMMERCE_CATEGORY_EDIT", categoryId, body); }
   static deleteCategory(categoryId) { return this.hgRequest("post", "COMMERCE_CATEGORY_DELETE", { categoryId }); }
   static mine(cursor = "") { return this.hgRequest("get", "COMMERCE_MINE", { cursor }); }
