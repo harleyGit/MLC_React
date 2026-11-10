@@ -49,7 +49,7 @@ export const HGMANAGER_API = {
   COMMERCE_CATEGORY_IMAGE_DELETE: "/api/v1/commerce/admin/categories/images/delete", // 删除本人未绑定的类目图片
   COMMERCE_CATEGORY_CREATE: "/api/v1/commerce/admin/categories", // 平台维护类目
   COMMERCE_CATEGORY_EDIT: "/api/v1/commerce/admin/categories/edit", // 平台维护类目编辑；后端尚未实现，为前端预留契约
-  COMMERCE_CATEGORY_DELETE: "/api/v1/commerce/admin/categories/delete", // 平台维护类目删除；后端尚未实现，为前端预留契约
+  COMMERCE_CATEGORY_DELETE: "/api/v1/commerce/admin/categories/delete", // 平台停用无子类目、无关联商品的类目
   COMMERCE_CREATE: "/api/v1/commerce/merchant/products", // CNY 商品草稿，需幂等请求头
   COMMERCE_EDIT: "/api/v1/commerce/merchant/products/edit", // 本人草稿编辑
   COMMERCE_MINE: "/api/v1/commerce/merchant/products", // 本人 CNY 商品游标页

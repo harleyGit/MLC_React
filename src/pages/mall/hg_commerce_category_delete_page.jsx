@@ -4,7 +4,7 @@ import styles from "./hg_merchant_center.module.css";
 
 /**
  * 删除平台普通类目确认页（独立路由，由类目管理列表行内「删除」进入）。
- * 职责：展示目标类目信息并在显式确认后提交删除；删除接口为前端预留契约，后端实现前提交会失败并如实展示错误。
+ * 职责：展示目标类目信息并在显式确认后提交停用；服务端拒绝仍有子类目或关联商品的类目。
  * 约束：无类目详情接口，目标信息从可经营类目列表解析；解析不到时不允许提交删除。
  */
 export default class HGCommerceCategoryDeletePage extends React.Component {
@@ -63,7 +63,6 @@ export default class HGCommerceCategoryDeletePage extends React.Component {
     if (this.hgFlight || !this.state.hgTarget) return;
     this.hgFlight = true;
     this.setState({ hgBusy: true, hgError: "", hgNotice: "" });
-    // 删除接口为前端预留契约：后端实现前请求失败，页面如实展示服务端错误。
     HGCommerceVM.deleteCategory(this.state.hgTarget.categoryId)
       .then(() => {
         if (this.hgMounted) this.setState({ hgNotice: "类目已删除" });
@@ -97,7 +96,7 @@ export default class HGCommerceCategoryDeletePage extends React.Component {
             <h2>删除普通类目</h2>
           </div>
           <p className={styles.desc}>
-            删除操作不可恢复；是否允许删除由服务端校验（如类目下仍有商品时通常会被拒绝）。
+            删除会停用该类目且不清理历史数据；仍有启用子类目或关联商品时服务端会拒绝。
           </p>
           {hgTarget ? (
             <div className={styles.commerceReviewDetail}>
