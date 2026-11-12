@@ -126,15 +126,15 @@ export default class HGMessageCenterVM {
   /** 设备凭据只在注册时返回；服务端仅存摘要并校验 JWT 用户归属。 */
   static registerDevice = () => HGNet.post(HGMANAGER_API.IM_DEVICE_REGISTER, {});
 
-  /** 本设备待送达指针；不在 URL 或 query 中传设备 secret。 */
-  static fetchDevicePending = (credential) => HGNet.post(HGMANAGER_API.IM_DEVICE_PENDING, { ...credential, after: 0 });
+  /** 本设备待送达指针经当前 WS RPC 补拉，不在 HTTP URL 中传设备 secret。 */
+  static fetchDevicePending = () => HGMessageCenterVM.hgRPC("pending", { after: 0 });
 
   /** 客户端已经获取并处理消息后显式 ACK，服务器写 socket 成功不等于已送达。 */
-  static ackDeviceMessage = (credential, messageId) => HGNet.post(HGMANAGER_API.IM_DEVICE_ACK, { ...credential, messageId });
+  static ackDeviceMessage = (_credential, messageId) => HGMessageCenterVM.hgRPC("ack", { messageId });
 
   /** 会话历史按 seq 游标向前翻页，禁止深度 offset。 */
   static fetchMessages = ({ conversationId, afterSeq = 0 }) =>
-    HGNet.get(HGMANAGER_API.IM_CONVERSATION_MESSAGES, { conversationId, afterSeq });
+    HGMessageCenterVM.hgRPC("history", { conversationId, afterSeq });
 
   /** 上报已读位置；lastReadSeq 单调递增，服务端只接受更大值。 */
   static reportRead = ({ conversationId, lastReadSeq }) =>
@@ -142,7 +142,13 @@ export default class HGMessageCenterVM {
 
   /** 发送私信：clientMsgId 负责幂等，sender 由服务端从登录态解析。 */
   static sendMessage = ({ conversationId, clientMsgId, messageType = "text", content }) =>
-    HGNet.post(HGMANAGER_API.IM_SEND, { conversationId, clientMsgId, messageType, content });
+    HGMessageCenterVM.hgRPC("send", { conversationId, clientMsgId, messageType, content });
+
+  /** 实时连接由消息中心页面绑定；失联时拒绝降级为旧 HTTP 消息接口。 */
+  static hgRPC = (hgMethod, hgData) => {
+    if (!HGMessageCenterVM.hgRealtime) return Promise.reject(new Error("实时连接未建立，请稍后重试"));
+    return HGMessageCenterVM.hgRealtime.hgRPC(hgMethod, hgData);
+  };
 
   /* ===== 工具方法 ===== */
 

@@ -1,6 +1,6 @@
 import { hgIMEndpoint } from "../../net_handle/hg_im_endpoint";
 
-/** Centrifugo 服务端订阅；publication 只调度权威补拉，不能直接渲染或 ACK。 */
+/** Centrifugo 负责订阅与有界 RPC；publication 只调度权威补拉，不能直接渲染或 ACK。 */
 export default class HGIMRealtime {
   hgClient = null; // 唯一 SDK 连接；关闭后为 null。
   hgClosed = false; // 防止异步 import/token 在卸载后建连。
@@ -41,10 +41,24 @@ export default class HGIMRealtime {
       this.hgOnState("实时已连接");
       this.hgOnRecover();
     });
-    this.hgClient.on("connecting", () => !this.hgClosed && this.hgOnState("实时重连中 · HTTP 补拉可用"));
+    this.hgClient.on("connecting", () => !this.hgClosed && this.hgOnState("实时重连中 · 等待 WebSocket 补拉"));
     this.hgClient.on("disconnected", () => !this.hgClosed && this.hgOnState("实时已断开 · 可手动重连"));
-    this.hgClient.on("error", () => !this.hgClosed && this.hgOnState("实时连接异常 · HTTP 补拉中"));
+    this.hgClient.on("error", () => !this.hgClosed && this.hgOnState("实时连接异常 · 等待 WebSocket 恢复"));
     this.hgClient.connect();
+  }
+
+  /** 消息仅通过当前已认证设备的 WS RPC 发送，断线时失败关闭；重试必须复用 clientMsgId。 */
+  async hgRPC(hgMethod, hgData = {}) {
+    if (this.hgClosed || !this.hgClient || this.hgClient.state !== "connected") throw new Error("实时连接未建立，请稍后重试");
+    let hgResult; // Centrifugo 的结果只在当前连接成功完成 RPC 后可用。
+    try {
+      hgResult = await this.hgClient.rpc(`im:${hgMethod}`, { ...hgData, ...this.hgCredential });
+    } catch (hgError) {
+      if ([400, 403, 409, 503].includes(hgError?.code)) hgError.status = hgError.code; // 对齐既有页面错误分支。
+      throw hgError;
+    }
+    if (this.hgClosed) throw new Error("聊天页面已关闭");
+    return hgResult.data;
   }
 
   /** 移除监听并断开，禁止库继续刷新 token 或重连。 */

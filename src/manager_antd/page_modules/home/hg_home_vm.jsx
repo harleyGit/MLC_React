@@ -25,12 +25,12 @@ export default class HGHomeVM {
   hgController = new AbortController(); // 页面卸载/切换账号时取消所有 Go 请求。
   hgOwner = hgIMOwner(); // 固定本次页面账号；每轮异步完成前检查归属。
   hgAPI = new HGIMAPI(this.hgController.signal); // 复用签名、刷新与错误语义。
-  hgCredential = null; // 仅当前账号设备凭据；无凭据时 HTTP 聊天仍可用。
+  hgCredential = null; // 仅当前账号设备凭据；无凭据时消息操作失败关闭。
   hgRealtime = null; // 可重建的 Centrifugo 连接。
   hgConnecting = null; // 获取 token / 建立 SDK 连接的单飞任务；null 表示可发起新一轮。
   hgConnectionTimer = null; // SDK 自动重试的 20 秒观察窗口，超时才报告不可用。
   hgConnectionState = "idle"; // idle/connecting/connected/failed，供顶栏展示最终连接状态。
-  hgTimer = null; // 8 秒补拉兜底；单次请求结束后再调度。
+  hgTimer = null; // 8 秒 WS 补拉兜底；单次请求结束后再调度。
   hgBusy = false; // 单飞同步，合并大量 publication。
   hgAgain = false; // 同步期间有指针到达时安排下一轮。
   hgSelection = 0; // 历史窗口版本，切换会话/翻页使旧响应失效。
@@ -73,7 +73,7 @@ export default class HGHomeVM {
     void this.hgEmit({ error: `${hgOperation}：${hgReason}` });
   }
 
-  /** 首页仅恢复登录时注册的设备；缺失时仍保留 HTTP 会话，不在页面额外注册。 */
+  /** 首页仅恢复登录时注册的设备；缺失时消息失败关闭，不在页面额外注册。 */
   async hgStart() {
     if (!this.hgAlive()) { await this.hgOnState({ ...this.hgState, loading: false, error: "请重新登录后打开聊天" }); return; }
     const hgStored = hgIMSession(this.hgOwner).credential; // 与账号绑定的标签页凭据。
@@ -82,10 +82,10 @@ export default class HGHomeVM {
       await this.hgEmit({ deviceReady: true });
       void this.hgReconnect();
     } else {
-      await this.hgEmit({ realtime: "未绑定聊天设备，请退出后重新登录 · HTTP 补拉中", error: "无本设备凭据，请退出后重新登录以注册聊天设备" });
+      await this.hgEmit({ realtime: "未绑定聊天设备，请退出后重新登录", loading: false, error: "无本设备凭据，请退出后重新登录以注册聊天设备" });
       this.hgPublishConnection("failed", "无本设备凭据，请退出后重新登录以注册聊天设备");
     }
-    await this.hgSync();
+    // 初次同步由 subscribed 触发；不能在连接建立前回退到 HTTP 或留下虚假的同步失败。
   }
 
   /** 只向顶栏发布当前账号的安全状态，不传递 token/设备 secret 或原始异常。 */
@@ -112,8 +112,8 @@ export default class HGHomeVM {
       this.hgConnectionTimer = setTimeout(() => {
         this.hgConnectionTimer = null;
         if (!this.hgAlive() || this.hgConnectionState === "connected") return;
-        const hgReason = typeof navigator !== "undefined" && navigator.onLine === false ? "网络已断开，聊天实时连接失败；HTTP 补拉将在网络恢复后继续" : "实时网关未建立连接，消息仍通过 HTTP 补拉；请检查网关服务及当前页面 Origin 是否获准，连接将自动重试";
-        void this.hgEmit({ realtime: "实时不可用 · HTTP 补拉中" });
+        const hgReason = typeof navigator !== "undefined" && navigator.onLine === false ? "网络已断开，聊天将在连接恢复后继续" : "实时网关未建立连接；请检查网关服务及当前页面 Origin 是否获准，连接将自动重试";
+        void this.hgEmit({ realtime: "实时不可用 · 等待 WebSocket 恢复" });
         this.hgPublishConnection("failed", hgReason);
       }, 20000);
     }
@@ -127,12 +127,14 @@ export default class HGHomeVM {
       clearTimeout(this.hgConnectionTimer);
       this.hgConnectionTimer = null;
       this.hgRealtime?.hgClose();
+      this.hgAPI.hgRealtime = null;
       this.hgPublishConnection("connecting");
-      this.hgOnRealtimeStatus("实时重连中 · HTTP 补拉可用");
+      this.hgOnRealtimeStatus("实时重连中 · 等待 WebSocket 补拉");
       for (let hgAttempt = 0; hgAttempt < 2 && this.hgAlive(); hgAttempt++) {
         const hgRealtime = new HGIMRealtime(this.hgAPI, this.hgCredential, this.hgHint,
           this.hgOnRealtimeStatus, this.hgSchedule);
         this.hgRealtime = hgRealtime;
+        this.hgAPI.hgRealtime = hgRealtime;
         try {
           await hgRealtime.hgStart();
           return; // 已启动 SDK；后续短暂断线交由 SDK 自动重试和超时观察。
@@ -142,8 +144,8 @@ export default class HGHomeVM {
           if (hgAttempt === 0 && ![401, 403].includes(hgError?.status)) continue;
           clearTimeout(this.hgConnectionTimer);
           this.hgConnectionTimer = null;
-          const hgReason = hgError?.status === 401 ? "登录已失效，请重新登录" : hgError?.status === 403 ? "设备凭据已失效，请退出后重新登录" : hgError?.status === 503 ? "实时服务暂不可用，HTTP 补拉中" : "实时连接失败，请检查网络或稍后点击 Chat 重试；HTTP 补拉中";
-          await this.hgEmit({ realtime: "实时不可用 · HTTP 补拉中" });
+          const hgReason = hgError?.status === 401 ? "登录已失效，请重新登录" : hgError?.status === 403 ? "设备凭据已失效，请退出后重新登录" : "实时连接失败，请检查网络或稍后点击 Chat 重试";
+          await this.hgEmit({ realtime: "实时不可用 · 等待 WebSocket 恢复" });
           this.hgPublishConnection("failed", hgReason);
         }
       }
@@ -167,7 +169,7 @@ export default class HGHomeVM {
 
   /** 有界同步：一页会话、两页活跃消息、最多四个 pending 会话；不会并发风暴。 */
   async hgSync() {
-    if (!this.hgAlive() || this.hgBusy) return;
+    if (!this.hgAlive() || this.hgBusy || this.hgRealtime?.hgClient?.state !== "connected") return;
     this.hgBusy = true;
     clearTimeout(this.hgTimer);
     try {
@@ -374,6 +376,7 @@ export default class HGHomeVM {
     hgIMSession(this.hgOwner, { credential: null, callId: "" });
     this.hgCredential = null;
     this.hgRealtime?.hgClose();
+    this.hgAPI.hgRealtime = null;
     clearTimeout(this.hgConnectionTimer);
     this.hgConnectionTimer = null;
     this.hgPublishConnection("idle"); // 用户主动撤销并非连接故障，不弹失败 toast。
@@ -387,6 +390,7 @@ export default class HGHomeVM {
     clearTimeout(this.hgConnectionTimer);
     this.hgController.abort();
     this.hgRealtime?.hgClose();
+    this.hgAPI.hgRealtime = null;
     this.hgCredential = null;
   }
 }

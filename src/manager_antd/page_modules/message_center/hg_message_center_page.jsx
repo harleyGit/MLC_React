@@ -23,6 +23,9 @@ import HGMessageCenterVM, {
   TONE_CLASS_MAP,
 } from "./hg_message_center_vm";
 import styles from "./hg_message_center.module.css";
+import HGIMAPI from "../../net_handle/hg_im_api";
+import HGIMRealtime from "../home/hg_im_realtime";
+import { hgIMOwner, hgIMSession } from "../../storage/hg_im_session";
 
 /** 时间 medium 琐碎格式化，避免每帧重复构造 Intl 实例。 */
 const TIME_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
@@ -74,6 +77,8 @@ class HGMessageCenterPage extends Component {
     this.hgPendingSend = null; // 失败重试时复用原 clientMsgId；成功或修改草稿后清空。
     this.hgDevice = null; // 仅当前浏览器标签使用的临时设备凭据；不会放入 URL/日志。
     this.hgDeviceBusy = false; // 单标签最多一个待确认补拉请求，避免定时器放大并发。
+    this.hgIMController = new AbortController(); // 离开页面时取消令牌获取与归属校验。
+    this.hgIMRealtime = null; // 本页唯一 Centrifugo 连接；未建立或离开时为 null。
   }
 
   componentDidMount() {
@@ -87,6 +92,9 @@ class HGMessageCenterPage extends Component {
 
   componentWillUnmount() {
     this.hgMounted = false;
+    this.hgIMController.abort();
+    this.hgIMRealtime?.hgClose();
+    HGMessageCenterVM.hgRealtime = null;
     this.hgListRequest += 1;
     this.hgImRequest += 1;
     if (this.hgImTimer) clearInterval(this.hgImTimer);
@@ -252,10 +260,12 @@ class HGMessageCenterPage extends Component {
         this.loadIMConversations();
         this.ensureIMDevice();
         if (this.hgImTimer) clearInterval(this.hgImTimer);
-        // WS 网关尚未部署；仅在私信页进行有界补拉，不把轮询称为实时送达。
+        // 定时 WS 补拉兜底；publication 触发立即补拉，断线时不降级为 HTTP。
         this.hgImTimer = setInterval(() => {
-          this.loadIMHistory(true);
-          this.loadIMDevicePending();
+          if (this.hgIMRealtime?.hgClient?.state === "connected") {
+            this.loadIMHistory(true);
+            this.loadIMDevicePending();
+          }
         }, 8000);
       }
       return;
@@ -367,28 +377,47 @@ class HGMessageCenterPage extends Component {
 
   /** 仅 debug 试运行时复用当前标签的设备凭据；服务端仍按 JWT 校验归属和失效时间。 */
   ensureIMDevice = () => {
-    if (this.hgDevice) return;
+    if (this.hgDevice) { this.startIMRealtime(); return; }
     try {
-      const cached = JSON.parse(sessionStorage.getItem("hg.im.device.debug") || "null");
+      const cached = hgIMSession(hgIMOwner()).credential;
       if (cached?.deviceId && cached?.secret) {
         this.hgDevice = cached;
-        this.loadIMDevicePending();
+        this.startIMRealtime();
         return;
       }
-    } catch { sessionStorage.removeItem("hg.im.device.debug"); }
+    } catch { /* 禁止读取跨账号的旧版临时凭据。 */ }
     HGMessageCenterVM.registerDevice()
       .then((credential) => {
         if (!this.hgMounted) return;
         this.hgDevice = credential;
-        sessionStorage.setItem("hg.im.device.debug", JSON.stringify(credential));
-        this.loadIMDevicePending();
+        this.startIMRealtime();
       })
       .catch((error) => { if (this.hgMounted) message.error(error?.message || "设备注册失败"); });
   };
 
+  /** 当前标签绑定设备订阅；重连后权威补拉，连接错误不得悄悄使用旧 HTTP 消息接口。 */
+  startIMRealtime = () => {
+    if (!this.hgMounted || this.hgIMRealtime || !this.hgDevice) return;
+    const hgAPI = new HGIMAPI(this.hgIMController.signal); // 令牌走现有鉴权链，不复用别的登录账号。
+    const hgRecover = () => {
+      if (!this.hgMounted || this.state.activeKey !== IM_VIEW_KEY) return;
+      this.loadIMConversations();
+      this.loadIMDevicePending();
+    };
+    this.hgIMRealtime = new HGIMRealtime(hgAPI, this.hgDevice, hgRecover, () => {}, hgRecover);
+    HGMessageCenterVM.hgRealtime = this.hgIMRealtime;
+    this.hgIMRealtime.hgStart().catch((error) => {
+      if (!this.hgMounted) return;
+      this.hgIMRealtime?.hgClose();
+      this.hgIMRealtime = null;
+      HGMessageCenterVM.hgRealtime = null;
+      message.error(error?.message || "实时连接失败，请重试");
+    });
+  };
+
   /** 只 ACK 已在本人聊天窗口获取的消息；失败保留待确认记录供后续重试。 */
   loadIMDevicePending = () => {
-    if (!this.hgDevice || this.hgDeviceBusy || this.state.activeKey !== IM_VIEW_KEY) return;
+    if (!this.hgDevice || this.hgDeviceBusy || this.hgIMRealtime?.hgClient?.state !== "connected" || this.state.activeKey !== IM_VIEW_KEY) return;
     this.hgDeviceBusy = true;
     HGMessageCenterVM.fetchDevicePending(this.hgDevice)
       .then((result) => {
@@ -400,7 +429,9 @@ class HGMessageCenterPage extends Component {
       .catch((error) => {
         if (!this.hgMounted) return;
         if (error?.status === 403) {
-          sessionStorage.removeItem("hg.im.device.debug");
+          this.hgIMRealtime?.hgClose();
+          this.hgIMRealtime = null;
+          HGMessageCenterVM.hgRealtime = null;
           this.hgDevice = null;
         }
       })
@@ -431,7 +462,7 @@ class HGMessageCenterPage extends Component {
   /** 根据服务端 seq 补拉；切换会话后旧请求不得覆盖新聊天窗口。 */
   loadIMHistory = (append = false) => {
     const conversationId = this.state.activeConversationId;
-    if (!conversationId || !this.hgMounted || this.state.activeKey !== IM_VIEW_KEY) return;
+    if (!conversationId || !this.hgMounted || this.hgIMRealtime?.hgClient?.state !== "connected" || this.state.activeKey !== IM_VIEW_KEY) return;
     const existing = this.state.messagesByConversation[conversationId] || [];
     const afterSeq = append && existing.length ? Math.max(...existing.map((item) => item.seq)) : 0;
     const request = ++this.hgImRequest;
@@ -724,7 +755,7 @@ class HGMessageCenterPage extends Component {
 
         <div className={styles.navSection}>
           <span className={styles.navSectionLabel}>即时通信</span>
-          {this.renderNavItem({ key: IM_VIEW_KEY, label: HGMessageCenterVM.isIMAvailable() ? "私信（HTTP 补拉）" : "私信（待上线）", icon: "chat", tone: "blue" })}
+          {this.renderNavItem({ key: IM_VIEW_KEY, label: HGMessageCenterVM.isIMAvailable() ? "私信（WebSocket）" : "私信（待上线）", icon: "chat", tone: "blue" })}
         </div>
 
         <button type="button" className={styles.navFooter} onClick={this.openPreferences}>

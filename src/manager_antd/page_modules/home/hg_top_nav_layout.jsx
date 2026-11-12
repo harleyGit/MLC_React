@@ -35,7 +35,7 @@ class HGTopNavLayout extends Component {
       current: this.getCurrentPage(),
       showUserDropdown: false,
       hgIsAdmin: false, // 后端确认有效管理员前一律隐藏运维和采集入口。
-      hgChatFailed: false, // 仅当前账号实时连接最终失败时标红；HTTP 补拉仍可用。
+      hgChatFailed: false, // 仅当前账号实时连接最终失败时标红；消息操作在断线时失败关闭。
     };
     this.avatarMenuRef = React.createRef();
   }
@@ -135,7 +135,7 @@ class HGTopNavLayout extends Component {
     if (!owner || owner !== hgIMOwner()) return;
     this.hgConnectionOwner = owner;
     const hgFailed = state === "failed";
-    if (hgFailed && !this.state.hgChatFailed) message.error(reason || "聊天实时连接失败，HTTP 补拉仍可用", 8000);
+    if (hgFailed && !this.state.hgChatFailed) message.error(reason || "聊天实时连接失败，请等待 WebSocket 恢复", 8000);
     if (hgFailed || state === "connected" || state === "idle") this.setState({ hgChatFailed: hgFailed });
   };
 

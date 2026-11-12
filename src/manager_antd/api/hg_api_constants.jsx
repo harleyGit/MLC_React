@@ -195,18 +195,13 @@ export const HGMANAGER_API = {
   IM_CONTACT_PROFILE: "/api/v1/im/contacts/profile", // 联系人公开资料（头像）；按 userId 点查。
   IM_CONVERSATION_MUTED: "/api/v1/im/conversations/muted", // 本人会话免打扰
   IM_CONVERSATION_DELETE: "/api/v1/im/conversations/delete", // 有界删除旧历史并隐藏本人会话
-  IM_CONVERSATION_MESSAGES: "/api/v1/im/messages", // 会话历史（conversationId + afterSeq）
   IM_CONVERSATION_READ: "/api/v1/im/read", // 上报已读位置
-  IM_SEND: "/api/v1/im/messages", // 发送私信（clientMsgId 幂等）
   IM_DEVICE_REGISTER: "/api/v1/im/device/register", // 服务端签发当前浏览器设备凭据
-  IM_DEVICE_PENDING: "/api/v1/im/device/pending", // 仅查询当前设备尚未 ACK 的消息指针
-  IM_DEVICE_ACK: "/api/v1/im/device/ack", // 客户端实际处理后上报本设备 ACK
   IM_DEVICE_REVOKE: "/api/v1/im/device/revoke", // 撤销本人当前 IM 设备
   IM_REALTIME_TOKEN: "/api/v1/im/realtime/token", // Centrifugo 服务端订阅凭据
   IM_MEDIA_INIT: "/api/v1/im/media/upload/init", // 私有隔离区预签名 PUT
   IM_MEDIA_COMPLETE: "/api/v1/im/media/upload/complete", // 上传完成后申请真实审核
   IM_MEDIA_STATUS: "/api/v1/im/media/status", // 上传者查询审核元数据
-  IM_MEDIA_READ: "/api/v1/im/media/read", // 逐次鉴权的 Range 下载
   IM_MEDIA_DELETE: "/api/v1/im/media/delete", // 上传者撤销附件
   IM_CALLS: "/api/v1/im/calls", // 创建/读取单聊呼叫
   IM_CALL_ACTION: "/api/v1/im/calls/action", // 接听/拒绝/取消/结束
