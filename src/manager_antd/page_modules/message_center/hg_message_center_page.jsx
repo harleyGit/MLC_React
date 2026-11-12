@@ -404,7 +404,7 @@ class HGMessageCenterPage extends Component {
       this.loadIMConversations();
       this.loadIMDevicePending();
     };
-    this.hgIMRealtime = new HGIMRealtime(hgAPI, this.hgDevice, hgRecover, () => {}, hgRecover);
+    this.hgIMRealtime = new HGIMRealtime(hgAPI, this.hgDevice, this.handleIMHint, () => {}, hgRecover);
     HGMessageCenterVM.hgRealtime = this.hgIMRealtime;
     this.hgIMRealtime.hgStart().catch((error) => {
       if (!this.hgMounted) return;
@@ -413,6 +413,18 @@ class HGMessageCenterPage extends Component {
       HGMessageCenterVM.hgRealtime = null;
       message.error(error?.message || "实时连接失败，请重试");
     });
+  };
+
+  /** 当前会话的消息指针只补拉历史；其他会话或未知事件仍从权威列表恢复。 */
+  handleIMHint = (hgHint) => {
+    if (!this.hgMounted || this.state.activeKey !== IM_VIEW_KEY) return;
+    if (hgHint?.eventType === "message.committed" && hgHint.conversationId === this.state.activeConversationId) {
+      this.loadIMHistory(true);
+      this.loadIMDevicePending();
+      return;
+    }
+    this.loadIMConversations();
+    this.loadIMDevicePending();
   };
 
   /** 只 ACK 已在本人聊天窗口获取的消息；失败保留待确认记录供后续重试。 */
@@ -474,7 +486,12 @@ class HGMessageCenterPage extends Component {
           const current = append ? (state.messagesByConversation[conversationId] || []) : [];
           const byId = new Map(current.map((item) => [item.messageId, item]));
           incoming.forEach((item) => byId.set(item.messageId, item));
-          return { messagesByConversation: { ...state.messagesByConversation, [conversationId]: [...byId.values()] } };
+          const hgNewest = incoming.at(-1); // 历史响应已完成本人会话鉴权，不用网关指针更新最新序号。
+          return {
+            messagesByConversation: { ...state.messagesByConversation, [conversationId]: [...byId.values()] },
+            conversations: hgNewest ? state.conversations.map((item) => item.conversationId === conversationId && hgNewest.seq >= item.lastSeq
+              ? { ...item, lastSeq: hgNewest.seq, updatedAt: hgNewest.createdAt } : item) : state.conversations,
+          };
         }, this.loadIMDevicePending);
         const lastSeq = incoming[incoming.length - 1]?.seq || 0;
         const recorded = this.state.conversations.find((item) => item.conversationId === conversationId)?.lastReadSeq || 0;
@@ -611,6 +628,8 @@ class HGMessageCenterPage extends Component {
         this.setState((state) => ({
           composerText: "",
           sending: false,
+          conversations: state.conversations.map((item) => item.conversationId === activeConversationId
+            ? { ...item, lastSeq: Math.max(item.lastSeq, normalized.seq) } : item),
           messagesByConversation: {
             ...state.messagesByConversation,
             [activeConversationId]: [

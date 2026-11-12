@@ -33,6 +33,7 @@ export default class HGHomeVM {
   hgTimer = null; // 实时事件的短延迟合并；没有新事件时不再发起同步。
   hgBusy = false; // 单飞同步，合并大量 publication。
   hgAgain = false; // 同步期间有指针到达时安排下一轮。
+  hgListRequested = false; // 待同步事件是否需要刷新会话列表；当前会话消息仅补拉历史。
   hgSelection = 0; // 历史窗口版本，切换会话/翻页使旧响应失效。
   hgClosed = false; // 关闭后禁止发出状态、ACK 或新请求。
   hgListCursor = ""; // 会话主键倒序游标，不按时间猜测。
@@ -157,23 +158,31 @@ export default class HGHomeVM {
   hgHint = (hgHint) => {
     if (!this.hgAlive() || !hgHint || typeof hgHint !== "object") return;
     if (typeof hgHint.callId === "string" && /^[a-f0-9]{32}$/.test(hgHint.callId)) this.hgOnCallHint(hgHint.callId);
-    this.hgSchedule();
+    this.hgSchedule(hgHint.eventType !== "message.committed" || hgHint.conversationId !== this.hgState.activeId);
   };
 
-  hgSchedule = () => {
+  /** 合并消息补拉与列表刷新；只要有其他会话事件，就保留列表刷新。 */
+  hgSchedule = (hgList = true) => {
     if (!this.hgAlive()) return;
+    this.hgListRequested ||= hgList;
     if (this.hgBusy) { this.hgAgain = true; return; }
     clearTimeout(this.hgTimer);
-    this.hgTimer = setTimeout(() => void this.hgSync(), 250);
+    this.hgTimer = setTimeout(this.hgRunScheduledSync, 250);
+  };
+
+  hgRunScheduledSync = () => {
+    const hgList = this.hgListRequested; // 捕获合并后的需求，下一轮事件独立计数。
+    this.hgListRequested = false;
+    void this.hgSync(hgList);
   };
 
   /** 事件触发的有界同步：一页会话、两页活跃消息、最多四个 pending 会话。 */
-  async hgSync() {
+  async hgSync(hgList = true) {
     if (!this.hgAlive() || this.hgBusy || this.hgRealtime?.hgClient?.state !== "connected") return;
     this.hgBusy = true;
     clearTimeout(this.hgTimer);
     try {
-      await this.hgLoadConversations(false);
+      if (hgList) await this.hgLoadConversations(false);
       if (!this.hgAlive()) return;
       if (!this.hgState.activeId && this.hgState.conversations[0]) await this.hgSelect(this.hgState.conversations[0].conversationId);
       else if (this.hgFollow) await this.hgLatest(false);
@@ -196,7 +205,7 @@ export default class HGHomeVM {
     finally {
       this.hgBusy = false;
       await this.hgEmit({ loading: false });
-      if (this.hgAlive() && this.hgAgain) this.hgTimer = setTimeout(() => void this.hgSync(), 1000);
+      if (this.hgAlive() && this.hgAgain) this.hgTimer = setTimeout(this.hgRunScheduledSync, 1000);
       this.hgAgain = false;
     }
   }
@@ -293,7 +302,13 @@ export default class HGHomeVM {
         const hgMap = new Map((hgReset && hgPage === 0 ? [] : this.hgState.messages).map((hgItem) => [hgItem.messageId, hgItem]));
         hgList.forEach((hgItem) => hgMap.set(hgItem.messageId, hgItem));
         this.hgWindowAfter = hgAfter;
-        await this.hgEmit({ messages: [...hgMap.values()].sort((hgLeft, hgRight) => hgLeft.seq - hgRight.seq).slice(-200) });
+        const hgPatch = { messages: [...hgMap.values()].sort((hgLeft, hgRight) => hgLeft.seq - hgRight.seq).slice(-200) };
+        const hgNewest = hgList.at(-1); // 历史 RPC 已按本人会话授权，不能用未校验的网关指针更新列表。
+        if (hgNewest && hgNewest.seq >= (this.hgState.conversations.find((hgItem) => hgItem.conversationId === hgID)?.lastSeq || 0)) {
+          hgPatch.conversations = this.hgState.conversations.map((hgItem) => hgItem.conversationId === hgID
+            ? { ...hgItem, lastSeq: hgNewest.seq, updatedAt: hgNewest.sentAt || hgNewest.createdAt || hgItem.updatedAt } : hgItem);
+        }
+        await this.hgEmit(hgPatch);
         if (hgList.length < 50) break;
       }
     } finally { if (this.hgLoadingSelection === hgSelection) this.hgLoadingSelection = null; }
@@ -366,7 +381,12 @@ export default class HGHomeVM {
     const hgResult = await this.hgAPI.hgSend(hgCommand);
     if (!this.hgAlive()) return;
     if (!hgResult?.message?.messageId) throw new Error("服务端未确认发送");
-    this.hgSchedule();
+    const hgSeq = hgIMSeq(hgResult.message.seq); // 回执只更新显示用的最新序号，不作为连续历史/ACK 水位。
+    if (hgCommand.conversationId === this.hgState.activeId) {
+      await this.hgEmit({ conversations: this.hgState.conversations.map((hgItem) => hgItem.conversationId === hgCommand.conversationId
+        ? { ...hgItem, lastSeq: Math.max(hgItem.lastSeq, hgSeq) } : hgItem) });
+    }
+    this.hgSchedule(hgCommand.conversationId !== this.hgState.activeId);
     return hgResult.message;
   }
 

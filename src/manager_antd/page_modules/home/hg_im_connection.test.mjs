@@ -128,4 +128,61 @@ test("Chat 重连入口、失败标红和恢复", async (hgTest) => {
       hgVM.hgClose();
     }
   });
+
+  await hgTest.test("发送和当前会话指针只补拉消息，其他会话仍刷新列表", async () => {
+    const hgVM = new HGHomeVM(async () => {}, () => {});
+    hgVM.hgRealtime = { hgClient: { state: "connected" }, hgClose: () => {} };
+    hgVM.hgState.activeId = "1";
+    hgVM.hgState.conversations = [{ conversationId: "1", lastSeq: 1 }];
+    hgVM.hgAPI.hgSend = async () => ({ message: { messageId: "12", seq: 2 } });
+    let hgLists = 0;
+    let hgHistories = 0;
+    let hgLastSync; // 捕获每轮同步完成信号，避免用固定等待猜异步时序。
+    const hgSync = hgVM.hgSync.bind(hgVM);
+    hgVM.hgSync = (hgList) => { hgLastSync = hgSync(hgList); return hgLastSync; };
+    hgVM.hgLoadConversations = async () => { hgLists++; };
+    hgVM.hgLatest = async () => { hgHistories++; };
+    const hgOriginalTimeout = globalThis.setTimeout;
+    const hgTimers = []; // 模拟短延迟合并，不访问网络或真实计时器。
+    globalThis.setTimeout = (hgCallback, hgDelay) => { hgTimers.push({ hgCallback, hgDelay }); return 1; };
+    try {
+      await hgVM.hgSend({ conversationId: "1" });
+      assert.equal(hgVM.hgState.conversations[0].lastSeq, 2);
+      hgVM.hgHint({ eventType: "message.committed", conversationId: "1", messageId: "12" });
+      hgTimers.at(-1).hgCallback();
+      await hgLastSync;
+      assert.equal(hgLists, 0, "发送及自己的实时提示不得 GET 会话列表");
+      assert.equal(hgHistories, 1);
+
+      hgVM.hgHint({ eventType: "message.committed", conversationId: "2", messageId: "13" });
+      hgTimers.at(-1).hgCallback();
+      await hgLastSync;
+      assert.equal(hgLists, 1, "其他会话仍需权威列表以发现新会话");
+
+      hgVM.hgHint({ eventType: "message.committed", conversationId: "2", messageId: "14" });
+      hgVM.hgHint({ eventType: "message.committed", conversationId: "1", messageId: "15" });
+      hgTimers.at(-1).hgCallback();
+      await hgLastSync;
+      assert.equal(hgLists, 2, "合并事件时不能让当前会话的轻量补拉覆盖列表刷新");
+    } finally {
+      globalThis.setTimeout = hgOriginalTimeout;
+      hgVM.hgClose();
+    }
+  });
+
+  await hgTest.test("历史 RPC 更新当前会话序号，不借网关指针推进水位", async () => {
+    const hgVM = new HGHomeVM(async () => {}, () => {});
+    hgVM.hgState.activeId = "1";
+    hgVM.hgState.conversations = [{ conversationId: "1", lastSeq: 2, updatedAt: "old" }]; // 回执先于历史到达。
+    hgVM.hgWindowAfter = 1;
+    hgVM.hgAPI.hgMessages = async () => ({ floorSeq: 1, list: [{ messageId: "12", seq: 2, content: { text: "消息" }, createdAt: "new" }] });
+    try {
+      await hgVM.hgLatest(false);
+      assert.equal(hgVM.hgState.conversations[0].lastSeq, 2);
+      assert.equal(hgVM.hgState.conversations[0].updatedAt, "new");
+      assert.equal(hgVM.hgWindowAfter, 2);
+    } finally {
+      hgVM.hgClose();
+    }
+  });
 });
