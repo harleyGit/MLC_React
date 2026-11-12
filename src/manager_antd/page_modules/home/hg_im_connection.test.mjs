@@ -95,4 +95,37 @@ test("Chat 重连入口、失败标红和恢复", async (hgTest) => {
       hgVM.hgClose();
     }
   });
+
+  await hgTest.test("会话同步不再定时轮询，同步期间的新事件仍会补拉", async () => {
+    const hgVM = new HGHomeVM(async () => {}, () => {});
+    hgVM.hgRealtime = { hgClient: { state: "connected" }, hgClose: () => {} };
+    hgVM.hgState.activeId = "1";
+    hgVM.hgFollow = false; // 此用例只核对会话同步调度，不触发消息历史请求。
+    let hgLoads = 0;
+    let hgRelease; // 第二轮同步的完成回调，用于模拟请求期间到达的新事件。
+    hgVM.hgLoadConversations = () => {
+      hgLoads++;
+      return hgLoads === 2 ? new Promise((hgResolve) => { hgRelease = hgResolve; }) : Promise.resolve();
+    };
+    const hgOriginalTimeout = globalThis.setTimeout;
+    const hgTimers = []; // 只记录本用例的调度，不等待真实时钟。
+    globalThis.setTimeout = (hgCallback, hgDelay) => { hgTimers.push({ hgCallback, hgDelay }); return 1; };
+    try {
+      await hgVM.hgSync();
+      assert.equal(hgLoads, 1);
+      assert.equal(hgTimers.length, 0, "没有新事件时不应继续轮询");
+
+      const hgPending = hgVM.hgSync();
+      hgVM.hgSchedule(); // 请求进行中，事件必须合并为下一轮补拉。
+      hgRelease();
+      await hgPending;
+      assert.equal(hgTimers.length, 1);
+      assert.equal(hgTimers[0].hgDelay, 1000);
+      hgTimers[0].hgCallback();
+      assert.equal(hgLoads, 3);
+    } finally {
+      globalThis.setTimeout = hgOriginalTimeout;
+      hgVM.hgClose();
+    }
+  });
 });

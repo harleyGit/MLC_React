@@ -30,7 +30,7 @@ export default class HGHomeVM {
   hgConnecting = null; // 获取 token / 建立 SDK 连接的单飞任务；null 表示可发起新一轮。
   hgConnectionTimer = null; // SDK 自动重试的 20 秒观察窗口，超时才报告不可用。
   hgConnectionState = "idle"; // idle/connecting/connected/failed，供顶栏展示最终连接状态。
-  hgTimer = null; // 8 秒 WS 补拉兜底；单次请求结束后再调度。
+  hgTimer = null; // 实时事件的短延迟合并；没有新事件时不再发起同步。
   hgBusy = false; // 单飞同步，合并大量 publication。
   hgAgain = false; // 同步期间有指针到达时安排下一轮。
   hgSelection = 0; // 历史窗口版本，切换会话/翻页使旧响应失效。
@@ -167,7 +167,7 @@ export default class HGHomeVM {
     this.hgTimer = setTimeout(() => void this.hgSync(), 250);
   };
 
-  /** 有界同步：一页会话、两页活跃消息、最多四个 pending 会话；不会并发风暴。 */
+  /** 事件触发的有界同步：一页会话、两页活跃消息、最多四个 pending 会话。 */
   async hgSync() {
     if (!this.hgAlive() || this.hgBusy || this.hgRealtime?.hgClient?.state !== "connected") return;
     this.hgBusy = true;
@@ -196,7 +196,7 @@ export default class HGHomeVM {
     finally {
       this.hgBusy = false;
       await this.hgEmit({ loading: false });
-      if (this.hgAlive()) this.hgTimer = setTimeout(() => void this.hgSync(), this.hgAgain ? 1000 : 8000);
+      if (this.hgAlive() && this.hgAgain) this.hgTimer = setTimeout(() => void this.hgSync(), 1000);
       this.hgAgain = false;
     }
   }
