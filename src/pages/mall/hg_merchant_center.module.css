@@ -32,6 +32,11 @@
 .btnSmall { padding: 5px 12px; border-radius: 8px; font-size: 13px; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* 类目树：固定宽度的展开按钮保证父子行缩进对齐，不依赖表格组件新增树协议。 */
+.categoryTreeCell { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.categoryTreeToggle { width: 20px; height: 24px; padding: 0; border: 0; background: transparent; color: var(--color-link, #2166ae); }
+.categoryTreeSpacer { display: inline-block; width: 20px; flex: none; }
+
 /* 商品卡片网格：两列，悬浮上移加紫晕。 */
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
 .card { min-width: 0; border: 1px solid #e6e8f0; border-radius: 12px; overflow: hidden; background: white; transition: transform .18s ease, box-shadow .18s ease; }

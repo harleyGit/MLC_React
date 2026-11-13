@@ -5,14 +5,14 @@ import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import HGCommerceVM from "./hg_commerce_vm.js";
 import styles from "./hg_merchant_center.module.css";
 
-/** 编辑平台普通叶子类目的 ID、名称、上级和图片。 */
+/** 编辑平台普通类目；有子类目时服务端仅允许更新名称和图片。 */
 export default class HGCommerceCategoryEditPage extends React.Component {
   state = {
     hgOriginalId: "", // 当前服务端类目 ID；ID 修改成功后同步更新，支持继续保存。
     hgCategoryId: "", // 修改后的业务 ID，1-64 位安全 ASCII 字符。
     hgName: "", // 修改后的类目名称，1-64 字符。
     hgParentId: "", // 修改后的上级类目 ID；空表示一级类目。
-    hgAdminCategories: [], // 管理端可经营类目列表；用于目标解析和上级下拉。
+    hgAdminCategories: [], // 管理端普通类目列表（含父类目）；用于目标解析和上级下拉。
     hgFile: null, // 新选择的本地图片；null 表示不上传新图片。
     hgPreview: "", // 本地图片 blob 预览地址；空表示没有本地选择。
     hgImageURL: "", // 本次保存期望绑定的服务端图片；空表示移除图片。
@@ -53,7 +53,7 @@ export default class HGCommerceCategoryEditPage extends React.Component {
       );
       if (!hgTarget) {
         this.setState({
-          hgError: "未找到该类目；可能已被禁用、删除或不是叶子类目，请刷新类目列表",
+          hgError: "未找到该类目；可能已被禁用或删除，请刷新类目列表",
         });
         return;
       }
@@ -244,6 +244,7 @@ export default class HGCommerceCategoryEditPage extends React.Component {
   render() {
     const { hgOriginalId, hgCategoryId, hgName, hgParentId, hgAdminCategories, hgLoaded, hgBusy, hgError, hgNotice } = this.state;
     const hgParentMissing = hgParentId && !hgAdminCategories.some((hgItem) => hgItem.categoryId === hgParentId);
+    const hgHasChildren = hgAdminCategories.some((hgItem) => hgItem.parentId === hgOriginalId); // 父类目只能原位修改名称/图片，服务端会再次校验。
     return (
       <main className={styles.page} aria-label="编辑普通类目">
         {hgError && <p role="alert" className={styles.errorBar}>{hgError}</p>}
@@ -253,13 +254,13 @@ export default class HGCommerceCategoryEditPage extends React.Component {
             <h2>编辑普通类目</h2>
             <span className={styles.headSmall}>当前 ID：{hgOriginalId || "未知"}</span>
           </div>
-          <p className={styles.desc}>可修改叶子类目的业务 ID、名称、上级和图片；已有商品时服务端会拒绝修改 ID。</p>
+          <p className={styles.desc}>父类目可修改名称和图片；有子类目时不能修改 ID 或上级。叶子类目可修改 ID、名称、上级和图片；已有商品时服务端会拒绝修改 ID。</p>
           <form className={styles.publishForm} onSubmit={this.hgSubmit}>
             <fieldset className={styles.commerceFieldset} disabled={hgBusy || !hgLoaded}>
               <legend>类目信息</legend>
               <div className={styles.field}>
                 <label htmlFor="category-edit-id">类目 ID</label>
-                <input id="category-edit-id" required maxLength={64} value={hgCategoryId} onChange={(hgEvent) => this.setState({ hgCategoryId: hgEvent.target.value })} />
+                <input id="category-edit-id" required maxLength={64} disabled={hgHasChildren} value={hgCategoryId} onChange={(hgEvent) => this.setState({ hgCategoryId: hgEvent.target.value })} />
               </div>
               <div className={styles.field}>
                 <label htmlFor="category-edit-name">类目名称</label>
@@ -267,7 +268,7 @@ export default class HGCommerceCategoryEditPage extends React.Component {
               </div>
               <div className={styles.field}>
                 <label htmlFor="category-edit-parent">上级类目（可选）</label>
-                <select id="category-edit-parent" value={hgParentId} onChange={(hgEvent) => this.setState({ hgParentId: hgEvent.target.value })}>
+                <select id="category-edit-parent" value={hgParentId} disabled={hgHasChildren} onChange={(hgEvent) => this.setState({ hgParentId: hgEvent.target.value })}>
                   <option value="">一级类目（无上级）</option>
                   {hgParentMissing && <option value={hgParentId}>当前上级（ID: {hgParentId}）</option>}
                   {hgAdminCategories.filter((hgItem) => hgItem.categoryId !== hgOriginalId && hgItem.categoryId !== hgCategoryId).map((hgItem) => (

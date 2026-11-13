@@ -179,12 +179,23 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
   assert.equal(hgInstance.state.hgCanReview, true);
 
   const hgRendered = hgInstance.render();
-  const hgTable = hgFindElement(hgRendered, HGTestTable);
+  let hgTable = hgFindElement(hgRendered, HGTestTable);
   assert.ok(hgTable, "列表页必须渲染 HGTable 组件");
   assert.deepEqual(
-    hgTable.props.dataSource.map((hgItem) => hgItem.categoryId),
+    Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId),
     ["11", "12"]
   );
+  assert.equal(hgTable.props.pagination.total, 1, "父子类目共占一个分页名额");
+  assert.equal(hgTable.props.dataSource[1].hgTreeLevel, 1);
+  assert.equal(hgTable.props.dataSource[0].hgHasChildren, true);
+  const hgToggle = hgFindElement(hgTable.props.columns[0].render("11", hgTable.props.dataSource[0]), "button");
+  assert.equal(hgToggle.props["aria-expanded"], true);
+  hgToggle.props.onClick();
+  hgTable = hgFindElement(hgInstance.render(), HGTestTable);
+  assert.deepEqual(Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId), ["11"]);
+  assert.equal(hgFindElement(hgTable.props.columns[0].render("11", hgTable.props.dataSource[0]), "button").props["aria-expanded"], false);
+  hgInstance.hgToggleCategory("11");
+  assert.deepEqual(Array.from(hgFindElement(hgInstance.render(), HGTestTable).props.dataSource, (hgItem) => hgItem.categoryId), ["11", "12"]);
 
   const hgToolbarLinks = hgCollectLinks(hgInstance.renderToolbar());
   assert.equal(hgToolbarLinks.length, 1);
@@ -203,6 +214,66 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
     hgActionLinks[1].to,
     ROUTE_PATH.COMMERCE_CATEGORY_DELETE.replace(":categoryId", "11")
   );
+});
+
+test("类目树支持三级、孤儿根节点且翻页不拆散父子类目", async () => {
+  const hgList = [
+    { categoryId: "child", parentId: "root", name: "二级", depth: 2 },
+    { categoryId: "grandchild", parentId: "child", name: "三级", depth: 3 },
+    { categoryId: "root", parentId: "", name: "一级", depth: 1 },
+    { categoryId: "orphan", parentId: "disabled", name: "父类目未返回", depth: 2 },
+  ];
+  const hgInstance = hgPage("hg_commerce_category_page.jsx", { adminCategories: async () => hgList }, {
+    reviewAccess: async () => ({ canReview: true }),
+  });
+  await hgInstance.hgLoad();
+  hgInstance.hgHandleTableChange({ current: 1, pageSize: 1 });
+  let hgTable = hgFindElement(hgInstance.render(), HGTestTable);
+  assert.equal(hgTable.props.pagination.total, 2);
+  assert.deepEqual(Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId), ["root", "child", "grandchild"]);
+  assert.equal(hgTable.props.dataSource[2].hgTreeLevel, 2);
+  hgInstance.hgHandleTableChange({ current: 2, pageSize: 1 });
+  hgTable = hgFindElement(hgInstance.render(), HGTestTable);
+  assert.deepEqual(Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId), ["orphan"]);
+  const hgOrphanLinks = hgCollectLinks(hgInstance.renderActions(hgTable.props.dataSource[0]));
+  assert.equal(hgOrphanLinks[0].to, ROUTE_PATH.COMMERCE_CATEGORY_EDIT.replace(":categoryId", "orphan"));
+});
+
+test("类目列表前端分页：按页切片、回传页码并收敛越界页", async () => {
+  const hgList = Array.from({ length: 25 }, (_, hgIndex) => ({
+    categoryId: String(hgIndex + 1),
+    name: `类目${hgIndex + 1}`,
+    depth: 1,
+  }));
+  const hgCommerce = { adminCategories: async () => hgList, categories: async () => { throw new Error("不应调用商家接口"); } };
+  const hgInstance = hgPage("hg_commerce_category_page.jsx", hgCommerce, {
+    reviewAccess: async () => ({ canReview: true }),
+  });
+  await hgInstance.hgLoad();
+  assert.equal(hgInstance.state.hgPageCurrent, 1);
+
+  // 默认每页 10 条；分页器把全量 25 条交给 total，切片只发生在 dataSource。
+  // 分页对象在 VM realm 中创建，与测试环境原型不同，需逐字段断言而非 deepEqual。
+  let hgTable = hgFindElement(hgInstance.render(), HGTestTable);
+  assert.equal(hgTable.props.dataSource.length, 10);
+  assert.equal(hgTable.props.pagination.current, 1);
+  assert.equal(hgTable.props.pagination.pageSize, 10);
+  assert.equal(hgTable.props.pagination.total, 25);
+  assert.equal(hgTable.props.pagination.showSizeChanger, true);
+
+  // 翻页回传页码后，切片对应当页数据。
+  hgInstance.hgHandleTableChange({ current: 3, pageSize: 10 });
+  hgTable = hgFindElement(hgInstance.render(), HGTestTable);
+  assert.deepEqual(
+    Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId),
+    ["21", "22", "23", "24", "25"]
+  );
+
+  // 页码越界（如数据刷新后旧页码超出范围）收敛到最后一页，不出现空页。
+  hgInstance.setState({ hgPageCurrent: 99 });
+  const hgOverflow = hgInstance.hgCurrentPageCategories();
+  assert.equal(hgOverflow.length, 5);
+  assert.equal(hgOverflow[0].categoryId, "21");
 });
 
 test("无审核权时不读取平台类目并给出缺失权限说明", async () => {
@@ -367,6 +438,25 @@ test("编辑类目页可修改 ID、名称、上级和图片", async () => {
   await hgMissing.hgLoad();
   assert.match(hgMissing.state.hgError, /未找到该类目/);
   assert.equal(hgMissing.state.hgLoaded, false);
+});
+
+test("父类目可进入编辑页并只开放名称与图片", async () => {
+  const hgCalls = [];
+  const hgInstance = hgPage("hg_commerce_category_edit_page.jsx", {
+    adminCategories: async () => HG_CATEGORIES,
+    editCategory: async (hgID, hgBody) => { hgCalls.push({ hgID, hgBody }); return { ...hgBody }; },
+  });
+  hgInstance.props = { params: { categoryId: "11" } };
+  await hgInstance.hgLoad();
+  assert.equal(hgInstance.state.hgLoaded, true);
+  assert.equal(hgFindElement(hgInstance.render(), "input").props.disabled, true);
+  assert.equal(hgFindElement(hgInstance.render(), "select").props.disabled, true);
+  hgInstance.setState({ hgName: "数码影音" });
+  await hgInstance.hgSubmit({ preventDefault() {} });
+  assert.equal(hgCalls.length, 1);
+  assert.equal(hgCalls[0].hgID, "11");
+  assert.equal(hgCalls[0].hgBody.categoryId, "11");
+  assert.equal(hgCalls[0].hgBody.name, "数码影音");
 });
 
 test("删除类目页展示目标信息并确认提交到预留接口", async () => {
