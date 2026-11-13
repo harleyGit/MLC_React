@@ -14,6 +14,23 @@
   margin: 16px;
   border-radius: 8px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  /* 纵向弹性布局：面包屑保持自然高度，内容区占满剩余高度，使白底卡片与左侧菜单同高。 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 内容区弹性容器：占据面包屑以外的全部高度，并把可用高度继续向下传递给子页面。 */
+.contentBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 直接子页面根节点拉伸填满内容区；页面内部再按各自布局决定是否继续向下填充。 */
+.contentBody > * {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .operationContent h2 {

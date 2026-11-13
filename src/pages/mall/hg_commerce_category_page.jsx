@@ -131,6 +131,9 @@ export default class HGCommerceCategoryPage extends React.Component {
 
   render() {
     const { hgCategories, hgLoading, hgError } = this.state;
+    // fillHeight：由运维管理等内容容器注入的高度约定；开启后面板与表格随容器高度动态伸展。
+    // 商家中心等未注入该 prop 的入口保持原有自然高度布局。
+    const { fillHeight = false } = this.props;
     return (
       <main className={styles.page} aria-label="平台普通类目管理">
         {hgError && (
@@ -138,7 +141,9 @@ export default class HGCommerceCategoryPage extends React.Component {
             {hgError}
           </p>
         )}
-        <section className={styles.panel}>
+        <section
+          className={`${styles.panel} ${fillHeight ? styles.panelFill : ""}`}
+        >
           <div className={styles.head}>
             <h2>普通类目管理</h2>
             {this.renderToolbar()}
@@ -153,6 +158,7 @@ export default class HGCommerceCategoryPage extends React.Component {
             loading={hgLoading}
             pagination={false}
             scroll={{ y: 480 }}
+            fillHeight={fillHeight}
           />
         </section>
       </main>

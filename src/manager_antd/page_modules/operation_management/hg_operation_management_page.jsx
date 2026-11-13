@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-11-05 20:48:23
+ * @LastEditTime: 2026-11-13 22:05:00
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx
  * @Description: 运维管理主页面，左侧多级菜单 + 右侧内容区
  */
@@ -336,6 +336,9 @@ class HGOperationManagementPage extends Component {
   /**
    * 渲染右侧内容区：根据 selectedKey 从 PAGE_MAP 获取对应页面组件
    * 约束：向子页面注入 onMenuSelect，供其在内容区内切换菜单（如角色列表跳转创建角色）；未使用的页面忽略该 prop。
+   * 高度约定：内容包裹在 .contentBody 弹性容器中，子页面根节点随容器高度自动拉伸；
+   *          同时注入 fillHeight，支持该约定的页面（如表格页）可让内部内容跟随容器高度动态伸展，
+   *          不识别该 prop 的页面行为不变。
    * @returns {React.ReactNode} 右侧内容区节点
    */
   renderContent = () => {
@@ -343,12 +346,18 @@ class HGOperationManagementPage extends Component {
     const PageComponent = PAGE_MAP[selectedKey];
     if (PageComponent) {
       return (
-        <Suspense fallback={<HGLoading text="正在加载页面..." />}>
-          <PageComponent onMenuSelect={this.handleMenuSelect} />
-        </Suspense>
+        <div className={styles.contentBody}>
+          <Suspense fallback={<HGLoading text="正在加载页面..." />}>
+            <PageComponent onMenuSelect={this.handleMenuSelect} fillHeight />
+          </Suspense>
+        </div>
       );
     }
-    return <p className={styles.placeholderText}>请选择菜单项</p>;
+    return (
+      <div className={styles.contentBody}>
+        <p className={styles.placeholderText}>请选择菜单项</p>
+      </div>
+    );
   };
 
   render() {

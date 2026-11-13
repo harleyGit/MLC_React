@@ -12,6 +12,13 @@
   overflow-x: hidden;
 }
 
+/* ===== 填充模式 ===== */
+/* fillContainer：表格作为父级弹性布局的子项占满剩余高度；父级非弹性布局时该属性不生效，安全降级。 */
+.fillContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* ===== Loading 遮罩 ===== */
 .loadingOverlay {
   position: absolute;
