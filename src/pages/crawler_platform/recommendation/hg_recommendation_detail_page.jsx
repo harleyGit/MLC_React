@@ -182,7 +182,7 @@ class HGRecommendationDetailPage extends Component {
             loading={loading}
             pagination={{ ...pagination, showSizeChanger: true }}
             onChange={this.handlePageChange}
-            scroll={{ y: 470, x: 1200 }}
+            scroll={{ x: 1200 }}
           />
         </HGCardPage>
       </div>

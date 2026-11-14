@@ -142,7 +142,7 @@ class HGTaskPage extends Component {
             loading={loading}
             pagination={{ ...pagination, showSizeChanger: true }}
             onChange={this.handleTableChange}
-            scroll={{ y: 440, x: 1020 }}
+            scroll={{ x: 1020 }}
           />
         </HGCardPage>
       </div>

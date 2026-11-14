@@ -413,7 +413,7 @@ class HGCoinOperationsPage extends Component {
       <HGCardPage title="资产修正双人复核" extra={<HGButtonPage loading={correctionLoading} onClick={() => this.fetchCorrections(1, correctionPagination.pageSize)}>刷新申请</HGButtonPage>}>
         <div className={styles.auditNotice}>修正申请先写入不可变审计记录，不会立即改动余额；必须由另一名同时具备审批与应用权限的操作人复核后才会应用。</div>
         {pendingCorrection && <div className={styles.pendingNotice}><span>最近修正</span><strong>{pendingCorrection.correctionId || "--"}</strong><span>状态</span><strong>{HGCoinOperationsVM.getCorrectionStatusLabel(pendingCorrection.status)}</strong></div>}
-        <HGTablePage rowKey="key" columns={this.getCorrectionColumns()} dataSource={corrections} loading={correctionLoading} pagination={{ ...correctionPagination, showSizeChanger: true }} onChange={this.handleCorrectionTableChange} scroll={{ y: 360 }} />
+        <HGTablePage rowKey="key" columns={this.getCorrectionColumns()} dataSource={corrections} loading={correctionLoading} pagination={{ ...correctionPagination, showSizeChanger: true }} onChange={this.handleCorrectionTableChange} />
       </HGCardPage>
     );
   };
@@ -479,10 +479,10 @@ class HGCoinOperationsPage extends Component {
         {permissionsLoading && <div className={styles.permissionBanner}>正在加载当前操作人的资产权限...</div>}
         {permissionsError && <div className={styles.permissionError}>资产权限加载失败，受保护操作已隐藏：{permissionsError} <HGButtonPage type="link" onClick={this.fetchAssetPermissions}>重试</HGButtonPage></div>}
         {!permissionsLoading && this.canSelectTargetUser() && this.renderAccountCard()}
-        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ) && <HGCardPage title="不可变资产流水"><HGTablePage rowKey="key" columns={this.getTransactionColumns()} dataSource={transactions} loading={transactionLoading} pagination={account ? { ...pagination, showSizeChanger: true } : false} onChange={this.handleTableChange} scroll={{ y: 400 }} /></HGCardPage>}
+        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.TRANSACTION_READ) && <HGCardPage title="不可变资产流水"><HGTablePage rowKey="key" columns={this.getTransactionColumns()} dataSource={transactions} loading={transactionLoading} pagination={account ? { ...pagination, showSizeChanger: true } : false} onChange={this.handleTableChange} /></HGCardPage>}
         {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.CORRECTION_REQUEST) && this.renderCorrectionCard()}
         {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.PIPELINE_READ) && this.renderPipelineCards()}
-        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.PIPELINE_READ) && <HGCardPage title="Kafka Consumer Lag"><HGTablePage rowKey="key" columns={this.getKafkaColumns()} dataSource={kafkaRows} pagination={false} scroll={{ y: 320 }} /></HGCardPage>}
+        {!permissionsLoading && this.hasPermission(HG_ASSET_PERMISSIONS.PIPELINE_READ) && <HGCardPage title="Kafka Consumer Lag"><HGTablePage rowKey="key" columns={this.getKafkaColumns()} dataSource={kafkaRows} pagination={false} /></HGCardPage>}
         {this.renderMutationModal()}
       </div>
     );

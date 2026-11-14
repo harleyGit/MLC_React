@@ -125,7 +125,7 @@ class HGRecommendationPage extends Component {
           loading={loading}
           pagination={{ ...taskPagination, showSizeChanger: true }}
           onChange={this.handleTaskPageChange}
-          scroll={{ y: 460, x: 980 }}
+          scroll={{ x: 980 }}
         />
       </HGCardPage>
     );

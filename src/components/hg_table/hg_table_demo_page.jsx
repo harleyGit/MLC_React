@@ -330,7 +330,6 @@ class HGTableDemoPage extends React.Component {
           columns={columns}
           dataSource={dataSource}
           rowKey="id"
-          scroll={{ y: 400 }}
           pagination={false}
         />
       </div>

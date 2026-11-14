@@ -277,7 +277,6 @@ class HGBilibiliTagPage extends Component {
             loading={loading}
             pagination={{ ...pagination, showSizeChanger: true }}
             onChange={this.handleTableChange}
-            scroll={{ y: 420 }}
           />
         </HGCardPage>
         <HGModalPage

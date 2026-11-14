@@ -334,7 +334,6 @@ class HGAdminListPage extends Component {
               showQuickJumper: !keyword,
             }}
             onChange={this.handleTableChange}
-            scroll={{ y: 460 }}
           />
         </HGCardPage>
       </div>

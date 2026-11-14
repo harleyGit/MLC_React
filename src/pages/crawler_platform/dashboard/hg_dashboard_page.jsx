@@ -98,7 +98,7 @@ class HGDashboardPage extends Component {
 
   /** @returns {React.ReactNode} Dashboard 页面。 */
   render() {
-    return <div><header className={styles.pageHeader}><div><p>DATA COLLECTION PLATFORM</p><h1>采集运行概览</h1><span>对公开元数据执行有界、可取消、可观察的采集任务</span></div><HGButtonPage loading={this.state.loading} onClick={this.loadDashboard}>刷新指标</HGButtonPage></header>{this.renderStatCards()}<div className={styles.mainGrid}>{this.renderTrend()}<HGCardPage title="运行策略"><dl className={styles.policy}><div><dt>数据边界</dt><dd>仅公开元数据</dd></div><div><dt>媒体文件</dt><dd>不下载、不代理</dd></div><div><dt>默认限流</dt><dd>0.2 req/s</dd></div><div><dt>响应上限</dt><dd>2 MiB</dd></div></dl></HGCardPage></div><HGCardPage title="最近任务" extra={<span className={styles.tableNote}>最多展示 8 条</span>}><HGTablePage rowKey={(row) => row.id} columns={this.getColumns()} dataSource={this.state.tasks} loading={this.state.loading} pagination={false} scroll={{ y: 300 }} /></HGCardPage></div>;
+    return <div><header className={styles.pageHeader}><div><p>DATA COLLECTION PLATFORM</p><h1>采集运行概览</h1><span>对公开元数据执行有界、可取消、可观察的采集任务</span></div><HGButtonPage loading={this.state.loading} onClick={this.loadDashboard}>刷新指标</HGButtonPage></header>{this.renderStatCards()}<div className={styles.mainGrid}>{this.renderTrend()}<HGCardPage title="运行策略"><dl className={styles.policy}><div><dt>数据边界</dt><dd>仅公开元数据</dd></div><div><dt>媒体文件</dt><dd>不下载、不代理</dd></div><div><dt>默认限流</dt><dd>0.2 req/s</dd></div><div><dt>响应上限</dt><dd>2 MiB</dd></div></dl></HGCardPage></div><HGCardPage title="最近任务" extra={<span className={styles.tableNote}>最多展示 8 条</span>}><HGTablePage rowKey={(row) => row.id} columns={this.getColumns()} dataSource={this.state.tasks} loading={this.state.loading} pagination={false} /></HGCardPage></div>;
   }
 }
 

@@ -65,6 +65,6 @@ class HGSpiderPage extends Component {
   ];
 
   /** @returns {React.ReactNode} Spider 管理页面。 */
-  render() { return <div><div className={styles.header}><div><p>SPIDER FLEET</p><h1>Spider 管理</h1><span>一个独立进程只运行一个有界 worker，避免多副本请求放大</span></div><HGButtonPage loading={this.state.loading} onClick={this.loadSpiders}>刷新</HGButtonPage></div><HGCardPage><HGTablePage rowKey="id" columns={this.getColumns()} dataSource={this.state.rows} loading={this.state.loading} pagination={false} scroll={{ y: 360 }} /></HGCardPage><div className={styles.notice}><strong>平台扩展约束</strong><span>Douyin 与 Xiaohongshu 仅保留平台适配位置，必须在获得正式 API 授权、签名方案和合规评审后启用。</span></div></div>; }
+  render() { return <div><div className={styles.header}><div><p>SPIDER FLEET</p><h1>Spider 管理</h1><span>一个独立进程只运行一个有界 worker，避免多副本请求放大</span></div><HGButtonPage loading={this.state.loading} onClick={this.loadSpiders}>刷新</HGButtonPage></div><HGCardPage><HGTablePage rowKey="id" columns={this.getColumns()} dataSource={this.state.rows} loading={this.state.loading} pagination={false} /></HGCardPage><div className={styles.notice}><strong>平台扩展约束</strong><span>Douyin 与 Xiaohongshu 仅保留平台适配位置，必须在获得正式 API 授权、签名方案和合规评审后启用。</span></div></div>; }
 }
 export default HGSpiderPage;

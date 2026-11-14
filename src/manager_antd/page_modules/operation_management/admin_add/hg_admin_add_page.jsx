@@ -199,7 +199,6 @@ class HGAdminAddPage extends Component {
           dataSource={candidates}
           loading={searching}
           pagination={false}
-          scroll={{ y: 360 }}
         />
       </div>
     );

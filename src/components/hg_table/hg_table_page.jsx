@@ -232,7 +232,7 @@ class VirtualRow extends React.PureComponent {
  * rowSelection：{type: "radio" | "checkbox", selectedRowKeys: [], onChange(keys, rows)}；由调用方持有选择状态。
  * fillHeight 说明：可选填充模式；开启后表格作为父级弹性布局的子项占满剩余高度，
  *                  表体高度由 ResizeObserver 实测（容器高度扣除表头与分页器）或弹性布局决定，
- *                  随窗口/父级高度动态变化；未开启时保持 scroll.y 固定高度行为。
+ *                  随窗口/父级高度动态变化；普通数据表未显式指定 scroll.y 时由内容撑开。
  */
 class HGTablePage extends React.Component {
   constructor(props) {
@@ -930,14 +930,14 @@ class HGTablePage extends React.Component {
   /**
    * 自然行高表体在填充模式下的样式。
    * 职责：fillHeight 开启时不再使用固定像素 maxHeight，改为弹性占满容器剩余高度；
-   *       关闭时维持原有 maxHeight 行为，保证既有调用方布局不变。
+   *       关闭时仅在显式指定 scroll.y 时限制表体高度，其他情况由内容撑开。
    */
   hgAutoBodyStyle = () => {
-    const { fillHeight } = this.props;
+    const { fillHeight, scroll } = this.props;
     if (fillHeight) {
       return { flex: "1 1 auto", minHeight: 0 };
     }
-    return { maxHeight: this.getBodyHeight() };
+    return scroll?.y ? { maxHeight: scroll.y } : undefined;
   };
 
   /**

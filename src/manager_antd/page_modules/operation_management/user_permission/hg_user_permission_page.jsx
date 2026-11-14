@@ -627,7 +627,6 @@ class HGUserPermissionPage extends Component {
               showQuickJumper: !keyword,
             }}
             onChange={this.handleTableChange}
-            scroll={{ y: 460 }}
           />
         </HGCardPage>
         {this.renderModal()}

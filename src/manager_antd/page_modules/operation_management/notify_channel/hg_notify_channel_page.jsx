@@ -407,7 +407,7 @@ class HGNotifyChannelPage extends React.Component {
     ];
     return (
       <HGCardPage title="Provider 适配器" extra={<span className={styles.cardExtraText}>主备切换与降级由Adapter 内部完成，业务服务无感知</span>}>
-        <HGTablePage rowKey="id" columns={columns} dataSource={this.state.providers} loading={this.state.loading} pagination={false} scroll={{ y: 320 }} />
+        <HGTablePage rowKey="id" columns={columns} dataSource={this.state.providers} loading={this.state.loading} pagination={false} />
       </HGCardPage>
     );
   };
@@ -435,7 +435,7 @@ class HGNotifyChannelPage extends React.Component {
     ];
     return (
     <HGCardPage title={HGNotifyChannelVM.isRemote() ? "最近站内通知记录" : "失败重试与死信"} extra={<span className={styles.cardExtraText}>{HGNotifyChannelVM.isRemote() ? "仅展示最近 20 条已落库记录；外部渠道和重试队列尚未接入" : "超过退避上限的任务进入死信，需要人工确认后重放"}</span>}>
-        <HGTablePage rowKey="deliveryId" columns={columns} dataSource={this.state.deliveries} loading={this.state.loading} pagination={false} scroll={{ y: 300 }} />
+        <HGTablePage rowKey="deliveryId" columns={columns} dataSource={this.state.deliveries} loading={this.state.loading} pagination={false} />
       </HGCardPage>
     );
   };

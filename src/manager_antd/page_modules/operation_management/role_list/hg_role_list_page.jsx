@@ -562,7 +562,6 @@ class HGRoleListPage extends Component {
               showQuickJumper: true,
             }}
             onChange={this.handleTableChange}
-            scroll={{ y: 460 }}
             autoRowHeight
           />
         </HGCardPage>

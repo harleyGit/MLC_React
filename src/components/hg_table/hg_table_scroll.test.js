@@ -26,6 +26,17 @@ new Function("require", "module", "exports", hgCode)((name) => {
 }, hgModule, hgModule.exports);
 const HGTablePage = hgModule.exports.default;
 
+test("普通表格由内容撑高，显式滚动与填充模式仍保留高度约束", () => {
+  const table = new HGTablePage({ dataSource: [{ id: 1 }] });
+  assert.equal(table.renderAutoRowHeightBody().props.style, undefined);
+  table.props = { ...table.props, scroll: { x: 1020 } };
+  assert.equal(table.renderAutoRowHeightBody().props.style, undefined);
+  table.props = { ...table.props, dataSource: [], scroll: { y: 360 } };
+  assert.deepEqual(table.renderAutoRowHeightBody().props.style, { maxHeight: 360 });
+  table.props = { ...table.props, fillHeight: true };
+  assert.deepEqual(table.renderAutoRowHeightBody().props.style, { flex: "1 1 auto", minHeight: 0 });
+});
+
 for (const autoRowHeight of [false, true]) {
   test(`真实组件双向同步及子节点隔离，autoRowHeight=${autoRowHeight}`, () => {
     const table = new HGTablePage({ autoRowHeight, dataSource: [] });
@@ -114,8 +125,11 @@ test("尺寸监听补偿纵向滚动条，右端回传不拉回表体且卸载�
     else delete globalThis.ResizeObserver;
   });
   globalThis.ResizeObserver = class {
-    constructor(onResize) { callback = onResize; }
-    observe(node) { observed = node; }
+    constructor(onResize) { this.onResize = onResize; }
+    observe(node) {
+      // 表格还会创建容器观察器；仅保存表体观察器的回调用于本用例的宽度变化。
+      if (node === body) { callback = this.onResize; observed = node; }
+    }
     disconnect() { disconnects++; }
   };
   const table = new HGTablePage({ dataSource: [] });
@@ -133,8 +147,9 @@ test("尺寸监听补偿纵向滚动条，右端回传不拉回表体且卸载�
   callback();
   assert.equal(header.style.width, "500px");
   assert.equal(header.scrollLeft, 700);
+  const disconnectsBeforeUnmount = disconnects; // 绑定监听时也会 disconnect；这里只核对卸载清理的两次调用。
   table.componentWillUnmount();
-  assert.equal(disconnects, 2);
+  assert.equal(disconnects - disconnectsBeforeUnmount, 2);
 });
 
 test("表体最大横滚范围更大时，表头位置会被钳制到自身最大值", () => {

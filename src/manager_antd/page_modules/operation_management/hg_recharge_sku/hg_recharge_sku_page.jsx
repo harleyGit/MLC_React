@@ -486,7 +486,6 @@ class HGRechargeSkuPage extends Component {
           dataSource={rows}
           loading={loading}
           pagination={false}
-          scroll={{ y: 430 }}
         />
         {this.renderPagination()}
       </HGCardPage>

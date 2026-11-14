@@ -237,7 +237,6 @@ export default class HGCommerceCategoryPage extends React.Component {
               showSizeChanger: true,
             }}
             onChange={this.hgHandleTableChange}
-            scroll={{ y: 480 }}
             fillHeight={fillHeight}
           />
         </section>
