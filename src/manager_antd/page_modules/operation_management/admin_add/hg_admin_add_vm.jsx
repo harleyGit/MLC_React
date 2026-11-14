@@ -16,11 +16,15 @@ import HGNet from "../../../net_handle/hg_net_manager_vm";
 export default class HGAdminAddVM {
   /**
    * 搜索可添加为管理员的注册用户候选。
-   * @param {string} keyword 搜索关键词，支持 ID、用户名、邮箱、手机号前缀
+   * @param {string} keyword 搜索关键词；空字符串表示按游标浏览可添加用户。
+   * @param {string} cursor 空关键词的续页 users.id；空字符串表示第一页。
    * @returns {Promise<Object>} 候选用户列表响应
    */
-  static searchAdminCandidates = (keyword) => {
-    return HGNet.get(HGMANAGER_API.OPS_ADMIN_CANDIDATES, { keyword, limit: 10 });
+  static searchAdminCandidates = (keyword, cursor = "") => {
+    const params = { limit: 10 }; // 每页最多 10 条；后端另行限制最大页大小。
+    if (keyword) params.keyword = keyword;
+    if (!keyword && cursor) params.cursor = cursor;
+    return HGNet.get(HGMANAGER_API.OPS_ADMIN_CANDIDATES, params);
   };
 
   /**

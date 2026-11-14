@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-05-24
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-11-01 14:40:30
+ * @LastEditTime: 2026-11-14 22:51:17
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/hg_operation_management_vm.jsx
  * @Description: 运维管理页面 ViewModel，管理菜单配置与页面切换逻辑
  */
@@ -22,6 +22,11 @@ export const OPERATION_MENU_ITEMS = [
     icon: <HGIconPage type="admin" />,
     children: [
       {
+        key: "user_list",
+        label: "用户列表",
+        icon: <HGIconPage type="table" />,
+      },
+      {
         key: "admin_add",
         label: "添加管理员",
         icon: <HGIconPage type="add-user" />,
@@ -29,18 +34,6 @@ export const OPERATION_MENU_ITEMS = [
       {
         key: "admin_list",
         label: "管理员列表",
-        icon: <HGIconPage type="table" />,
-      },
-    ],
-  },
-  {
-    key: "user",
-    label: "用户管理",
-    icon: <HGIconPage type="user-management" />,
-    children: [
-      {
-        key: "user_list",
-        label: "用户列表",
         icon: <HGIconPage type="table" />,
       },
     ],
