@@ -81,6 +81,16 @@
   color: #1a2340;
 }
 
+/* 用户 ID 展示行：红色突出，等宽字体便于核对与复制；仅展示不可编辑。 */
+.userIdRow {
+  margin: -12px 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e02020;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  user-select: text;
+}
+
 .formItem {
   display: flex;
   flex-direction: column;
