@@ -329,7 +329,6 @@ class HGAddressBookPage extends React.Component {
         loading={loading}
         hasMore={false}
         resetKey={resetKey}
-        height={460}
         ariaLabel="收货地址列表"
         onRefresh={this.hgLoadAddresses}
         emptyText="还没有保存收货地址，点击右上角「新建地址」添加"

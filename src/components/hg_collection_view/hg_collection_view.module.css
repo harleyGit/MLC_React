@@ -6,6 +6,10 @@
   box-sizing: border-box;
 }
 
+/* 默认列表交由页面滚动，卡片直接参与文档流，避免固定视口和未渲染行。 */
+.naturalViewport { overflow: visible; }
+.naturalSlot { box-sizing: border-box; padding-bottom: 12px; }
+
 .spacer { position: relative; width: 100%; }
 
 .slot {

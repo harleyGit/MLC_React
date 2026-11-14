@@ -15,9 +15,6 @@
 .headSmall { color: #8b92a8; font-size: 13px; }
 .desc { margin: 0 0 16px; color: #5a6076; font-size: 13px; line-height: 1.7; }
 
-/* 填充模式：面板改为纵向弹性布局，配合 HGTablePage fillHeight 让表格随容器高度动态伸展。 */
-.panelFill { display: flex; flex-direction: column; }
-
 /* 顶部工具条：圆角搜索框 + 操作按钮。 */
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .search { flex: 1 1 240px; max-width: 380px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid #dcd3ff; border-radius: 999px; background: #fbfaff; }

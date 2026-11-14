@@ -4,7 +4,7 @@
  * @LastEditors: GangHuang harleysor@qq.com
  * @LastEditTime: 2026-10-31 00:05:00
  * @FilePath: /MLC_React/src/components/hg_message_list/hg_message_list.jsx
- * @Description: 消息气泡列表组件，复用 HGCollectionView 的虚拟滚动/复用池/下拉刷新/上拉加载。
+ * @Description: 消息气泡列表组件，默认随内容撑高；显式指定高度时复用 HGCollectionView 的虚拟滚动。
  */
 import React from "react";
 import HGCollectionView from "../hg_collection_view/hg_collection_view.jsx";

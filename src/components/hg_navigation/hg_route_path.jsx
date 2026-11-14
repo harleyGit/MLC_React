@@ -26,6 +26,7 @@ export const ROUTE_PATH = Object.freeze({
   HOME: "/home", //首页
   USER_PROFILE: "/profile", //用户信息
   UPDATE_USER_PROIFE: "/profile/edit", //更新用户信息
+  USER_EDIT_ROLE: "/profile/user/:userId/edit-role", //用户编辑与角色绑定独立页；由用户列表「编辑」携带 user_id 进入
   EDIT_USER_INFO: "/account/setting", //账号设置(编辑用户信息页)
   ADDRESS_BOOK: "/account/address", //收货地址管理（列表 + 新建/编辑弹窗）
   USER_CENTER: "/account/center", //个人中心(侧边栏 + 我的订单)

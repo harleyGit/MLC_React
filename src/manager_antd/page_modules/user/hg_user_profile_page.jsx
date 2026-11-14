@@ -20,7 +20,7 @@ import HGModalPage from "../../../components/hg_modal/hg_modal_page";
 import HGSpacePage from "../../../components/hg_space/hg_space_page";
 import { LogOut } from "../../../logger/hg_logger";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
-import HGUserEditModal from "./hg_user_edit_modal";
+import { ROUTE_PATH } from "../../router/hg_router_path";
 import styles from "./hg_user_profile.module.css";
 import HGUserVM from "./hg_user_vm";
 
@@ -53,9 +53,8 @@ class HGUserProfilePage extends React.Component {
       },
       // 服务端是否还有下一页；供卡片列表分页条判断「下一页」可用性。
       hasMore: false,
-      // 卡片操作状态：编辑目标用户与提交中标记、待删除用户（确认弹窗）与提交中标记。
-      editingUser: null,
-      editSubmitting: false,
+      // 卡片操作状态：待删除用户（确认弹窗）与提交中标记。
+      // 编辑不再使用弹窗：点击「编辑」携带用户数据跳转独立编辑页。
       deletingUser: null,
       deleteSubmitting: false,
       count: 0,
@@ -210,46 +209,20 @@ class HGUserProfilePage extends React.Component {
   };
 
   /**
-   * 打开编辑弹窗。
+   * 点击「编辑」：携带用户数据跳转到独立编辑页（资料编辑 + 角色绑定）。
+   * 编辑页通过路由参数 userId 定位授权查询，location.state.user 回填资料表单。
    * @param {Object} user 待编辑用户。
    */
   handleEditClick = (user) => {
-    this.setState({ editingUser: user });
-  };
-
-  /**
-   * 关闭编辑弹窗；提交中不允许关闭，避免请求结果与界面状态不一致。
-   */
-  handleCancelEdit = () => {
-    if (this.state.editSubmitting) return;
-    this.setState({ editingUser: null });
-  };
-
-  /**
-   * 提交编辑：走 PUT /api/v1/profile/update?user_id=xxx，成功后刷新当前页。
-   * @param {Object} formInput 表单值（nickname / gender / signature）。
-   */
-  handleSubmitEdit = async (formInput) => {
-    const { editingUser, editSubmitting } = this.state;
-    if (!editingUser || editSubmitting) return;
-    this.setState({ editSubmitting: true });
-    try {
-      await HGUserVM.updateUserByUserId({
-        userId: editingUser.user_id,
-        previousPhone: editingUser.phone,
-        previousEmail: editingUser.email,
-        ...formInput,
-      });
-      message.success("用户资料已更新");
-      this.setState({ editingUser: null });
-      this.refreshCurrentPage();
-    } catch (error) {
-      handleError(error);
-      // 两次写入不能跨接口回滚，失败时仍需回源显示可能已成功的字段。
-      this.refreshCurrentPage();
-    } finally {
-      this.setState({ editSubmitting: false });
+    const userId = user.user_id || user.id;
+    if (!userId) {
+      message.error("缺少用户 ID，无法进入编辑页");
+      return;
     }
+    this.props.navigate(
+      ROUTE_PATH.USER_EDIT_ROLE.replace(":userId", encodeURIComponent(userId)),
+      { state: { user } }
+    );
   };
 
   /**
@@ -475,8 +448,8 @@ class HGUserProfilePage extends React.Component {
     // 展示名优先取昵称，无昵称时回退用户名；两者同时存在且不同时，附注 @用户名。
     const displayName = user.nickname || user.user_name || "-.-";
     const showSubName = Boolean(user.nickname && user.user_name && user.nickname !== user.user_name);
-    // 任一写操作进行中时统一禁用其他卡片按钮，避免并发编辑/删除造成状态混乱。
-    const actionDisabled = this.state.editSubmitting || this.state.deleteSubmitting;
+    // 删除操作进行中时统一禁用其他卡片按钮，避免并发删除造成状态混乱。
+    const actionDisabled = this.state.deleteSubmitting;
     return (
       <article className={styles.userCard}>
         <div className={styles.cardHead}>
@@ -551,7 +524,6 @@ class HGUserProfilePage extends React.Component {
         hasMore={hasMore}
         resetKey={keyword}
         pageKey={pagination.current}
-        height={560}
         ariaLabel="用户资料列表"
         emptyText="暂无用户数据，换个关键词试试"
         pagination={{
@@ -561,23 +533,6 @@ class HGUserProfilePage extends React.Component {
           hasMore,
         }}
         onChange={this.handleTableChange}
-      />
-    );
-  };
-
-  /**
-   * 渲染编辑弹窗；未打开时返回 null。
-   * @returns {React.ReactNode} 编辑弹窗 JSX。
-   */
-  renderEditModal = () => {
-    const { editingUser, editSubmitting } = this.state;
-    if (!editingUser) return null;
-    return (
-      <HGUserEditModal
-        user={editingUser}
-        submitting={editSubmitting}
-        onCancel={this.handleCancelEdit}
-        onSubmit={this.handleSubmitEdit}
       />
     );
   };
@@ -619,7 +574,6 @@ class HGUserProfilePage extends React.Component {
         <HGCardPage title="用户列表" extra={this.renderToolbar()}>
           {this.renderUserList()}
         </HGCardPage>
-        {this.renderEditModal()}
         {this.renderDeleteModal()}
         {this.renderSignaturePopup()}
       </div>

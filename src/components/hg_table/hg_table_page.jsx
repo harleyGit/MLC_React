@@ -23,10 +23,8 @@ const SECTION_FOOTER_HEIGHT = 32;
  */
 const BUFFER_ROWS = 5;
 
-/**
- * 默认表体最大高度（px）。
- */
-const MAX_BODY_HEIGHT = 500;
+/** 填充模式首次测量前的表体估算高度（px），不用于自然高度列表。 */
+const FILL_BODY_ESTIMATE = 500;
 
 /**
  * 填充模式下表体最小高度（px），防止父级高度异常时表体被压没。
@@ -412,14 +410,19 @@ class HGTablePage extends React.Component {
 
   /**
    * 获取表体可视区域高度。
-   * 填充模式（fillHeight）优先使用实测可用高度；首测完成前回退到 scroll.y 或默认值，
-   * 保证虚拟滚动复用池在测量前也有可用的估算高度。
+   * 填充模式优先使用实测可用高度；显式滚动优先使用 scroll.y。
+   * 未约束高度的固定行/分组表按数据总高度撑开，供复用池完整渲染。
    */
   getBodyHeight = () => {
     const { scroll, fillHeight } = this.props;
     const { fillBodyHeight } = this.state;
     if (fillHeight && fillBodyHeight) return fillBodyHeight;
-    return scroll && scroll.y ? scroll.y : MAX_BODY_HEIGHT;
+    if (scroll?.y) return scroll.y;
+    // 填充模式首次测量前保留适当的复用池估值，避免只渲染缓冲区内的行。
+    if (fillHeight) return FILL_BODY_ESTIMATE;
+    return this.isSectionMode()
+      ? flattenSections(this.props.sections).totalHeight
+      : (this.props.dataSource?.length ?? 0) * ROW_HEIGHT;
   };
 
   /**
@@ -745,13 +748,15 @@ class HGTablePage extends React.Component {
 
     if (items.length === 0) {
       return (
-        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleSectionScroll} {...this.hgBodyDragProps()}>
+        <div className={styles.bodyWrap} style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined} ref={this.scrollRef} onScroll={this.handleSectionScroll} {...this.hgBodyDragProps()}>
           <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
     }
 
-    const poolSize = Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2;
+    const poolSize = this.props.scroll?.y || this.props.fillHeight
+      ? Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2
+      : items.length;
     const visibleItems = [];
     for (let i = 0; i < poolSize && offset + i < items.length; i++) {
       visibleItems.push(items[offset + i]);
@@ -792,7 +797,7 @@ class HGTablePage extends React.Component {
     return (
       <div
         className={styles.bodyWrap}
-        style={{ height: bodyHeight }}
+        style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined}
         ref={this.scrollRef}
         onScroll={this.handleSectionScroll}
         {...this.hgBodyDragProps()}
@@ -882,7 +887,7 @@ class HGTablePage extends React.Component {
 
     if (totalCount === 0) {
       return (
-        <div className={styles.bodyWrap} style={{ height: bodyHeight }} ref={this.scrollRef} onScroll={this.handleScroll} {...this.hgBodyDragProps()}>
+        <div className={styles.bodyWrap} style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined} ref={this.scrollRef} onScroll={this.handleScroll} {...this.hgBodyDragProps()}>
           <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
@@ -891,13 +896,13 @@ class HGTablePage extends React.Component {
     return (
       <div
         className={styles.bodyWrap}
-        style={{ height: bodyHeight }}
+        style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined}
         ref={this.scrollRef}
         onScroll={this.handleScroll}
         {...this.hgBodyDragProps()}
       >
         <div className={styles.virtualSpacer} style={{ height: totalHeight, minWidth: totalWidth }}>
-          {Array.from({ length: poolSize }, (_, poolIdx) => {
+          {Array.from({ length: this.props.scroll?.y || this.props.fillHeight ? poolSize : totalCount }, (_, poolIdx) => {
             const dataIdx = offset + poolIdx;
             const inBounds = dataIdx >= 0 && dataIdx < totalCount;
             const record = inBounds ? dataSource[dataIdx] : null;

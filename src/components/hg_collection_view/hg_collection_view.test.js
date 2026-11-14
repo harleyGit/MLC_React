@@ -18,6 +18,8 @@ function hgCollection(props) {
   const module = { exports: {} }; // 当前编译产物仅存在于测试 VM 中。
   runInNewContext(code, {
     module, exports: module.exports,
+    IntersectionObserver: globalThis.IntersectionObserver,
+    window: globalThis.window,
     require: (name) => {
       if (name === "react") return React;
       if (name.endsWith("hg_collection_layout.js")) return { hgCollectionOffsets, hgCollectionStart };
@@ -34,7 +36,7 @@ function hgCollection(props) {
 
 test("固定 slot 池复用，子节点使用业务 key；长内容高度改变后定位仍正确", () => {
   const items = Array.from({ length: 12 }, (_, index) => ({ id: `order-${index}` }));
-  const collection = hgCollection({ items, getKey: (item) => item.id, renderCell: (item) => item.id });
+  const collection = hgCollection({ items, getKey: (item) => item.id, renderCell: (item) => item.id, height: 520 });
   collection.state.hgViewportHeight = 110;
   const offsets = hgCollectionOffsets(items, collection.props.getKey, collection.hgHeights);
   const first = collection.renderSlots(offsets);
@@ -56,7 +58,7 @@ test("触底只发起一次追加；顶部下拉阈值和加载中门闩避免�
   let refreshes = 0; // 本地刷新计数，初始尚未刷新。
   const collection = hgCollection({
     items: [{ id: "order-1" }], getKey: (item) => item.id, renderCell: () => null,
-    hasMore: true, loading: false, onLoadMore: () => { loads += 1; },
+    hasMore: true, loading: false, height: 520, onLoadMore: () => { loads += 1; },
     onRefresh: () => { refreshes += 1; },
   });
   collection.hgViewport.current = { scrollTop: 0, scrollHeight: 100, clientHeight: 520 };
@@ -82,7 +84,7 @@ test("触底只发起一次追加；顶部下拉阈值和加载中门闩避免�
 
 test("上方 cell 内容增高时保持当前滚动锚点，重置时清除高度缓存", () => {
   const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
-  const collection = hgCollection({ items, getKey: (item) => item.id, renderCell: () => null, resetKey: 1 });
+  const collection = hgCollection({ items, getKey: (item) => item.id, renderCell: () => null, resetKey: 1, height: 520 });
   collection.hgViewport.current = { scrollTop: 320, clientWidth: 400, clientHeight: 520 };
   const slot = { dataset: { index: "0", key: "a" }, getBoundingClientRect: () => ({ height: 200 }) };
   collection.hgMeasureSlot(slot);
@@ -116,6 +118,59 @@ test("受控分页展示页码、每页条数及前后页；分页模式不触�
     { current: 1, pageSize: 50 }, { current: 2, pageSize: 20 }, { current: 2, pageSize: 20 },
   ]);
   assert.equal(children[2].props.disabled, true); // 第一页无上一页。
+});
+
+test("默认列表由全部卡片自然撑高；显式高度仍使用虚拟视口", () => {
+  const items = Array.from({ length: 30 }, (_, index) => ({ id: String(index) }));
+  const collection = hgCollection({ items, getKey: (item) => item.id, renderCell: (item) => item.id });
+  const viewport = collection.render().props.children[0];
+  assert.equal(viewport.props.style, undefined);
+  assert.equal(viewport.props.children[0].length, items.length);
+  assert.equal(viewport.props.children[0][29].props.children, "29");
+  collection.props = { ...collection.props, height: 320 };
+  const fixed = collection.render().props.children[0];
+  assert.equal(fixed.props.style.height, 320);
+  assert.ok(fixed.props.children[0].props.children.length < items.length);
+});
+
+test("自然高度列表只在页面底部标记进入可视区后请求下一页", () => {
+  const previousObserver = globalThis.IntersectionObserver;
+  const previousWindow = globalThis.window;
+  let callback;
+  let disconnects = 0;
+  globalThis.IntersectionObserver = class {
+    constructor(onChange) { callback = onChange; }
+    observe() {}
+    disconnect() { disconnects += 1; }
+  };
+  globalThis.window = { innerHeight: 600 };
+  try {
+    let loads = 0;
+    const collection = hgCollection({
+      items: [{ id: "a" }], getKey: (item) => item.id, renderCell: () => null,
+      hasMore: true, loading: false, onLoadMore: () => { loads += 1; },
+    });
+    collection.hgViewport.current = { scrollHeight: 156, clientHeight: 156, scrollTop: 0 };
+    let sentinelTop = 500; // 追加新记录后标记会移出页面视口。
+    collection.hgLoadSentinel = { getBoundingClientRect: () => ({ top: sentinelTop }) };
+    collection.componentDidMount();
+    assert.equal(loads, 0);
+    callback([{ isIntersecting: true }]);
+    collection.hgCheckLoadMore();
+    assert.equal(loads, 1);
+    collection.props = { ...collection.props, items: [{ id: "a" }, { id: "b" }] };
+    collection.componentDidUpdate({ ...collection.props, items: [{ id: "a" }] });
+    assert.equal(loads, 2);
+    sentinelTop = 900;
+    collection.props = { ...collection.props, items: [{ id: "a" }, { id: "b" }, { id: "c" }] };
+    collection.componentDidUpdate({ ...collection.props, items: [{ id: "a" }, { id: "b" }] });
+    assert.equal(loads, 2);
+    collection.componentWillUnmount();
+    assert.equal(disconnects, 1);
+  } finally {
+    globalThis.IntersectionObserver = previousObserver;
+    globalThis.window = previousWindow;
+  }
 });
 
 test("切换展示页只回到滚动顶部，保留业务 key 对应的高度缓存", () => {

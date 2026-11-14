@@ -255,7 +255,6 @@ class HGMallReviewListPage extends Component {
           onLoadMore={() => this.loadPage(this.state.nextCursor, true)}
           onRefresh={() => this.loadPage("", false)}
           ariaLabel={config.ariaLabel}
-          height={560}
         />
       </section>
     );
@@ -278,4 +277,3 @@ export class HGPendingMediaReviewPage extends Component {
 export class HGPendingEditReviewPage extends Component {
   render() { return <HGMallReviewListPage reviewType="edit" />; }
 }
-

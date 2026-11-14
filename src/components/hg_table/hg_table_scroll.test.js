@@ -37,6 +37,20 @@ test("普通表格由内容撑高，显式滚动与填充模式仍保留高度�
   assert.deepEqual(table.renderAutoRowHeightBody().props.style, { flex: "1 1 auto", minHeight: 0 });
 });
 
+test("固定行及分组模式不指定滚动高度时完整渲染，空态不保留固定视口", () => {
+  const table = new HGTablePage({ autoRowHeight: false, dataSource: Array.from({ length: 25 }, (_, id) => ({ id })) });
+  assert.equal(table.getBodyHeight(), 25 * 48);
+  assert.equal(table.renderBody().props.style, undefined);
+  assert.equal(table.renderBody().props.children.props.children.length, 25);
+  table.props = { ...table.props, dataSource: [], sections: [{ header: "分组", data: [{ id: 1 }] }] };
+  assert.equal(table.getBodyHeight(), 40 + 48);
+  assert.equal(table.renderSectionBody().props.style, undefined);
+  table.props = { ...table.props, sections: [] };
+  assert.equal(table.renderSectionBody().props.style, undefined);
+  table.props = { ...table.props, sections: undefined, scroll: { y: 360 } };
+  assert.equal(table.renderBody().props.style.height, 360);
+});
+
 for (const autoRowHeight of [false, true]) {
   test(`真实组件双向同步及子节点隔离，autoRowHeight=${autoRowHeight}`, () => {
     const table = new HGTablePage({ autoRowHeight, dataSource: [] });

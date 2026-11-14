@@ -42,6 +42,8 @@ const HGWalletSpendingPage = getHGPageConfig(PAGE.WALLET_SPENDING).component;
 const HGVideoUploadEditPage = getHGPageConfig(PAGE.VIDEO_UPLOAD_EDIT).component;
 const HGUpdateUserProfilePage = getHGPageConfig(PAGE.UPDATE_USER_PROIFE).component;
 const HGUserProfilePage = getHGPageConfig(PAGE.USER_PROFILE).component;
+// 用户编辑与角色绑定独立页：需要读取路由参数 userId，注入导航能力。
+const HGUserEditRolePage = getHGPageConfig(PAGE.USER_EDIT_ROLE).component;
 const HGTestModulePage = getHGPageConfig(PAGE.TEST_MODULE).component;
 const HGTableDemoPage = getHGPageConfig(PAGE.TABLE_DEMO).component;
 const BiliDougaPage = getHGPageConfig(PAGE.BILI_DOUGA).component;
@@ -80,6 +82,8 @@ const WrappedHGCommerceCategoryDeletePage = WithNavigation(React.lazy(() => impo
 const WrappedHGWalletSpendingPage = WithNavigation(HGWalletSpendingPage);
 const WrappedHGVideoUploadEditPage = WithNavigation(HGVideoUploadEditPage);
 const WrappedHGUserSpacePage = WithNavigation(HGUserSpacePage);
+// 用户编辑与角色绑定页需要路由参数 userId 与 location.state，注入路由能力。
+const WrappedHGUserEditRolePage = WithNavigation(HGUserEditRolePage);
 const WrappedHGBiliAuthorSpacePage = WithNavigation(HGBiliAuthorSpacePage);
 // 添加联系人页需要 pageNavigator.back 返回来源，同样注入路由能力。
 const WrappedHGAddContactPage = WithNavigation(HGAddContactPage);
@@ -168,6 +172,10 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.USER_PROFILE,
         element: hgLazyElement(<HGUserProfilePage />),
+      },
+      {
+        path: ROUTE_PATH.USER_EDIT_ROLE,
+        element: hgLazyElement(<WrappedHGUserEditRolePage />, "正在加载用户编辑..."),
       },
       {
         path: ROUTE_PATH.EDIT_USER_INFO,

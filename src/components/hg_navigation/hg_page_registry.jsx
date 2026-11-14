@@ -31,6 +31,7 @@ const components = {
   DEFAULT: HGHomePage,
   HOME: HGHomePage,
   USER_PROFILE: lazy(() => import("../../manager_antd/page_modules/user/hg_user_profile_page")),
+  USER_EDIT_ROLE: lazy(() => import("../../manager_antd/page_modules/user/hg_user_edit_role_page")), // 用户编辑与角色绑定独立页。
   UPDATE_USER_PROIFE: lazy(() => import("../../manager_antd/page_modules/user/hg_update_user_profile_page")),
   EDIT_USER_INFO: lazy(() => import("../../manager_antd/page_modules/user/edit_user_info/hg_edit_user_page")),
   ADDRESS_BOOK: lazy(() => import("../../manager_antd/page_modules/user/address/hg_address_book_page")), // 收货地址管理页。

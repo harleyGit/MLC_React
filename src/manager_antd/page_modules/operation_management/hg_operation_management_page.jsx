@@ -324,9 +324,7 @@ class HGOperationManagementPage extends Component {
   /**
    * 渲染右侧内容区：根据 selectedKey 从 PAGE_MAP 获取对应页面组件
    * 约束：向子页面注入 onMenuSelect，供其在内容区内切换菜单（如角色列表跳转创建角色）；未使用的页面忽略该 prop。
-   * 高度约定：内容包裹在 .contentBody 弹性容器中，子页面根节点随容器高度自动拉伸；
-   *          同时注入 fillHeight，支持该约定的页面（如表格页）可让内部内容跟随容器高度动态伸展，
-   *          不识别该 prop 的页面行为不变。
+   * 高度约定：内容包裹在 .contentBody 弹性容器中，列表仍由内容自然撑高。
    * @returns {React.ReactNode} 右侧内容区节点
    */
   renderContent = () => {
@@ -336,7 +334,7 @@ class HGOperationManagementPage extends Component {
       return (
         <div className={styles.contentBody}>
           <Suspense fallback={<HGLoading text="正在加载页面..." />}>
-            <PageComponent onMenuSelect={this.handleMenuSelect} fillHeight />
+            <PageComponent onMenuSelect={this.handleMenuSelect} />
           </Suspense>
         </div>
       );
