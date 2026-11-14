@@ -388,7 +388,10 @@ class HGEmployeeRolePage extends Component {
   renderMFA = () => (
     <div className={styles.formItem}>
       <h3>绑定管理员 MFA</h3>
-      <p>先输入当前登录密码生成绑定密钥，再将密钥或绑定 URI 添加到支持 TOTP 的验证器。动态码由验证器生成，服务端不会提供获取动态码的接口。</p>
+      <p>
+        先输入当前登录密码生成绑定密钥，再将密钥或绑定 URI 添加到支持 TOTP
+        的验证器。动态码由验证器生成，服务端不会提供获取动态码的接口。
+      </p>
       <input
         type="password"
         autoComplete="current-password"
@@ -405,7 +408,10 @@ class HGEmployeeRolePage extends Component {
           绑定 URI：<code>{this.state.mfaURI}</code>
         </p>
       )}
-      <label htmlFor="hg-iam-mfa-confirm-code">验证器显示的 6 位动态码（非短信验证码）</label>
+      <label htmlFor="hg-iam-mfa-confirm-code">
+        验证器【Google Authenticator（Google 身份验证器）】显示的 6
+        位动态码（非短信验证码）
+      </label>
       <input
         id="hg-iam-mfa-confirm-code"
         type="text"
@@ -419,7 +425,12 @@ class HGEmployeeRolePage extends Component {
         placeholder="输入验证器中的 6 位动态码"
         className={styles.inputField}
       />
-      <HGButtonPage onClick={this.confirmMFA} disabled={!/^\d{6}$/.test(this.state.mfaConfirmCode)}>确认并启用 MFA</HGButtonPage>
+      <HGButtonPage
+        onClick={this.confirmMFA}
+        disabled={!/^\d{6}$/.test(this.state.mfaConfirmCode)}
+      >
+        确认并启用 MFA
+      </HGButtonPage>
     </div>
   );
 
