@@ -38,6 +38,17 @@ test("IAM 角色与权限请求使用模块内路径签名", () => {
   assert.equal(normalizeSignPath("/api/v1/iam_extra/roles/list"), "/api/v1/iam_extra/roles/list");
 });
 
+// 媒体模块在 Go 根路由剥离 /api/v1/media 后验签；完整路径签名会在权限检查前返回 401。
+test("媒体盘点和本人接口使用模块内路径签名，保持相似前缀原样", () => {
+  for (const hgKind of ["", "image", "video"]) {
+    const hgURL = new URL(`/api/v1/media/admin/assets/list?kind=${hgKind}&cursor=&limit=20`, "http://localhost:5174");
+    assert.equal(normalizeSignPath(hgURL.pathname), "/admin/assets/list");
+  }
+  assert.equal(normalizeSignPath("/api/v1/media/assets/status"), "/assets/status");
+  assert.equal(normalizeSignPath("/api/v1/media"), "/");
+  assert.equal(normalizeSignPath("/api/v1/media_extra/assets/status"), "/api/v1/media_extra/assets/status");
+});
+
 test("normalizeSignPath strips the bilibili module prefix", () => {
   assert.equal(
     normalizeSignPath("/api/v1/bilibili/author/homepage"),
