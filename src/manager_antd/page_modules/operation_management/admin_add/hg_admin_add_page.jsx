@@ -2,17 +2,17 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-06-13
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-06-13
+ * @LastEditTime: 2026-11-14 21:42:19
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/admin_add/hg_admin_add_page.jsx
  * @Description: 添加管理员页面，搜索注册用户候选并确认添加为管理员
  */
 import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
-import HGDetailGridPage from "../../../../components/hg_detail_grid/hg_detail_grid_page";
 import { HGInputSearch } from "../../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
-import HGAdminAddVM from "./hg_admin_add_vm";
+import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import styles from "./hg_admin_add.module.css";
+import HGAdminAddVM from "./hg_admin_add_vm";
 
 /**
  * 添加管理员页面。
@@ -22,11 +22,11 @@ class HGAdminAddPage extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      searching: false,
-      submitting: false,
-      candidates: [],
-      selectedCandidate: null,
-      hasSearched: false,
+      searching: false, // 搜索请求是否进行中；初始 false，用于禁用重复搜索。
+      submitting: false, // 添加请求是否进行中；初始 false，用于防止重复提交。
+      candidates: [], // 当前搜索返回的候选行；空数组表示无结果或尚未搜索。
+      selectedCandidate: null, // 当前单选用户；null 表示未选中或已清空。
+      hasSearched: false, // 是否已发起有效搜索；初始 false 时不展示候选表格。
     };
   }
 
@@ -37,11 +37,19 @@ class HGAdminAddPage extends Component {
   handleSearch = (keyword) => {
     const searchText = String(keyword || "").trim();
     if (!searchText) {
-      this.setState({ candidates: [], selectedCandidate: null, hasSearched: false });
+      this.setState({
+        candidates: [],
+        selectedCandidate: null,
+        hasSearched: false,
+      });
       return;
     }
 
-    this.setState({ searching: true, selectedCandidate: null, hasSearched: true });
+    this.setState({
+      searching: true,
+      selectedCandidate: null,
+      hasSearched: true,
+    });
     HGAdminAddVM.searchAdminCandidates(searchText)
       .then((res) => {
         const candidates = HGAdminAddVM.toCandidateRows(res?.list || []);
@@ -59,11 +67,12 @@ class HGAdminAddPage extends Component {
   };
 
   /**
-   * 选择一个候选用户。
-   * @param {Object} candidate 候选用户
+   * 接收表格单选结果，未选择时清空当前候选用户。
+   * @param {Array} _keys 选中的行 key；当前页面从行记录获取提交所需的 ID。
+   * @param {Array} rows 表格返回的已选候选行；单选时最多一条。
    */
-  handleSelectCandidate = (candidate) => {
-    this.setState({ selectedCandidate: candidate });
+  handleSelectCandidate = (_keys, rows) => {
+    this.setState({ selectedCandidate: rows[0] || null });
   };
 
   /**
@@ -94,7 +103,11 @@ class HGAdminAddPage extends Component {
    * 清空当前搜索结果和选择。
    */
   handleReset = () => {
-    this.setState({ candidates: [], selectedCandidate: null, hasSearched: false });
+    this.setState({
+      candidates: [],
+      selectedCandidate: null,
+      hasSearched: false,
+    });
   };
 
   renderSearchField = () => {
@@ -111,86 +124,42 @@ class HGAdminAddPage extends Component {
           className={styles.searchInput}
         />
         <p className={styles.searchTip}>
-          候选搜索使用 users.id 精确匹配，或 user_id、用户名、邮箱、手机号前缀匹配；最多返回 10 条候选，避免大表无界搜索。
+          候选搜索使用 users.id 精确匹配，或
+          user_id、用户名、邮箱、手机号前缀匹配；最多返回 10
+          条候选，避免大表无界搜索。
         </p>
       </div>
     );
   };
 
-  renderCandidateHeader = () => (
-    <div className={styles.candidateHeader}>
-      <span>选择</span>
-      <span>ID</span>
-      <span>用户名</span>
-      <span>昵称</span>
-      <span className={styles.optionalColumn}>邮箱</span>
-      <span className={styles.optionalColumn}>手机号</span>
-    </div>
-  );
-
-  renderCandidateRow = (candidate) => {
-    const { selectedCandidate } = this.state;
-    const selected = selectedCandidate?.id === candidate.id;
-    const rowClassName = [styles.candidateRow, selected ? styles.candidateRowSelected : ""]
-      .filter(Boolean)
-      .join(" ");
-
-    return (
-      <div
-        key={candidate.id}
-        className={rowClassName}
-        onClick={() => this.handleSelectCandidate(candidate)}
-      >
-        <input
-          type="radio"
-          className={styles.radioInput}
-          checked={selected}
-          onChange={() => this.handleSelectCandidate(candidate)}
-        />
-        <span className={styles.cellText}>{candidate.id}</span>
-        <span className={styles.cellText}>{candidate.userName}</span>
-        <span className={styles.cellText}>{candidate.nickName}</span>
-        <span className={`${styles.cellText} ${styles.optionalColumn}`}>{candidate.email}</span>
-        <span className={`${styles.cellText} ${styles.optionalColumn}`}>{candidate.phone}</span>
-      </div>
-    );
-  };
-
-  renderCandidateList = () => {
-    const { candidates, hasSearched } = this.state;
+  /** 候选用户的全部识别字段统一在表格展示，不再额外渲染选中详情卡。 */
+  renderCandidateTable = () => {
+    const { candidates, hasSearched, selectedCandidate, searching } = this.state;
     if (!hasSearched) return null;
-    if (candidates.length === 0) {
-      return <div className={styles.emptyText}>暂无候选用户，请更换关键词搜索</div>;
-    }
+
+    const columns = [
+      { title: "ID", dataIndex: "id", width: 90 },
+      { title: "业务ID", dataIndex: "userId", width: 120 },
+      { title: "用户名", dataIndex: "userName", width: 140 },
+      { title: "昵称", dataIndex: "nickName", width: 140 },
+      { title: "邮箱", dataIndex: "email", width: 220 },
+      { title: "手机号", dataIndex: "phone", width: 150 },
+    ]; // 列宽允许窄屏横向滚动，保证邮箱和手机号不被隐藏。
 
     return (
-      <div className={styles.candidateList}>
-        {this.renderCandidateHeader()}
-        {candidates.map(this.renderCandidateRow)}
-      </div>
-    );
-  };
-
-  renderSelectedCandidate = () => {
-    const { selectedCandidate } = this.state;
-    if (!selectedCandidate) return null;
-
-    const detailItems = [
-      { label: "ID", value: selectedCandidate.id },
-      { label: "业务ID", value: selectedCandidate.userId },
-      { label: "用户名", value: selectedCandidate.userName },
-      { label: "昵称", value: selectedCandidate.nickName },
-      { label: "邮箱", value: selectedCandidate.email },
-      { label: "手机号", value: selectedCandidate.phone },
-    ];
-
-    return (
-      <HGDetailGridPage
-        title="当前选择用户"
-        items={detailItems}
-        columns={3}
-        maxValueLines={1}
-        className={styles.selectedCard}
+      <HGTablePage
+        className={styles.candidateTable}
+        rowKey="id"
+        columns={columns}
+        dataSource={candidates}
+        rowSelection={{
+          type: "radio",
+          selectedRowKeys: selectedCandidate ? [selectedCandidate.id] : [],
+          onChange: this.handleSelectCandidate,
+        }}
+        loading={searching}
+        pagination={false}
+        scroll={{ y: 360 }}
       />
     );
   };
@@ -220,8 +189,7 @@ class HGAdminAddPage extends Component {
       <div className={styles.adminAddContainer}>
         <h2 className={styles.formTitle}>添加管理员</h2>
         {this.renderSearchField()}
-        {this.renderCandidateList()}
-        {this.renderSelectedCandidate()}
+        {this.renderCandidateTable()}
         {this.renderActions()}
       </div>
     );

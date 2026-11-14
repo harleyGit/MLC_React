@@ -36,64 +36,11 @@
   color: #6b7897;
 }
 
-.candidateList {
+.candidateTable {
   border: 1px solid #e6ebf5;
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
-}
-
-.emptyText {
-  padding: 24px;
-  color: #7a859f;
-  font-size: 14px;
-  text-align: center;
-}
-
-.candidateHeader,
-.candidateRow {
-  display: grid;
-  grid-template-columns: 56px 90px 1fr 1fr 1.4fr 130px;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 14px;
-}
-
-.candidateHeader {
-  color: #60708f;
-  font-size: 12px;
-  font-weight: 600;
-  background: #f6f8fc;
-}
-
-.candidateRow {
-  color: #24324d;
-  font-size: 13px;
-  border-top: 1px solid #eef2f8;
-  cursor: pointer;
-}
-
-.candidateRow:hover {
-  background: #f8fbff;
-}
-
-.candidateRowSelected {
-  background: #edf5ff;
-}
-
-.radioInput {
-  cursor: pointer;
-}
-
-.cellText {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.selectedCard {
-  margin-top: 16px;
 }
 
 .submitRow {
@@ -104,16 +51,4 @@
 
 .submitBtn {
   min-width: 104px;
-}
-
-@media (max-width: 820px) {
-  .candidateHeader,
-  .candidateRow {
-    grid-template-columns: 44px 72px 1fr 1fr;
-  }
-
-  .optionalColumn {
-    display: none;
-  }
-
 }

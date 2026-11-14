@@ -178,18 +178,26 @@ class VirtualSectionFooter extends React.PureComponent {
  */
 class VirtualRow extends React.PureComponent {
   render() {
-    const { columns, record, rowIndex, autoRowHeight } = this.props;
+    const { columns, record, rowIndex, autoRowHeight, selected, onSelect } = this.props;
     if (!record) return <div className={styles.row} />;
 
     return (
       // autoRowHeight 开启时，行不再依赖固定 48px 高度，由单元格内容自然撑开。
-      <div className={`${styles.row} ${autoRowHeight ? styles.autoHeightRow : ""}`}>
+      <div
+        className={`${styles.row} ${autoRowHeight ? styles.autoHeightRow : ""} ${selected ? styles.selectedRow : ""} ${onSelect ? styles.selectableRow : ""}`}
+        onClick={onSelect ? (event) => {
+          // 行内操作及选择控件自行处理点击，避免冒泡后再次切换选中状态。
+          if (!event.target.closest("button, input, a, select, textarea, label")) {
+            onSelect(record);
+          }
+        } : undefined}
+      >
         {columns.map((col) => {
           const value = record[col.dataIndex];
           const rendered = col.render ? col.render(value, record, rowIndex) : value;
           return (
             <div
-              key={col.dataIndex || col.title}
+              key={col.key || col.dataIndex || col.title}
               // autoHeightCell 负责取消省略号和单行限制，让长字段按列宽换行完整展示。
               className={`${styles.cell} ${autoRowHeight ? styles.autoHeightCell : ""}`}
               style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
@@ -220,7 +228,8 @@ class VirtualRow extends React.PureComponent {
  *   - sectionHeader 吸顶：滚动时当前 section 的 header 固定在顶部
  *   - sectionFooter 吸底：滚动时当前 section 的 footer 固定在底部
  *
- * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll, fillHeight。
+ * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll, fillHeight, rowSelection。
+ * rowSelection：{type: "radio" | "checkbox", selectedRowKeys: [], onChange(keys, rows)}；由调用方持有选择状态。
  * fillHeight 说明：可选填充模式；开启后表格作为父级弹性布局的子项占满剩余高度，
  *                  表体高度由 ResizeObserver 实测（容器高度扣除表头与分页器）或弹性布局决定，
  *                  随窗口/父级高度动态变化；未开启时保持 scroll.y 固定高度行为。
@@ -229,13 +238,13 @@ class HGTablePage extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      offset: 0,
-      scrollTop: 0,
+      offset: 0, // 固定行高虚拟列表的起始行索引；0 表示从首行开始。
+      scrollTop: 0, // section 列表的纵向滚动位置（px）；初始为顶部。
       fillBodyHeight: null, // 填充模式（fillHeight）下实测的表体可用高度；null 表示尚未完成首次测量。
     };
-    this.scrollRef = React.createRef();
+    this.scrollRef = React.createRef(); // 当前表体滚动节点；挂载前 current 为 null。
     // 表头与表体独立滚动，以 ref 同步像素位置而不触发 React 重渲染。
-    this.headerRef = React.createRef();
+    this.headerRef = React.createRef(); // 表头横向滚动节点；与表体同步位置。
     this.containerRef = React.createRef(); // 表格根容器；填充模式据此测量可用高度。
     this.paginationRef = React.createRef(); // 分页器节点；填充模式测高时需扣除其占位。
     this.hgDrag = null; // 当前鼠标拖动身份；null 表示没有正在拖动表体。
@@ -334,6 +343,73 @@ class HGTablePage extends React.Component {
     return String(index);
   };
 
+  /** 获取当前数据行；section 模式也与普通表体共用同一选择契约。 */
+  getSelectionRows = () => {
+    const { dataSource = [], sections } = this.props;
+    return Array.isArray(sections) ? sections.flatMap((section) => section.data || []) : dataSource;
+  };
+
+  /** 受控选择变更：只提交 key 与对应行，不在表格内部保存业务选择。 */
+  handleSelectRow = (record) => {
+    const { rowSelection } = this.props;
+    if (!rowSelection) return;
+    const rows = this.getSelectionRows();
+    const key = this.getRowKey(record, rows.indexOf(record));
+    const selectedKeys = rowSelection.selectedRowKeys || [];
+    const nextKeys = rowSelection.type === "checkbox"
+      ? selectedKeys.includes(key) ? selectedKeys.filter((item) => item !== key) : [...selectedKeys, key]
+      : [key];
+    rowSelection.onChange?.(nextKeys, rows.filter((row, index) => nextKeys.includes(this.getRowKey(row, index))));
+  };
+
+  /** 多选表头仅操作当前表格数据，保留不在当前数据中的已选 key。 */
+  handleSelectAll = (checked) => {
+    const { rowSelection } = this.props;
+    const rows = this.getSelectionRows();
+    const selectedKeys = rowSelection.selectedRowKeys || [];
+    const keys = rows.map((row, index) => this.getRowKey(row, index));
+    const nextKeys = checked
+      ? [...new Set([...selectedKeys, ...keys])]
+      : selectedKeys.filter((key) => !keys.includes(key));
+    rowSelection.onChange?.(nextKeys, rows.filter((row, index) => nextKeys.includes(this.getRowKey(row, index))));
+  };
+
+  /** 配置选择列；未传 rowSelection 时维持原表格列与交互。 */
+  getColumns = () => {
+    const { columns = [], rowSelection } = this.props;
+    if (!rowSelection) return columns;
+    const rows = this.getSelectionRows();
+    const selectedKeys = rowSelection.selectedRowKeys || [];
+    const allKeys = rows.map((row, index) => this.getRowKey(row, index));
+    const selectedCount = allKeys.filter((key) => selectedKeys.includes(key)).length;
+    const multiple = rowSelection.type === "checkbox";
+    return [{
+      key: "hg-selection",
+      width: 56,
+      title: multiple ? (
+        <input
+          type="checkbox"
+          aria-label="全选"
+          checked={allKeys.length > 0 && selectedCount === allKeys.length}
+          ref={(input) => { if (input) input.indeterminate = selectedCount > 0 && selectedCount < allKeys.length; }}
+          disabled={allKeys.length === 0}
+          onChange={(event) => this.handleSelectAll(event.target.checked)}
+        />
+      ) : "选择",
+      render: (_, record) => {
+        const key = this.getRowKey(record, rows.indexOf(record));
+        return (
+          <input
+            type={multiple ? "checkbox" : "radio"}
+            aria-label={`选择 ${key}`}
+            checked={selectedKeys.includes(key)}
+            onChange={() => this.handleSelectRow(record)}
+          />
+        );
+      },
+    }, ...columns];
+  };
+
   /**
    * 获取表体可视区域高度。
    * 填充模式（fillHeight）优先使用实测可用高度；首测完成前回退到 scroll.y 或默认值，
@@ -351,7 +427,7 @@ class HGTablePage extends React.Component {
    * 无显式 width 的列按默认 120px 估算。
    */
   getTotalColumnsWidth = () => {
-    const { columns = [] } = this.props;
+    const columns = this.getColumns();
     const CELL_PADDING = 32; // 12px padding * 2
     const DEFAULT_COL_WIDTH = 120;
     return columns.reduce((sum, col) => {
@@ -624,7 +700,7 @@ class HGTablePage extends React.Component {
    * 渲染表头。
    */
   renderHeader = () => {
-    const { columns = [] } = this.props;
+    const columns = this.getColumns();
     const totalWidth = this.getTotalColumnsWidth();
     return (
       <div className={styles.headerWrap} ref={this.headerRef} onScroll={this.handleHeaderScroll} {...this.hgBodyDragProps()}>
@@ -635,7 +711,7 @@ class HGTablePage extends React.Component {
         <div className={styles.row} style={{ minWidth: totalWidth }}>
           {columns.map((col) => (
             <div
-              key={col.dataIndex || col.title}
+              key={col.key || col.dataIndex || col.title}
               className={styles.headerCell}
               style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
             >
@@ -659,7 +735,9 @@ class HGTablePage extends React.Component {
    *   - 吸底：当 section footer 滚出底部时，sticky 固定在可视区域底部。
    */
   renderSectionBody = () => {
-    const { sections = [], columns = [] } = this.props;
+    const { sections = [], rowSelection } = this.props;
+    const columns = this.getColumns();
+    const selectionRows = rowSelection ? this.getSelectionRows() : []; // 仅在启用选择时展平，供 section 行 key 对齐。
     const { offset, scrollTop } = this.state;
     const bodyHeight = this.getBodyHeight();
     const { items, totalHeight, sectionMetas } = flattenSections(sections);
@@ -778,6 +856,8 @@ class HGTablePage extends React.Component {
                   columns={columns}
                   record={item.record}
                   rowIndex={item.rowIndex}
+                  selected={rowSelection?.selectedRowKeys?.includes(this.getRowKey(item.record, selectionRows.indexOf(item.record)))}
+                  onSelect={rowSelection ? this.handleSelectRow : undefined}
                 />
               </div>
             );
@@ -791,7 +871,8 @@ class HGTablePage extends React.Component {
    * 渲染 dataSource 模式表体（原有虚拟滚动，固定行高）。
    */
   renderBody = () => {
-    const { columns = [], dataSource = [] } = this.props;
+    const { dataSource = [], rowSelection } = this.props;
+    const columns = this.getColumns();
     const { offset } = this.state;
     const bodyHeight = this.getBodyHeight();
     const totalCount = dataSource.length;
@@ -835,6 +916,8 @@ class HGTablePage extends React.Component {
                   columns={columns}
                   record={record}
                   rowIndex={dataIdx}
+                  selected={record && rowSelection?.selectedRowKeys?.includes(this.getRowKey(record, dataIdx))}
+                  onSelect={rowSelection ? this.handleSelectRow : undefined}
                 />
               </div>
             );
@@ -862,7 +945,8 @@ class HGTablePage extends React.Component {
    * 职责：用于少量分页数据需要完整换行展示的场景，避免固定行高虚拟列表裁切内容。
    */
   renderAutoRowHeightBody = () => {
-    const { columns = [], dataSource = [] } = this.props;
+    const { dataSource = [], rowSelection } = this.props;
+    const columns = this.getColumns();
     const hgBodyStyle = this.hgAutoBodyStyle();
     // 表体内层宽度必须和表头内层宽度一致，否则横向滚动距离与 title 列无法对齐。
     const totalWidth = this.getTotalColumnsWidth();
@@ -901,6 +985,8 @@ class HGTablePage extends React.Component {
               record={record}
               rowIndex={rowIndex}
               autoRowHeight
+              selected={rowSelection?.selectedRowKeys?.includes(this.getRowKey(record, rowIndex))}
+              onSelect={rowSelection ? this.handleSelectRow : undefined}
             />
           ))}
         </div>

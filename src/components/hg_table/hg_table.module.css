@@ -117,6 +117,15 @@
   background: #f5f5f5;
 }
 
+.selectableRow {
+  cursor: pointer;
+}
+
+.selectedRow,
+.poolRow:hover .selectedRow {
+  background: #edf5ff;
+}
+
 /* ===== 单元格 ===== */
 .cell {
   padding: 12px 16px;
