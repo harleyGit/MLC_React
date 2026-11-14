@@ -265,10 +265,14 @@ class HGEditUserPage extends React.Component {
    * @returns {React.ReactNode} 信息编辑表单 JSX。
    */
   renderInfoContent = () => {
-    const { profileForm } = this.state;
+    const { profileForm, userProfile } = this.state;
     return (
       <section className={styles.contentBlock}>
         <h3 className={styles.contentTitle}>我的信息</h3>
+        {/* 用户 ID 由服务端生成（如 hgid_XXXX），仅展示不可改；无值时不渲染。 */}
+        {userProfile.user_id ? (
+          <p className={styles.userIdRow}>用户 ID：{userProfile.user_id}</p>
+        ) : null}
         <label className={styles.formItem}>
           <span className={styles.formLabel}>修改昵称</span>
           <input
