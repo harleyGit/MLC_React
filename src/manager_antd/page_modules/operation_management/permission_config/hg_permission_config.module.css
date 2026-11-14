@@ -1,0 +1,33 @@
+.container {
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  color: #1f2c4a;
+}
+
+.section {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #dce3ef;
+  border-radius: 8px;
+}
+
+.section h3 { margin: 0 0 12px; }
+
+.row, .binding {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.input {
+  flex: 1 1 280px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid #bfc9dc;
+  border-radius: 4px;
+}
+
+.error { color: #b42318; }
