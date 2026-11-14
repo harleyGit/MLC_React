@@ -203,6 +203,11 @@ export const HGMANAGER_API = {
   IM_MEDIA_COMPLETE: "/api/v1/im/media/upload/complete", // 上传完成后申请真实审核
   IM_MEDIA_STATUS: "/api/v1/im/media/status", // 上传者查询审核元数据
   IM_MEDIA_DELETE: "/api/v1/im/media/delete", // 上传者撤销附件
+  MEDIA_UPLOAD_INIT: "/api/v1/media/uploads/init", // 本人按业务用途申请隔离上传
+  MEDIA_UPLOAD_COMPLETE: "/api/v1/media/uploads/complete", // 本人确认对象大小，仅进入审核
+  MEDIA_ASSET_STATUS: "/api/v1/media/assets/status", // 按 UUID 查询本人资源审核状态
+  MEDIA_ASSET_DOWNLOAD: "/api/v1/media/assets/download", // 本人已审核低敏图片的短时读取授权
+  MEDIA_ADMIN_INVENTORY: "/api/v1/media/admin/assets/list", // 需 media:inventory:read 的新旧媒体元数据游标盘点
   IM_CALLS: "/api/v1/im/calls", // 创建/读取单聊呼叫
   IM_CALL_ACTION: "/api/v1/im/calls/action", // 接听/拒绝/取消/结束
   IM_CALL_TOKEN: "/api/v1/im/calls/token", // 已接听设备的 LiveKit 凭据

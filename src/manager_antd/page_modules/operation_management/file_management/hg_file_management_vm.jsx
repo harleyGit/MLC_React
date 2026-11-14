@@ -1,305 +1,99 @@
-/*
- * @Author: GangHuang harleysor@qq.com
- * @Date: 2026-05-25
- * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-25
- * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/file_management/hg_file_management_vm.jsx
- * @Description: 文件管理页面 ViewModel，负责业务逻辑、数据处理和API调用
- */
+import hgNet from "../../../net_handle/hg_net_manager_vm"; // 请求层默认导出单例，不可再次 new。
+import { HGMANAGER_API } from "../../../api/hg_api_constants";
+import { hgIMEndpoint } from "../../../net_handle/hg_im_endpoint";
 
-/**
- * 业务场景选项配置
- * 用于下拉选择器展示
- */
+// 仅展示审核器当前支持、且与媒体模块用途/MIME/大小白名单一致的业务用途。
 export const SCENE_OPTIONS = [
-  { value: "user_avatar", label: "用户头像" },
-  { value: "product_image", label: "产品图片" },
-  { value: "banner", label: "轮播图" },
-  { value: "document", label: "文档资料" },
-  { value: "video", label: "视频资源" },
-  { value: "other", label: "其他" },
+  { value: "user_avatar", label: "本人头像（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
+  { value: "user_cover", label: "本人封面（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
+  { value: "product_main", label: "商品主图（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
+  { value: "product_detail", label: "商品详情图（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
+  { value: "product_sku", label: "商品 SKU 图（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
+  { value: "shop_logo", label: "店铺标识（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
+  { value: "video_cover", label: "视频封面（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
+  { value: "video_source", label: "视频源文件（≤50MB）", mimes: ["video/mp4", "video/quicktime"], max: 50 << 20 },
+  { value: "support_evidence", label: "客服凭证（图片/视频/PDF，≤20MB）", mimes: ["image/jpeg", "image/png", "image/webp", "video/mp4", "application/pdf"], max: 20 << 20 },
+  { value: "marketing_poster", label: "营销海报（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
 ];
 
-/**
- * 文件类型分类
- * 用于文件类型识别和展示
- */
-export const FILE_TYPE_CATEGORY = {
-  image: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"],
-  video: ["mp4", "avi", "mov", "wmv", "flv", "mkv"],
-  document: ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"],
-};
+const hgUUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 
-/**
- * 文件上传限制配置
- * 约束：单文件最大 50MB，图片最大 10MB
- */
-const UPLOAD_LIMITS = {
-  image: { maxSize: 10 * 1024 * 1024, label: "图片" },
-  video: { maxSize: 50 * 1024 * 1024, label: "视频" },
-  document: { maxSize: 20 * 1024 * 1024, label: "文档" },
-  other: { maxSize: 50 * 1024 * 1024, label: "文件" },
-};
-
-/**
- * 文件信息模拟数据源
- * 职责：在未接入真实 API 前，保存文件管理提交后形成的列表数据，供上传页与文件列表页共享
- */
-let mockFileList = [
-  {
-    id: 1,
-    scene: "user_avatar",
-    file_key: "user_avatar_1716633600000_abc123.jpg",
-    user_id: "1001",
-    user_type: "admin",
-    file_type: "image",
-    file_size: 102400,
-    file_name: "头像.jpg",
-    file_url: "https://picsum.photos/400/300",
-    upload_time: "2026-05-24 10:00:00",
-    ip: "192.168.1.100",
-  },
-  {
-    id: 2,
-    scene: "product_image",
-    file_key: "product_image_1716633700000_def456.png",
-    user_id: "1002",
-    user_type: "user",
-    file_type: "image",
-    file_size: 204800,
-    file_name: "产品图.png",
-    file_url: "https://picsum.photos/400/300?random=1",
-    upload_time: "2026-05-24 11:00:00",
-    ip: "192.168.1.101",
-  },
-  {
-    id: 3,
-    scene: "document",
-    file_key: "document_1716633800000_ghi789.pdf",
-    user_id: "1003",
-    user_type: "admin",
-    file_type: "document",
-    file_size: 1048576,
-    file_name: "需求文档.pdf",
-    file_url: "",
-    upload_time: "2026-05-24 12:00:00",
-    ip: "192.168.1.102",
-  },
-  {
-    id: 4,
-    scene: "video",
-    file_key: "video_1716633900000_jkl012.mp4",
-    user_id: "1001",
-    user_type: "admin",
-    file_type: "video",
-    file_size: 52428800,
-    file_name: "产品演示.mp4",
-    file_url: "",
-    upload_time: "2026-05-25 09:00:00",
-    ip: "192.168.1.100",
-  },
-  {
-    id: 5,
-    scene: "banner",
-    file_key: "banner_1716634000000_mno345.jpg",
-    user_id: "1004",
-    user_type: "user",
-    file_type: "image",
-    file_size: 512000,
-    file_name: "首页轮播图.jpg",
-    file_url: "https://picsum.photos/800/400?random=2",
-    upload_time: "2026-05-25 10:30:00",
-    ip: "192.168.1.103",
-  },
-];
-
-/**
- * 文件管理 ViewModel 类
- * 职责：管理文件数据、处理上传逻辑、提供表单校验规则
- */
+/** 本人媒体操作：页面不能指定 owner、对象键或审核状态。 */
 export default class HGFileManagementVM {
-  /**
-   * 获取表单校验规则
-   * @returns {Object} 表单校验规则对象
-   */
-  static getFormRules = () => ({
-    scene: [{ required: true, message: "请选择业务场景" }],
-    user_id: [{ required: true, message: "请输入上传人ID" }],
-    user_type: [{ required: true, message: "请输入上传人类型" }],
-  });
+  static formatFileSize(bytes) {
+    return Number.isFinite(bytes) && bytes >= 0 ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : "--";
+  }
 
-  /**
-   * 根据文件扩展名获取文件类型分类
-   * @param {string} fileName 文件名
-   * @returns {string} 文件类型分类（image/video/document/other）
-   */
-  static getFileTypeCategory = (fileName) => {
-    if (!fileName) return "other";
-    const extension = fileName.split(".").pop().toLowerCase();
-    for (const [category, extensions] of Object.entries(FILE_TYPE_CATEGORY)) {
-      if (extensions.includes(extension)) {
-        return category;
-      }
+  static validateFile(file, purpose) {
+    const policy = SCENE_OPTIONS.find((item) => item.value === purpose);
+    if (!policy || !file || !policy.mimes.includes(file.type) || file.size < 1 || file.size > policy.max) {
+      throw new Error("业务用途、文件类型或大小不符合上传策略");
     }
-    return "other";
-  };
+  }
 
-  /**
-   * 格式化文件大小
-   * @param {number} bytes 文件大小（字节）
-   * @returns {string} 格式化后的文件大小
-   */
-  static formatFileSize = (bytes) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  /**
-   * 校验单个文件大小与格式
-   * @param {File} file 文件对象
-   * @returns {{ valid: boolean, message: string }} 校验结果
-   */
-  static validateFile = (file) => {
-    const category = HGFileManagementVM.getFileTypeCategory(file.name);
-    const limit = UPLOAD_LIMITS[category];
-    if (file.size > limit.maxSize) {
-      return {
-        valid: false,
-        message: `${limit.label}文件「${file.name}」超过大小限制（最大 ${HGFileManagementVM.formatFileSize(limit.maxSize)}）`,
-      };
+  /** 顺序执行：摘要最多处理 50MB；完成仅表示进入待审核，不代表可以引用。 */
+  static async uploadFile(file, purpose, hgOnInit, hgSignal) {
+    HGFileManagementVM.validateFile(file, purpose);
+    if (!globalThis.crypto?.subtle || !globalThis.crypto.randomUUID) {
+      throw new Error("上传需要 HTTPS 或 localhost 安全上下文");
     }
-    return { valid: true, message: "" };
-  };
-
-  /**
-   * 批量校验文件列表
-   * @param {Array<File>} files 文件数组
-   * @returns {{ valid: boolean, message: string }} 校验结果
-   */
-  static validateFiles = (files) => {
-    for (const file of files) {
-      const result = HGFileManagementVM.validateFile(file);
-      if (!result.valid) return result;
+    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    hgSignal?.throwIfAborted();
+    const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    const session = await hgNet.post(HGMANAGER_API.MEDIA_UPLOAD_INIT, {
+      purpose, mime_type: file.type, file_size: file.size, sha256, idempotency_key: crypto.randomUUID(),
+    }, { signal: hgSignal, timeout: 15000 });
+    if (!hgUUID.test(session?.asset_id) || !hgUUID.test(session?.upload_id) || session.status !== "pending" ||
+        session.method !== "PUT" || session.required_headers?.["Content-Type"] !== file.type || !session.upload_url) {
+      throw new Error("媒体上传凭据不符合协议");
     }
-    return { valid: true, message: "" };
-  };
-
-  /**
-   * 生成文件存储标识
-   * @param {string} scene 业务场景
-   * @param {string} fileName 文件名
-   * @returns {string} 文件存储标识
-   */
-  static generateFileKey = (scene, fileName) => {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    const extension = fileName.split(".").pop();
-    return `${scene}_${timestamp}_${random}.${extension}`;
-  };
-
-  /**
-   * 转换上传数据为提交格式
-   * @param {Object} values 表单值
-   * @param {Array} fileList 文件列表
-   * @returns {Array} 提交数据数组
-   */
-  static transformSubmitData = (values, fileList) => {
-    return fileList.map((file) => ({
-      scene: values.scene,
-      file_key: HGFileManagementVM.generateFileKey(values.scene, file.name),
-      user_id: values.user_id,
-      user_type: values.user_type,
-      file_type: HGFileManagementVM.getFileTypeCategory(file.name),
-      file_size: file.size,
-      file_name: file.name,
-      file_url: URL.createObjectURL(file),
-      upload_time: new Date().toISOString(),
-      ip: "127.0.0.1",
-    }));
-  };
-
-  /**
-   * 对文件列表数据做前端分页、搜索、筛选
-   * @param {Array} list 全量文件列表
-   * @param {Object} params { keyword, scene, fileType, page, pageSize }
-   * @returns {{ data: Array, total: number }}
-   */
-  static filterAndPaginate = (list, params = {}) => {
-    let filtered = [...list];
-    if (params.keyword) {
-      const kw = params.keyword.toLowerCase();
-      filtered = filtered.filter(
-        (f) =>
-          f.file_name.toLowerCase().includes(kw) ||
-          f.file_key.toLowerCase().includes(kw) ||
-          f.user_id.toLowerCase().includes(kw)
-      );
-    }
-    if (params.scene) {
-      filtered = filtered.filter((f) => f.scene === params.scene);
-    }
-    if (params.fileType) {
-      filtered = filtered.filter((f) => f.file_type === params.fileType);
-    }
-    const total = filtered.length;
-    const page = params.page || 1;
-    const pageSize = params.pageSize || 10;
-    const start = (page - 1) * pageSize;
-    const data = filtered.slice(start, start + pageSize);
-    return { data, total };
-  };
-
-  /**
-   * 提交文件信息到后端
-   * 约束：对接真实 API 时替换本方法实现
-   * @param {Array} fileList 文件列表数据
-   * @returns {Promise} 提交结果
-   */
-  static submitFileList = (fileList) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const normalizedList = fileList.map((file, index) => ({
-          ...file,
-          id: Date.now() + index,
-        }));
-        mockFileList = [...normalizedList, ...mockFileList];
-        resolve({ code: 0, message: "提交成功", data: normalizedList });
-      }, 500);
+    hgOnInit?.(session.asset_id); // PUT 或完成确认失败时仍可按 ID 点查真实状态。
+    hgSignal?.throwIfAborted();
+    const target = hgIMEndpoint(session.upload_url, false); // 仅信任服务端预签名 URL；不向其传 JWT。
+    const response = await fetch(target, {
+      method: "PUT", body: file, headers: { "Content-Type": file.type }, credentials: "omit", redirect: "error", signal: hgSignal,
     });
-  };
+    if (!response.ok) throw new Error("隔离区上传失败；对象未进入审核，稍后可重新申请");
+    hgSignal?.throwIfAborted();
+    const complete = await hgNet.post(HGMANAGER_API.MEDIA_UPLOAD_COMPLETE, { upload_id: session.upload_id }, { signal: hgSignal, timeout: 15000 });
+    if (complete?.asset_id !== session.asset_id || complete?.status !== "processing") {
+      throw new Error("完成确认未进入审核；请通过资源 ID 查询真实状态");
+    }
+    return session.asset_id;
+  }
 
-  /**
-   * 获取文件列表
-   * 约束：对接真实 API 时替换本方法实现
-   * @returns {Promise} 文件列表数据
-   */
-  static getFileList = () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          code: 0,
-          message: "获取成功",
-          data: [...mockFileList],
-        });
-      }, 300);
-    });
-  };
+  /** 点查本人资源；列表接口尚不存在，禁止用全站数据或本地模拟列表冒充。 */
+  static async getAsset(assetID) {
+    if (!hgUUID.test(assetID)) throw new Error("请输入有效的资源 ID");
+    const asset = await hgNet.get(HGMANAGER_API.MEDIA_ASSET_STATUS, { asset_id: assetID });
+    if (asset?.asset_id !== assetID || typeof asset.status !== "string") throw new Error("资源状态响应不合法");
+    return asset;
+  }
 
-  /**
-   * 删除文件信息
-   * 约束：对接真实 API 时替换本方法实现
-   * @param {number} fileId 文件ID
-   * @returns {Promise} 删除结果
-   */
-  static deleteFile = (fileId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        mockFileList = mockFileList.filter((file) => file.id !== fileId);
-        resolve({ code: 0, message: "删除成功" });
-      }, 300);
-    });
-  };
+  /** 全平台新旧元数据只读盘点：类别在服务端分页前过滤，不能由当前页数据伪造全部结果。 */
+  static async getInventory(kind = "", cursor = "", signal) {
+    if (!["", "image", "video", "audio", "file"].includes(kind) || typeof cursor !== "string" || cursor.length > 90) {
+      throw new Error("媒体类别或分页游标不合法");
+    }
+    const result = await hgNet.get(HGMANAGER_API.MEDIA_ADMIN_INVENTORY,
+      { kind, cursor, limit: 20 }, { signal, timeout: 12000 });
+    if (!Array.isArray(result?.items) || result.items.length > 20 || typeof result.next_cursor !== "string" || result.next_cursor.length > 90 ||
+        result.items.some((item) => !["new", "legacy_mall", "legacy_video", "legacy_avatar", "legacy_im"].includes(item?.source) ||
+          !["image", "video", "audio", "file"].includes(item?.kind) || (kind && kind !== item.kind) || typeof item.id !== "string")) {
+      throw new Error("媒体盘点响应不符合协议");
+    }
+    return result;
+  }
+
+  /** 下载授权仅供本人且已审核的低敏图片，后台不拥有跨用户预览权限。 */
+  static async previewImage(asset) {
+    if (asset?.status !== "ready" || !asset.mime_type?.startsWith("image/") ||
+        !["user_avatar", "user_cover", "product_main", "product_detail", "product_sku", "shop_logo", "video_cover", "marketing_poster"].includes(asset.purpose)) {
+      throw new Error("仅可打开本人已审核的低敏图片");
+    }
+    const result = await hgNet.get(HGMANAGER_API.MEDIA_ASSET_DOWNLOAD, { asset_id: asset.asset_id });
+    if (!result?.download_url || result.expires_in !== 30) throw new Error("私有读取授权不可用");
+    const target = hgIMEndpoint(result.download_url, false);
+    window.open(target, "_blank", "noopener,noreferrer");
+  }
 }
