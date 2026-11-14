@@ -2,13 +2,18 @@
  * 用户编辑与角色绑定独立页：由用户列表「编辑」按钮携带 user_id 跳转进入。
  * 职责：承接原 HGUserEditModal 的资料编辑表单，并承载自员工角色页迁入的
  * 授权查询（renderUserLookup）、授权申请（renderGrantForm）与活动绑定（renderBindings）。
- * 约束：路由参数 userId 为授权查询的初始管理员 ID；资料编辑沿用「先安全字段后公开资料」的两段式提交。
+ * 约束：
+ * - 路由参数 userId 为授权查询的初始管理员 ID；资料回填数据来自 location.state.user。
+ * - 页面只有一个主提交按钮「保存」：保存资料后，若授权表单已选角色则一并提交授权审批。
+ * - 「返回」通过浏览器后退（navigate(-1)）回到来源页，配合运维页的选中态持久化停留在原子菜单。
  */
 import React, { Component } from "react";
 import { handleError } from "../../../api/HttpManagerV1";
 import HGButtonPage from "../../../components/hg_button/hg_button_page";
+import HGCardPage from "../../../components/hg_card/hg_card_page";
 import HGInputPage from "../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGPageHeaderPage from "../../../components/hg_page_header/hg_page_header_page";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import HGEmployeeRoleVM, {
   INITIAL_BINDING_FORM,
@@ -46,7 +51,7 @@ class HGUserEditRolePage extends Component {
         email: user.email ?? "",
       },
       profileErrors: {}, // 资料表单字段级错误文案。
-      profileSubmitting: false, // 资料提交状态。
+      saving: false, // 主提交按钮加载状态。
       form: { ...INITIAL_BINDING_FORM, userId: initialUserId }, // 当前授权申请表单，userId 由路由参数带入。
       roles: [],
       nextCursor: "",
@@ -55,7 +60,6 @@ class HGUserEditRolePage extends Component {
       nextBindingCursor: "",
       hasMoreBindings: false, // 当前员工绑定页。
       loading: false,
-      submitting: false, // 查询和提交状态。
     };
   }
 
@@ -70,6 +74,15 @@ class HGUserEditRolePage extends Component {
     this.hgMounted = false;
     this.hgBindingRequest += 1;
   }
+
+  /** 返回来源页；配合运维页选中态持久化，后退后停留在原「用户列表」子菜单。 */
+  handleBack = () => {
+    if (this.props.navigate) {
+      this.props.navigate(-1);
+    } else if (window.history.length > 1) {
+      window.history.back();
+    }
+  };
 
   /** 更新受控授权表单，作用域切回 global 时清空组织标识。 */
   setField = (field, value) => {
@@ -144,40 +157,6 @@ class HGUserEditRolePage extends Component {
       });
   };
 
-  /** 授予一个精确作用域绑定；重复授权由服务端唯一键拒绝，审批流转由员工角色页处理。 */
-  grantRole = () => {
-    const { form } = this.state;
-    if (
-      !form.userId.trim() ||
-      !form.roleId ||
-      (form.scopeType !== "global" && !form.scopeId.trim())
-    ) {
-      message.error("请填写管理员、角色和作用域");
-      return;
-    }
-    if (form.expiresAt && new Date(form.expiresAt) <= new Date()) {
-      message.error("失效时间必须晚于当前时间");
-      return;
-    }
-    if (!/^\d{6}$/.test(form.mfaCode)) {
-      message.error("请输入 6 位 MFA 验证码");
-      return;
-    }
-    this.setState({ submitting: true });
-    HGEmployeeRoleVM.grant(form)
-      .then((result) => {
-        if (!this.hgMounted) return;
-        message.success(`授权申请已提交，审批单 ${result?.approvalId || ""}`);
-        this.setField("mfaCode", "");
-      })
-      .catch((error) => {
-        if (this.hgMounted) message.error(error?.message || "授权失败");
-      })
-      .finally(() => {
-        if (this.hgMounted) this.setState({ submitting: false });
-      });
-  };
-
   /** 精确撤销一条绑定；超级管理员引导授权由后端保护。 */
   revokeRole = (bindingId) => {
     HGEmployeeRoleVM.revoke(this.state.form.userId, bindingId)
@@ -206,18 +185,15 @@ class HGUserEditRolePage extends Component {
     }));
   };
 
-  /** 资料提交校验：昵称必填，联系方式与头像按变化量校验，通过后调用两段式更新。 */
-  handleSubmitProfile = () => {
-    const { profileForm, profileSubmitting, user } = this.state;
-    if (profileSubmitting) return;
+  /** 校验资料表单；昵称必填，联系方式与头像按变化量校验，返回是否通过。 */
+  validateProfile = () => {
+    const { profileForm, user } = this.state;
     const nickname = profileForm.nickname.trim();
     const phone = profileForm.phone.trim();
     const email = profileForm.email.trim();
     const avatarURL = profileForm.avatar_url.trim();
     const errors = {};
-    if (!nickname) {
-      errors.nickname = "请输入昵称";
-    }
+    if (!nickname) errors.nickname = "请输入昵称";
     if (phone !== (user?.phone ?? "") && !/^1\d{10}$/.test(phone)) {
       errors.phone = "请输入 11 位手机号";
     }
@@ -227,31 +203,67 @@ class HGUserEditRolePage extends Component {
     if (avatarURL && !/^https?:\/\//i.test(avatarURL) && !avatarURL.startsWith("/uploads/")) {
       errors.avatar_url = "头像 URL 需为 HTTPS/HTTP 地址或 /uploads/ 路径";
     }
-    if (Object.keys(errors).length > 0) {
-      this.setState({ profileErrors: errors });
-      return;
+    this.setState({ profileErrors: errors });
+    return Object.keys(errors).length === 0;
+  };
+
+  /** 校验授权表单；仅当已选择角色时才要求完整作用域与 MFA。 */
+  validateGrant = () => {
+    const { form } = this.state;
+    // 未选择角色视为本次不授予角色，跳过授权校验。
+    if (!form.roleId) return { valid: true, skip: true };
+    if (form.scopeType !== "global" && !form.scopeId.trim()) {
+      message.error("请填写组织作用域 ID");
+      return { valid: false };
     }
-    this.setState({ profileSubmitting: true });
-    HGUserVM.updateUserByUserId({
-      userId: this.state.form.userId,
-      previousPhone: user?.phone,
-      previousEmail: user?.email,
-      nickname,
-      gender: profileForm.gender,
-      signature: profileForm.signature.trim(),
-      avatar_url: avatarURL,
-      phone,
-      email,
-    })
-      .then(() => {
-        if (this.hgMounted) message.success("用户资料已更新");
-      })
-      .catch((error) => {
-        if (this.hgMounted) handleError(error);
-      })
-      .finally(() => {
-        if (this.hgMounted) this.setState({ profileSubmitting: false });
+    if (form.expiresAt && new Date(form.expiresAt) <= new Date()) {
+      message.error("失效时间必须晚于当前时间");
+      return { valid: false };
+    }
+    if (!/^\d{6}$/.test(form.mfaCode)) {
+      message.error("请输入 6 位 MFA 验证码");
+      return { valid: false };
+    }
+    return { valid: true, skip: false };
+  };
+
+  /**
+   * 主提交入口：页面唯一提交按钮。
+   * 先保存资料；若授权表单已选角色，则继续提交授权审批。两者独立报告结果。
+   */
+  handleSubmit = async () => {
+    const { saving, user } = this.state;
+    if (saving) return;
+    if (!this.validateProfile()) return;
+    const grantCheck = this.validateGrant();
+    if (!grantCheck.valid) return;
+
+    this.setState({ saving: true });
+    const { profileForm, form } = this.state;
+    try {
+      await HGUserVM.updateUserByUserId({
+        userId: this.state.form.userId,
+        previousPhone: user?.phone,
+        previousEmail: user?.email,
+        nickname: profileForm.nickname.trim(),
+        gender: profileForm.gender,
+        signature: profileForm.signature.trim(),
+        avatar_url: profileForm.avatar_url.trim(),
+        phone: profileForm.phone.trim(),
+        email: profileForm.email.trim(),
       });
+      if (this.hgMounted) message.success("用户资料已更新");
+
+      if (!grantCheck.skip) {
+        await HGEmployeeRoleVM.grant(form);
+        if (this.hgMounted) message.success("授权申请已提交，请等待审批");
+        this.setField("mfaCode", "");
+      }
+    } catch (error) {
+      if (this.hgMounted) handleError(error);
+    } finally {
+      if (this.hgMounted) this.setState({ saving: false });
+    }
   };
 
   /**
@@ -273,193 +285,115 @@ class HGUserEditRolePage extends Component {
 
   /** 渲染资料编辑区块：公开资料与账号联系方式；联系方式变化走独立安全接口。 */
   renderProfileForm = () => {
-    const { profileForm, profileErrors, profileSubmitting } = this.state;
+    const { profileForm, profileErrors } = this.state;
     return (
-      <div className={styles.formItem}>
-        <h3>基本资料</h3>
-        {this.renderProfileField(
-          "昵称",
-          <input
-            className={`${styles.control} ${profileErrors.nickname ? styles.controlError : ""}`}
-            value={profileForm.nickname}
-            maxLength={30}
-            placeholder="请输入昵称"
-            onChange={(event) => this.handleProfileFieldChange("nickname", event.target.value)}
-          />,
-          profileErrors.nickname
-        )}
-        {this.renderProfileField(
-          "性别",
-          <select
-            className={styles.control}
-            value={profileForm.gender}
-            onChange={(event) => this.handleProfileFieldChange("gender", Number(event.target.value))}
-          >
-            {HG_GENDER_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        )}
-        {this.renderProfileField(
-          "个性签名",
-          <textarea
-            className={`${styles.control} ${styles.textarea}`}
-            value={profileForm.signature}
-            maxLength={HG_SIGNATURE_MAX_LENGTH}
-            rows={4}
-            placeholder="介绍一下自己"
-            onChange={(event) => this.handleProfileFieldChange("signature", event.target.value)}
-          />,
-          null,
-          `还可以输入 ${HG_SIGNATURE_MAX_LENGTH - profileForm.signature.length} 个字符`
-        )}
-        {this.renderProfileField(
-          "头像 URL",
-          <input
-            className={`${styles.control} ${profileErrors.avatar_url ? styles.controlError : ""}`}
-            value={profileForm.avatar_url}
-            maxLength={512}
-            placeholder="/uploads/user/avatar.png"
-            onChange={(event) => this.handleProfileFieldChange("avatar_url", event.target.value)}
-          />,
-          profileErrors.avatar_url
-        )}
-        {this.renderProfileField(
-          "手机号",
-          <input
-            className={`${styles.control} ${profileErrors.phone ? styles.controlError : ""}`}
-            type="tel"
-            value={profileForm.phone}
-            maxLength={32}
-            placeholder="请输入手机号"
-            onChange={(event) => this.handleProfileFieldChange("phone", event.target.value)}
-          />,
-          profileErrors.phone
-        )}
-        {this.renderProfileField(
-          "邮箱",
-          <input
-            className={`${styles.control} ${profileErrors.email ? styles.controlError : ""}`}
-            type="email"
-            value={profileForm.email}
-            maxLength={255}
-            placeholder="请输入邮箱"
-            onChange={(event) => this.handleProfileFieldChange("email", event.target.value)}
-          />,
-          profileErrors.email,
-          "管理员修改他人联系方式将写入审计记录"
-        )}
-        <HGButtonPage
-          type="primary"
-          loading={profileSubmitting}
-          onClick={this.handleSubmitProfile}
-        >
-          保存资料
-        </HGButtonPage>
-      </div>
+      <HGCardPage title="基本资料" className={styles.card}>
+        <div className={styles.formGrid}>
+          {this.renderProfileField(
+            "昵称",
+            <input
+              className={`${styles.control} ${profileErrors.nickname ? styles.controlError : ""}`}
+              value={profileForm.nickname}
+              maxLength={30}
+              placeholder="请输入昵称"
+              onChange={(event) => this.handleProfileFieldChange("nickname", event.target.value)}
+            />,
+            profileErrors.nickname
+          )}
+          {this.renderProfileField(
+            "性别",
+            <select
+              className={styles.control}
+              value={profileForm.gender}
+              onChange={(event) => this.handleProfileFieldChange("gender", Number(event.target.value))}
+            >
+              {HG_GENDER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
+          {this.renderProfileField(
+            "手机号",
+            <input
+              className={`${styles.control} ${profileErrors.phone ? styles.controlError : ""}`}
+              type="tel"
+              value={profileForm.phone}
+              maxLength={32}
+              placeholder="请输入手机号"
+              onChange={(event) => this.handleProfileFieldChange("phone", event.target.value)}
+            />,
+            profileErrors.phone
+          )}
+          {this.renderProfileField(
+            "邮箱",
+            <input
+              className={`${styles.control} ${profileErrors.email ? styles.controlError : ""}`}
+              type="email"
+              value={profileForm.email}
+              maxLength={255}
+              placeholder="请输入邮箱"
+              onChange={(event) => this.handleProfileFieldChange("email", event.target.value)}
+            />,
+            profileErrors.email,
+            "管理员修改他人联系方式将写入审计记录"
+          )}
+          {this.renderProfileField(
+            "头像 URL",
+            <input
+              className={`${styles.control} ${profileErrors.avatar_url ? styles.controlError : ""}`}
+              value={profileForm.avatar_url}
+              maxLength={512}
+              placeholder="/uploads/user/avatar.png"
+              onChange={(event) => this.handleProfileFieldChange("avatar_url", event.target.value)}
+            />,
+            profileErrors.avatar_url
+          )}
+          {this.renderProfileField(
+            "个性签名",
+            <textarea
+              className={`${styles.control} ${styles.textarea}`}
+              value={profileForm.signature}
+              maxLength={HG_SIGNATURE_MAX_LENGTH}
+              rows={4}
+              placeholder="介绍一下自己"
+              onChange={(event) => this.handleProfileFieldChange("signature", event.target.value)}
+            />,
+            null,
+            `还可以输入 ${HG_SIGNATURE_MAX_LENGTH - profileForm.signature.length} 个字符`
+          )}
+        </div>
+      </HGCardPage>
     );
   };
 
   /** 渲染授权查询区块：管理员 ID 由编辑入口带入，可手动修正后重新查询。 */
   renderUserLookup = () => (
-    <div className={styles.formItem}>
-      <label htmlFor="hg-iam-user-id">管理员用户 ID</label>
-      <HGInputPage
-        id="hg-iam-user-id"
-        value={this.state.form.userId}
-        onChange={(event) => this.setField("userId", event.target.value)}
-        placeholder="请输入 admin_user.user_id"
-        className={styles.inputField}
-      />
-      <HGButtonPage
-        onClick={() => this.loadBindings(0)}
-        loading={this.state.loading}
-      >
-        查询已授权角色
-      </HGButtonPage>
-    </div>
-  );
-
-  /** 渲染授权申请表单：角色、作用域、失效时间与申请人 MFA 验证码。 */
-  renderGrantForm = () => {
-    const { form, roles, nextCursor, hasMore, submitting } = this.state;
-    return (
-      <div className={styles.formItem}>
-        <label htmlFor="hg-iam-role-id">授予角色</label>
-        <select
-          id="hg-iam-role-id"
-          value={form.roleId}
-          onChange={(event) => this.setField("roleId", event.target.value)}
-          className={styles.inputField}
-        >
-          <option value="">请选择角色</option>
-          {roles.map((role) => (
-            <option key={role.id} value={String(role.id)}>
-              {role.name}（{role.code}）
-            </option>
-          ))}
-        </select>
-        {hasMore && (
-          <HGButtonPage onClick={() => this.loadRoles(nextCursor)}>
-            加载更多角色
-          </HGButtonPage>
-        )}
-        <label htmlFor="hg-iam-scope-type">作用域</label>
-        <select
-          id="hg-iam-scope-type"
-          value={form.scopeType}
-          onChange={(event) => this.setField("scopeType", event.target.value)}
-          className={styles.inputField}
-        >
-          <option value="global">全局</option>
-          <option value="shop">店铺</option>
-          <option value="org">组织</option>
-        </select>
-        {form.scopeType !== "global" && (
-          <HGInputPage
-            value={form.scopeId}
-            onChange={(event) => this.setField("scopeId", event.target.value)}
-            placeholder="已登记的店铺/组织 ID"
-            className={styles.inputField}
-          />
-        )}
-        <label htmlFor="hg-iam-expires-at">失效时间（可选）</label>
-        <input
-          id="hg-iam-expires-at"
-          type="datetime-local"
-          value={form.expiresAt}
-          onChange={(event) => this.setField("expiresAt", event.target.value)}
-          className={styles.inputField}
-        />
-        <label htmlFor="hg-iam-grant-otp">申请人 MFA 验证码</label>
-        <input
-          id="hg-iam-grant-otp"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          value={form.mfaCode}
-          onChange={(event) => this.setField("mfaCode", event.target.value)}
-          className={styles.inputField}
+    <HGCardPage title="已授权角色" className={styles.card}>
+      <div className={styles.inlineRow}>
+        <HGInputPage
+          id="hg-iam-user-id"
+          value={this.state.form.userId}
+          onChange={(event) => this.setField("userId", event.target.value)}
+          placeholder="请输入 admin_user.user_id"
+          className={styles.inlineInput}
         />
         <HGButtonPage
-          type="primary"
-          onClick={this.grantRole}
-          loading={submitting}
+          onClick={() => this.loadBindings(0)}
+          loading={this.state.loading}
         >
-          提交授权审批
+          查询已授权角色
         </HGButtonPage>
       </div>
-    );
-  };
+      {this.renderBindings()}
+    </HGCardPage>
+  );
 
   /** 渲染当前活动授权列表：展示绑定明细并支持精确撤销。 */
   renderBindings = () => (
-    <div className={styles.formItem}>
-      <h3>当前活动授权</h3>
-      <table>
+    <div className={styles.bindingsWrap}>
+      <table className={styles.table}>
         <thead>
           <tr>
             <th>角色</th>
@@ -483,6 +417,8 @@ class HGUserEditRolePage extends Component {
               </td>
               <td>
                 <HGButtonPage
+                  type="link"
+                  danger
                   onClick={() => this.revokeRole(binding.id)}
                   disabled={binding.roleCode === "super_admin"}
                 >
@@ -500,18 +436,108 @@ class HGUserEditRolePage extends Component {
           加载更多授权
         </HGButtonPage>
       )}
-      {this.state.bindings.length === 0 && <p>暂无活动授权</p>}
+      {this.state.bindings.length === 0 && <p className={styles.emptyText}>暂无活动授权</p>}
     </div>
   );
 
+  /** 渲染授权申请表单：角色、作用域、失效时间与申请人 MFA 验证码。 */
+  renderGrantForm = () => {
+    const { form, roles, nextCursor, hasMore } = this.state;
+    return (
+      <HGCardPage title="授予新角色" className={styles.card}>
+        <div className={styles.formGrid}>
+          <label className={styles.field}>
+            <span className={styles.label}>授予角色</span>
+            <select
+              id="hg-iam-role-id"
+              value={form.roleId}
+              onChange={(event) => this.setField("roleId", event.target.value)}
+              className={styles.control}
+            >
+              <option value="">不授予角色（仅保存资料）</option>
+              {roles.map((role) => (
+                <option key={role.id} value={String(role.id)}>
+                  {role.name}（{role.code}）
+                </option>
+              ))}
+            </select>
+          </label>
+          {hasMore && (
+            <HGButtonPage onClick={() => this.loadRoles(nextCursor)}>
+              加载更多角色
+            </HGButtonPage>
+          )}
+          <label className={styles.field}>
+            <span className={styles.label}>作用域</span>
+            <select
+              id="hg-iam-scope-type"
+              value={form.scopeType}
+              onChange={(event) => this.setField("scopeType", event.target.value)}
+              className={styles.control}
+            >
+              <option value="global">全局</option>
+              <option value="shop">店铺</option>
+              <option value="org">组织</option>
+            </select>
+          </label>
+          {form.scopeType !== "global" && (
+            <label className={styles.field}>
+              <span className={styles.label}>组织 / 店铺 ID</span>
+              <HGInputPage
+                value={form.scopeId}
+                onChange={(event) => this.setField("scopeId", event.target.value)}
+                placeholder="已登记的店铺/组织 ID"
+              />
+            </label>
+          )}
+          <label className={styles.field}>
+            <span className={styles.label}>失效时间（可选）</span>
+            <input
+              id="hg-iam-expires-at"
+              type="datetime-local"
+              value={form.expiresAt}
+              onChange={(event) => this.setField("expiresAt", event.target.value)}
+              className={styles.control}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.label}>申请人 MFA 验证码</span>
+            <input
+              id="hg-iam-grant-otp"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={form.mfaCode}
+              onChange={(event) => this.setField("mfaCode", event.target.value)}
+              placeholder="授予角色时必填，6 位动态码"
+              className={styles.control}
+            />
+          </label>
+        </div>
+      </HGCardPage>
+    );
+  };
+
   render() {
+    const { saving } = this.state;
     return (
       <div className={styles.pageContainer}>
-        <h2 className={styles.formTitle}>编辑用户资料与角色绑定</h2>
+        <HGPageHeaderPage
+          title="编辑用户"
+          description="修改用户基本资料，并可按需授予或撤销该用户的作用域角色绑定。"
+          extra={
+            <HGButtonPage onClick={this.handleBack}>返回</HGButtonPage>
+          }
+        />
         {this.renderProfileForm()}
-        {this.renderUserLookup()}
         {this.renderGrantForm()}
-        {this.renderBindings()}
+        {this.renderUserLookup()}
+        <div className={styles.footerBar}>
+          <HGButtonPage type="primary" loading={saving} onClick={this.handleSubmit}>
+            保存
+          </HGButtonPage>
+        </div>
       </div>
     );
   }

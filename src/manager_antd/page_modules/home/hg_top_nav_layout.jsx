@@ -106,6 +106,8 @@ class HGTopNavLayout extends Component {
       default:
         if (path.startsWith(ROUTE_PATH.CRAWLER_PLATFORM)) return "crawler";
         if (path.startsWith("/bilibili/")) return "bili_douga";
+        // 用户编辑与角色绑定页由运维管理「用户列表」进入，返回时保持运维管理高亮而非 Chat。
+        if (path.startsWith("/profile/user/")) return "operation";
         return "home";
     }
   };

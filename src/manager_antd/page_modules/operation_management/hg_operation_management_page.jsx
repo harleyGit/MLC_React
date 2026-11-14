@@ -277,16 +277,41 @@ class HGOperationManagementPage extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      selectedKey: HGOperationManagementVM.getDefaultSelectedKey(),
+      // 选中态优先恢复上次会话的子菜单，刷新/从子页返回后停留在原菜单而非默认项。
+      selectedKey: HGOperationManagementPage.getPersistedSelectedKey(),
     };
   }
 
+  /** 会话级选中的子菜单 key 存储键；仅用于恢复「从子页返回」时的菜单位置。 */
+  static HG_SELECTED_KEY_STORAGE = "hg_operation_selected_key";
+
+  /** 从会话存储恢复上次选中的子菜单，非法值回落到默认项。 */
+  static getPersistedSelectedKey = () => {
+    try {
+      const saved = window.sessionStorage.getItem(
+        HGOperationManagementPage.HG_SELECTED_KEY_STORAGE
+      );
+      if (saved) return saved;
+    } catch {
+      // 会话存储不可用时忽略，回落到默认选中。
+    }
+    return HGOperationManagementVM.getDefaultSelectedKey();
+  };
+
   /**
-   * 菜单选中回调：更新右侧内容区显示的页面
+   * 菜单选中回调：更新右侧内容区显示的页面，并持久化选中态供返回时恢复。
    * @param {string} key 选中的叶子节点菜单 key
    */
   handleMenuSelect = (key) => {
     this.setState({ selectedKey: key });
+    try {
+      window.sessionStorage.setItem(
+        HGOperationManagementPage.HG_SELECTED_KEY_STORAGE,
+        key
+      );
+    } catch {
+      // 持久化失败不阻断菜单切换。
+    }
   };
 
   /**

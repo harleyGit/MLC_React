@@ -1,57 +1,23 @@
-/* 用户编辑与角色绑定独立页样式：区块结构沿用员工角色页，表单控件沿用原编辑弹窗配色。 */
+/* 用户编辑与角色绑定独立页样式：全屏宽度、卡片分区、现代配色。 */
 .pageContainer {
-  max-width: 840px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.formTitle {
-  margin: 0 0 24px;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1f2c4a;
+.card {
+  width: 100%;
 }
 
-.formItem {
-  margin-bottom: 20px;
+/* 资料与授权表单：两列自适应栅格，窄屏自动退化为单列。 */
+.formGrid {
   display: grid;
-  gap: 10px;
-  padding: 20px;
-  border: 1px solid #e5eaf2;
-  border-radius: 8px;
-  background: #fff;
-  overflow-x: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
 }
 
-.formItem label {
-  font-weight: 500;
-  color: #1f2c4a;
-}
-
-.formItem h3 {
-  margin: 0;
-  font-size: 15px;
-  color: #1f2c4a;
-}
-
-.formItem table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.formItem th,
-.formItem td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #e5eaf2;
-  white-space: nowrap;
-}
-
-.inputField {
-  width: 100%;
-  min-height: 36px;
-  box-sizing: border-box;
-}
-
-/* 资料编辑表单字段：配色沿用全局主题变量，回退值保证变量缺失时仍可读。 */
+/* 表单字段：纵向堆叠标签与控件。 */
 .field {
   display: flex;
   flex-direction: column;
@@ -67,9 +33,10 @@
 
 .control {
   width: 100%;
+  min-height: 38px;
   padding: 10px 12px;
   border: 1px solid var(--hg-color-border, #dfe4f0);
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fbfcff;
   color: var(--hg-color-text, #1b2540);
   font: inherit;
@@ -119,4 +86,67 @@
   color: var(--hg-color-text-secondary, #8b95a9);
   font-size: 12px;
   line-height: 1.5;
+}
+
+/* 授权查询：输入框 + 查询按钮同行。 */
+.inlineRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.inlineInput {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 活动绑定表格。 */
+.bindingsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef1f7;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.table th {
+  color: #7a859f;
+  font-weight: 600;
+  background: #f7f9fc;
+}
+
+.emptyText {
+  color: #a0a9bf;
+  font-size: 14px;
+  text-align: center;
+  padding: 16px 0;
+  margin: 0;
+}
+
+/* 底部主提交栏：唯一提交按钮，右对齐。 */
+.footerBar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+/* 窄屏：表单退化为单列。 */
+@media (max-width: 720px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
 }
