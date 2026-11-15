@@ -91,22 +91,25 @@ export default class HGCommerceCategoryPage extends React.Component {
     return hgRoots;
   };
 
-  /** 以根节点为分页单位展开可见行，确保子类目始终跟随父类目同页。 */
+  /** 以根节点为分页单位展开可见行；父子行共享根节点的斑马纹组序号。 */
   hgCurrentPageCategories = (hgRoots = this.hgCategoryRoots()) => {
     const { hgPageCurrent, hgPageSize, hgCollapsedIds } = this.state;
     const hgMaxPage = Math.max(1, Math.ceil(hgRoots.length / hgPageSize)); // 空列表仍保留第一页。
     const hgSafeCurrent = Math.min(hgPageCurrent, hgMaxPage); // 数据刷新时避免空页。
     const hgStart = (hgSafeCurrent - 1) * hgPageSize; // 当前页根节点起始偏移。
     const hgRows = []; // 展平后供 HGTablePage 渲染的当前页可见行。
-    const hgAppend = (hgNode, hgLevel) => {
-      hgRows.push({ ...hgNode.hgItem, hgTreeLevel: hgLevel, hgHasChildren: hgNode.hgChildren.length > 0 });
+    const hgAppend = (hgNode, hgLevel, hgGroupIndex) => {
+      hgRows.push({ ...hgNode.hgItem, hgTreeLevel: hgLevel, hgHasChildren: hgNode.hgChildren.length > 0, hgStripeGroupIndex: hgGroupIndex });
       if (!hgCollapsedIds.includes(hgNode.hgItem.categoryId)) {
-        hgNode.hgChildren.forEach((hgChild) => hgAppend(hgChild, hgLevel + 1));
+        hgNode.hgChildren.forEach((hgChild) => hgAppend(hgChild, hgLevel + 1, hgGroupIndex));
       }
     };
-    hgRoots.slice(hgStart, hgStart + hgPageSize).forEach((hgRoot) => hgAppend(hgRoot, 0));
+    hgRoots.slice(hgStart, hgStart + hgPageSize).forEach((hgRoot, hgIndex) => hgAppend(hgRoot, 0, hgStart + hgIndex));
     return hgRows;
   };
+
+  /** 表格行按根类目序号交替着色，所有层级的子类目沿用父级底色。 */
+  hgStripeIndex = (hgCategory) => hgCategory.hgStripeGroupIndex;
 
   /** 只切换当前父类目的可见子行，保持其他父类目及分页状态不变。 */
   hgToggleCategory = (hgID) => {
@@ -143,12 +146,12 @@ export default class HGCommerceCategoryPage extends React.Component {
     );
   };
 
-  /** 行内操作列：编辑与删除均进入独立页面，不在列表内直接提交写操作。 */
+  /** 行内操作列随表格列对齐方式布局；编辑与删除仍进入独立页面，不在列表内写入。 */
   renderActions(hgCategory) {
     if (!this.state.hgCanReview)
       return <span className={styles.fieldHint}>—</span>;
     return (
-      <div className={styles.actions}>
+      <div className={`${styles.actions} ${styles.categoryActions}`}>
         <Link
           className={styles.btnGhost}
           to={ROUTE_PATH.COMMERCE_CATEGORY_EDIT.replace(
@@ -171,14 +174,13 @@ export default class HGCommerceCategoryPage extends React.Component {
     );
   }
 
-  /** 表格列配置；操作列内容随审核权变化。 */
+  /** 类目列统一使用表格默认等分宽度；操作按钮在窄屏下自行换行。 */
   hgColumns = () => [
-    { title: "类目 ID", dataIndex: "categoryId", width: 220, render: (hgID, hgCategory) => this.renderCategoryId(hgID, hgCategory) },
-    { title: "类目名称", dataIndex: "name", width: 240 },
+    { title: "类目 ID", dataIndex: "categoryId", render: (hgID, hgCategory) => this.renderCategoryId(hgID, hgCategory) },
+    { title: "类目名称", dataIndex: "name" },
     {
       title: "类目图片",
       dataIndex: "imageURL",
-      width: 140,
       render: (hgURL) => hgURL
         ? <img className={styles.editThumb} src={normalizeVideoCoverUrl(hgURL)} alt="类目图片" loading="lazy" />
         : <span className={styles.fieldHint}>无图</span>,
@@ -186,14 +188,12 @@ export default class HGCommerceCategoryPage extends React.Component {
     {
       title: "层级",
       dataIndex: "depth",
-      width: 100,
       render: (hgDepth) =>
         HG_CATEGORY_DEPTH_LABELS[hgDepth] || `未知(${String(hgDepth)})`,
     },
     {
       title: "操作",
       dataIndex: "hgActions",
-      width: 170,
       render: (_, hgCategory) => this.renderActions(hgCategory),
     },
   ];
@@ -232,7 +232,9 @@ export default class HGCommerceCategoryPage extends React.Component {
           <HGTablePage
             columns={this.hgColumns()}
             dataSource={this.hgCurrentPageCategories(hgRoots)}
+            getRowStripeIndex={this.hgStripeIndex}
             renderRowAction={this.renderCategoryToggle}
+            rowHover={false}
             rowKey="categoryId"
             loading={hgLoading}
             pagination={{

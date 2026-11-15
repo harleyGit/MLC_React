@@ -30,7 +30,8 @@
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* 类目树：长 ID 在首列内换行；展开按钮由表格行尾定位。 */
-.categoryTreeCell { display: block; width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.categoryTreeCell { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.categoryActions { width: 100%; justify-content: inherit; }
 .categoryTreeToggle { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--color-link, #2166ae); }
 .categoryTreeToggle svg { display: block; }
 

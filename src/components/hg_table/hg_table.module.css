@@ -63,7 +63,7 @@
 
 .headerCell {
   padding: 12px 16px;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
   white-space: nowrap;
   flex: 1 0 0;
@@ -103,13 +103,15 @@
 .poolRow {
   position: absolute;
   left: 0;
+  width: 100%;
   box-sizing: border-box;
 }
 
 /* ===== 行（flex 布局） ===== */
 .row {
   display: flex;
-  min-width: max-content;
+  /* 行始终跟随表体容器宽度，避免内容或定位复用池让表头与表体分配出不同列宽。 */
+  min-width: 100%;
   box-sizing: border-box;
 }
 
@@ -121,15 +123,32 @@
 
 .rowAction {
   position: absolute;
-  top: 16px;
+  top: 50%;
   right: 16px;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.poolRow:hover {
-  background: #f5f5f5;
+/* 按真实数据索引交替着色；表头及 section 头尾不参与斑马纹。 */
+.dataRow {
+  background: var(--color-bg-surface, #fff);
+}
+
+/* 固定行高/section 虚拟池的行要铺满 48px 容器，避免相邻底色之间留下空隙。 */
+.poolRow > .dataRow {
+  height: 100%;
+}
+
+.stripedRow {
+  background: var(--color-bg-subtle, #f6faff);
+}
+
+/* 仅在启用行悬浮效果时覆盖斑马纹；关闭时父子行保持原有分组底色。 */
+.hoverRows .dataRow:hover:not(.selectedRow),
+.hoverRows .poolRow:hover .dataRow:not(.selectedRow) {
+  background: var(--color-bg-hover, #f2f8ff);
 }
 
 .selectableRow {
@@ -152,17 +171,18 @@
   white-space: nowrap;
   display: flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .autoHeightRow {
   align-items: stretch;
   min-height: 48px;
-  /* 由表体最小列宽决定行宽，不让长字段的 max-content 撑宽整行。 */
-  min-width: 100%;
 }
 
 .autoHeightCell {
-  align-items: flex-start;
+  /* 自然行高由最高的单元格撑开，其他单元格的内容也要在行内垂直居中。 */
+  align-items: center;
   min-height: 48px;
   overflow: visible;
   text-overflow: clip;

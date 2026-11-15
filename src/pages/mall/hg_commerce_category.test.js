@@ -181,6 +181,7 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
   const hgRendered = hgInstance.render();
   let hgTable = hgFindElement(hgRendered, HGTestTable);
   assert.ok(hgTable, "列表页必须渲染 HGTable 组件");
+  assert.equal(hgTable.props.rowHover, false, "类目父子行在鼠标悬浮时保留分组底色");
   assert.deepEqual(
     Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId),
     ["11", "12"]
@@ -188,7 +189,9 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
   assert.equal(hgTable.props.pagination.total, 1, "父子类目共占一个分页名额");
   assert.equal(hgTable.props.dataSource[1].hgTreeLevel, 1);
   assert.equal(hgTable.props.dataSource[0].hgHasChildren, true);
+  assert.deepEqual(Array.from(hgTable.props.dataSource, hgTable.props.getRowStripeIndex), [0, 0], "子行沿用父行的背景组");
   assert.equal(hgTable.props.columns.length, 5, "不为展开按钮增设独立列");
+  assert.ok(hgTable.props.columns.every((hgColumn) => hgColumn.width == null && hgColumn.minWidth == null), "所有类目列等分宽度，不单独拉伸操作列");
   assert.equal(hgFindElement(hgTable.props.columns[0].render("12", hgTable.props.dataSource[1]), "button"), null, "叶子节点不渲染按钮");
   assert.equal(hgFindElement(hgTable.props.columns[0].render("11", hgTable.props.dataSource[0]), "button"), null, "首列只展示 ID");
   assert.equal(hgTable.props.renderRowAction(hgTable.props.dataSource[1]), null, "叶子节点不渲染行尾按钮");
@@ -200,6 +203,7 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
   hgToggle.props.onClick();
   hgTable = hgFindElement(hgInstance.render(), HGTestTable);
   assert.deepEqual(Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId), ["11"]);
+  assert.equal(hgTable.props.getRowStripeIndex(hgTable.props.dataSource[0]), 0, "收起后父行底色不变");
   assert.equal(hgTable.props.renderRowAction(hgTable.props.dataSource[0]).props["aria-expanded"], false);
   hgInstance.hgToggleCategory("11");
   assert.deepEqual(Array.from(hgFindElement(hgInstance.render(), HGTestTable).props.dataSource, (hgItem) => hgItem.categoryId), ["11", "12"]);
@@ -223,6 +227,14 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
   );
 });
 
+test("类目 ID 可收缩换行，操作按钮继承表格列的水平对齐", () => {
+  const css = readFileSync(new URL("./hg_merchant_center.module.css", import.meta.url), "utf8"); // Node 无布局引擎，核对自定义内容的对齐规则。
+  const treeStyle = css.match(/\.categoryTreeCell\s*\{([^}]*)\}/)?.[1]; // 类目 ID 不应强占整列宽度。
+  assert.match(treeStyle, /max-width:\s*100%;/);
+  assert.doesNotMatch(treeStyle, /(?:^|;)\s*width:\s*100%/);
+  assert.match(css, /\.categoryActions\s*\{[^}]*justify-content:\s*inherit;/);
+});
+
 test("类目树支持三级、孤儿根节点且翻页不拆散父子类目", async () => {
   const hgList = [
     { categoryId: "child", parentId: "root", name: "二级", depth: 2 },
@@ -239,9 +251,11 @@ test("类目树支持三级、孤儿根节点且翻页不拆散父子类目", as
   assert.equal(hgTable.props.pagination.total, 2);
   assert.deepEqual(Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId), ["root", "child", "grandchild"]);
   assert.equal(hgTable.props.dataSource[2].hgTreeLevel, 2);
+  assert.deepEqual(Array.from(hgTable.props.dataSource, hgTable.props.getRowStripeIndex), [0, 0, 0], "三级节点仍沿用根节点底色");
   hgInstance.hgHandleTableChange({ current: 2, pageSize: 1 });
   hgTable = hgFindElement(hgInstance.render(), HGTestTable);
   assert.deepEqual(Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId), ["orphan"]);
+  assert.equal(hgTable.props.getRowStripeIndex(hgTable.props.dataSource[0]), 1, "翻页后仍按根节点顺序交替");
   const hgOrphanLinks = hgCollectLinks(hgInstance.renderActions(hgTable.props.dataSource[0]));
   assert.equal(hgOrphanLinks[0].to, ROUTE_PATH.COMMERCE_CATEGORY_EDIT.replace(":categoryId", "orphan"));
 });

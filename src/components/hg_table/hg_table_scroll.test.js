@@ -19,7 +19,7 @@ const { code: hgCode } = transformSync(
   { jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" }, module: { type: "commonjs" } },
 );
 new Function("require", "module", "exports", hgCode)((name) => {
-  if (name.endsWith(".css")) return new Proxy({}, { get: (_, key) => key });
+  if (name.endsWith(".css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
   if (name === "./hg_table_scroll.js") return { syncHorizontalScroll };
   if (name === "../hg_drag_scroll/hg_drag_scroll.js") return { hgStartDrag, hgMoveDrag };
   return hgRequire(name);
@@ -99,7 +99,115 @@ test("空态保持 ref、事件与列宽；加载和模式切换后重新对齐"
   table.componentWillUnmount();
 });
 
-test("最小列宽不重复计算 border-box 内边距，末尾弹性列预留空间", () => {
+test("显式列宽固定，其他列平分剩余空间并保留一致的最小宽度", () => {
+  const table = new HGTablePage({
+    columns: [{ title: "类目 ID", width: 220 }, { title: "名称" }, { title: "层级" }],
+    dataSource: [{ id: 1 }],
+  });
+  assert.equal(table.getTotalColumnsWidth(), 460);
+  const headerColumns = table.renderHeader().props.children.props.children;
+  assert.deepEqual(headerColumns.map((cell) => cell.props.style.flex), ["0 0 220px", "1 0 0", "1 0 0"]);
+  const row = table.renderAutoRowHeightBody().props.children.props.children[0];
+  const bodyColumns = new row.type(row.props).render().props.children[0];
+  assert.deepEqual(bodyColumns.map((cell) => cell.props.style.flex), headerColumns.map((cell) => cell.props.style.flex));
+  assert.equal(table.renderAutoRowHeightBody().props.children.props.style.minWidth, 460);
+
+  table.props = { ...table.props, columns: [{ title: "甲" }, { title: "乙" }, { title: "丙" }] };
+  assert.deepEqual(table.renderHeader().props.children.props.children.map((cell) => cell.props.style.flex), ["1 0 0", "1 0 0", "1 0 0"]);
+  assert.equal(table.getTotalColumnsWidth(), 360);
+
+  table.props = { ...table.props, columns: [{ title: "类目 ID", width: 220 }, { title: "操作", minWidth: 170 }], dataSource: [] };
+  assert.equal(table.getTotalColumnsWidth(), 390);
+  assert.equal(table.renderHeader().props.children.props.children[1].props.style.minWidth, 170);
+});
+
+test("标题和内容默认居中，align 可选左中右，titleAlign 仅覆盖标题", () => {
+  const table = new HGTablePage({
+    columns: [
+      { title: "默认" },
+      { title: "左", align: "left" },
+      { title: "中", align: "center" },
+      { title: "右", align: "right" },
+      { title: "标题右", align: "left", titleAlign: "right" },
+      { title: "标题左", titleAlign: "left" },
+    ],
+    dataSource: [{ id: 1 }],
+  });
+  const headerCells = table.renderHeader().props.children.props.children;
+  const row = table.renderAutoRowHeightBody().props.children.props.children[0];
+  const bodyCells = new row.type(row.props).render().props.children[0];
+  assert.deepEqual(headerCells.map((cell) => cell.props.style.textAlign), ["center", "left", "center", "right", "right", "left"]);
+  assert.deepEqual(bodyCells.map((cell) => cell.props.style.textAlign), ["center", "left", "center", "right", "left", "center"]);
+  assert.deepEqual(bodyCells.map((cell) => cell.props.style.justifyContent), ["center", "flex-start", "center", "flex-end", "flex-start", "center"]);
+});
+
+test("自然行高的内容在被图片撑高的单元格中保持竖直居中", () => {
+  const css = readFileSync(new URL("./hg_table.module.css", import.meta.url), "utf8"); // Node 无布局引擎，检查实际样式规则。
+  assert.match(css, /\.autoHeightCell\s*\{[^}]*align-items:\s*center;/);
+});
+
+test("斑马纹按数据行索引交替，滚动复用和 section 模式不依赖池位置", () => {
+  const records = Array.from({ length: 20 }, (_, id) => ({ id })); // 多于复用池的数据，用于核对非零滚动偏移。
+  const columns = [{ title: "编号", dataIndex: "id" }]; // 三种表体共用同一列配置。
+  const getRowClass = (row) => new row.type(row.props).render().props.className; // 读取真实 VirtualRow 的可观察样式类。
+
+  const auto = new HGTablePage({ columns, dataSource: records.slice(0, 3) });
+  const autoRows = auto.renderAutoRowHeightBody().props.children.props.children;
+  assert.equal(getRowClass(autoRows[0]).includes("stripedRow"), false);
+  assert.equal(getRowClass(autoRows[1]).includes("stripedRow"), true);
+  assert.equal(getRowClass(autoRows[2]).includes("stripedRow"), false);
+  assert.equal(auto.renderHeader().props.children.props.className.includes("stripedRow"), false);
+
+  const fixed = new HGTablePage({ columns, dataSource: records, scroll: { y: 48 }, autoRowHeight: false });
+  fixed.state.offset = 5;
+  const fixedPool = fixed.renderBody().props.children.props.children;
+  assert.equal(getRowClass(fixedPool[0].props.children).includes("stripedRow"), true);
+  assert.equal(getRowClass(fixedPool[1].props.children).includes("stripedRow"), false);
+
+  const section = new HGTablePage({ columns, sections: [{ data: records.slice(0, 2) }] });
+  const sectionPool = section.renderSectionBody().props.children[2].props.children;
+  assert.equal(getRowClass(sectionPool[0].props.children).includes("stripedRow"), false);
+  assert.equal(getRowClass(sectionPool[1].props.children).includes("stripedRow"), true);
+});
+
+test("自定义斑马纹分组让父子行共用底色，未配置时仍按真实行号交替", () => {
+  const records = [
+    { id: 1, group: 0 }, { id: 2, group: 0 },
+    { id: 3, group: 1 }, { id: 4, group: 1 },
+  ]; // 根节点及其子节点共享组序号，不随展开后的行号变化。
+  const table = new HGTablePage({
+    columns: [{ title: "编号", dataIndex: "id" }],
+    dataSource: records,
+    getRowStripeIndex: (record) => record.group,
+  });
+  const getStriped = (row) => new row.type(row.props).render().props.className.includes("stripedRow"); // 核对最终行类名。
+  const autoRows = table.renderAutoRowHeightBody().props.children.props.children;
+  assert.deepEqual(autoRows.map(getStriped), [false, false, true, true]);
+
+  table.props = { ...table.props, autoRowHeight: false };
+  const fixedRows = table.renderBody().props.children.props.children.map((pool) => pool.props.children);
+  assert.deepEqual(fixedRows.map(getStriped), [false, false, true, true]);
+
+  table.props = { ...table.props, sections: [{ data: records }] };
+  const sectionRows = table.renderSectionBody().props.children[2].props.children.map((pool) => pool.props.children);
+  assert.deepEqual(sectionRows.map(getStriped), [false, false, true, true]);
+
+  table.props = { ...table.props, sections: undefined, getRowStripeIndex: undefined };
+  assert.deepEqual(table.renderAutoRowHeightBody().props.children.props.children.map(getStriped), [false, true, false, true]);
+});
+
+test("行悬浮变色默认开启，可关闭且不覆盖原有斑马纹", () => {
+  const table = new HGTablePage({ columns: [{ title: "编号", dataIndex: "id" }], dataSource: [{ id: 1 }, { id: 2 }] });
+  assert.equal(table.render().props.className.includes("hoverRows"), true);
+  table.props = { ...table.props, rowHover: false };
+  assert.equal(table.render().props.className.includes("hoverRows"), false);
+  const css = readFileSync(new URL("./hg_table.module.css", import.meta.url), "utf8"); // 无浏览器布局时核对 hover 规则只在启用状态生效。
+  assert.match(css, /\.hoverRows\s+\.dataRow:hover:not\(\.selectedRow\)/);
+  assert.match(css, /\.hoverRows\s+\.poolRow:hover\s+\.dataRow:not\(\.selectedRow\)/);
+  assert.doesNotMatch(css, /^\s*\.dataRow:hover/m);
+});
+
+test("混合列空态使用 border-box 列宽，不重复加内边距", () => {
   const table = new HGTablePage({ columns: [{ title: "类目 ID", width: 220 }, { title: "展开/收起" }], dataSource: [] });
   assert.equal(table.getTotalColumnsWidth(), 340);
   assert.equal(table.renderHeader().props.children.props.style.minWidth, 340);
@@ -111,24 +219,26 @@ test("行尾按钮不增加列，表头和表体同步预留操作宽度", () =>
   const leaf = { categoryId: "leaf" }; // 无按钮的行仍需保留相同的末列宽度。
   const action = "展开"; // 文本节点用于检查行级传递，不依赖 DOM。
   const table = new HGTablePage({
-    columns: [{ title: "类目 ID", dataIndex: "categoryId", width: 220 }],
+    columns: [{ title: "类目 ID", dataIndex: "categoryId", width: 220 }, { title: "操作", minWidth: 170 }],
     dataSource: [record, leaf],
     renderRowAction: (row) => row === record ? action : null,
   });
-  assert.equal(table.getTotalColumnsWidth(), 288);
+  assert.equal(table.getTotalColumnsWidth(), 458);
   const header = table.renderHeader().props.children;
-  assert.equal(header.props.style.minWidth, 288);
-  assert.equal(header.props.children[0].props.style.flex, "1 0 220px");
+  assert.equal(header.props.style.minWidth, 458);
+  assert.deepEqual(header.props.children.map((cell) => cell.props.style.flex), ["0 0 220px", "1 0 0"]);
   const body = table.renderAutoRowHeightBody();
-  assert.equal(body.props.children.props.style.minWidth, 288);
+  assert.equal(body.props.children.props.style.minWidth, 458);
   const [row, leafRow] = body.props.children.props.children;
   assert.equal(row.props.rowAction, action);
   const renderedRow = new row.type(row.props).render();
-  assert.equal(renderedRow.props.children[0][0].props.style.flex, "1 0 220px");
+  assert.deepEqual(renderedRow.props.children[0].map((cell) => cell.props.style.flex), ["0 0 220px", "1 0 0"]);
   assert.equal(renderedRow.props.children[1].props.children, action);
   assert.equal(leafRow.props.rowAction, null);
-  assert.equal(new leafRow.type(leafRow.props).render().props.className, renderedRow.props.className);
-  assert.equal(table.getColumns().length, 1);
+  const leafClass = new leafRow.type(leafRow.props).render().props.className;
+  assert.equal(leafClass.includes("actionRow"), true, "叶子行仍保留与父行一致的操作区占位");
+  assert.equal(leafClass.includes("stripedRow"), true, "相邻行允许按数据索引使用不同底色");
+  assert.equal(table.getColumns().length, 2);
 });
 
 test("表头、三种表体模式与空态都可按住纵向拖动，不影响分页", () => {

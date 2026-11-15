@@ -136,6 +136,18 @@ function findStartIndex(items, scrollTop) {
   return Math.max(0, lo);
 }
 
+/** 表头和表体共用列宽规则；align 控制标题与内容，titleAlign 只覆盖标题。 */
+function getColumnStyle(col, isHeader = false) {
+  const widthStyle = col.width
+    ? { width: col.width, flex: `0 0 ${col.width}px` }
+    : { flex: "1 0 0", minWidth: col.minWidth ?? 0 }; // 未指定 width 时平分剩余空间。
+  const requestedAlign = isHeader ? col.titleAlign ?? col.align : col.align; // 标题未单独配置时沿用列对齐方式。
+  const align = ["left", "center", "right"].includes(requestedAlign) ? requestedAlign : "center"; // 缺省或非法值统一居中。
+  return isHeader
+    ? { ...widthStyle, textAlign: align }
+    : { ...widthStyle, textAlign: align, justifyContent: { left: "flex-start", center: "center", right: "flex-end" }[align] };
+}
+
 /**
  * sectionHeader 行组件（PureComponent）。
  * 职责：渲染 section 头部区域。
@@ -176,14 +188,16 @@ class VirtualSectionFooter extends React.PureComponent {
  */
 class VirtualRow extends React.PureComponent {
   render() {
-    // reserveRowAction 由表格注入；即使叶子行没有按钮，也需保持与表头相同的末列宽度。
-    const { columns, record, rowIndex, autoRowHeight, selected, onSelect, rowAction, reserveRowAction } = this.props;
+    // stripeIndex 缺省为实际行号；分组时可由表格注入同一根节点的序号，让父子行共用背景色。
+    // reserveRowAction 即使叶子行没有按钮，也保持与表头相同的末列宽度。
+    const { columns, record, rowIndex, stripeIndex = rowIndex, autoRowHeight, selected, onSelect, rowAction, reserveRowAction } = this.props;
     if (!record) return <div className={styles.row} />;
 
     return (
       // autoRowHeight 开启时，行不再依赖固定 48px 高度，由单元格内容自然撑开。
       <div
-        className={`${styles.row} ${autoRowHeight ? styles.autoHeightRow : ""} ${selected ? styles.selectedRow : ""} ${onSelect ? styles.selectableRow : ""} ${reserveRowAction ? styles.actionRow : ""}`}
+        // 默认按实际行号交替；分组时按调用方提供的根节点序号着色，避免子行与父行颜色不同。
+        className={`${styles.row} ${styles.dataRow} ${stripeIndex % 2 === 1 ? styles.stripedRow : ""} ${autoRowHeight ? styles.autoHeightRow : ""} ${selected ? styles.selectedRow : ""} ${onSelect ? styles.selectableRow : ""} ${reserveRowAction ? styles.actionRow : ""}`}
         onClick={onSelect ? (event) => {
           // 行内操作及选择控件自行处理点击，避免冒泡后再次切换选中状态。
           if (!event.target.closest("button, input, a, select, textarea, label")) {
@@ -191,7 +205,7 @@ class VirtualRow extends React.PureComponent {
           }
         } : undefined}
       >
-        {columns.map((col, columnIndex) => {
+        {columns.map((col) => {
           const value = record[col.dataIndex];
           const rendered = col.render ? col.render(value, record, rowIndex) : value;
           return (
@@ -199,7 +213,7 @@ class VirtualRow extends React.PureComponent {
               key={col.key || col.dataIndex || col.title}
               // autoHeightCell 负责取消省略号和单行限制，让长字段按列宽换行完整展示。
               className={`${styles.cell} ${autoRowHeight ? styles.autoHeightCell : ""}`}
-              style={col.width ? { width: col.width, flex: `${reserveRowAction && columnIndex === columns.length - 1 ? 1 : 0} 0 ${col.width}px` } : undefined}
+              style={getColumnStyle(col)}
             >
               {rendered}
             </div>
@@ -228,7 +242,10 @@ class VirtualRow extends React.PureComponent {
  *   - sectionHeader 吸顶：滚动时当前 section 的 header 固定在顶部
  *   - sectionFooter 吸底：滚动时当前 section 的 footer 固定在底部
  *
- * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll, fillHeight, rowSelection, renderRowAction。
+ * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll, fillHeight, rowSelection, renderRowAction, getRowStripeIndex, rowHover。
+ * rowHover：数据行是否在鼠标悬浮时改变背景，默认 true；false 时保留原有背景及选中态。
+ * getRowStripeIndex(record, rowIndex)：可选斑马纹分组序号，同组行共用底色；缺省使用数据行号。
+ * columns[].align：标题与内容的水平对齐，left/center/right，默认 center；titleAlign 可单独覆盖标题。
  * renderRowAction(record, rowIndex)：可选行尾操作，控件不超过 32px；不占表格列，配置后统一预留行尾宽度。
  * rowSelection：{type: "radio" | "checkbox", selectedRowKeys: [], onChange(keys, rows)}；由调用方持有选择状态。
  * fillHeight 说明：可选填充模式；开启后表格作为父级弹性布局的子项占满剩余高度，
@@ -344,6 +361,9 @@ class HGTablePage extends React.Component {
     return String(index);
   };
 
+  /** 分组行按调用方的组序号着色；未配置或返回空值时仍按真实行号交替。 */
+  getStripeIndex = (record, rowIndex) => this.props.getRowStripeIndex?.(record, rowIndex) ?? rowIndex;
+
   /** 获取当前数据行；section 模式也与普通表体共用同一选择契约。 */
   getSelectionRows = () => {
     const { dataSource = [], sections } = this.props;
@@ -430,14 +450,15 @@ class HGTablePage extends React.Component {
 
   /**
    * 计算表头与表体共同使用的最小列宽。
-   * 单元格为 border-box，显式 width 已包含 padding；无 width 的列按 120px 估算。
+   * 单元格为 border-box，显式 width 已包含 padding；无 width 的列按至少 120px 估算，
+   * 可用 minWidth 提高个别弹性列的最小宽度。
    * 行尾操作不参与列布局，需额外预留末列间距、按钮尺寸及右侧间距。
    */
   getTotalColumnsWidth = () => {
     const columns = this.getColumns();
     const DEFAULT_COL_WIDTH = 120; // 未设置宽度的弹性列预留的最小估算宽度（px）。
     const columnsWidth = columns.reduce((sum, col) => {
-      const w = col.width ? Number(col.width) : DEFAULT_COL_WIDTH; // 显式列宽为 border-box 像素值。
+      const w = col.width ? Number(col.width) : Math.max(DEFAULT_COL_WIDTH, Number(col.minWidth) || 0); // 弹性列至少保留可读宽度。
       return sum + w;
     }, 0);
     return columnsWidth + (this.props.renderRowAction ? 68 : 0); // 末列间距 20px、按钮 32px、右间距 16px。
@@ -717,11 +738,11 @@ class HGTablePage extends React.Component {
           这样 headerWrap 才会拥有真实横向滚动空间，表体滚动时设置 scrollLeft 才能移动 title 行。
         */}
         <div className={`${styles.row} ${reserveRowAction ? styles.actionRow : ""}`} style={{ minWidth: totalWidth }}>
-          {columns.map((col, columnIndex) => (
+          {columns.map((col) => (
             <div
               key={col.key || col.dataIndex || col.title}
               className={styles.headerCell}
-              style={col.width ? { width: col.width, flex: `${reserveRowAction && columnIndex === columns.length - 1 ? 1 : 0} 0 ${col.width}px` } : undefined}
+              style={getColumnStyle(col, true)}
             >
               {col.title}
             </div>
@@ -866,6 +887,7 @@ class HGTablePage extends React.Component {
                   columns={columns}
                   record={item.record}
                   rowIndex={item.rowIndex}
+                  stripeIndex={this.getStripeIndex(item.record, item.rowIndex)}
                   selected={rowSelection?.selectedRowKeys?.includes(this.getRowKey(item.record, selectionRows.indexOf(item.record)))}
                   onSelect={rowSelection ? this.handleSelectRow : undefined}
                   rowAction={renderRowAction?.(item.record, item.rowIndex)}
@@ -928,6 +950,7 @@ class HGTablePage extends React.Component {
                   columns={columns}
                   record={record}
                   rowIndex={dataIdx}
+                  stripeIndex={record ? this.getStripeIndex(record, dataIdx) : dataIdx}
                   selected={record && rowSelection?.selectedRowKeys?.includes(this.getRowKey(record, dataIdx))}
                   onSelect={rowSelection ? this.handleSelectRow : undefined}
                   rowAction={record ? renderRowAction?.(record, dataIdx) : null}
@@ -998,6 +1021,7 @@ class HGTablePage extends React.Component {
               columns={columns}
               record={record}
               rowIndex={rowIndex}
+              stripeIndex={this.getStripeIndex(record, rowIndex)}
               autoRowHeight
               selected={rowSelection?.selectedRowKeys?.includes(this.getRowKey(record, rowIndex))}
               onSelect={rowSelection ? this.handleSelectRow : undefined}
@@ -1013,9 +1037,10 @@ class HGTablePage extends React.Component {
   render() {
     // 默认开启自然行高：表格字段超出列宽时换行展示，避免固定行高虚拟列表裁切长内容。
     // fillHeight：填充模式开关，开启后容器作为父级弹性子项占满剩余高度，表体高度随容器动态变化。
-    const { className = "", autoRowHeight = true, fillHeight = false } = this.props;
+    // rowHover：默认开启行悬浮背景；关闭时不覆盖斑马纹或分组底色。
+    const { className = "", autoRowHeight = true, fillHeight = false, rowHover = true } = this.props;
     const useSections = this.isSectionMode();
-    const tableClassName = `${styles.tableContainer} ${fillHeight ? styles.fillContainer : ""} ${autoRowHeight ? styles.autoHeightTableContainer : ""} ${className}`;
+    const tableClassName = `${styles.tableContainer} ${fillHeight ? styles.fillContainer : ""} ${autoRowHeight ? styles.autoHeightTableContainer : ""} ${rowHover ? styles.hoverRows : ""} ${className}`;
 
     return (
       <div className={tableClassName} ref={this.containerRef}>
