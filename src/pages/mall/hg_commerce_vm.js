@@ -22,7 +22,7 @@ export default class HGCommerceVM {
     });
   }
   // 类目编辑以查询参数传原 ID，请求体 categoryId 为修改后的 ID。
-  static editCategory(categoryId, body) { return this.hgPostWithQuery("COMMERCE_CATEGORY_EDIT", categoryId, body); }
+  static editCategory(categoryId, body) { return this.hgPostWithQuery("COMMERCE_CATEGORY_EDIT", categoryId, body, "categoryId"); }
   static deleteCategory(categoryId) { return this.hgRequest("post", "COMMERCE_CATEGORY_DELETE", { categoryId }); }
   static mine(cursor = "") { return this.hgRequest("get", "COMMERCE_MINE", { cursor }); }
   static mineDetail(productId) { return this.hgRequest("get", "COMMERCE_MINE_DETAIL", { productId }); }
@@ -64,12 +64,13 @@ export default class HGCommerceVM {
     return hgNet.post(HGMANAGER_API.COMMERCE_CREATE, body, { headers: { "Idempotency-Key": requestId } });
   }
 
-  static async hgPostWithQuery(key, productId, body) {
+  /** 原始 ID 放入服务端要求的查询参数；商品默认 productId，类目编辑显式使用 categoryId。 */
+  static async hgPostWithQuery(key, id, body, queryKey = "productId") {
     const [{ default: hgNet }, { HGMANAGER_API }] = await Promise.all([
       import("../../manager_antd/net_handle/hg_net_manager_vm.jsx"),
       import("../../manager_antd/api/hg_api_constants.jsx"),
     ]);
-    return hgNet.post(`${HGMANAGER_API[key]}?productId=${encodeURIComponent(productId)}`, body);
+    return hgNet.post(`${HGMANAGER_API[key]}?${queryKey}=${encodeURIComponent(id)}`, body);
   }
 
   /** 原始二进制复用 JWT 与签名上传链；后端验证扩展名和图片内容。 */
