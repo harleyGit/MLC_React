@@ -150,12 +150,15 @@ class HGRoleListPage extends Component {
   };
 
   /**
-   * 进入创建角色页面。
-   * 边界：依赖运维管理容器注入的 onMenuSelect 切换到 role_create 菜单；未注入时不做跳转。
+   * 进入创建角色页面（隐藏子页）。
+   * 边界：优先用容器注入的 pushPage 压栈跳转，返回时后退一步回到本列表；
+   *       未注入 pushPage 时降级用 onMenuSelect 切换（旧容器）。
    */
   handleCreateRole = () => {
-    const { onMenuSelect } = this.props;
-    if (onMenuSelect) {
+    const { pushPage, onMenuSelect } = this.props;
+    if (pushPage) {
+      pushPage("role_create");
+    } else if (onMenuSelect) {
       onMenuSelect("role_create");
     }
   };

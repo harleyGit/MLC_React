@@ -1,5 +1,11 @@
 import React, { Component, lazy, Suspense } from "react";
 import HGLoading from "../../components/hg_loading/hg_loading";
+import { ROUTE_PATH } from "../../components/hg_navigation/hg_route_path";
+import {
+  hgBuildSubMenuUrl,
+  hgReadSubMenuKey,
+  hgResolveHighlightKey,
+} from "../../components/hg_navigation/hg_sub_nav";
 import HGSideMenuPage from "../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../components/menu_component/hg_side_menu_vm";
 import HGCrawlerPlatformVM, { CRAWLER_MENU_ITEMS } from "./hg_crawler_platform_vm";
@@ -33,29 +39,55 @@ const BREADCRUMB_PARENT_KEY = {
 
 /**
  * HGCrawlerPlatformPage 提供采集平台侧边导航和业务内容区域。
- * 页面切换保存在局部 selectedKey，不修改浏览器 URL，保持与现有运维管理页面一致的交互方式。
+ * 子页 key 编码进 URL query 复用 react-router 历史栈，实现 push/pop 后退语义；
+ * 页面上下文（如任务对象）无法序列化进 URL，用内存缓存按 key 保存，返回时恢复。
  */
 class HGCrawlerPlatformPage extends Component {
   constructor(props) {
     super(props);
-    this.state = {
-      selectedKey: HGCrawlerPlatformVM.getDefaultSelectedKey(),
-      pageContext: null,
-    };
+    // 页面上下文缓存：key -> 业务对象（如 task），URL 只保存 key。
+    this.contextCache = {};
   }
 
+  /** 当前子页 key：以 URL query 为唯一事实来源。 */
+  getSelectedKey = () =>
+    hgReadSubMenuKey(
+      this.props.location?.search,
+      HGCrawlerPlatformVM.getDefaultSelectedKey()
+    );
+
   /**
-   * 处理侧边栏叶子菜单选择。
-   * @param {string} selectedKey 与 PAGE_MAP 对应的页面 key。
+   * 侧边栏叶子菜单选择（tab 切换）：替换当前历史项。
+   * @param {string} key 页面 key。
    */
-  handleMenuSelect = (selectedKey, pageContext = null) => this.setState({ selectedKey, pageContext });
+  handleMenuSelect = (key) => {
+    this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.CRAWLER_PLATFORM, key), {
+      replace: true,
+    });
+  };
+
+  /**
+   * 子页跳转（push）：进入详情/创建等隐藏页，压栈并缓存上下文。
+   * @param {string} key 目标子页 key。
+   * @param {*} pageContext 业务上下文（如 task 对象）。
+   */
+  pushPage = (key, pageContext = null) => {
+    if (pageContext != null) this.contextCache[key] = pageContext;
+    this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.CRAWLER_PLATFORM, key));
+  };
+
+  /** 返回上一子页：后退一步历史栈，与浏览器返回一致。 */
+  back = () => {
+    this.props.navigate(-1);
+  };
 
   /**
    * 根据当前菜单 key 计算完整层级并渲染面包屑。
+   * @param {string} selectedKey 当前子页 key。
    * @returns {React.ReactNode} 当前菜单路径。
    */
-  renderBreadcrumb = () => {
-    const breadcrumbKey = BREADCRUMB_PARENT_KEY[this.state.selectedKey] || this.state.selectedKey;
+  renderBreadcrumb = (selectedKey) => {
+    const breadcrumbKey = BREADCRUMB_PARENT_KEY[selectedKey] || selectedKey;
     const path = HGSideMenuVM.findPathToKey(CRAWLER_MENU_ITEMS, breadcrumbKey);
     return (
       <div className={styles.breadcrumb}>
@@ -77,8 +109,11 @@ class HGCrawlerPlatformPage extends Component {
    * @returns {React.ReactNode} 平台布局。
    */
   render() {
-    const { selectedKey, pageContext } = this.state;
+    const selectedKey = this.getSelectedKey();
+    const pageContext = this.contextCache[selectedKey] || null;
     const PageComponent = PAGE_MAP[selectedKey] || HGDashboardPage;
+    // 隐藏子页（详情/创建）高亮其父菜单，使列表菜单保持选中态。
+    const highlightKey = hgResolveHighlightKey(selectedKey, BREADCRUMB_PARENT_KEY);
     return (
       <div className={styles.platform}>
         <aside className={styles.sidebar}>
@@ -86,12 +121,12 @@ class HGCrawlerPlatformPage extends Component {
             <span className={styles.brandMark}>DC</span>
             <div><strong>Data Crawler</strong><small>采集控制台</small></div>
           </div>
-          <HGSideMenuPage menuItems={CRAWLER_MENU_ITEMS} selectedKey={selectedKey} onSelect={this.handleMenuSelect} />
+          <HGSideMenuPage menuItems={CRAWLER_MENU_ITEMS} selectedKey={highlightKey} onSelect={this.handleMenuSelect} />
         </aside>
         <main className={styles.content}>
-          {this.renderBreadcrumb()}
+          {this.renderBreadcrumb(selectedKey)}
           <Suspense fallback={<HGLoading text="正在加载采集平台..." />}>
-            <PageComponent onNavigate={this.handleMenuSelect} pageContext={pageContext} />
+            <PageComponent onNavigate={this.pushPage} onBack={this.back} pageContext={pageContext} />
           </Suspense>
         </main>
       </div>

@@ -87,6 +87,9 @@ const WrappedHGUserEditRolePage = WithNavigation(HGUserEditRolePage);
 const WrappedHGBiliAuthorSpacePage = WithNavigation(HGBiliAuthorSpacePage);
 // 添加联系人页需要 pageNavigator.back 返回来源，同样注入路由能力。
 const WrappedHGAddContactPage = WithNavigation(HGAddContactPage);
+// 运维管理与采集平台使用 URL query 驱动子页栈式导航，需注入 navigate/location。
+const WrappedHGOperationManagementPage = WithNavigation(HGOperationManagementPage);
+const WrappedHGCrawlerPlatformPage = WithNavigation(HGCrawlerPlatformPage);
 
 const HGRouter = createBrowserRouter([
   //受保护的主布局路由
@@ -212,13 +215,13 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.OPERATION_MANAGEMENT,
         element: hgLazyElement(
-          <HGAdminGuard><HGOperationManagementPage /></HGAdminGuard>,
+          <HGAdminGuard><WrappedHGOperationManagementPage /></HGAdminGuard>,
           "正在加载运维管理..."
         ),
       },
       {
         path: ROUTE_PATH.CRAWLER_PLATFORM,
-        element: hgLazyElement(<HGAdminGuard><HGCrawlerPlatformPage /></HGAdminGuard>, "正在加载采集平台..."),
+        element: hgLazyElement(<HGAdminGuard><WrappedHGCrawlerPlatformPage /></HGAdminGuard>, "正在加载采集平台..."),
       },
       {
         path: ROUTE_PATH.TEST_MODULE,

@@ -281,7 +281,7 @@ class HGTaskCreatePage extends Component {
         } else {
           message.success(shouldRun ? "任务已保存并运行完成" : "任务已保存");
         }
-        this.props.onNavigate?.("crawler_tasks");
+        this.props.onBack?.();
       })
       .catch((error) =>
         message.error(
@@ -355,7 +355,7 @@ class HGTaskCreatePage extends Component {
             <span>先验证目标响应，再配置解析、调度和存储策略</span>
           </div>
           <HGButtonPage
-            onClick={() => this.props.onNavigate?.("crawler_tasks")}
+            onClick={() => this.props.onBack?.()}
           >
             返回任务管理
           </HGButtonPage>

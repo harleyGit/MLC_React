@@ -17,7 +17,7 @@ class HGTaskDetailPage extends Component {
       return (
         <HGCardPage title="采集任务详情">
           <div className={styles.empty}>未找到任务上下文，请返回任务管理重新选择任务。</div>
-          <HGButtonPage onClick={() => this.props.onNavigate?.("crawler_tasks")}>
+          <HGButtonPage onClick={() => this.props.onBack?.()}>
             返回任务管理
           </HGButtonPage>
         </HGCardPage>
@@ -28,7 +28,7 @@ class HGTaskDetailPage extends Component {
     return (
       <div>
         <div className={styles.detailHeader}>
-          <HGButtonPage onClick={() => this.props.onNavigate?.("crawler_tasks")}>
+          <HGButtonPage onClick={() => this.props.onBack?.()}>
             返回任务管理
           </HGButtonPage>
           <div>

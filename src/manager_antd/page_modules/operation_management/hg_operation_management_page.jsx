@@ -8,6 +8,12 @@
  */
 import React, { Component, lazy, Suspense } from "react";
 import HGLoading from "../../../components/hg_loading/hg_loading";
+import { ROUTE_PATH } from "../../../components/hg_navigation/hg_route_path";
+import {
+  hgBuildSubMenuUrl,
+  hgReadSubMenuKey,
+  hgResolveHighlightKey,
+} from "../../../components/hg_navigation/hg_sub_nav";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
 import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
 import styles from "./hg_operation_management.module.css";
@@ -258,14 +264,19 @@ const PAGE_MAP = {
 };
 
 /**
- * 不在左侧菜单展示、但可由子页面跳转进入的页面面包屑兜底。
- * 约束：key 与 PAGE_MAP 对齐，路径结构需与 HGSideMenuVM.findPathToKey 的返回保持一致。
+ * 隐藏子页（不在左侧菜单、由列表页跳入）的映射表。
+ * - parentKey：该子页应高亮的父菜单 key，使进入子页时父菜单保持高亮。
+ * - breadcrumb：面包屑兜底路径，结构与 HGSideMenuVM.findPathToKey 返回一致。
  */
 const HIDDEN_BREADCRUMB_PATHS = {
-  role_create: [
-    { key: "role", label: "角色管理" },
-    { key: "role_create", label: "创建角色" },
-  ],
+  role_create: {
+    parentKey: "role_list",
+    breadcrumb: [
+      { key: "role", label: "角色管理" },
+      { key: "role_list", label: "角色列表" },
+      { key: "role_create", label: "创建角色" },
+    ],
+  },
 };
 
 /**
@@ -274,55 +285,57 @@ const HIDDEN_BREADCRUMB_PATHS = {
  * 约束：使用 HGSideMenuPage 组件渲染菜单，PAGE_MAP 映射右侧内容
  */
 class HGOperationManagementPage extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      // 选中态优先恢复上次会话的子菜单，刷新/从子页返回后停留在原菜单而非默认项。
-      selectedKey: HGOperationManagementPage.getPersistedSelectedKey(),
-    };
-  }
+  /** 隐藏子页 -> 父菜单 key 的映射，用于菜单高亮。 */
+  static HIDDEN_PARENT_KEY = Object.fromEntries(
+    Object.entries(HIDDEN_BREADCRUMB_PATHS).map(([key, cfg]) => [key, cfg.parentKey])
+  );
 
-  /** 会话级选中的子菜单 key 存储键；仅用于恢复「从子页返回」时的菜单位置。 */
-  static HG_SELECTED_KEY_STORAGE = "hg_operation_selected_key";
+  /**
+   * 当前子页 key：以 URL query 为唯一事实来源，复用 react-router 历史栈实现 push/pop。
+   * 无参数时回落到默认菜单项。
+   */
+  getSelectedKey = () =>
+    hgReadSubMenuKey(
+      this.props.location?.search,
+      HGOperationManagementVM.getDefaultSelectedKey()
+    );
 
-  /** 从会话存储恢复上次选中的子菜单，非法值回落到默认项。 */
-  static getPersistedSelectedKey = () => {
-    try {
-      const saved = window.sessionStorage.getItem(
-        HGOperationManagementPage.HG_SELECTED_KEY_STORAGE
-      );
-      if (saved) return saved;
-    } catch {
-      // 会话存储不可用时忽略，回落到默认选中。
-    }
-    return HGOperationManagementVM.getDefaultSelectedKey();
+  /**
+   * 左侧菜单点击（tab 切换）：替换当前历史项，避免每个 tab 都堆积历史。
+   * @param {string} key 叶子菜单 key
+   */
+  handleMenuSelect = (key) => {
+    const { navigate } = this.props;
+    navigate(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key), {
+      replace: true,
+    });
   };
 
   /**
-   * 菜单选中回调：更新右侧内容区显示的页面，并持久化选中态供返回时恢复。
-   * @param {string} key 选中的叶子节点菜单 key
+   * 子页跳转（push）：进入隐藏子页（如创建角色），压入历史栈。
+   * 返回时后退一步即可回到来源列表页。
+   * @param {string} key 目标子页 key
    */
-  handleMenuSelect = (key) => {
-    this.setState({ selectedKey: key });
-    try {
-      window.sessionStorage.setItem(
-        HGOperationManagementPage.HG_SELECTED_KEY_STORAGE,
-        key
-      );
-    } catch {
-      // 持久化失败不阻断菜单切换。
-    }
+  pushPage = (key) => {
+    const { navigate } = this.props;
+    navigate(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key));
+  };
+
+  /** 返回上一子页：后退一步历史栈；与浏览器返回按钮行为一致。 */
+  back = () => {
+    this.props.navigate(-1);
   };
 
   /**
    * 渲染面包屑导航：根据 selectedKey 显示完整路径（A > B > C）
-   * 说明：菜单中不存在的隐藏页面（如创建角色）回落到 HIDDEN_BREADCRUMB_PATHS。
+   * 说明：菜单中不存在的隐藏页面（如创建角色）回落到 HIDDEN_BREADCRUMB_PATHS.breadcrumb。
+   * @param {string} selectedKey 当前子页 key。
    * @returns {React.ReactNode} 面包屑节点
    */
-  renderBreadcrumb = () => {
-    const { selectedKey } = this.state;
+  renderBreadcrumb = (selectedKey) => {
     const menuPath = HGSideMenuVM.findPathToKey(OPERATION_MENU_ITEMS, selectedKey);
-    const path = menuPath.length > 0 ? menuPath : HIDDEN_BREADCRUMB_PATHS[selectedKey];
+    const hidden = HIDDEN_BREADCRUMB_PATHS[selectedKey];
+    const path = menuPath.length > 0 ? menuPath : hidden?.breadcrumb;
     if (!path || path.length === 0) return null;
 
     return (
@@ -348,18 +361,22 @@ class HGOperationManagementPage extends Component {
 
   /**
    * 渲染右侧内容区：根据 selectedKey 从 PAGE_MAP 获取对应页面组件
-   * 约束：向子页面注入 onMenuSelect，供其在内容区内切换菜单（如角色列表跳转创建角色）；未使用的页面忽略该 prop。
+   * 约束：向子页面注入 onMenuSelect（tab 切换）与 pushPage/back（栈式导航），未使用的页面忽略这些 prop。
    * 高度约定：内容包裹在 .contentBody 弹性容器中，列表仍由内容自然撑高。
+   * @param {string} selectedKey 当前子页 key。
    * @returns {React.ReactNode} 右侧内容区节点
    */
-  renderContent = () => {
-    const { selectedKey } = this.state;
+  renderContent = (selectedKey) => {
     const PageComponent = PAGE_MAP[selectedKey];
     if (PageComponent) {
       return (
         <div className={styles.contentBody}>
           <Suspense fallback={<HGLoading text="正在加载页面..." />}>
-            <PageComponent onMenuSelect={this.handleMenuSelect} />
+            <PageComponent
+              onMenuSelect={this.handleMenuSelect}
+              pushPage={this.pushPage}
+              onBack={this.back}
+            />
           </Suspense>
         </div>
       );
@@ -372,18 +389,23 @@ class HGOperationManagementPage extends Component {
   };
 
   render() {
-    const { selectedKey } = this.state;
+    const selectedKey = this.getSelectedKey();
+    // 隐藏子页（如创建角色）高亮其父菜单，使「角色列表」保持选中态。
+    const highlightKey = hgResolveHighlightKey(
+      selectedKey,
+      HGOperationManagementPage.HIDDEN_PARENT_KEY
+    );
 
     return (
       <div className={styles.operationContainer}>
         <HGSideMenuPage
           menuItems={OPERATION_MENU_ITEMS}
-          selectedKey={selectedKey}
+          selectedKey={highlightKey}
           onSelect={this.handleMenuSelect}
         />
         <div className={styles.operationContent}>
-          {this.renderBreadcrumb()}
-          {this.renderContent()}
+          {this.renderBreadcrumb(selectedKey)}
+          {this.renderContent(selectedKey)}
         </div>
       </div>
     );

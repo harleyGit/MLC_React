@@ -152,7 +152,7 @@ class HGRecommendationDetailPage extends Component {
       return (
         <HGCardPage title="任务采集数据">
           <div className={styles.empty}>未找到任务上下文，请返回采集结果重新选择任务。</div>
-          <HGButtonPage onClick={() => this.props.onNavigate?.("crawler_recommendations")}>
+          <HGButtonPage onClick={() => this.props.onBack?.()}>
             返回采集结果
           </HGButtonPage>
         </HGCardPage>
@@ -162,7 +162,7 @@ class HGRecommendationDetailPage extends Component {
     return (
       <div>
         <div className={styles.detailHeader}>
-          <HGButtonPage onClick={() => this.props.onNavigate?.("crawler_recommendations")}>
+          <HGButtonPage onClick={() => this.props.onBack?.()}>
             返回任务列表
           </HGButtonPage>
           <div>

@@ -236,12 +236,23 @@ class HGRoleCreatePage extends Component {
     );
   };
 
+  /**
+   * 返回角色列表：后退一步历史栈，与浏览器返回按钮行为一致。
+   * 边界：容器未注入 onBack 时不操作。
+   */
+  handleBack = () => {
+    this.props.onBack?.();
+  };
+
   render() {
     return (
       <div className={styles.roleCreateContainer}>
         <HGPageHeaderPage
           title="创建角色"
           description="定义平台角色并预选权限；勾选权限后提交时将发起双人审批申请，审批通过后权限才对绑定用户生效。"
+          extra={
+            <HGButtonPage onClick={this.handleBack}>返回</HGButtonPage>
+          }
         />
         <HGCardPage title="角色信息">{this.renderForm()}</HGCardPage>
       </div>
