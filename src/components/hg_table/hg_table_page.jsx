@@ -176,13 +176,14 @@ class VirtualSectionFooter extends React.PureComponent {
  */
 class VirtualRow extends React.PureComponent {
   render() {
-    const { columns, record, rowIndex, autoRowHeight, selected, onSelect, rowAction } = this.props;
+    // reserveRowAction 由表格注入；即使叶子行没有按钮，也需保持与表头相同的末列宽度。
+    const { columns, record, rowIndex, autoRowHeight, selected, onSelect, rowAction, reserveRowAction } = this.props;
     if (!record) return <div className={styles.row} />;
 
     return (
       // autoRowHeight 开启时，行不再依赖固定 48px 高度，由单元格内容自然撑开。
       <div
-        className={`${styles.row} ${autoRowHeight ? styles.autoHeightRow : ""} ${selected ? styles.selectedRow : ""} ${onSelect ? styles.selectableRow : ""} ${rowAction ? styles.actionRow : ""}`}
+        className={`${styles.row} ${autoRowHeight ? styles.autoHeightRow : ""} ${selected ? styles.selectedRow : ""} ${onSelect ? styles.selectableRow : ""} ${reserveRowAction ? styles.actionRow : ""}`}
         onClick={onSelect ? (event) => {
           // 行内操作及选择控件自行处理点击，避免冒泡后再次切换选中状态。
           if (!event.target.closest("button, input, a, select, textarea, label")) {
@@ -190,7 +191,7 @@ class VirtualRow extends React.PureComponent {
           }
         } : undefined}
       >
-        {columns.map((col) => {
+        {columns.map((col, columnIndex) => {
           const value = record[col.dataIndex];
           const rendered = col.render ? col.render(value, record, rowIndex) : value;
           return (
@@ -198,7 +199,7 @@ class VirtualRow extends React.PureComponent {
               key={col.key || col.dataIndex || col.title}
               // autoHeightCell 负责取消省略号和单行限制，让长字段按列宽换行完整展示。
               className={`${styles.cell} ${autoRowHeight ? styles.autoHeightCell : ""}`}
-              style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
+              style={col.width ? { width: col.width, flex: `${reserveRowAction && columnIndex === columns.length - 1 ? 1 : 0} 0 ${col.width}px` } : undefined}
             >
               {rendered}
             </div>
@@ -228,7 +229,7 @@ class VirtualRow extends React.PureComponent {
  *   - sectionFooter 吸底：滚动时当前 section 的 footer 固定在底部
  *
  * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll, fillHeight, rowSelection, renderRowAction。
- * renderRowAction(record, rowIndex)：可选行尾操作，不占表格列；配置后统一预留行尾宽度，有内容时居右。
+ * renderRowAction(record, rowIndex)：可选行尾操作，控件不超过 32px；不占表格列，配置后统一预留行尾宽度。
  * rowSelection：{type: "radio" | "checkbox", selectedRowKeys: [], onChange(keys, rows)}；由调用方持有选择状态。
  * fillHeight 说明：可选填充模式；开启后表格作为父级弹性布局的子项占满剩余高度，
  *                  表体高度由 ResizeObserver 实测（容器高度扣除表头与分页器）或弹性布局决定，
@@ -430,7 +431,7 @@ class HGTablePage extends React.Component {
   /**
    * 计算表头与表体共同使用的最小列宽。
    * 单元格为 border-box，显式 width 已包含 padding；无 width 的列按 120px 估算。
-   * 行尾操作不参与列布局，需额外预留按钮尺寸及右侧间距。
+   * 行尾操作不参与列布局，需额外预留末列间距、按钮尺寸及右侧间距。
    */
   getTotalColumnsWidth = () => {
     const columns = this.getColumns();
@@ -439,7 +440,7 @@ class HGTablePage extends React.Component {
       const w = col.width ? Number(col.width) : DEFAULT_COL_WIDTH; // 显式列宽为 border-box 像素值。
       return sum + w;
     }, 0);
-    return columnsWidth + (this.props.renderRowAction ? 44 : 0); // 行尾 32px 按钮与 12px 右间距。
+    return columnsWidth + (this.props.renderRowAction ? 68 : 0); // 末列间距 20px、按钮 32px、右间距 16px。
   };
 
   /**
@@ -708,18 +709,19 @@ class HGTablePage extends React.Component {
   renderHeader = () => {
     const columns = this.getColumns();
     const totalWidth = this.getTotalColumnsWidth();
+    const reserveRowAction = Boolean(this.props.renderRowAction); // 与表体一致，末列伸缩但保留行尾按钮区域。
     return (
       <div className={styles.headerWrap} ref={this.headerRef} onScroll={this.handleHeaderScroll} {...this.hgBodyDragProps()}>
         {/*
           表头必须采用“外层 100% 可视宽度 + 内层 totalWidth 总列宽”的结构。
           这样 headerWrap 才会拥有真实横向滚动空间，表体滚动时设置 scrollLeft 才能移动 title 行。
         */}
-        <div className={styles.row} style={{ minWidth: totalWidth }}>
-          {columns.map((col) => (
+        <div className={`${styles.row} ${reserveRowAction ? styles.actionRow : ""}`} style={{ minWidth: totalWidth }}>
+          {columns.map((col, columnIndex) => (
             <div
               key={col.key || col.dataIndex || col.title}
               className={styles.headerCell}
-              style={col.width ? { width: col.width, flex: `0 0 ${col.width}px` } : undefined}
+              style={col.width ? { width: col.width, flex: `${reserveRowAction && columnIndex === columns.length - 1 ? 1 : 0} 0 ${col.width}px` } : undefined}
             >
               {col.title}
             </div>
@@ -867,6 +869,7 @@ class HGTablePage extends React.Component {
                   selected={rowSelection?.selectedRowKeys?.includes(this.getRowKey(item.record, selectionRows.indexOf(item.record)))}
                   onSelect={rowSelection ? this.handleSelectRow : undefined}
                   rowAction={renderRowAction?.(item.record, item.rowIndex)}
+                  reserveRowAction={Boolean(renderRowAction)}
                 />
               </div>
             );
@@ -928,6 +931,7 @@ class HGTablePage extends React.Component {
                   selected={record && rowSelection?.selectedRowKeys?.includes(this.getRowKey(record, dataIdx))}
                   onSelect={rowSelection ? this.handleSelectRow : undefined}
                   rowAction={record ? renderRowAction?.(record, dataIdx) : null}
+                  reserveRowAction={Boolean(renderRowAction)}
                 />
               </div>
             );
@@ -998,6 +1002,7 @@ class HGTablePage extends React.Component {
               selected={rowSelection?.selectedRowKeys?.includes(this.getRowKey(record, rowIndex))}
               onSelect={rowSelection ? this.handleSelectRow : undefined}
               rowAction={renderRowAction?.(record, rowIndex)}
+              reserveRowAction={Boolean(renderRowAction)}
             />
           ))}
         </div>

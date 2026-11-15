@@ -113,17 +113,16 @@
   box-sizing: border-box;
 }
 
-/* 行尾操作覆盖在预留的 44px 空间内，不参与列宽与单元格换行计算。 */
+/* 末列延伸到行尾操作区域前；68px 留出 20px 间距、32px 按钮与右侧 16px。 */
 .actionRow {
   position: relative;
-  padding-right: 44px;
+  padding-right: 68px;
 }
 
 .rowAction {
   position: absolute;
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
+  top: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   justify-content: center;

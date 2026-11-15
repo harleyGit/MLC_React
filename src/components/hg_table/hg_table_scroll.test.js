@@ -108,20 +108,26 @@ test("最小列宽不重复计算 border-box 内边距，末尾弹性列预留�
 
 test("行尾按钮不增加列，表头和表体同步预留操作宽度", () => {
   const record = { categoryId: "parent" };
+  const leaf = { categoryId: "leaf" }; // 无按钮的行仍需保留相同的末列宽度。
   const action = "展开"; // 文本节点用于检查行级传递，不依赖 DOM。
   const table = new HGTablePage({
     columns: [{ title: "类目 ID", dataIndex: "categoryId", width: 220 }],
-    dataSource: [record],
+    dataSource: [record, leaf],
     renderRowAction: (row) => row === record ? action : null,
   });
-  assert.equal(table.getTotalColumnsWidth(), 264);
-  assert.equal(table.renderHeader().props.children.props.style.minWidth, 264);
+  assert.equal(table.getTotalColumnsWidth(), 288);
+  const header = table.renderHeader().props.children;
+  assert.equal(header.props.style.minWidth, 288);
+  assert.equal(header.props.children[0].props.style.flex, "1 0 220px");
   const body = table.renderAutoRowHeightBody();
-  assert.equal(body.props.children.props.style.minWidth, 264);
-  const row = body.props.children.props.children[0];
+  assert.equal(body.props.children.props.style.minWidth, 288);
+  const [row, leafRow] = body.props.children.props.children;
   assert.equal(row.props.rowAction, action);
   const renderedRow = new row.type(row.props).render();
+  assert.equal(renderedRow.props.children[0][0].props.style.flex, "1 0 220px");
   assert.equal(renderedRow.props.children[1].props.children, action);
+  assert.equal(leafRow.props.rowAction, null);
+  assert.equal(new leafRow.type(leafRow.props).render().props.className, renderedRow.props.className);
   assert.equal(table.getColumns().length, 1);
 });
 
