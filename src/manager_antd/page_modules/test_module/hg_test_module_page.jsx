@@ -7,6 +7,7 @@ import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
 import GuideVideoListView from "../../../pages/app/guide_video/GuideVideoListView";
 import GuideVideoView from "../../../pages/app/guide_video/GuideVideoView";
 import HGLoadingShowcasePage from "./hg_loading_showcase_page.jsx";
+import HGThemePalettePage from "../../../components/hg_theme/hg_theme_palette_page.jsx";
 import HGTestModuleVM, { TEST_MODULE_MENU_ITEMS } from "./hg_test_module_vm";
 import styles from "./hg_test_module.module.css";
 
@@ -46,6 +47,7 @@ const PAGE_MAP = {
   guide_video_list: HGGuideVideoListPane,
   guide_video_player: HGGuideVideoPlayerPane,
   css_loading: HGLoadingShowcasePage,
+  theme_palette: HGThemePalettePage,
 };
 
 /**

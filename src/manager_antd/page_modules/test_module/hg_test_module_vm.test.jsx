@@ -17,6 +17,7 @@ test("test module menu exposes guide video as the default page", () => {
       label: "UI组件",
       children: [
         { key: "css_loading", label: "CSS 加载动画" },
+        { key: "theme_palette", label: "主题色彩预览" },
       ],
     },
   ]);

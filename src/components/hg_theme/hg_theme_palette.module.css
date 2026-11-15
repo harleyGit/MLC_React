@@ -1,0 +1,136 @@
+/* 主题规范的独立预览色板：变量仅在色板容器内生效，不覆盖全站现有 --hg-color-*。 */
+.palette {
+  color-scheme: light;
+  --brand-glacier: #438BFA;
+  --brand-electric: #28B4F5;
+  --brand-sky: #438BFA;
+  --brand-nebula: #8185F4;
+  --brand-ocean: #89C8FF;
+  --brand-ice: #89C8FF;
+  --brand-sky-light: #5FA8FF;
+  --brand-frost: #CFF0FF;
+
+  --color-primary: #438BFA;
+  --color-primary-hover: #2674E8;
+  --color-primary-active: #28B4F5;
+  --color-primary-soft: #EAF4FF;
+  --color-secondary: #438BFA;
+  --color-secondary-hover: #2674E8;
+  --color-secondary-soft: #EDF4FF;
+  --color-accent: #28B4F5;
+  --color-accent-hover: #17A2E0;
+  --color-accent-soft: #E6F8FF;
+  --color-accent-action: #6569D8;
+  --color-accent-action-hover: #565AC4;
+  --color-ai: #8185F4;
+  --color-ai-hover: #6569D8;
+  --color-ai-soft: #F0F0FF;
+  --color-ai-action: #565AC4;
+
+  --color-bg-page: #F0F7FF;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-subtle: #F6FAFF;
+  --color-bg-hover: #F2F8FF;
+  --color-bg-selected: #EAF4FF;
+  --color-bg-disabled: #F1F5F9;
+  --color-text: #172B4D;
+  --color-text-title: #0F2440;
+  --color-text-secondary: #61758E;
+  --color-text-muted: #71849B;
+  --color-text-inverse: #FFFFFF;
+  --color-link: #438BFA;
+  --color-link-hover: #2674E8;
+  --color-border: #D6E7F9;
+  --color-border-strong: #B5D0ED;
+  --color-border-focus: #438BFA;
+
+  --color-success: #16835D;
+  --color-success-soft: #E8F8F0;
+  --color-warning: #C53225;
+  --color-warning-soft: #FFF0F2;
+  --color-danger: #DA332A;
+  --color-danger-soft: #FFF0F2;
+  --color-info: #438BFA;
+  --color-info-soft: #EAF4FF;
+  --color-ocean: #89C8FF;
+  --color-ocean-hover: #565AC4;
+  --color-ocean-border: #8185F4;
+
+  /* 中信红色系按原始 HEX 保留，不与语义接近的红色合并。 */
+  --color-zhongxin-brand-red: #EA494A;
+  --color-zhongxin-background-red: #E8423A;
+  --color-zhongxin-accent-red: #EC6767;
+  --color-k-line-red: #C53225;
+  --color-button-red: #E64642;
+  --color-button-red-strong: #DA332A;
+  --color-button-red-soft: #EB5B55;
+  --color-button-red-bright: #E84038;
+  --color-price-red: #E83E36;
+  --color-index-rise-red: #D65E53;
+
+  --gradient-brand: linear-gradient(120deg, #438BFA 0%, #28B4F5 55%, #8185F4 100%);
+  --gradient-ai: linear-gradient(135deg, #438BFA 0%, #8185F4 100%);
+  --gradient-soft: linear-gradient(135deg, #F0F7FF 0%, #E6F8FF 60%, #F0F0FF 100%);
+
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--color-bg-page);
+  color: var(--color-text);
+}
+
+/* 深色背景保持暗面与浅字对比；品牌基础色和中信红不随模式隐式改值。 */
+.darkPalette {
+  color-scheme: dark;
+  --color-primary: #89C8FF;
+  --color-primary-hover: #A5D5FF;
+  --color-primary-active: #5FA8FF;
+  --color-primary-soft: #172B4D;
+  --color-secondary: #8DAEFF;
+  --color-secondary-hover: #A7C2FF;
+  --color-secondary-soft: #172B4D;
+  --color-accent: #50C8FA;
+  --color-accent-hover: #82DAFF;
+  --color-accent-soft: #0F2440;
+  --color-accent-action: #50C8FA;
+  --color-accent-action-hover: #82DAFF;
+  --color-ai: #AAA8FF;
+  --color-ai-hover: #C1BEFF;
+  --color-ai-soft: #172B4D;
+  --color-ai-action: #AAA8FF;
+  --color-bg-page: #0F2440;
+  --color-bg-surface: #172B4D;
+  --color-bg-subtle: #0F2440;
+  --color-bg-hover: #61758E;
+  --color-bg-selected: #65D9A4;
+  --color-bg-disabled: #61758E;
+  --color-text: #E0EDFB;
+  --color-text-title: #F4F8FF;
+  --color-text-secondary: #B8CBE1;
+  --color-text-muted: #A8BCD4;
+  --color-text-inverse: #0F2440;
+  --color-link: #89C8FF;
+  --color-link-hover: #B1DDFF;
+  --color-border: #89C8FF;
+  --color-border-strong: #B5D0ED;
+  --color-border-focus: #89C8FF;
+  --color-success: #65D9A4;
+  --color-success-soft: #89C8FF;
+  --color-warning: #FFD078;
+  --color-warning-soft: #B1DDFF;
+  --color-danger: #FF8D9B;
+  --color-danger-soft: #B8CBE1;
+  --color-info: #89C8FF;
+  --color-info-soft: #172B4D;
+}
+
+.lead { margin: 0 0 16px; line-height: 1.6; color: var(--color-text-secondary); }
+.page { display: grid; gap: 18px; }
+.palette h2 { margin: 0 0 8px; color: var(--color-text-title); }
+.group { margin-top: 24px; }
+.group h3 { margin: 0 0 12px; font-size: 16px; color: var(--color-text-title); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(152px, 1fr)); gap: 12px; }
+.card { min-width: 0; padding: 8px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg-surface); }
+.sample { display: block; height: 72px; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--preview-color); }
+.label { display: block; margin-top: 8px; font-size: 13px; font-weight: 600; }
+.hex { display: block; margin-top: 4px; font-size: 12px; color: var(--color-text); overflow-wrap: anywhere; }
+.token { display: block; margin-top: 4px; font-size: 11px; color: var(--color-text-secondary); overflow-wrap: anywhere; }

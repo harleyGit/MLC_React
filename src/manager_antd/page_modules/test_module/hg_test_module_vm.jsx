@@ -20,6 +20,7 @@ export const TEST_MODULE_MENU_ITEMS = [
     label: "UI组件",
     children: [
       { key: "css_loading", label: "CSS 加载动画" },
+      { key: "theme_palette", label: "主题色彩预览" },
     ],
   },
 ];
