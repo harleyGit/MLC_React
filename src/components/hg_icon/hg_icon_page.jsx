@@ -2,10 +2,10 @@ import React from "react";
 import styles from "./hg_icon.module.css";
 
 /**
- * SVG 图标路径数据表。
- * 职责：存储所有图标的 SVG path d 属性，通过 type 索引。
+ * 普通 SVG 图标路径数据表。
+ * 职责：存储普通图标的 SVG path d 属性，通过 type 索引。
  * 来源：IconPark (https://iconpark.oceanengine.com) 风格，24x24 viewBox，currentColor 填充。
- * 扩展：新增图标只需在本表中添加 { type: "path d..." } 条目。
+ * 扩展：新增普通单路径图标可在本表中添加 { type: "path d..." } 条目。
  */
 const ICON_PATHS = {
   user: "M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v1.2c0 .7.5 1.2 1.2 1.2h16.8c.7 0 1.2-.5 1.2-1.2v-1.2c0-3.2-6.4-4.8-9.6-4.8z",
@@ -76,8 +76,8 @@ const ICON_PATHS = {
 /**
  * SVG 图标组件。
  * 职责：通过 type 属性渲染对应图标，支持 style/className/onClick。
- * 输入：type（图标类型字符串）、style、className、onClick。
- * 约束：图标数据集中在 ICON_PATHS 表中管理，新增图标只需扩展该表。
+ * 输入：type（图标类型字符串；image-broken 使用独立资源）、style、className（默认空字符串）、onClick。
+ * 约束：普通图标使用 ICON_PATHS；铺满缩略图的裂纹占位从 svg/image-broken.svg 蒙版加载。
  */
 class HGIconPage extends React.PureComponent {
   /**
@@ -90,7 +90,7 @@ class HGIconPage extends React.PureComponent {
   };
 
   render() {
-    const { style, className = "", onClick } = this.props;
+    const { type, style, className = "", onClick } = this.props;
     const wrapperClass = [styles.icon, className].filter(Boolean).join(" ");
 
     return (
@@ -100,16 +100,20 @@ class HGIconPage extends React.PureComponent {
         onClick={onClick}
         role={onClick ? "button" : undefined}
       >
-        <svg
-          viewBox="0 0 24 24"
-          width="1em"
-          height="1em"
-          fill="currentColor"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <path d={this.getPath()} />
-        </svg>
+        {type === "image-broken" ? (
+          <span className={styles.brokenImageIcon} aria-hidden="true" />
+        ) : (
+          <svg
+            viewBox="0 0 24 24"
+            width="1em"
+            height="1em"
+            fill="currentColor"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d={this.getPath()} />
+          </svg>
+        )}
       </span>
     );
   }

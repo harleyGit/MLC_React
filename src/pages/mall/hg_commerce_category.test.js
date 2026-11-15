@@ -8,6 +8,7 @@ import React from "react";
 // Link 与 HGTable 的测试替身：只承载 props 断言，不渲染真实 DOM。
 const HGTestLink = () => null;
 const HGTestTable = () => null;
+const HGTestIcon = () => null; // 页面图片空态的图标替身，用于核对图标类型及可访问名称。
 
 // Node 测试无法直接 import .jsx；路由常量模块无外部依赖，同链转换加载。
 const { ROUTE_PATH } = (() => {
@@ -49,6 +50,8 @@ function hgPage(hgSourceName, hgCommerce, hgLegacy = {}) {
         return { ROUTE_PATH, __esModule: true };
       if (hgDependency.endsWith("hg_table_page"))
         return { default: HGTestTable, __esModule: true };
+      if (hgDependency.endsWith("hg_icon_page"))
+        return { default: HGTestIcon, __esModule: true };
       if (hgDependency.endsWith("hg_commerce_vm.js"))
         return { default: hgCommerce, __esModule: true };
       if (hgDependency.endsWith("hg_mall_vm.js"))
@@ -153,6 +156,32 @@ const HG_CATEGORIES = [
   { categoryId: "11", name: "数码", depth: 1 },
   { categoryId: "12", parentId: "11", name: "手机", depth: 2, imageURL: "/old.png" },
 ];
+
+test("类目图片为空时显示可访问的图片占位图标，有图时仍显示原缩略图", () => {
+  const hgInstance = hgPage("hg_commerce_category_page.jsx", {});
+  const hgImageColumn = hgInstance.hgColumns().find((hgColumn) => hgColumn.dataIndex === "imageURL");
+  const hgEmpty = hgImageColumn.render(null);
+  assert.equal(hgEmpty.type, "span");
+  assert.equal(hgEmpty.props.role, "img");
+  assert.equal(hgEmpty.props["aria-label"], "暂无类目图片");
+  assert.equal(hgFindElement(hgEmpty, HGTestIcon)?.props.type, "image-broken");
+  assert.deepEqual(hgCollectText(hgEmpty), [], "空态不再显示文字");
+
+  const hgImage = hgImageColumn.render("/old.png");
+  assert.equal(hgImage.type, "img");
+  assert.equal(hgImage.props.src, "/old.png");
+  assert.equal(hgImage.props.alt, "类目图片");
+  assert.equal(hgFindElement(hgImage, HGTestIcon), null);
+
+  const hgCSS = readFileSync(new URL("./hg_merchant_center.module.css", import.meta.url), "utf8"); // Node 无布局引擎，核对占位与原缩略图的显式尺寸。
+  const hgThumbStyle = hgCSS.match(/\.editThumb\s*\{([^}]*)\}/)?.[1];
+  const hgPlaceholderStyle = hgCSS.match(/\.categoryImagePlaceholder\s*\{([^}]*)\}/)?.[1];
+  for (const hgStyle of [hgThumbStyle, hgPlaceholderStyle]) {
+    assert.match(hgStyle, /width:\s*72px;/);
+    assert.match(hgStyle, /height:\s*72px;/);
+  }
+  assert.match(hgCSS, /\.categoryImagePlaceholder\s+\.categoryImagePlaceholderIcon\s*\{[^}]*font-size:\s*72px;/);
+});
 
 test("类目图片以 API Guard 约定的原始二进制类型上传", async () => {
   const hgCalls = [];

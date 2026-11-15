@@ -173,6 +173,9 @@
 .editPanel { display: grid; gap: 14px; margin-top: 16px; padding: 16px; border: 1px solid #6c4cf1; border-radius: 14px; background: #fbfaff; }
 .editHead { display: flex; gap: 14px; align-items: center; }
 .editThumb { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; background: #f5f6fa; flex: none; }
+/* 无图占位与缩略图等大；图标本身隐藏于辅助技术，容器提供图片语义。 */
+.categoryImagePlaceholder { display: inline-flex; align-items: center; justify-content: center; width: 72px; height: 72px; overflow: hidden; border-radius: 10px; background: var(--color-bg-disabled, #f5f6fa); color: var(--color-text-muted, #8b92a8); flex: none; }
+.categoryImagePlaceholder .categoryImagePlaceholderIcon { font-size: 72px; color: inherit; }
 .editHeadInfo { display: grid; gap: 4px; min-width: 0; }
 .editHeadInfo h3 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
 .editHeadInfo .productNo { font-size: 12px; }

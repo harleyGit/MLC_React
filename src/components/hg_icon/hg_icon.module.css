@@ -24,3 +24,13 @@
   height: 1em;
   fill: currentColor;
 }
+
+/* 独立 SVG 的裂纹以透明缝隙呈现；蒙版让图案跟随调用处的 currentColor。 */
+.brokenImageIcon {
+  display: block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  -webkit-mask: url("./svg/image-broken.svg") center / contain no-repeat;
+  mask: url("./svg/image-broken.svg") center / contain no-repeat;
+}

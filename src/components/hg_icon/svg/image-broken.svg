@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
+  <defs>
+    <clipPath id="frame">
+      <rect x="1" y="1" width="70" height="70" rx="10"/>
+    </clipPath>
+    <mask id="crack">
+      <rect width="72" height="72" fill="white"/>
+      <path d="M40 0 33 16l7 10-9 13 8 10-6 23" fill="none" stroke="black" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <g clip-path="url(#frame)" mask="url(#crack)">
+    <rect x="1" y="1" width="70" height="70" rx="10" fill="black" opacity=".16"/>
+    <circle cx="18" cy="19" r="6" fill="black" opacity=".55"/>
+    <path d="M0 57 19 36l14 16 13-23 26 29v14H0Z" fill="black" opacity=".5"/>
+    <rect x="1.5" y="1.5" width="69" height="69" rx="9.5" fill="none" stroke="black" stroke-width="3" opacity=".7"/>
+  </g>
+</svg>

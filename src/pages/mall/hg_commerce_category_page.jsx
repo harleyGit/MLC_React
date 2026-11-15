@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
 import { ROUTE_PATH } from "../../components/hg_navigation/hg_route_path.jsx";
 import HGTablePage from "../../components/hg_table/hg_table_page";
+import HGIconPage from "../../components/hg_icon/hg_icon_page";
 import HGCommerceVM from "./hg_commerce_vm.js";
 import HGMallVM from "./hg_mall_vm.js";
 import styles from "./hg_merchant_center.module.css";
@@ -174,7 +175,7 @@ export default class HGCommerceCategoryPage extends React.Component {
     );
   }
 
-  /** 类目列统一使用表格默认等分宽度；操作按钮在窄屏下自行换行。 */
+  /** 类目列统一使用表格默认等分宽度；无图片时用铺满缩略图的裂纹图标，操作按钮在窄屏下自行换行。 */
   hgColumns = () => [
     { title: "类目 ID", dataIndex: "categoryId", render: (hgID, hgCategory) => this.renderCategoryId(hgID, hgCategory) },
     { title: "类目名称", dataIndex: "name" },
@@ -183,7 +184,9 @@ export default class HGCommerceCategoryPage extends React.Component {
       dataIndex: "imageURL",
       render: (hgURL) => hgURL
         ? <img className={styles.editThumb} src={normalizeVideoCoverUrl(hgURL)} alt="类目图片" loading="lazy" />
-        : <span className={styles.fieldHint}>无图</span>,
+        : <span className={styles.categoryImagePlaceholder} role="img" aria-label="暂无类目图片">
+            <HGIconPage type="image-broken" className={styles.categoryImagePlaceholderIcon} />
+          </span>,
     },
     {
       title: "层级",
