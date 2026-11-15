@@ -188,12 +188,19 @@ test("类目列表加载服务端数据并按审核权渲染管理入口", async
   assert.equal(hgTable.props.pagination.total, 1, "父子类目共占一个分页名额");
   assert.equal(hgTable.props.dataSource[1].hgTreeLevel, 1);
   assert.equal(hgTable.props.dataSource[0].hgHasChildren, true);
-  const hgToggle = hgFindElement(hgTable.props.columns[0].render("11", hgTable.props.dataSource[0]), "button");
+  assert.equal(hgTable.props.columns.length, 5, "不为展开按钮增设独立列");
+  assert.equal(hgFindElement(hgTable.props.columns[0].render("12", hgTable.props.dataSource[1]), "button"), null, "叶子节点不渲染按钮");
+  assert.equal(hgFindElement(hgTable.props.columns[0].render("11", hgTable.props.dataSource[0]), "button"), null, "首列只展示 ID");
+  assert.equal(hgTable.props.renderRowAction(hgTable.props.dataSource[1]), null, "叶子节点不渲染行尾按钮");
+  const hgToggle = hgTable.props.renderRowAction(hgTable.props.dataSource[0]); // 父节点按钮由表格定位在整行末尾。
+  const hgIcon = hgFindElement(hgToggle, "svg"); // 箭头使用固定尺寸的矢量图，不依赖字体字形大小。
+  assert.equal(hgIcon.props.width, "20");
+  assert.equal(hgIcon.props.height, "20");
   assert.equal(hgToggle.props["aria-expanded"], true);
   hgToggle.props.onClick();
   hgTable = hgFindElement(hgInstance.render(), HGTestTable);
   assert.deepEqual(Array.from(hgTable.props.dataSource, (hgItem) => hgItem.categoryId), ["11"]);
-  assert.equal(hgFindElement(hgTable.props.columns[0].render("11", hgTable.props.dataSource[0]), "button").props["aria-expanded"], false);
+  assert.equal(hgTable.props.renderRowAction(hgTable.props.dataSource[0]).props["aria-expanded"], false);
   hgInstance.hgToggleCategory("11");
   assert.deepEqual(Array.from(hgFindElement(hgInstance.render(), HGTestTable).props.dataSource, (hgItem) => hgItem.categoryId), ["11", "12"]);
 

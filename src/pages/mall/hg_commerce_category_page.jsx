@@ -117,22 +117,31 @@ export default class HGCommerceCategoryPage extends React.Component {
     }));
   };
 
-  /** 在第一列提供键盘可操作的展开按钮，子行以层级缩进展示。 */
+  /** 首列展示带层级缩进的 ID；长 ID 按列宽换行。 */
   renderCategoryId(hgID, hgCategory) {
-    const hgCollapsed = this.state.hgCollapsedIds.includes(hgID); // 仅有子类目时渲染可操作控件。
     return (
       <span className={styles.categoryTreeCell} style={{ paddingLeft: hgCategory.hgTreeLevel * 20 }}>
-        {hgCategory.hgHasChildren ? (
-          <button type="button" className={styles.categoryTreeToggle}
-            aria-label={`${hgCollapsed ? "展开" : "收起"}类目 ${hgCategory.name}`}
-            aria-expanded={!hgCollapsed} onClick={() => this.hgToggleCategory(hgID)}>
-            {hgCollapsed ? "▸" : "▾"}
-          </button>
-        ) : <span className={styles.categoryTreeSpacer} aria-hidden="true" />}
-        <span>{hgID}</span>
+        {hgID}
       </span>
     );
   }
+
+  /** 只为有子类目的行提供行尾按钮；收起与展开保持同一行尾位置。 */
+  renderCategoryToggle = (hgCategory) => {
+    if (!hgCategory.hgHasChildren) return null;
+    const hgCollapsed = this.state.hgCollapsedIds.includes(hgCategory.categoryId); // 当前父类目是否已收起。
+    return (
+      <button type="button" className={styles.categoryTreeToggle}
+        aria-label={`${hgCollapsed ? "展开" : "收起"}类目 ${hgCategory.name}`}
+        aria-expanded={!hgCollapsed} onClick={() => this.hgToggleCategory(hgCategory.categoryId)}>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          aria-hidden="true" focusable="false">
+          <path d={hgCollapsed ? "M9 6l6 6-6 6" : "M6 9l6 6 6-6"} />
+        </svg>
+      </button>
+    );
+  };
 
   /** 行内操作列：编辑与删除均进入独立页面，不在列表内直接提交写操作。 */
   renderActions(hgCategory) {
@@ -223,6 +232,7 @@ export default class HGCommerceCategoryPage extends React.Component {
           <HGTablePage
             columns={this.hgColumns()}
             dataSource={this.hgCurrentPageCategories(hgRoots)}
+            renderRowAction={this.renderCategoryToggle}
             rowKey="categoryId"
             loading={hgLoading}
             pagination={{

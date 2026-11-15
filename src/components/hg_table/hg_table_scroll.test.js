@@ -81,7 +81,7 @@ test("空态保持 ref、事件与列宽；加载和模式切换后重新对齐"
     const empty = render();
     assert.equal(empty.props.ref, table.scrollRef);
     assert.equal(typeof empty.props.onScroll, "function");
-    assert.equal(empty.props.children.props.style.minWidth, 932);
+    assert.equal(empty.props.children.props.style.minWidth, 900);
   }
   const header = table.headerRef.current = createScrollElement({ scrollWidth: 1200, clientWidth: 500 });
   const body = table.scrollRef.current = createScrollElement({ scrollLeft: 300, scrollWidth: 1200, clientWidth: 483 });
@@ -97,6 +97,32 @@ test("空态保持 ref、事件与列宽；加载和模式切换后重新对齐"
   table.headerRef.current = null;
   assert.doesNotThrow(() => table.componentDidUpdate());
   table.componentWillUnmount();
+});
+
+test("最小列宽不重复计算 border-box 内边距，末尾弹性列预留空间", () => {
+  const table = new HGTablePage({ columns: [{ title: "类目 ID", width: 220 }, { title: "展开/收起" }], dataSource: [] });
+  assert.equal(table.getTotalColumnsWidth(), 340);
+  assert.equal(table.renderHeader().props.children.props.style.minWidth, 340);
+  assert.equal(table.renderAutoRowHeightBody().props.children.props.style.minWidth, 340);
+});
+
+test("行尾按钮不增加列，表头和表体同步预留操作宽度", () => {
+  const record = { categoryId: "parent" };
+  const action = "展开"; // 文本节点用于检查行级传递，不依赖 DOM。
+  const table = new HGTablePage({
+    columns: [{ title: "类目 ID", dataIndex: "categoryId", width: 220 }],
+    dataSource: [record],
+    renderRowAction: (row) => row === record ? action : null,
+  });
+  assert.equal(table.getTotalColumnsWidth(), 264);
+  assert.equal(table.renderHeader().props.children.props.style.minWidth, 264);
+  const body = table.renderAutoRowHeightBody();
+  assert.equal(body.props.children.props.style.minWidth, 264);
+  const row = body.props.children.props.children[0];
+  assert.equal(row.props.rowAction, action);
+  const renderedRow = new row.type(row.props).render();
+  assert.equal(renderedRow.props.children[1].props.children, action);
+  assert.equal(table.getColumns().length, 1);
 });
 
 test("表头、三种表体模式与空态都可按住纵向拖动，不影响分页", () => {

@@ -113,6 +113,22 @@
   box-sizing: border-box;
 }
 
+/* 行尾操作覆盖在预留的 44px 空间内，不参与列宽与单元格换行计算。 */
+.actionRow {
+  position: relative;
+  padding-right: 44px;
+}
+
+.rowAction {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .poolRow:hover {
   background: #f5f5f5;
 }
@@ -142,6 +158,8 @@
 .autoHeightRow {
   align-items: stretch;
   min-height: 48px;
+  /* 由表体最小列宽决定行宽，不让长字段的 max-content 撑宽整行。 */
+  min-width: 100%;
 }
 
 .autoHeightCell {
