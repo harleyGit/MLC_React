@@ -14,6 +14,7 @@ import HGCardPage from "../../../components/hg_card/hg_card_page";
 import HGInputPage from "../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGPageHeaderPage from "../../../components/hg_page_header/hg_page_header_page";
+import HGTablePage from "../../../components/hg_table/hg_table_page";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import HGEmployeeRoleVM, {
   INITIAL_BINDING_FORM,
@@ -49,6 +50,7 @@ class HGUserEditRolePage extends Component {
     this.hgMounted = false; // 页面挂载标记，阻止异步响应在卸载后写入敏感状态。
     this.hgBindingRequest = 0; // 员工授权查询序号，避免旧用户请求覆盖新用户结果。
     this.hgPendingRequest = 0; // 待审批查询序号；切换用户/刷新后旧响应不可覆盖新用户。
+    this.hgDecidingApprovalId = ""; // 正在提交的申请编号；空字符串表示没有裁决请求，防止同一验证码并发重复提交。
     this.state = {
       user,
       // 资料编辑受控表单：空字符串表示用户未设置该项；仅手机号/邮箱变化时发送安全字段请求。
@@ -76,6 +78,8 @@ class HGUserEditRolePage extends Component {
       pendingLoading: false, // 待审批请求是否进行中。
       bindingError: "", // 活动绑定查询失败时的提示；空字符串表示无错误。
       pendingError: "", // 待审批查询失败时的提示；空字符串表示无错误。
+      approvalCode: "", // 审批人验证器的 6 位动态码；只在裁决时使用，不与申请人 MFA 共用。
+      approvalDecisionId: "", // 正在裁决的申请编号；空字符串表示按钮未处于提交中。
       hgSelectedBindingId: "", // 当前回填查看的活动授权绑定 ID；空字符串表示新授权编辑模式。
     };
   }
@@ -126,6 +130,8 @@ class HGUserEditRolePage extends Component {
             pendingLoading: false,
             bindingError: "",
             pendingError: "",
+            approvalCode: "",
+            approvalDecisionId: "",
             hgSelectedBindingId: "",
           }
         : {}),
@@ -249,6 +255,34 @@ class HGUserEditRolePage extends Component {
       .finally(() => {
         if (this.hgMounted && request === this.hgPendingRequest) this.setState({ pendingLoading: false });
       });
+  };
+
+  /** 仅对当前目标用户的待审批申请裁决；权限、非本人审批和 MFA 仍由服务端复核。 */
+  decideApproval = async (grant, approve) => {
+    const userId = this.state.form.userId.trim(); // 点击时的目标用户，防止切换用户后刷新错误列表。
+    const approvalId = String(grant.approvalId); // 申请编号，不是生效绑定 ID。
+    if (!userId || this.hgDecidingApprovalId || !this.state.pendingGrants.some((item) => String(item.approvalId) === approvalId)) return;
+    const mfaCode = this.state.approvalCode.trim(); // 一次性审批验证码，仅提交一次，不持久化或回填。
+    if (!/^\d{6}$/.test(mfaCode)) {
+      message.error("请输入审批人的 6 位 MFA 验证码");
+      return;
+    }
+    this.hgDecidingApprovalId = approvalId;
+    this.setState({ approvalDecisionId: approvalId, approvalCode: "" });
+    try {
+      await HGEmployeeRoleVM.decideApproval(approvalId, mfaCode, approve);
+      if (this.hgMounted && this.state.form.userId.trim() === userId) {
+        message.success(approve ? "审批通过并已生效" : "申请已拒绝");
+        this.loadAssignments();
+      }
+    } catch (error) {
+      if (this.hgMounted && this.state.form.userId.trim() === userId)
+        message.error(error?.message || "审批失败");
+    } finally {
+      this.hgDecidingApprovalId = "";
+      if (this.hgMounted && this.state.form.userId.trim() === userId)
+        this.setState({ approvalDecisionId: "" });
+    }
   };
 
   /** 精确撤销一条绑定；超级管理员引导授权由后端保护。 */
@@ -508,59 +542,50 @@ class HGUserEditRolePage extends Component {
     </HGCardPage>
   );
 
-  /** 同表展示生效绑定与待审批申请；两类记录分别分页，只有生效绑定可撤销、查看回填。 */
+  /** 同表展示生效绑定与待审批申请；申请仅能通过服务端双人审批裁决，不能当作绑定撤销。 */
   renderBindings = () => {
     const { bindings, pendingGrants, roles } = this.state;
     const roleNames = new Map(roles.map((role) => [String(role.id), role.name || role.code])); // 待审批项使用当前已加载角色名，未加载时用角色 ID，不额外发 N+1 请求。
+    const rows = [
+      ...bindings.map((binding) => ({ ...binding, hgRecordType: "binding", hgRowKey: `binding-${binding.id}` })),
+      ...pendingGrants.map((grant) => ({ ...grant, hgRecordType: "pending", hgRowKey: `approval-${grant.approvalId}` })),
+    ]; // 仅在渲染时合并两种记录；不把申请编号写入绑定 ID，也不存储冗余列表状态。
+    const columns = [
+      { title: "角色", dataIndex: "roleId", width: 180, align: "left", render: (_, record) => record.hgRecordType === "binding" ? record.roleCode : roleNames.get(String(record.roleId)) || `角色 #${record.roleId}` },
+      { title: "作用域", dataIndex: "scopeType", width: 180, align: "left", render: (value, record) => `${value}${record.scopeId ? ` / ${record.scopeId}` : ""}` },
+      { title: "失效时间", dataIndex: "expiresAt", width: 190, align: "left", render: (value, record) => value ? new Date(value).toLocaleString() : record.hgRecordType === "pending" ? "长期（审批后）" : "长期" },
+      { title: "状态", dataIndex: "hgRecordType", width: 100, align: "left", render: (value) => <span className={value === "pending" ? styles.pendingStatus : styles.activeStatus}>{value === "pending" ? "待审批" : "已授权"}</span> },
+      { title: "操作", dataIndex: "hgRowKey", width: 260, align: "left", render: (_, record) => record.hgRecordType === "pending" ? (
+        <div className={styles.rowActions}>
+          <span>申请 #{record.approvalId}</span>
+          <HGButtonPage type="link" onClick={() => this.decideApproval(record, true)} loading={this.state.approvalDecisionId === String(record.approvalId)} disabled={Boolean(this.state.approvalDecisionId)}>允许</HGButtonPage>
+          <HGButtonPage type="link" danger onClick={() => this.decideApproval(record, false)} disabled={Boolean(this.state.approvalDecisionId)}>拒绝</HGButtonPage>
+        </div>
+      ) : (
+        <div className={styles.rowActions}>
+          <HGButtonPage type="link" onClick={() => this.hgSelectBinding(record)}>查看回填</HGButtonPage>
+          <HGButtonPage type="link" danger onClick={() => this.revokeRole(record.id)} disabled={record.roleCode === "super_admin"}>撤销</HGButtonPage>
+        </div>
+      ) },
+    ]; // HGTablePage 通过 columns[].render(value, record) 分别展示两种操作，禁用内置全量分页以保留后端独立游标。
     return <div className={styles.bindingsWrap}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>角色</th>
-            <th>作用域</th>
-            <th>失效时间</th>
-            <th>状态</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          {this.state.bindings.map((binding) => (
-            <tr key={`binding-${binding.id}`}>
-              <td>{binding.roleCode}</td>
-              <td>
-                {binding.scopeType}
-                {binding.scopeId ? ` / ${binding.scopeId}` : ""}
-              </td>
-              <td>
-                {binding.expiresAt
-                  ? new Date(binding.expiresAt).toLocaleString()
-                  : "长期"}
-              </td>
-              <td><span className={styles.activeStatus}>已授权</span></td>
-              <td>
-                <HGButtonPage type="link" onClick={() => this.hgSelectBinding(binding)}>查看回填</HGButtonPage>
-                <HGButtonPage
-                  type="link"
-                  danger
-                  onClick={() => this.revokeRole(binding.id)}
-                  disabled={binding.roleCode === "super_admin"}
-                >
-                  撤销
-                </HGButtonPage>
-              </td>
-            </tr>
-          ))}
-          {pendingGrants.map((grant) => (
-            <tr key={`approval-${grant.approvalId}`}>
-              <td>{roleNames.get(String(grant.roleId)) || `角色 #${grant.roleId}`}</td>
-              <td>{grant.scopeType}{grant.scopeId ? ` / ${grant.scopeId}` : ""}</td>
-              <td>{grant.expiresAt ? new Date(grant.expiresAt).toLocaleString() : "长期（审批后）"}</td>
-              <td><span className={styles.pendingStatus}>待审批</span></td>
-              <td>申请 #{grant.approvalId} · 等待其他管理员审批</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <HGTablePage rowKey="hgRowKey" columns={columns} dataSource={rows} loading={this.state.loading || this.state.pendingLoading} pagination={false} autoRowHeight />
+      {pendingGrants.length > 0 && (
+        <label className={styles.approvalField} htmlFor="hg-iam-approval-otp">
+          <span className={styles.label}>审批人 MFA 验证码（申请人不可自批）</span>
+          <input
+            id="hg-iam-approval-otp"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={this.state.approvalCode}
+            onChange={(event) => this.setState({ approvalCode: event.target.value })}
+            placeholder="由另一名有审批权限的管理员输入 6 位动态码"
+            className={styles.control}
+          />
+        </label>
+      )}
       {this.state.hasMoreBindings && (
         <HGButtonPage
           onClick={() => this.loadBindings(this.state.nextBindingCursor)}

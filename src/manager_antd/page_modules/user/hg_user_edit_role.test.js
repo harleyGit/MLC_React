@@ -7,10 +7,12 @@ import { transformSync } from "@swc/core";
 import React from "react";
 
 const HGTestButton = () => null; // 只承载按钮的点击回调，不渲染真实 DOM。
+const HGTestTable = () => null; // 保存真实 HGTablePage 的 columns/dataSource 配置供断言，不渲染 DOM。
 
 /** 本地转换真实页面，替换请求与路由能力，不触达真实用户资料或授权服务。 */
-function hgEditRolePage(hgBindings, hgUpdates, hgGrants, hgPending = async () => ({ list: [], hasMore: false })) {
+function hgEditRolePage(hgBindings, hgUpdates, hgGrants, hgPending = async () => ({ list: [], hasMore: false }), hgDecide = async () => {}) {
   const hgModule = { exports: {} };
+  const hgMessages = { errors: [], successes: [] }; // 本地消息替身；仅用于检查失败/成功反馈，不收集验证码。
   const hgSource = readFileSync(new URL("./hg_user_edit_role_page.jsx", import.meta.url), "utf8");
   const hgCode = transformSync(hgSource, {
     filename: "hg_user_edit_role_page.jsx",
@@ -28,12 +30,13 @@ function hgEditRolePage(hgBindings, hgUpdates, hgGrants, hgPending = async () =>
       if (hgDependency.endsWith("hg_naviagion_hook")) return { WithNavigation: (hgPage) => hgPage };
       if (hgDependency.endsWith("hg_employee_role_vm")) return {
         INITIAL_BINDING_FORM: { userId: "", roleId: "", scopeType: "global", scopeId: "", expiresAt: "", mfaCode: "" },
-        default: { fetchBindings: hgBindings, fetchPendingGrants: hgPending, grant: hgGrants },
+        default: { fetchBindings: hgBindings, fetchPendingGrants: hgPending, grant: hgGrants, decideApproval: hgDecide },
         __esModule: true,
       };
       if (hgDependency.endsWith("hg_user_vm")) return { default: { updateUserByUserId: hgUpdates }, __esModule: true };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
-      if (hgDependency.endsWith("hg_message_page")) return { hgMessage: { error: () => {}, success: () => {} } };
+      if (hgDependency.endsWith("hg_table_page")) return { default: HGTestTable, __esModule: true };
+      if (hgDependency.endsWith("hg_message_page")) return { hgMessage: { error: (text) => hgMessages.errors.push(text), success: (text) => hgMessages.successes.push(text) } };
       if (hgDependency.endsWith(".module.css")) return { default: {}, __esModule: true };
       return { default: () => null, __esModule: true };
     },
@@ -43,6 +46,7 @@ function hgEditRolePage(hgBindings, hgUpdates, hgGrants, hgPending = async () =>
   hgPage.setState = (hgUpdate) => {
     hgPage.state = { ...hgPage.state, ...(typeof hgUpdate === "function" ? hgUpdate(hgPage.state) : hgUpdate) };
   };
+  hgPage.hgMessages = hgMessages;
   return hgPage;
 }
 
@@ -55,6 +59,22 @@ function hgButtons(hgNode, hgResult = []) {
     hgButtons(hgNode.props.children, hgResult);
   }
   return hgResult;
+}
+
+/** 从合并列表中取 HGTablePage 的真实行和列渲染结果，避免把按钮计数误当作业务行为。 */
+function hgTable(hgNode) {
+  if (Array.isArray(hgNode)) return hgNode.map(hgTable).find(Boolean);
+  if (!React.isValidElement(hgNode)) return null;
+  if (hgNode.type === HGTestTable) return hgNode;
+  return hgTable(hgNode.props.children);
+}
+
+function hgCell(hgNode, hgRowKey, hgTitle) {
+  const hgProps = hgTable(hgNode)?.props;
+  const hgRecord = hgProps?.dataSource.find((hgRow) => hgRow.hgRowKey === hgRowKey); // 唯一行 key 保留绑定/申请类型前缀。
+  const hgColumn = hgProps?.columns.find((hgCol) => hgCol.title === hgTitle); // 精确列标题；不存在时测试失败。
+  assert.ok(hgRecord && hgColumn, `找不到 ${hgRowKey} 的 ${hgTitle} 列`);
+  return hgColumn.render(hgRecord[hgColumn.dataIndex], hgRecord);
 }
 
 /** 定位回填角色 select，核对未加载到角色选项时仍有已授权角色的只读展示。 */
@@ -74,7 +94,12 @@ function hgRoleSelect(hgNode) {
 /** 从轻量 JSX 树读取可见文案，确认状态与申请编号不混淆。 */
 function hgText(hgNode) {
   if (Array.isArray(hgNode)) return hgNode.map(hgText).join(" ");
-  if (React.isValidElement(hgNode)) return hgText(hgNode.props.children);
+  if (React.isValidElement(hgNode)) {
+    if (hgNode.type === HGTestTable) return hgNode.props.dataSource.map((hgRow) =>
+      hgNode.props.columns.map((hgCol) => hgText(hgCol.render(hgRow[hgCol.dataIndex], hgRow))).join(" ")
+    ).join(" ");
+    return hgText(hgNode.props.children);
+  }
   return typeof hgNode === "string" || typeof hgNode === "number" ? String(hgNode) : "";
 }
 
@@ -97,9 +122,13 @@ test("查询到多条已授权绑定后逐条手动回填；保存资料不会�
   await Promise.resolve();
   assert.equal(hgPage.state.bindings.length, 2);
   assert.equal(hgPage.state.form.roleId, "");
-  const hgChoices = hgButtons(hgPage.renderBindings());
-  assert.equal(hgChoices.length, 4);
-  hgChoices[2].props.onClick();
+  const hgTableNode = hgTable(hgPage.renderBindings());
+  assert.equal(hgTableNode.props.rowKey, "hgRowKey");
+  assert.equal(hgTableNode.props.pagination, false);
+  assert.equal(hgTableNode.props.dataSource.length, 2);
+  const hgChoices = hgButtons(hgCell(hgPage.renderBindings(), "binding-binding-2", "操作"));
+  assert.equal(hgChoices.length, 2);
+  hgChoices[0].props.onClick();
   assert.equal(hgPage.state.form.roleId, "202");
   assert.equal(hgPage.state.form.scopeType, "shop");
   assert.equal(hgPage.state.form.scopeId, "shop-9");
@@ -153,7 +182,7 @@ test("切换查询用户后忽略旧用户授权响应", async () => {
   assert.equal(hgPage.state.form.userId, "staff-2");
 });
 
-test("待审批回执刷新后仍在合并列表，不能当作生效绑定撤销或回填", async () => {
+test("待审批回执刷新后仍在合并列表，仅有允许和拒绝而无撤销回填", async () => {
   let hgPending = [];
   const hgGrants = [];
   const hgFetchPending = async (hgUserId) => {
@@ -182,7 +211,11 @@ test("待审批回执刷新后仍在合并列表，不能当作生效绑定撤�
   assert.equal(hgPage.state.pendingGrants[0].approvalId, "5");
   assert.match(hgText(hgPage.renderBindings()), /待审批/);
   assert.match(hgText(hgPage.renderBindings()), /申请 #\s*5/);
-  assert.equal(hgButtons(hgPage.renderBindings()).length, 0);
+  const hgPendingActions = hgCell(hgPage.renderBindings(), "approval-5", "操作");
+  assert.equal(hgButtons(hgPendingActions).length, 2);
+  assert.match(hgText(hgPendingActions), /允许/);
+  assert.match(hgText(hgPendingActions), /拒绝/);
+  assert.doesNotMatch(hgText(hgPendingActions), /撤销|回填/);
   const hgReloaded = hgEditRolePage(async () => ({ list: [] }), async () => {}, async () => {}, hgFetchPending);
   hgReloaded.loadAssignments(); // 模拟重新进入页面：无本地回执时仍按目标 ID 查到申请。
   await hgFlush();
@@ -247,4 +280,90 @@ test("待审批查询失败必须显示错误，不能显示无授权空态", as
   await hgFlush();
   assert.match(hgText(hgPage.renderBindings()), /待审批角色查询失败/);
   assert.doesNotMatch(hgText(hgPage.renderBindings()), /暂无已授权或待审批角色/);
+});
+
+test("审批允许使用独立 MFA、只提交申请编号，成功后刷新为已授权", async () => {
+  let hgApproved = false;
+  const hgDecisions = [];
+  const hgPage = hgEditRolePage(
+    async () => ({ list: hgApproved ? [{ id: "binding-9", roleId: "11", roleCode: "viewer", scopeType: "global" }] : [] }),
+    async () => {}, async () => {},
+    async () => ({ list: hgApproved ? [] : [{ approvalId: "5", roleId: "11", scopeType: "global" }] }),
+    async (hgId, hgCode, hgApprove) => {
+      hgDecisions.push([hgId, hgCode, hgApprove]);
+      hgApproved = true;
+    }
+  );
+  hgPage.loadAssignments();
+  await hgFlush();
+  hgPage.setField("mfaCode", "654321"); // 申请人 MFA 不能充当审批验证码。
+  await hgPage.decideApproval(hgPage.state.pendingGrants[0], true);
+  assert.equal(hgDecisions.length, 0);
+  assert.match(hgPage.hgMessages.errors.at(-1), /审批人的 6 位 MFA/);
+  hgPage.setState({ approvalCode: "123456" });
+  await hgButtons(hgCell(hgPage.renderBindings(), "approval-5", "操作"))[0].props.onClick();
+  await hgFlush();
+  assert.deepEqual(hgDecisions, [["5", "123456", true]]);
+  assert.equal(hgPage.state.approvalCode, "");
+  assert.equal(hgPage.state.pendingGrants.length, 0);
+  assert.equal(hgPage.state.bindings[0].id, "binding-9");
+  assert.match(hgText(hgPage.renderBindings()), /已授权/);
+});
+
+test("拒绝不生效、同一申请只发送一次；失败时不伪造结果", async () => {
+  let hgResolveDecision;
+  const hgDecisions = [];
+  let hgRejected = false;
+  const hgPage = hgEditRolePage(
+    async () => ({ list: [] }), async () => {}, async () => {},
+    async () => ({ list: hgRejected ? [] : [{ approvalId: "5", roleId: "11", scopeType: "global" }] }),
+    (hgId, hgCode, hgApprove) => {
+      hgDecisions.push([hgId, hgCode, hgApprove]);
+      return new Promise((resolve) => { hgResolveDecision = resolve; });
+    }
+  );
+  hgPage.loadAssignments();
+  await hgFlush();
+  hgPage.setState({ approvalCode: "123456" });
+  const hgReject = hgPage.decideApproval(hgPage.state.pendingGrants[0], false);
+  await hgPage.decideApproval(hgPage.state.pendingGrants[0], true);
+  assert.deepEqual(hgDecisions, [["5", "123456", false]]);
+  assert.equal(hgPage.state.approvalCode, "");
+  assert.equal(hgButtons(hgCell(hgPage.renderBindings(), "approval-5", "操作"))[1].props.disabled, true);
+  hgRejected = true;
+  hgResolveDecision();
+  await hgReject;
+  await hgFlush();
+  assert.equal(hgPage.state.bindings.length, 0);
+  assert.equal(hgPage.state.pendingGrants.length, 0);
+
+  const hgFailed = hgEditRolePage(async () => ({ list: [] }), async () => {}, async () => {},
+    async () => ({ list: [{ approvalId: "6", roleId: "11", scopeType: "global" }] }),
+    async () => { throw new Error("审批权限不足"); });
+  hgFailed.loadAssignments();
+  await hgFlush();
+  hgFailed.setState({ approvalCode: "222222" });
+  await hgFailed.decideApproval(hgFailed.state.pendingGrants[0], true);
+  assert.equal(hgFailed.state.pendingGrants.length, 1);
+  assert.equal(hgFailed.state.bindings.length, 0);
+  assert.equal(hgFailed.state.approvalCode, "");
+  assert.match(hgFailed.hgMessages.errors.at(-1), /审批权限不足/);
+});
+
+test("裁决完成前切换用户时不刷新新用户列表，也不保留审批验证码", async () => {
+  let hgResolveDecision;
+  const hgPendingUsers = [];
+  const hgPage = hgEditRolePage(async () => ({ list: [] }), async () => {}, async () => {},
+    async (hgUserId) => { hgPendingUsers.push(hgUserId); return { list: [{ approvalId: "5", roleId: "11" }] }; },
+    () => new Promise((resolve) => { hgResolveDecision = resolve; }));
+  hgPage.loadAssignments();
+  await hgFlush();
+  hgPage.setState({ approvalCode: "123456" });
+  const hgDecision = hgPage.decideApproval(hgPage.state.pendingGrants[0], true);
+  hgPage.setField("userId", "staff-2");
+  assert.equal(hgPage.state.approvalCode, "");
+  hgResolveDecision();
+  await hgDecision;
+  assert.deepEqual(hgPendingUsers, ["staff-1"]);
+  assert.equal(hgPage.state.pendingGrants.length, 0);
 });

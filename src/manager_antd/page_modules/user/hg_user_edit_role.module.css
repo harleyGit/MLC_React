@@ -106,7 +106,20 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow-x: auto;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.approvalField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 440px;
 }
 
 .activeStatus {
@@ -129,26 +142,6 @@
   margin: 0 0 16px;
   color: var(--color-text-title, #0f2440);
   font-size: 16px;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.table th,
-.table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #eef1f7;
-  white-space: nowrap;
-  font-size: 14px;
-}
-
-.table th {
-  color: #7a859f;
-  font-weight: 600;
-  background: #f7f9fc;
 }
 
 .emptyText {
