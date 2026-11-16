@@ -8,6 +8,8 @@ export default class HGEmployeeRoleVM {
   static fetchRoles = (cursor = 0) => HGNet.get(HGMANAGER_API.IAM_ROLE_LIST, { cursor, pageSize: 100 });
   /** 按精确业务用户 ID 查询活动绑定。 */
   static fetchBindings = (userId, cursor = 0) => HGNet.get(HGMANAGER_API.IAM_BINDING_LIST, { userId: String(userId || "").trim(), cursor, pageSize: 20 });
+  /** 按目标业务用户 ID 查询待审批授权；申请编号不能当作绑定 ID。 */
+  static fetchPendingGrants = (userId, cursor = 0) => HGNet.get(HGMANAGER_API.IAM_BINDING_PENDING, { userId: String(userId || "").trim(), cursor, pageSize: 20 });
   /** 提交单个作用域授权审批申请；浏览器本地时间转换为 RFC3339。 */
   static grant = ({ userId, roleId, scopeType, scopeId, expiresAt, mfaCode }) => HGNet.post(HGMANAGER_API.IAM_BINDING_GRANT, {
     userId: String(userId || "").trim(), roleId: String(roleId || ""), scopeType,

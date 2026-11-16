@@ -101,11 +101,34 @@
   min-width: 0;
 }
 
-/* 活动绑定表格。 */
+/* 已生效绑定与待审批申请合并展示；状态用语义色区分。 */
 .bindingsWrap {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-x: auto;
+}
+
+.activeStatus {
+  color: var(--color-success, #16835d);
+  font-weight: 600;
+}
+
+.pendingStatus {
+  color: var(--color-warning, #c53225);
+  font-weight: 600;
+}
+
+.grantSection {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border, #d6e7f9);
+}
+
+.grantTitle {
+  margin: 0 0 16px;
+  color: var(--color-text-title, #0f2440);
+  font-size: 16px;
 }
 
 .table {
@@ -134,6 +157,19 @@
   text-align: center;
   padding: 16px 0;
   margin: 0;
+}
+
+.selectionNotice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border, #d6e7f9);
+  border-radius: 8px;
+  background: var(--color-info-soft, #eaf4ff);
+  color: var(--color-text, #172b4d);
 }
 
 /* 底部主提交栏：唯一提交按钮，右对齐。 */

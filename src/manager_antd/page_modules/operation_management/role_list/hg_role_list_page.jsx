@@ -555,6 +555,7 @@ class HGRoleListPage extends Component {
         <HGCardPage title="角色列表">
           {this.renderTip()}
           <HGTablePage
+            align="left"
             rowKey={(record) => record.id}
             columns={this.getColumns()}
             dataSource={data}

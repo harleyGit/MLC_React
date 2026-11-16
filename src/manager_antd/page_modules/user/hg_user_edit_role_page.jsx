@@ -1,7 +1,7 @@
 /*
  * 用户编辑与角色绑定独立页：由用户列表「编辑」按钮携带 user_id 跳转进入。
  * 职责：承接原 HGUserEditModal 的资料编辑表单，并承载自员工角色页迁入的
- * 授权查询（renderUserLookup）、授权申请（renderGrantForm）与活动绑定（renderBindings）。
+ * 授权查询（renderUserLookup）、授权申请（renderGrantForm）与合并角色列表（renderBindings）。
  * 约束：
  * - 路由参数 userId 为授权查询的初始管理员 ID；资料回填数据来自 location.state.user。
  * - 页面只有一个主提交按钮「保存」：保存资料后，若授权表单已选角色则一并提交授权审批。
@@ -30,6 +30,15 @@ const HG_GENDER_OPTIONS = [
 
 const HG_SIGNATURE_MAX_LENGTH = 200; // 签名输入上限；后端仍会做最终校验。
 
+/** 将服务端 RFC3339 失效时间转换为浏览器本地 datetime-local 值；空值表示长期有效。 */
+const hgBindingLocalDateTime = (expiresAt) => {
+  if (!expiresAt) return "";
+  const date = new Date(expiresAt); // 授权绑定的 UTC/RFC3339 时间；无效日期不回填表单。
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value) => String(value).padStart(2, "0"); // 日期及时间的本地两位字段。
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 class HGUserEditRolePage extends Component {
   constructor(props) {
     super(props);
@@ -39,6 +48,7 @@ class HGUserEditRolePage extends Component {
     const initialUserId = String(props.params?.userId ?? user.user_id ?? "").trim();
     this.hgMounted = false; // 页面挂载标记，阻止异步响应在卸载后写入敏感状态。
     this.hgBindingRequest = 0; // 员工授权查询序号，避免旧用户请求覆盖新用户结果。
+    this.hgPendingRequest = 0; // 待审批查询序号；切换用户/刷新后旧响应不可覆盖新用户。
     this.state = {
       user,
       // 资料编辑受控表单：空字符串表示用户未设置该项；仅手机号/邮箱变化时发送安全字段请求。
@@ -53,26 +63,34 @@ class HGUserEditRolePage extends Component {
       profileErrors: {}, // 资料表单字段级错误文案。
       saving: false, // 主提交按钮加载状态。
       form: { ...INITIAL_BINDING_FORM, userId: initialUserId }, // 当前授权申请表单，userId 由路由参数带入。
-      roles: [],
-      nextCursor: "",
-      hasMore: false, // 有界角色选择页及游标。
-      bindings: [],
-      nextBindingCursor: "",
-      hasMoreBindings: false, // 当前员工绑定页。
-      loading: false,
+      roles: [], // 可授予角色选项；空数组表示尚未加载或无角色。
+      nextCursor: "", // 角色选项下一页游标，空字符串表示无续页。
+      hasMore: false, // 角色选项是否仍有后续页。
+      bindings: [], // 当前查询用户已生效的授权绑定，非待审批申请。
+      nextBindingCursor: "", // 活动绑定续页游标；空字符串表示无续页。
+      hasMoreBindings: false, // 活动绑定是否仍有后续页。
+      pendingGrants: [], // 当前查询用户的未过期待审批授权；不会提供撤销绑定操作。
+      nextPendingCursor: "", // 待审批申请续页游标；空字符串表示无续页。
+      hasMorePending: false, // 待审批申请是否仍有后续页。
+      loading: false, // 活动绑定请求是否进行中。
+      pendingLoading: false, // 待审批请求是否进行中。
+      bindingError: "", // 活动绑定查询失败时的提示；空字符串表示无错误。
+      pendingError: "", // 待审批查询失败时的提示；空字符串表示无错误。
+      hgSelectedBindingId: "", // 当前回填查看的活动授权绑定 ID；空字符串表示新授权编辑模式。
     };
   }
 
-  /** 进入页面即加载角色选项；已带用户 ID 时同时拉取其活动绑定。 */
+  /** 进入页面加载角色选项；已带用户 ID 时同时拉取活动绑定及待审批申请。 */
   componentDidMount() {
     this.hgMounted = true;
     this.loadRoles(0);
-    if (this.state.form.userId) this.loadBindings(0);
+    if (this.state.form.userId) this.loadAssignments();
   }
 
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgBindingRequest += 1;
+    this.hgPendingRequest += 1;
   }
 
   /** 返回来源页；配合运维页选中态持久化，后退后停留在原「用户列表」子菜单。 */
@@ -86,10 +104,13 @@ class HGUserEditRolePage extends Component {
 
   /** 更新受控授权表单，作用域切回 global 时清空组织标识。 */
   setField = (field, value) => {
-    if (field === "userId") this.hgBindingRequest += 1;
+    if (field === "userId") {
+      this.hgBindingRequest += 1;
+      this.hgPendingRequest += 1;
+    }
     this.setState((previous) => ({
       form: {
-        ...previous.form,
+        ...(field === "userId" ? INITIAL_BINDING_FORM : previous.form),
         [field]: value,
         ...(field === "scopeType" && value === "global" ? { scopeId: "" } : {}),
       },
@@ -98,9 +119,39 @@ class HGUserEditRolePage extends Component {
             bindings: [],
             nextBindingCursor: "",
             hasMoreBindings: false,
+            pendingGrants: [],
+            nextPendingCursor: "",
+            hasMorePending: false,
             loading: false,
+            pendingLoading: false,
+            bindingError: "",
+            pendingError: "",
+            hgSelectedBindingId: "",
           }
         : {}),
+    }));
+  };
+
+  /** 手动查看一条已授权绑定；只回填展示字段，不预填 MFA，也不产生新的授权意图。 */
+  hgSelectBinding = (binding) => {
+    this.setState((previous) => ({
+      hgSelectedBindingId: String(binding.id),
+      form: {
+        ...previous.form,
+        roleId: String(binding.roleId),
+        scopeType: binding.scopeType,
+        scopeId: binding.scopeId || "",
+        expiresAt: hgBindingLocalDateTime(binding.expiresAt),
+        mfaCode: "",
+      },
+    }));
+  };
+
+  /** 退出已有授权查看，清除回填及 MFA 后才允许填写新的授权申请。 */
+  hgClearBindingSelection = () => {
+    this.setState((previous) => ({
+      hgSelectedBindingId: "",
+      form: { ...INITIAL_BINDING_FORM, userId: previous.form.userId },
     }));
   };
 
@@ -122,6 +173,17 @@ class HGUserEditRolePage extends Component {
       });
   };
 
+  /** 同时刷新两个来源；任一路失败时另一来源仍可独立展示，绝不将空响应伪装成成功。 */
+  loadAssignments = () => {
+    const userId = this.state.form.userId.trim(); // 输入的精确目标管理员 ID；空值不发请求。
+    if (!userId) {
+      message.error("请输入管理员用户 ID");
+      return;
+    }
+    this.loadBindings(0);
+    this.loadPendingGrants(0);
+  };
+
   /** 按输入的精确管理员业务 ID 加载当前活动绑定。 */
   loadBindings = (cursor = 0) => {
     const userId = this.state.form.userId.trim();
@@ -130,7 +192,7 @@ class HGUserEditRolePage extends Component {
       return;
     }
     const request = ++this.hgBindingRequest;
-    this.setState({ loading: true });
+    this.setState({ loading: true, bindingError: "", ...(cursor ? {} : { bindings: [], nextBindingCursor: "", hasMoreBindings: false }) });
     HGEmployeeRoleVM.fetchBindings(userId, cursor)
       .then((result) => {
         if (
@@ -145,15 +207,47 @@ class HGUserEditRolePage extends Component {
             : result?.list || [],
           nextBindingCursor: result?.nextCursor || "",
           hasMoreBindings: Boolean(result?.hasMore),
+          ...(cursor || !previous.hgSelectedBindingId ? {} : {
+            hgSelectedBindingId: "",
+            form: { ...INITIAL_BINDING_FORM, userId: previous.form.userId },
+          }),
         }));
       })
       .catch(() => {
-        if (this.hgMounted && request === this.hgBindingRequest)
+        if (this.hgMounted && request === this.hgBindingRequest) {
+          this.setState({ bindingError: "已授权角色查询失败，请重试" });
           message.error("授权查询失败");
+        }
       })
       .finally(() => {
         if (this.hgMounted && request === this.hgBindingRequest)
           this.setState({ loading: false });
+      });
+  };
+
+  /** 按目标管理员查询未过期的待审批申请；游标与活动绑定分别管理。 */
+  loadPendingGrants = (cursor = 0) => {
+    const userId = this.state.form.userId.trim(); // 查询当时目标 ID；完成前切换用户则忽略响应。
+    if (!userId) return;
+    const request = ++this.hgPendingRequest; // 每次分页/刷新递增，拒绝覆盖更新结果的旧响应。
+    this.setState({ pendingLoading: true, pendingError: "", ...(cursor ? {} : { pendingGrants: [], nextPendingCursor: "", hasMorePending: false }) });
+    HGEmployeeRoleVM.fetchPendingGrants(userId, cursor)
+      .then((result) => {
+        if (!this.hgMounted || request !== this.hgPendingRequest || userId !== this.state.form.userId.trim()) return;
+        this.setState((previous) => ({
+          pendingGrants: cursor ? [...previous.pendingGrants, ...(result?.list || [])] : result?.list || [],
+          nextPendingCursor: result?.nextCursor || "",
+          hasMorePending: Boolean(result?.hasMore),
+        }));
+      })
+      .catch(() => {
+        if (this.hgMounted && request === this.hgPendingRequest) {
+          this.setState({ pendingError: "待审批角色查询失败，请重试" });
+          message.error("待审批角色查询失败");
+        }
+      })
+      .finally(() => {
+        if (this.hgMounted && request === this.hgPendingRequest) this.setState({ pendingLoading: false });
       });
   };
 
@@ -162,7 +256,7 @@ class HGUserEditRolePage extends Component {
     HGEmployeeRoleVM.revoke(this.state.form.userId, bindingId)
       .then(() => {
         message.success("授权已撤销");
-        this.loadBindings();
+        this.loadAssignments();
       })
       .catch((error) => message.error(error?.message || "撤销失败"));
   };
@@ -209,9 +303,27 @@ class HGUserEditRolePage extends Component {
 
   /** 校验授权表单；仅当已选择角色时才要求完整作用域与 MFA。 */
   validateGrant = () => {
-    const { form } = this.state;
+    const { form, hgSelectedBindingId, bindings, pendingGrants } = this.state;
+    // 查看已有授权不代表申请；只保存资料时不应再次触发授权或 MFA 校验。
+    if (hgSelectedBindingId) return { valid: true, skip: true };
     // 未选择角色视为本次不授予角色，跳过授权校验。
     if (!form.roleId) return { valid: true, skip: true };
+    if (bindings.some((binding) =>
+      String(binding.roleId) === form.roleId &&
+      binding.scopeType === form.scopeType &&
+      (binding.scopeId || "") === (form.scopeId || "")
+    )) {
+      message.error("该角色在当前作用域已授权，请勿重复申请");
+      return { valid: false };
+    }
+    if (pendingGrants.some((grant) =>
+      String(grant.roleId) === form.roleId &&
+      grant.scopeType === form.scopeType &&
+      (grant.scopeId || "") === (form.scopeId || "")
+    )) {
+      message.error("该角色在当前作用域已有待审批申请");
+      return { valid: false };
+    }
     if (form.scopeType !== "global" && !form.scopeId.trim()) {
       message.error("请填写组织作用域 ID");
       return { valid: false };
@@ -255,9 +367,14 @@ class HGUserEditRolePage extends Component {
       if (this.hgMounted) message.success("用户资料已更新");
 
       if (!grantCheck.skip) {
-        await HGEmployeeRoleVM.grant(form);
-        if (this.hgMounted) message.success("授权申请已提交，请等待审批");
-        this.setField("mfaCode", "");
+        const approval = await HGEmployeeRoleVM.grant(form); // 回执 approvalId 仅是申请单号，不是生效授权 ID。
+        if (this.hgMounted) {
+          message.success(`授权申请${approval?.approvalId ? ` #${approval.approvalId}` : ""}已提交，等待另一名管理员审批`);
+          if (this.state.form.userId.trim() === form.userId.trim()) {
+            this.setState((previous) => ({ form: { ...INITIAL_BINDING_FORM, userId: previous.form.userId } }));
+            this.loadAssignments();
+          }
+        }
       }
     } catch (error) {
       if (this.hgMounted) handleError(error);
@@ -368,9 +485,9 @@ class HGUserEditRolePage extends Component {
     );
   };
 
-  /** 渲染授权查询区块：管理员 ID 由编辑入口带入，可手动修正后重新查询。 */
+  /** 合并角色区块：管理员 ID 由编辑入口带入，可手动修正后重新查询。 */
   renderUserLookup = () => (
-    <HGCardPage title="已授权角色" className={styles.card}>
+    <HGCardPage title="角色授权（已授权与待审批）" className={styles.card}>
       <div className={styles.inlineRow}>
         <HGInputPage
           id="hg-iam-user-id"
@@ -380,31 +497,35 @@ class HGUserEditRolePage extends Component {
           className={styles.inlineInput}
         />
         <HGButtonPage
-          onClick={() => this.loadBindings(0)}
-          loading={this.state.loading}
+          onClick={this.loadAssignments}
+          loading={this.state.loading || this.state.pendingLoading}
         >
-          查询已授权角色
+          查询角色授权
         </HGButtonPage>
       </div>
       {this.renderBindings()}
+      {this.renderGrantForm()}
     </HGCardPage>
   );
 
-  /** 渲染当前活动授权列表：展示绑定明细并支持精确撤销。 */
-  renderBindings = () => (
-    <div className={styles.bindingsWrap}>
+  /** 同表展示生效绑定与待审批申请；两类记录分别分页，只有生效绑定可撤销、查看回填。 */
+  renderBindings = () => {
+    const { bindings, pendingGrants, roles } = this.state;
+    const roleNames = new Map(roles.map((role) => [String(role.id), role.name || role.code])); // 待审批项使用当前已加载角色名，未加载时用角色 ID，不额外发 N+1 请求。
+    return <div className={styles.bindingsWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
             <th>角色</th>
             <th>作用域</th>
             <th>失效时间</th>
+            <th>状态</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
           {this.state.bindings.map((binding) => (
-            <tr key={binding.id}>
+            <tr key={`binding-${binding.id}`}>
               <td>{binding.roleCode}</td>
               <td>
                 {binding.scopeType}
@@ -415,7 +536,9 @@ class HGUserEditRolePage extends Component {
                   ? new Date(binding.expiresAt).toLocaleString()
                   : "长期"}
               </td>
+              <td><span className={styles.activeStatus}>已授权</span></td>
               <td>
+                <HGButtonPage type="link" onClick={() => this.hgSelectBinding(binding)}>查看回填</HGButtonPage>
                 <HGButtonPage
                   type="link"
                   danger
@@ -427,24 +550,52 @@ class HGUserEditRolePage extends Component {
               </td>
             </tr>
           ))}
+          {pendingGrants.map((grant) => (
+            <tr key={`approval-${grant.approvalId}`}>
+              <td>{roleNames.get(String(grant.roleId)) || `角色 #${grant.roleId}`}</td>
+              <td>{grant.scopeType}{grant.scopeId ? ` / ${grant.scopeId}` : ""}</td>
+              <td>{grant.expiresAt ? new Date(grant.expiresAt).toLocaleString() : "长期（审批后）"}</td>
+              <td><span className={styles.pendingStatus}>待审批</span></td>
+              <td>申请 #{grant.approvalId} · 等待其他管理员审批</td>
+            </tr>
+          ))}
         </tbody>
       </table>
       {this.state.hasMoreBindings && (
         <HGButtonPage
           onClick={() => this.loadBindings(this.state.nextBindingCursor)}
+          disabled={this.state.loading}
         >
           加载更多授权
         </HGButtonPage>
       )}
-      {this.state.bindings.length === 0 && <p className={styles.emptyText}>暂无活动授权</p>}
+      {this.state.hasMorePending && (
+        <HGButtonPage onClick={() => this.loadPendingGrants(this.state.nextPendingCursor)} disabled={this.state.pendingLoading}>
+          加载更多待审批
+        </HGButtonPage>
+      )}
+      {this.state.bindingError && <p role="alert" className={styles.errorText}>{this.state.bindingError}</p>}
+      {this.state.pendingError && <p role="alert" className={styles.errorText}>{this.state.pendingError}</p>}
+      {!this.state.loading && !this.state.pendingLoading && !this.state.bindingError && !this.state.pendingError && bindings.length === 0 && pendingGrants.length === 0 && (
+        <p className={styles.emptyText}>暂无已授权或待审批角色</p>
+      )}
     </div>
-  );
+  };
 
   /** 渲染授权申请表单：角色、作用域、失效时间与申请人 MFA 验证码。 */
   renderGrantForm = () => {
-    const { form, roles, nextCursor, hasMore } = this.state;
+    const { form, roles, nextCursor, hasMore, bindings, hgSelectedBindingId } = this.state;
+    const selectedBinding = bindings.find((binding) => String(binding.id) === hgSelectedBindingId); // 当前查看的活动授权；未选中为 undefined。
+    const selectedRoleInOptions = roles.some((role) => String(role.id) === form.roleId); // 已授权角色不在当前角色页时补只读选项。
     return (
-      <HGCardPage title="授予新角色" className={styles.card}>
+      <section className={styles.grantSection} aria-label="授予新角色">
+        <h3 className={styles.grantTitle}>授予新角色</h3>
+        {hgSelectedBindingId && (
+          <div className={styles.selectionNotice}>
+            <span>当前仅查看已有授权；点击“保存”只保存资料，不会重复授予角色。</span>
+            <HGButtonPage onClick={this.hgClearBindingSelection}>退出查看，申请新授权</HGButtonPage>
+          </div>
+        )}
         <div className={styles.formGrid}>
           <label className={styles.field}>
             <span className={styles.label}>授予角色</span>
@@ -453,8 +604,12 @@ class HGUserEditRolePage extends Component {
               value={form.roleId}
               onChange={(event) => this.setField("roleId", event.target.value)}
               className={styles.control}
+              disabled={Boolean(hgSelectedBindingId)}
             >
               <option value="">不授予角色（仅保存资料）</option>
+              {selectedBinding && !selectedRoleInOptions && (
+                <option value={form.roleId}>{selectedBinding.roleCode}（已授权角色）</option>
+              )}
               {roles.map((role) => (
                 <option key={role.id} value={String(role.id)}>
                   {role.name}（{role.code}）
@@ -474,6 +629,7 @@ class HGUserEditRolePage extends Component {
               value={form.scopeType}
               onChange={(event) => this.setField("scopeType", event.target.value)}
               className={styles.control}
+              disabled={Boolean(hgSelectedBindingId)}
             >
               <option value="global">全局</option>
               <option value="shop">店铺</option>
@@ -487,6 +643,7 @@ class HGUserEditRolePage extends Component {
                 value={form.scopeId}
                 onChange={(event) => this.setField("scopeId", event.target.value)}
                 placeholder="已登记的店铺/组织 ID"
+                disabled={Boolean(hgSelectedBindingId)}
               />
             </label>
           )}
@@ -498,6 +655,7 @@ class HGUserEditRolePage extends Component {
               value={form.expiresAt}
               onChange={(event) => this.setField("expiresAt", event.target.value)}
               className={styles.control}
+              disabled={Boolean(hgSelectedBindingId)}
             />
           </label>
           <label className={styles.field}>
@@ -512,10 +670,11 @@ class HGUserEditRolePage extends Component {
               onChange={(event) => this.setField("mfaCode", event.target.value)}
               placeholder="授予角色时必填，6 位动态码"
               className={styles.control}
+              disabled={Boolean(hgSelectedBindingId)}
             />
           </label>
         </div>
-      </HGCardPage>
+      </section>
     );
   };
 
@@ -531,7 +690,6 @@ class HGUserEditRolePage extends Component {
           }
         />
         {this.renderProfileForm()}
-        {this.renderGrantForm()}
         {this.renderUserLookup()}
         <div className={styles.footerBar}>
           <HGButtonPage type="primary" loading={saving} onClick={this.handleSubmit}>
