@@ -6,6 +6,8 @@ export const INITIAL_BINDING_FORM = { userId: "", roleId: "", scopeType: "global
 export default class HGEmployeeRoleVM {
   /** 有界游标加载角色选择项。 */
   static fetchRoles = (cursor = 0) => HGNet.get(HGMANAGER_API.IAM_ROLE_LIST, { cursor, pageSize: 100 });
+  /** 读取指定角色的权限目录与已生效权限；仅供授权表单查看，不修改角色权限。 */
+  static fetchRolePermissions = (roleId) => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
   /** 按精确业务用户 ID 查询活动绑定。 */
   static fetchBindings = (userId, cursor = 0) => HGNet.get(HGMANAGER_API.IAM_BINDING_LIST, { userId: String(userId || "").trim(), cursor, pageSize: 20 });
   /** 按目标业务用户 ID 查询待审批授权；申请编号不能当作绑定 ID。 */

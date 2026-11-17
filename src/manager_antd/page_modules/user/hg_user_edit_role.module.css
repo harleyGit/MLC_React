@@ -1,4 +1,4 @@
-/* 用户编辑与角色绑定独立页样式：全屏宽度、卡片分区、现代配色。 */
+/* 用户资料编辑页样式。 */
 .pageContainer {
   width: 100%;
   display: flex;
@@ -10,7 +10,7 @@
   width: 100%;
 }
 
-/* 资料与授权表单：两列自适应栅格，窄屏自动退化为单列。 */
+/* 资料表单：两列自适应栅格，窄屏自动退化为单列。 */
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -86,83 +86,6 @@
   color: var(--hg-color-text-secondary, #8b95a9);
   font-size: 12px;
   line-height: 1.5;
-}
-
-/* 授权查询：输入框 + 查询按钮同行。 */
-.inlineRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.inlineInput {
-  flex: 1;
-  min-width: 0;
-}
-
-/* 已生效绑定与待审批申请合并展示；状态用语义色区分。 */
-.bindingsWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.rowActions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.approvalField {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 440px;
-}
-
-.activeStatus {
-  color: var(--color-success, #16835d);
-  font-weight: 600;
-}
-
-.pendingStatus {
-  color: var(--color-warning, #c53225);
-  font-weight: 600;
-}
-
-.grantSection {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border, #d6e7f9);
-}
-
-.grantTitle {
-  margin: 0 0 16px;
-  color: var(--color-text-title, #0f2440);
-  font-size: 16px;
-}
-
-.emptyText {
-  color: #a0a9bf;
-  font-size: 14px;
-  text-align: center;
-  padding: 16px 0;
-  margin: 0;
-}
-
-.selectionNotice {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid var(--color-border, #d6e7f9);
-  border-radius: 8px;
-  background: var(--color-info-soft, #eaf4ff);
-  color: var(--color-text, #172b4d);
 }
 
 /* 底部主提交栏：唯一提交按钮，右对齐。 */
