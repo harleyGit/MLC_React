@@ -88,6 +88,26 @@
   line-height: 1.5;
 }
 
+/* 即时授权表格横向滚动，不挤压窄屏资料表单；色彩沿用页面主题变量。 */
+.roleToolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.roleTable {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.roleHint {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* 底部主提交栏：唯一提交按钮，右对齐。 */
 .footerBar {
   display: flex;
