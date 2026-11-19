@@ -15,7 +15,8 @@ import hgWalletDevPlugin from "./hg_wallet_dev.js";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: "./",
+  // BrowserRouter 使用站点根路径；深层网址直达时资源也必须从根路径加载。
+  base: "/",
   plugins: [react(), domainDetectMiddleware(), hgWalletDevPlugin()],
   server: {
     host: "0.0.0.0",
@@ -76,11 +77,6 @@ export default defineConfig({
       },
 
       "/user": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
-
-      "/profile": {
         target: "http://localhost:8080",
         changeOrigin: true,
       },
