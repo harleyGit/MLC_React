@@ -14,7 +14,7 @@ function hgRoleVM(hgGet, hgPost = async () => ({ granted: true })) {
   runInNewContext(hgCode, {
     module: hgModule, exports: hgModule.exports,
     require: (hgDependency) => hgDependency.endsWith("hg_api_constants")
-      ? { HGMANAGER_API: { IAM_ROLE_LIST: "/roles/list", IAM_BINDING_LIST: "/bindings/list", IAM_PERMISSION_LIST: "/permissions/list", IAM_BINDING_GRANT_DIRECT: "/bindings/grant-direct" } }
+       ? { HGMANAGER_API: { IAM_ROLE_LIST: "/roles/list", IAM_BINDING_LIST: "/bindings/list", IAM_PERMISSION_LIST: "/permissions/list", IAM_SCOPE_TYPE_LIST: "/scope-types/list", IAM_BINDING_GRANT_DIRECT: "/bindings/grant-direct", IAM_BINDING_GRANT_DIRECT_BATCH: "/bindings/grant-direct-batch" } }
       : { default: { get: hgGet, post: hgPost }, __esModule: true },
   });
   return hgModule.exports.default;
@@ -32,6 +32,17 @@ test("角色目录最多聚合五页，异常游标不循环请求", async () =>
   assert.deepEqual(hgCursors, [0, 1, 2, 3, 4]);
   const hgInvalid = hgRoleVM(async () => ({ list: [{ id: "1" }], hasMore: true, nextCursor: 0 }));
   await assert.rejects(hgInvalid.fetchAllRoles(), /游标无效/);
+});
+
+test("作用域目录来自服务端且批量授权只提交选定绑定与一次 MFA", async () => {
+  const hgCalls = []; // 不记录验证码内容，只断言其长度。
+  const hgVM = hgRoleVM(async (url, params) => { hgCalls.push([url, params.pageSize]); return { list: [{ code: "shop", status: 1 }] }; }, async (url, payload) => {
+    hgCalls.push([url, payload.userId, payload.bindings.length, payload.mfaCode.length, Object.hasOwn(payload, "permissions")]);
+    return { granted: true };
+  });
+  assert.equal((await hgVM.fetchScopeTypes()).list[0].code, "shop");
+  await hgVM.grantDirectBatch({ userId: "target-1", bindings: [{ roleId: "7", scopeType: "shop", scopeId: "shop-1" }, { roleId: "8", scopeType: "shop", scopeId: "shop-1" }], mfaCode: "123456" });
+  assert.deepEqual(hgCalls, [["/scope-types/list", 50], ["/bindings/grant-direct-batch", "target-1", 2, 6, false]]);
 });
 
 test("即时授权仅提交既有角色及绑定作用域；不提交客户端查看的权限编码", async () => {

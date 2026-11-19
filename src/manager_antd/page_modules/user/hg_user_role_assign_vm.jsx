@@ -25,6 +25,14 @@ export default class HGUserRoleAssignVM {
   /** 返回服务端角色权限目录和 selected；页面只读展示，不传权限码给授权接口。 */
   static fetchRolePermissions = (roleId) => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
 
+  /** 字典包含停用类型；授权页只能从活动类型中选择，并由服务端再次验证。 */
+  static fetchScopeTypes = () => HGNet.get(HGMANAGER_API.IAM_SCOPE_TYPE_LIST, { pageSize: 50, cursor: 0 });
+
+  /** 所有绑定在同一事务和一次 MFA 中提交；客户端只传角色/作用域，不提交权限码。 */
+  static grantDirectBatch = ({ userId, bindings, mfaCode }) => HGNet.post(HGMANAGER_API.IAM_BINDING_GRANT_DIRECT_BATCH, {
+    userId, bindings, mfaCode: mfaCode.trim(),
+  });
+
   /** 即时授予需服务端专门权限、本人 MFA、禁止自授及权限委派校验，成功后立即生效。 */
   static grantDirect = ({ userId, roleId, scopeType, scopeId, mfaCode }) =>
     HGNet.post(HGMANAGER_API.IAM_BINDING_GRANT_DIRECT, {

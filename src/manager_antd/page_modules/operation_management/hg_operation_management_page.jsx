@@ -44,6 +44,7 @@ const HGRoleCreatePage = lazy(() =>
   import("./role_create/hg_role_create_page")
 );
 const HGRoleListPage = lazy(() => import("./role_list/hg_role_list_page"));
+const HGScopeTypePage = lazy(() => import("./scope_type/hg_scope_type_page"));
 const HGSmsTemplatePage = lazy(() =>
   import("./sms_template/hg_sms_template_page")
 );
@@ -232,6 +233,7 @@ const PAGE_MAP = {
   user_permission: HGEmployeeRolePage,
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
   role_list: HGRoleListPage, //角色列表
+  role_scope_type: HGScopeTypePage,
   role_employee: HGEmployeeRolePage,
   // 创建角色页已从左侧菜单收敛为角色列表页头按钮入口；此处保留映射供 onMenuSelect("role_create") 渲染。
   role_create: HGRoleCreatePage,

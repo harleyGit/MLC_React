@@ -145,12 +145,18 @@ export const HGMANAGER_API = {
   IAM_ROLE_LIST: "/api/v1/iam/roles/list", // IAM 角色游标列表
   IAM_ROLE_UPDATE: "/api/v1/iam/roles/update", // 更新 IAM 角色
   IAM_ROLE_DISABLE: "/api/v1/iam/roles/disable", // 停用 IAM 角色
+  IAM_SCOPE_TYPE_LIST: "/api/v1/iam/scope-types/list", // 含未启用项的作用域类型字典
+  IAM_SCOPE_TYPE_DETAIL: "/api/v1/iam/scope-types/detail", // 按编码读取编辑回填
+  IAM_SCOPE_TYPE_CREATE: "/api/v1/iam/scope-types", // 创建默认停用的类型
+  IAM_SCOPE_TYPE_UPDATE: "/api/v1/iam/scope-types/update", // 更新类型显示信息
+  IAM_SCOPE_TYPE_DISABLE: "/api/v1/iam/scope-types/disable", // 有引用时拒绝停用
   IAM_PERMISSION_LIST: "/api/v1/iam/permissions/list", // IAM 权限目录
   IAM_ROLE_PERMISSIONS: "/api/v1/iam/roles/permissions", // 替换自定义角色权限
   IAM_BINDING_LIST: "/api/v1/iam/bindings/list", // 员工角色绑定
   IAM_BINDING_PENDING: "/api/v1/iam/bindings/pending", // 按目标员工查询待审批授权，非活动绑定
   IAM_BINDING_GRANT: "/api/v1/iam/bindings/grant", // 授予员工角色
   IAM_BINDING_GRANT_DIRECT: "/api/v1/iam/bindings/grant-direct", // 专门权限 + MFA：为其他现存用户即时授予非超管角色
+  IAM_BINDING_GRANT_DIRECT_BATCH: "/api/v1/iam/bindings/grant-direct-batch", // 一次 MFA 原子授予最多 12 个绑定
   IAM_BINDING_REVOKE: "/api/v1/iam/bindings/revoke", // 撤销员工角色
   IAM_MFA_ENROLL: "/api/v1/iam/mfa/enroll", // 复核密码后绑定 TOTP
   IAM_MFA_CONFIRM: "/api/v1/iam/mfa/confirm", // 激活 TOTP

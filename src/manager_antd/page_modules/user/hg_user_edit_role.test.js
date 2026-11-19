@@ -28,7 +28,9 @@ function hgUserEditPage(hgUpdate, hgRoleVM = {}) {
       if (hgDependency.endsWith("HttpManagerV1")) return { handleError: (error) => { throw error; } };
       if (hgDependency.endsWith("hg_naviagion_hook")) return { WithNavigation: (hgPage) => hgPage };
       if (hgDependency.endsWith("hg_user_vm")) return { default: { updateUserByUserId: hgUpdate }, __esModule: true };
-      if (hgDependency.endsWith("hg_user_role_assign_vm")) return { default: hgRoleVM, __esModule: true };
+      if (hgDependency.endsWith("hg_user_role_assign_vm")) return { default: { fetchScopeTypes: async () => ({ list: [
+        { code: "global", name: "平台全局", status: 1 }, { code: "shop", name: "店铺", status: 1 }, { code: "org", name: "组织", status: 1 },
+      ], hasMore: false }), ...hgRoleVM }, __esModule: true };
       if (hgDependency.endsWith("hg_message_page")) return { hgMessage: { success: (text) => hgMessages.push(text), error: (text) => hgMessages.push(text) } };
       if (hgDependency.endsWith("hg_table_page")) return { default: HGTestTable, __esModule: true };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
@@ -85,7 +87,7 @@ test("先读取有界角色目录再按路由 user_id 查询绑定；无绑定�
   assert.equal(hgTable.props.dataSource[0].hgIsNew, true);
 });
 
-test("选择角色联动只读业务权限与作用域，保存时仅提交角色绑定并刷新生效记录", async () => {
+test("多选角色联动只读业务权限，一次 MFA 原子提交并刷新生效记录", async () => {
   const hgRequests = []; // 不保留 MFA 明文，只记录目标、角色及作用域。
   let hgActive = false; // 模拟服务端授权前后活动绑定变化。
   const { hgPage, hgMessages } = hgUserEditPage(async () => { throw new Error("角色授权不应写用户资料"); }, {
@@ -94,8 +96,8 @@ test("选择角色联动只读业务权限与作用域，保存时仅提交角�
     fetchRolePermissions: async () => ({ list: [
       { code: "mall:product:create", description: "创建商品" }, { code: "iam:role:grant", description: "授予角色" },
     ], selected: ["mall:product:create"] }),
-    grantDirect: async (hgForm) => {
-      hgRequests.push([hgForm.userId, hgForm.roleId, hgForm.scopeType, hgForm.scopeId]);
+    grantDirectBatch: async (hgForm) => {
+      hgRequests.push([hgForm.userId, hgForm.bindings]);
       hgActive = true;
       return { granted: true };
     },
@@ -105,13 +107,14 @@ test("选择角色联动只读业务权限与作用域，保存时仅提交角�
   hgPage.hgToggleAssignRow();
   const hgRoleColumn = hgFindTable(hgPage.renderRoleAssignment()).props.columns.find((item) => item.title === "角色");
   const hgNew = hgFindTable(hgPage.renderRoleAssignment()).props.dataSource[0];
-  hgRoleColumn.render(null, hgNew).props.onChange({ target: { value: "7" } });
+  hgRoleColumn.render(null, hgNew).props.children.props.onChange(["7"]);
   await hgFlush();
-  assert.deepEqual(hgPage.state.hgPermissions.map((item) => item.code), ["mall:product:create"]);
-  hgPage.setState({ hgScopeType: "shop", hgScopeId: "shop-1", hgMFACode: "123456" });
+  assert.equal(hgPage.state.hgPermissions.map((item) => item.code).join(","), "mall:product:create");
+  hgPage.hgSelectScopeTypes(["shop"]);
+  hgPage.setState({ hgScopeIDs: { shop: "shop-1" }, hgMFACode: "123456" });
   await hgPage.hgSubmitRole();
   await hgFlush();
-  assert.deepEqual(hgRequests, [["route-7", "7", "shop", "shop-1"]]);
+  assert.equal(JSON.stringify(hgRequests), JSON.stringify([["route-7", [{ roleId: "7", scopeType: "shop", scopeId: "shop-1" }]]]));
   assert.ok(hgMessages.includes("角色已立即生效"));
   assert.equal(hgPage.state.hgMFACode, "");
   assert.equal(hgPage.state.hgShowAssignRow, false);
@@ -125,23 +128,24 @@ test("切换角色时拒绝过期权限响应，重复授权或无效 MFA 不发
     fetchAllRoles: async () => ({ list: [{ id: "7" }, { id: "8" }], truncated: false }),
     fetchBindings: async () => ({ list: [{ id: "18", roleId: "8", scopeType: "global", scopeId: "" }] }),
     fetchRolePermissions: (hgRoleId) => new Promise((resolve) => { hgResolvers.set(hgRoleId, resolve); }),
-    grantDirect: async () => { hgWrites += 1; return { granted: true }; },
+    grantDirectBatch: async () => { hgWrites += 1; return { granted: true }; },
   });
   await hgPage.hgLoadRolesAndBindings();
   await hgFlush();
   hgPage.hgToggleAssignRow();
-  hgPage.hgSelectRole("7", true);
-  hgPage.hgSelectRole("8", true);
+  hgPage.hgSelectRoles(["7"]);
+  hgPage.hgSelectRoles(["8"]);
   hgResolvers.get("7")({ list: [{ code: "iam:role:grant" }], selected: ["iam:role:grant"] });
   await hgFlush();
   assert.equal(hgPage.state.hgPermissions.length, 0);
   hgResolvers.get("8")({ list: [{ code: "mall:product:create" }], selected: ["mall:product:create"] });
   await hgFlush();
+  hgPage.hgSelectScopeTypes(["global"]);
   hgPage.setState({ hgMFACode: "123456" });
   await hgPage.hgSubmitRole();
   assert.equal(hgWrites, 0);
-  assert.ok(hgMessages.includes("该角色在此作用域已生效"));
-  hgPage.hgSelectRole("7", true);
+  assert.ok(hgMessages.includes("选中的角色与作用域中存在已生效绑定"));
+  hgPage.hgSelectRoles(["7"]);
   hgResolvers.get("7")({ list: [], selected: [] });
   await hgFlush();
   hgPage.setState({ hgMFACode: "123" });
@@ -188,11 +192,32 @@ test("角色目录重复加载时忽略较早响应，分配期间已有绑定�
   await hgOldRequest;
   assert.deepEqual(hgPage.state.hgRoles.map((role) => role.id), ["7"]);
   hgPage.hgToggleAssignRow();
-  hgPage.hgSelectRole("7", true);
+  hgPage.hgSelectRoles(["7"]);
   await hgFlush();
   const hgTable = hgFindTable(hgPage.renderRoleAssignment());
   const hgExisting = hgTable.props.dataSource.find((item) => !item.hgIsNew);
   const hgPermissionColumn = hgTable.props.columns.find((item) => item.title.startsWith("业务权限"));
   assert.equal(hgPermissionColumn.render(null, hgExisting).props.children, "分配完成后可查看");
   assert.equal(hgPage.state.hgPermissionRoleId, "7");
+});
+
+test("两个角色与两个作用域仅提交一次 MFA，权限只读取服务端并集", async () => {
+  const hgCalls = []; // 只记录请求数量与绑定组合，不保留验证码。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", code: "reviewer" }, { id: "8", code: "operator" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchRolePermissions: async (id) => ({ list: [{ code: `test:permission:${id}` }], selected: [`test:permission:${id}`] }),
+    grantDirectBatch: async (payload) => { hgCalls.push({ count: payload.bindings.length, types: payload.bindings.map((item) => item.scopeType), otpLength: payload.mfaCode.length }); return { granted: true }; },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgToggleAssignRow();
+  hgPage.hgSelectRoles(["7", "8"]);
+  await hgFlush();
+  assert.equal(hgPage.state.hgPermissions.length, 2);
+  hgPage.hgSelectScopeTypes(["global", "shop"]);
+  hgPage.setState({ hgScopeIDs: { shop: "shop-1" }, hgMFACode: "123456" });
+  await hgPage.hgSubmitRole();
+  assert.equal(JSON.stringify(hgCalls), JSON.stringify([{ count: 4, types: ["global", "shop", "global", "shop"], otpLength: 6 }]));
+  assert.equal(hgPage.state.hgMFACode, "");
 });
