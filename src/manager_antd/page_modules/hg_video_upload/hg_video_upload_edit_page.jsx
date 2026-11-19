@@ -42,6 +42,8 @@ class HGVideoUploadEditPage extends React.Component {
    * 约束：没有视频时保持空态，避免页面报错。
    */
   componentDidMount() {
+    // 尚未完成的本地文件不能只凭 URL 恢复；刷新前由浏览器提示离开风险。
+    window.addEventListener("beforeunload", this.handleBeforeUnload);
     const { videos } = this.state;
     if (videos.length === 0) {
       this.setState({ tips: "未找到已选择的视频，请返回投稿页重新上传。" });
@@ -64,10 +66,18 @@ class HGVideoUploadEditPage extends React.Component {
    * 生命周期卸载：释放所有视频预览 Object URL。
    */
   componentWillUnmount() {
+    window.removeEventListener("beforeunload", this.handleBeforeUnload);
     Object.values(this.previewUrls).forEach((url) => {
       URL.revokeObjectURL(url);
     });
   }
+
+  /** 未完成的视频仅在本次页面会话可用；刷新时提醒重新选择文件的风险。 */
+  handleBeforeUnload = (event) => {
+    if (!this.state.videos.some((video) => video.status !== "completed")) return;
+    event.preventDefault();
+    event.returnValue = "";
+  };
 
   /**
    * 逐个上传视频文件，保持同一 submissionId 以支持多 P 投稿。

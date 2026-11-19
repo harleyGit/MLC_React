@@ -10,7 +10,7 @@ import React, { Component } from "react";
 // import { handleError } from "../../api/HttpManagerV1";
 import { handleError } from "../../../api/HttpManagerV1";
 import { showSuccess } from "../../../api/hg_ui_feedback";
-import { LogError, LogOut } from "../../../logger/hg_logger";
+import { LogError } from "../../../logger/hg_logger";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import HGLoginVM, { HGRegisterType } from "./hg_login_vm";
@@ -35,30 +35,19 @@ class HGRegisterPage extends Component {
   constructor(props) {
     super(props);
     // ✅ 正确：从 props 获取 location，而不是调用 useLocation()
-    const { location } = this.props;
+    // 路由注入的 state 仅是上页提供的提示；直接访问或刷新后丢失时仍可选择注册方式。
+    const registerState = this.props.location?.state;
 
     this.state = {
       loading: false,
       codeLoading: false,
       countdown: 0,
-      registerType: location.state.registerType || HGRegisterType.PHONE, // true=邮箱，false=手机号
+      registerType: registerState?.registerType || HGRegisterType.PHONE, // 默认手机号；缺少路由 state 时也可注册。
       contactWay: "",
-      userName: location.state?.userName || "",
+      userName: registerState?.userName || "", // 缺省为空，不依赖跳转来源。
       verifyCode: "", //验证码
       captchaVisible: false, // 点选验证码弹窗是否可见
     };
-  }
-
-  componentDidMount() {
-    const { location } = this.props;
-    // testEmail:'harleysor@qq.com',
-    // testCode:123456,
-    LogOut(
-      "testEmail:",
-      location.state.testEmail,
-      "testCode:",
-      location.state.testCode
-    );
   }
 
   componentWillUnmount() {
@@ -176,7 +165,6 @@ class HGRegisterPage extends Component {
       message.error("两次密码不一致");
       return;
     }
-    LogOut("表单值：", values);
     this.setState({ loading: true });
 
     const isEmail = this.state.registerType === HGRegisterType.EMAIL;
@@ -248,7 +236,6 @@ class HGRegisterPage extends Component {
       },
       () => {}
     );
-    console.log("当前输入值：", value);
   };
 
   render() {

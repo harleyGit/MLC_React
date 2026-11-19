@@ -21,6 +21,7 @@ import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
 import { hgGetAdminStatus } from "../../auth/hg_admin_status";
 import styles from "./hg_top_nav_layout.module.css";
 import { HG_IM_CONNECTION_EVENT, HG_IM_RECONNECT_EVENT } from "./hg_im_connection_events";
+import { hgTopNavKeyForPath } from "./hg_top_nav_selection";
 
 class HGTopNavLayout extends Component {
   hgMounted = false; // 页面挂载标记；卸载后忽略延迟返回的管理员状态。
@@ -32,7 +33,7 @@ class HGTopNavLayout extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      current: this.getCurrentPage(),
+      current: this.getCurrentPage(), // 当前高亮 Tab；直达无明确归属的路径时为空，不默认高亮 Chat。
       showUserDropdown: false,
       hgIsAdmin: false, // 后端确认有效管理员前一律隐藏运维和采集入口。
       hgChatFailed: false, // 仅当前账号实时连接最终失败时标红；消息操作在断线时失败关闭。
@@ -80,36 +81,7 @@ class HGTopNavLayout extends Component {
    */
   getCurrentPage = () => {
     const path = this.props.location?.pathname || "/";
-    switch (path) {
-      case ROUTE_PATH.DEFAULT:
-      case ROUTE_PATH.HOME:
-        return "home";
-      case ROUTE_PATH.PRODUCTS:
-        return "products";
-      case ROUTE_PATH.ABOUT:
-        return "about";
-      case ROUTE_PATH.MESSAGE_CENTER:
-        return "message";
-      case ROUTE_PATH.USER_PROFILE:
-        return "profile";
-      case ROUTE_PATH.USER_CENTER:
-        return "profile";
-      case ROUTE_PATH.EDIT_USER_INFO:
-      case ROUTE_PATH.WALLET:
-        return "avatar";
-      case ROUTE_PATH.OPERATION_MANAGEMENT:
-        return "operation";
-      case ROUTE_PATH.TEST_MODULE:
-        return "test_module";
-      case ROUTE_PATH.PERSONAL_CENTER:
-        return "personal_center";
-      default:
-        if (path.startsWith(ROUTE_PATH.CRAWLER_PLATFORM)) return "crawler";
-        if (path.startsWith("/bilibili/")) return "bili_douga";
-        // 用户编辑与角色绑定页由运维管理「用户列表」进入，返回时保持运维管理高亮而非 Chat。
-        if (path.startsWith("/profile/user/")) return "operation";
-        return "home";
-    }
+    return hgTopNavKeyForPath(path, ROUTE_PATH) ?? this.state?.current ?? "";
   };
 
   /**
