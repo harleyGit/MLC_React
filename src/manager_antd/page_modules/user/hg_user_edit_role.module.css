@@ -88,7 +88,7 @@
   line-height: 1.5;
 }
 
-/* 即时授权表格横向滚动，不挤压窄屏资料表单；色彩沿用页面主题变量。 */
+/* 即时授权操作栏：窄屏自动换行，不挤压列表内容。 */
 .roleToolbar {
   display: flex;
   align-items: center;
@@ -97,9 +97,109 @@
   margin-bottom: 16px;
 }
 
-.roleTable {
+/* 角色卡片：由内容自然撑高，multi-column 网格随容器宽度增减列数。 */
+.roleCard {
+  box-sizing: border-box;
   width: 100%;
-  overflow-x: auto;
+  padding: 16px 18px;
+  border: 1px solid var(--hg-color-border, #dfe4f0);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(27, 37, 64, 0.05);
+}
+
+/* 待提交卡片用主色描边区分已生效绑定，避免误认为服务端记录。 */
+.roleCardDraft {
+  border-color: var(--hg-color-primary, #4472f0);
+  background: linear-gradient(180deg, #f7f9ff 0%, #fff 42%);
+  box-shadow: 0 4px 16px rgba(68, 114, 240, 0.1);
+}
+
+.roleCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.roleCardTitle {
+  color: var(--hg-color-text, #1b2540);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.roleCardBadge {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef7f1;
+  color: #2f855a;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.roleCardBadgeDraft {
+  background: #eaf0ff;
+  color: var(--hg-color-primary, #4472f0);
+}
+
+/* 固定每行两列，字段超出后依次换行；minmax(0,1fr) 允许长内容收缩，不挤压相邻列。 */
+.roleFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+  align-items: start;
+}
+
+.roleField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.roleFieldLabel {
+  color: var(--hg-color-text-secondary, #414c63);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.roleFieldControl {
+  min-width: 0;
+}
+
+/* 已生效绑定的作用域摘要：横向排列，空间不足时自动换行。 */
+.roleScopeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.roleScopeItem {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #f5f7fb;
+  color: var(--hg-color-text-secondary, #414c63);
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* 提交按钮区与字段区用分隔线区分，右对齐不依赖固定宽度。 */
+.roleCardActions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--hg-color-border, #dfe4f0);
 }
 
 .roleHint {
@@ -116,9 +216,10 @@
   padding-top: 4px;
 }
 
-/* 窄屏：表单退化为单列。 */
+/* 窄屏：表单与角色字段均退化为单列，避免两列挤占树选择控件。 */
 @media (max-width: 720px) {
-  .formGrid {
+  .formGrid,
+  .roleFieldGrid {
     grid-template-columns: 1fr;
   }
 }

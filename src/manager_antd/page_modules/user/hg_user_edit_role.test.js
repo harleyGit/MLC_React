@@ -6,7 +6,7 @@ import { setImmediate } from "node:timers";
 import { transformSync } from "@swc/core";
 import React from "react";
 
-const HGTestTable = () => null; // 只保留真实 HGTablePage 的列和数据以测试用户交互，不操作 DOM。
+const HGTestCollectionView = () => null; // 只保留真实 HGCollectionView 的数据与 renderCell 以测试用户交互，不操作 DOM。
 const HGTestButton = () => null; // 捕获点击回调，不发送真实授权请求。
 
 /** 转换真实编辑页并隔离 IAM 与用户请求，不使用登录状态或真实管理员数据。 */
@@ -32,7 +32,7 @@ function hgUserEditPage(hgUpdate, hgRoleVM = {}) {
         { code: "global", name: "平台全局", status: 1 }, { code: "shop", name: "店铺", status: 1 }, { code: "org", name: "组织", status: 1 },
       ], hasMore: false }), ...hgRoleVM }, __esModule: true };
       if (hgDependency.endsWith("hg_message_page")) return { hgMessage: { success: (text) => hgMessages.push(text), error: (text) => hgMessages.push(text) } };
-      if (hgDependency.endsWith("hg_table_page")) return { default: HGTestTable, __esModule: true };
+      if (hgDependency.endsWith("hg_collection_view")) return { default: HGTestCollectionView, __esModule: true };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
       return { default: () => null, __esModule: true };
     },
@@ -60,12 +60,28 @@ test("资料保存使用路由目标 ID，且不触发独立角色授权请求",
   assert.equal(typeof hgPage.renderRoleAssignment, "function");
 });
 
-/** 在页面 JSX 中查找表格替身；断言只有真实绑定与手动新增行出现。 */
-function hgFindTable(hgNode) {
-  if (Array.isArray(hgNode)) return hgNode.map(hgFindTable).find(Boolean);
+/** 在页面 JSX 中查找卡片列表替身；断言只有真实绑定与手动新增行出现。 */
+function hgFindCollectionView(hgNode) {
+  if (Array.isArray(hgNode)) return hgNode.map(hgFindCollectionView).find(Boolean);
   if (!React.isValidElement(hgNode)) return null;
-  if (hgNode.type === HGTestTable) return hgNode;
-  return hgFindTable(hgNode.props.children);
+  if (hgNode.type === HGTestCollectionView) return hgNode;
+  return hgFindCollectionView(hgNode.props.children);
+}
+
+/** 按 aria-label 查找卡片内的控件，用于触发与旧表格列相同的交互。 */
+function hgFindByAriaLabel(hgNode, hgLabel) {
+  if (Array.isArray(hgNode)) return hgNode.map((child) => hgFindByAriaLabel(child, hgLabel)).find(Boolean);
+  if (!React.isValidElement(hgNode)) return null;
+  if (hgNode.props?.["aria-label"] === hgLabel) return hgNode;
+  return hgFindByAriaLabel(hgNode.props.children, hgLabel);
+}
+
+/** 在卡片 JSX 中查找指定文本，用于断言只读文案与按钮。 */
+function hgFindText(hgNode, hgText) {
+  if (Array.isArray(hgNode)) return hgNode.map((child) => hgFindText(child, hgText)).find(Boolean);
+  if (!React.isValidElement(hgNode)) return null;
+  if (hgNode.props.children === hgText) return hgNode;
+  return hgFindText(hgNode.props.children, hgText);
 }
 
 const hgFlush = () => new Promise((resolve) => setImmediate(resolve)); // 等待 Promise 链清空，无固定睡眠。
@@ -79,12 +95,12 @@ test("先读取有界角色目录再按路由 user_id 查询绑定；无绑定�
   await hgPage.hgLoadRolesAndBindings();
   await hgFlush();
   assert.deepEqual(hgCalls, ["roles", "route-7"]);
-  assert.equal(hgFindTable(hgPage.renderRoleAssignment()) ?? null, null);
+  assert.equal(hgFindCollectionView(hgPage.renderRoleAssignment()) ?? null, null);
   hgPage.hgToggleAssignRow();
-  const hgTable = hgFindTable(hgPage.renderRoleAssignment());
-  assert.equal(hgTable.props.rowKey, "hgRowKey");
-  assert.equal(hgTable.props.dataSource.length, 1);
-  assert.equal(hgTable.props.dataSource[0].hgIsNew, true);
+  const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
+  assert.equal(hgCollection.props.getKey(hgCollection.props.items[0]), "new-assignment");
+  assert.equal(hgCollection.props.items.length, 1);
+  assert.equal(hgCollection.props.items[0].hgIsNew, true);
 });
 
 test("多选角色联动只读业务权限，一次 MFA 原子提交并刷新生效记录", async () => {
@@ -105,9 +121,10 @@ test("多选角色联动只读业务权限，一次 MFA 原子提交并刷新生
   await hgPage.hgLoadRolesAndBindings();
   await hgFlush();
   hgPage.hgToggleAssignRow();
-  const hgRoleColumn = hgFindTable(hgPage.renderRoleAssignment()).props.columns.find((item) => item.title === "角色");
-  const hgNew = hgFindTable(hgPage.renderRoleAssignment()).props.dataSource[0];
-  hgRoleColumn.render(null, hgNew).props.children.props.onChange(["7"]);
+  const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
+  const hgNew = hgCollection.props.items[0];
+  const hgDraftCard = hgCollection.props.renderCell(hgNew, 0);
+  hgFindByAriaLabel(hgDraftCard, "分配角色（可多选）").props.children.props.onChange(["7"]);
   await hgFlush();
   assert.equal(hgPage.state.hgPermissions.map((item) => item.code).join(","), "mall:product:create");
   hgPage.hgSelectScopeTypes(["shop"]);
@@ -118,7 +135,52 @@ test("多选角色联动只读业务权限，一次 MFA 原子提交并刷新生
   assert.ok(hgMessages.includes("角色已立即生效"));
   assert.equal(hgPage.state.hgMFACode, "");
   assert.equal(hgPage.state.hgShowAssignRow, false);
-  assert.equal(hgFindTable(hgPage.renderRoleAssignment()).props.dataSource[0].hgRowKey, "binding-18");
+  assert.equal(hgFindCollectionView(hgPage.renderRoleAssignment()).props.items[0].hgRowKey, "binding-18");
+});
+
+test("作用域类型显示全部目录项（含 status=0）且可提交，下拉项只显示名称", async () => {
+  const hgAllScopes = ["global", "shop", "org", "team", "dept"]; // 超过旧的三种上限，且含 status=0。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchScopeTypes: async () => ({ list: [
+      { code: "global", name: "平台全局", status: 1 }, { code: "shop", name: "店铺", status: 1 },
+      { code: "org", name: "组织", status: 1 }, { code: "team", name: "团队", status: 0 },
+      { code: "dept", name: "部门", status: 0 },
+    ], hasMore: false }),
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  assert.deepEqual(hgPage.state.hgScopeCatalog.map((item) => item.code), hgAllScopes); // status=0 的项也进入目录。
+  hgPage.hgToggleAssignRow();
+  const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
+  const hgDraftCard = hgCollection.props.renderCell(hgCollection.props.items[0], 0);
+  const hgScopeTree = hgFindByAriaLabel(hgDraftCard, "作用域类型（可多选）").props.children;
+  assert.deepEqual(hgScopeTree.props.treeData.map((item) => item.title), ["平台全局", "店铺", "组织", "团队", "部门"]);
+  hgScopeTree.props.onChange(hgAllScopes);
+  assert.deepEqual(hgPage.state.hgScopeTypes, hgAllScopes);
+});
+
+test("status=0 的作用域类型选中后可完成授权提交", async () => {
+  const hgRequests = []; // 记录实际提交的作用域类型，不保留 MFA 明文。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchScopeTypes: async () => ({ list: [
+      { code: "global", name: "平台全局", status: 1 }, { code: "region", name: "业务区域", status: 0 },
+    ], hasMore: false }),
+    fetchRolePermissions: async () => ({ list: [], selected: [] }),
+    grantDirectBatch: async (hgForm) => { hgRequests.push(hgForm.bindings); return { granted: true }; },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgToggleAssignRow();
+  hgPage.hgSelectRoles(["7"]);
+  await hgFlush();
+  hgPage.hgSelectScopeTypes(["region"]);
+  hgPage.setState({ hgScopeIDs: { region: "region-1" }, hgMFACode: "123456" });
+  await hgPage.hgSubmitRole();
+  assert.equal(JSON.stringify(hgRequests), JSON.stringify([[{ roleId: "7", scopeType: "region", scopeId: "region-1" }]]));
 });
 
 test("切换角色时拒绝过期权限响应，重复授权或无效 MFA 不发送写请求", async () => {
@@ -194,10 +256,10 @@ test("角色目录重复加载时忽略较早响应，分配期间已有绑定�
   hgPage.hgToggleAssignRow();
   hgPage.hgSelectRoles(["7"]);
   await hgFlush();
-  const hgTable = hgFindTable(hgPage.renderRoleAssignment());
-  const hgExisting = hgTable.props.dataSource.find((item) => !item.hgIsNew);
-  const hgPermissionColumn = hgTable.props.columns.find((item) => item.title.startsWith("业务权限"));
-  assert.equal(hgPermissionColumn.render(null, hgExisting).props.children, "分配完成后可查看");
+  const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
+  const hgExisting = hgCollection.props.items.find((item) => !item.hgIsNew);
+  const hgExistingCard = hgCollection.props.renderCell(hgExisting, 0);
+  assert.ok(hgFindText(hgExistingCard, "分配完成后可查看"));
   assert.equal(hgPage.state.hgPermissionRoleId, "7");
 });
 
