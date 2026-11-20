@@ -53,6 +53,9 @@ const HGSmsTemplatePage = lazy(() =>
 const HGNotifyChannelPage = lazy(() =>
   import("./notify_channel/hg_notify_channel_page")
 );
+const HGSystemNotifyTemplatePage = lazy(() =>
+  import("./system_notification/hg_system_notify_template_page")
+);
 const HGBilibiliTagPage = lazy(() =>
   import("./bilibili_tag/hg_bilibili_tag_page")
 );
@@ -193,20 +196,6 @@ class SystemSecurityPasswordPage extends Component {
 }
 
 /**
- * 通知渠道占位页面
- */
-class SystemNotifyTemplatePage extends Component {
-  render() {
-    return (
-      <div>
-        <h2>通知模板</h2>
-        <p className={styles.placeholderText}>通知模板配置页面内容</p>
-      </div>
-    );
-  }
-}
-
-/**
  * 菜单 key 到页面组件的映射表
  * 约束：key 需与 OPERATION_MENU_ITEMS 中的叶子节点 key 一致
  *
@@ -252,7 +241,7 @@ const PAGE_MAP = {
   system_basic_storage: SystemBasicStoragePage,
   system_security_login: SystemSecurityLoginPage,
   system_security_password: SystemSecurityPasswordPage,
-  system_notify_template: SystemNotifyTemplatePage,
+  system_notify_template: HGSystemNotifyTemplatePage,
   // 通知渠道：模板批次的投递出口，由 notify_channel 目录下的真实类组件承载。
   system_notify_channel: HGNotifyChannelPage,
   system_notify_sms: HGSmsTemplatePage,

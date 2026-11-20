@@ -1,5 +1,6 @@
 const HG_SIGN_STRIP_PREFIXES = [
   "/api/v1/im",
+  "/api/v1/admin/notification", // 管理端模板独立路由组；Go 在验签前剥离该前缀。
   "/api/v1/notifications",
   "/api/v1/notification",
   "/admin/v1/notification",

@@ -203,6 +203,7 @@ export const HGMANAGER_API = {
   NOTIFICATION_READ: "/api/v1/notifications/read", // 批量标记已读
   NOTIFICATION_DELETE: "/api/v1/notifications/delete", // 用户级删除通知
   NOTIFICATION_PREFERENCES: "/api/v1/notification/preferences", // 通知偏好读写
+  NOTIFICATION_TEMPLATES: "/api/v1/admin/notification/templates", // 管理端模板游标列表与创建
   IM_CONVERSATIONS: "/api/v1/im/conversations", // 会话列表
   IM_CONTACT_PROFILE: "/api/v1/im/contacts/profile", // 联系人公开资料（头像）；按 userId 点查。
   IM_CONVERSATION_MUTED: "/api/v1/im/conversations/muted", // 本人会话免打扰

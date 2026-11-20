@@ -135,3 +135,26 @@ test("商城 GET/POST 签名对齐模块内路径和请求体", async () => {
     }
   }
 });
+
+// 新模板路由在根入口剥离 /api/v1/admin/notification，签名必须匹配 Go 收到的模块内路径。
+test("系统通知模板列表、详情及写入按模块内路径验签", async () => {
+  const hgHeaders = {
+    "X-Timestamp": "1700000000", "X-Request-ID": "fixture-request",
+    "X-Device-ID": "fixture-device", "X-Client-Type": "web", "X-Client-Version": "1",
+    "X-API-Version": "v1", "X-Language": "zh-CN", Authorization: "Bearer fixture-invalid-jwt",
+  };
+  for (const [hgMethod, hgURL, hgPath, hgBody] of [
+    ["GET", "http://localhost:5174/api/v1/admin/notification/templates", "/templates", undefined],
+    ["GET", "/api/v1/admin/notification/templates/detail?id=10", "/templates/detail", undefined],
+    ["POST", "/api/v1/admin/notification/templates", "/templates", { template_code: "fixture-only" }],
+    ["PUT", "/api/v1/admin/notification/templates/update?id=10", "/templates/update", { version: 1 }],
+    ["POST", "/api/v1/admin/notification/templates/delete?id=10", "/templates/delete", { version: 1 }],
+  ]) {
+    const hgPayload = [hgMethod, hgPath, "1700000000", "fixture-request", "fixture-device", "web", "1", "v1", "zh-CN",
+      createHash("sha256").update(hgBody ? JSON.stringify(hgBody) : "").digest("hex"), hgHeaders.Authorization].join("\n");
+    const hgExpected = `sha256=${createHmac("sha256", "fixture-only-not-a-real-secret").update(hgPayload).digest("hex")}`;
+    for (const hgSigner of [hgCreateSigner(null), hgCreateSigner(webcrypto.subtle)]) {
+      assert.equal(await hgSigner.buildSignature({ url: hgURL, method: hgMethod, headers: hgHeaders, body: hgBody }), hgExpected);
+    }
+  }
+});

@@ -28,6 +28,7 @@ export const HG_OPERATION_PERMISSIONS = Object.freeze({
   mall_pending_media: HG_PERMISSIONS.MALL_REVIEW,
   mall_pending_edits: HG_PERMISSIONS.MALL_REVIEW,
   system_notify_channel: HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ,
+  system_notify_template: HG_PERMISSIONS.NOTIFICATION_TEMPLATE_READ,
 });
 
 /** 对菜单及内容复用同一份门槛；无映射的原有管理员页面沿用已有服务端限制。 */

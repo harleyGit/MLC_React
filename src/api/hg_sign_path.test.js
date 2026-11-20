@@ -124,3 +124,20 @@ test("commerce 接口签名使用模块内路径，查询参数不参与签名",
 test("normalizeSignPath preserves paths outside registered module prefixes", () => {
   assert.equal(normalizeSignPath("/health"), "/health");
 });
+
+// 根路由 StripPrefix 后的新管理端模板请求若仍使用完整 URL 验签，会在 IAM 检查前返回 401。
+test("系统通知模板管理接口签名使用模块内路径，且不误匹配已有通知接口", () => {
+  const hgBase = "/api/v1/admin/notification";
+  for (const [hgPath, hgExpected] of [
+    ["/templates", "/templates"],
+    ["/templates/detail?id=1", "/templates/detail"],
+    ["/templates/update?id=1", "/templates/update"],
+    ["/templates/delete?id=1", "/templates/delete"],
+  ]) {
+    const hgURL = new URL(`${hgBase}${hgPath}`, "http://localhost:5174");
+    assert.equal(normalizeSignPath(hgURL.pathname), hgExpected);
+  }
+  assert.equal(normalizeSignPath(hgBase), "/");
+  assert.equal(normalizeSignPath("/api/v1/notification/preferences"), "/preferences");
+  assert.equal(normalizeSignPath("/api/v1/admin/notification_extra/templates"), "/api/v1/admin/notification_extra/templates");
+});
