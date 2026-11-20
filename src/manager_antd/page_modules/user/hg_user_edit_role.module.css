@@ -143,22 +143,24 @@
   color: var(--hg-color-primary, #4472f0);
 }
 
-/* 固定每行两列，字段超出后依次换行；minmax(0,1fr) 允许长内容收缩，不挤压相邻列。 */
+/* 每组标签与控件同排，按可用宽度自动换行；标签与下拉间隔 80px。 */
 .roleFieldGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
   gap: 14px 18px;
   align-items: start;
 }
 
 .roleField {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 80px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .roleFieldLabel {
+  flex: none;
   color: var(--hg-color-text-secondary, #414c63);
   font-size: 13px;
   font-weight: 600;
@@ -166,7 +168,12 @@
 }
 
 .roleFieldControl {
-  min-width: 0;
+  flex: 1 1 200px;
+  min-width: min(100%, 200px);
+}
+
+.roleField > .extraText {
+  flex-basis: 100%;
 }
 
 /* 已生效绑定的作用域摘要：横向排列，空间不足时自动换行。 */
@@ -212,10 +219,9 @@
   padding-top: 4px;
 }
 
-/* 窄屏：表单与角色字段均退化为单列，避免两列挤占树选择控件。 */
+/* 窄屏：字段组退化为单列，标签与下拉放不下时自然换行。 */
 @media (max-width: 720px) {
-  .formGrid,
-  .roleFieldGrid {
+  .formGrid {
     grid-template-columns: 1fr;
   }
 }

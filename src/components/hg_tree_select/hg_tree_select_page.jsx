@@ -10,23 +10,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import styles from "./hg_tree_select.module.css";
 
-/**
- * 展平树节点，返回所有节点的 value 列表。
- * @param {Array} treeData 树形数据。
- * @returns {string[]} 所有节点 value 数组。
- */
-const flattenTreeValues = (treeData) => {
-  const result = [];
-  const walk = (nodes) => {
-    if (!nodes) return;
-    nodes.forEach((node) => {
-      result.push(node.value);
-      if (node.children) walk(node.children);
-    });
-  };
-  walk(treeData);
-  return result;
-};
+let hgTreeSelectGroupSequence = 0; // 单选 radio 组序号；不同选择器不可互相取消选中。
 
 /**
  * 获取节点的所有后代 value 列表。
@@ -131,9 +115,9 @@ class HGTreeSelectPage extends React.Component {
   static defaultProps = {
     /** 树节点，默认 []；每项包含 value、title 与可选 children。 @type {Array<any>} */
     treeData: [],
-    /** 受控选中值，默认 undefined 使用内部状态；多选传数组。 @type {string|number|Array<string|number>|undefined} */
+    /** 受控值默认 undefined 使用内部状态；单选传标量、null 表示清空，多选传数组。 @type {string|number|Array<string|number>|null|undefined} */
     value: undefined,
-    /** 非受控初始选中值，默认 undefined 未选择，仅初始化读取。 @type {string|number|Array<string|number>|undefined} */
+    /** 非受控初始值默认 undefined 未选择；单选传标量、多选传数组，仅初始化读取。 @type {string|number|Array<string|number>|null|undefined} */
     defaultValue: undefined,
     /** 默认单选；true 显示复选框并启用父子节点勾选逻辑。 */
     treeCheckable: false,
@@ -147,7 +131,7 @@ class HGTreeSelectPage extends React.Component {
     allowClear: false,
     /** 默认允许选择；true 禁用交互。 */
     disabled: false,
-    /** 返回单值或已选值数组，默认 undefined 不通知。 @type {Function|undefined} */
+    /** 单选返回标量（清空为 null）；多选返回数组；默认 undefined 不通知。 @type {Function|undefined} */
     onChange: undefined,
     /** 根节点附加样式类，默认空字符串。 */
     className: "",
@@ -157,15 +141,16 @@ class HGTreeSelectPage extends React.Component {
 
   constructor(props) {
     super(props);
-    const defaultVal = props.defaultValue ?? [];
+    const defaultVal = props.defaultValue; // 单选默认标量，多选默认数组；null/undefined 表示未选。
     this.state = {
-      open: false,
-      expandedKeys: this.getInitialExpandedKeys(props.treeData, props.treeDefaultExpandAll),
-      checkedValues: new Set(defaultVal),
-      dropdownStyle: {},
+      open: false, // 下拉面板默认关闭。
+      expandedKeys: this.getInitialExpandedKeys(props.treeData, props.treeDefaultExpandAll), // 初始展开的节点值；空集合表示全折叠。
+      checkedValues: new Set(defaultVal == null ? [] : Array.isArray(defaultVal) ? defaultVal : [defaultVal]), // 非受控值；单选最多一个，多选保留所有选择。
+      dropdownStyle: {}, // 下拉浮层定位；首次展开前为空对象。
     };
-    this.containerRef = React.createRef();
-    this.dropdownRef = React.createRef();
+    this.containerRef = React.createRef(); // 选择器锚点；挂载前为空。
+    this.dropdownRef = React.createRef(); // 浮层根节点；关闭时为空。
+    this.hgRadioGroupName = `hg-tree-select-${++hgTreeSelectGroupSequence}`; // 同一组件的选项共享原生 radio 组。
   }
 
   componentDidMount() {
@@ -226,7 +211,7 @@ class HGTreeSelectPage extends React.Component {
    */
   getCheckedSet = () => {
     const { value } = this.props;
-    if (value !== undefined) return new Set(value);
+    if (value !== undefined) return new Set(value == null ? [] : Array.isArray(value) ? value : [value]);
     return this.state.checkedValues;
   };
 
@@ -277,7 +262,13 @@ class HGTreeSelectPage extends React.Component {
    * @param {boolean} isChecked 是否选中。
    */
   handleCheck = (node, isChecked) => {
-    const { onChange, treeData, showCheckedStrategy = "SHOW_CHILD" } = this.props;
+    const { onChange, treeData, showCheckedStrategy, treeCheckable } = this.props;
+    if (!treeCheckable) {
+      const selected = isChecked ? node.value : null; // 单选永远替换旧节点；清空使用 null 保持受控状态。
+      this.setState({ checkedValues: new Set(selected === null ? [] : [selected]), open: false });
+      onChange?.(selected);
+      return;
+    }
     const currentSet = this.getCheckedSet();
     const nextSet = new Set(currentSet);
     const descendantValues = getDescendantValues(node);
@@ -303,7 +294,7 @@ class HGTreeSelectPage extends React.Component {
     event.stopPropagation();
     const { onChange } = this.props;
     this.setState({ checkedValues: new Set() });
-    onChange?.([]);
+    onChange?.(this.props.treeCheckable ? [] : null);
   };
 
   /**
@@ -345,8 +336,8 @@ class HGTreeSelectPage extends React.Component {
     const checkedSet = this.getCheckedSet();
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedKeys.has(node.value);
-    const isChecked = this.isNodeFullyChecked(node, checkedSet);
-    const isIndeterminate = this.isNodeIndeterminate(node, checkedSet);
+    const isChecked = treeCheckable ? this.isNodeFullyChecked(node, checkedSet) : checkedSet.has(node.value); // 单选父节点不依赖子节点是否选中。
+    const isIndeterminate = treeCheckable && this.isNodeIndeterminate(node, checkedSet);
 
     const nodeClassName = [
       styles.treeNode,
@@ -390,12 +381,17 @@ class HGTreeSelectPage extends React.Component {
               <span className={styles.nodeTitle}>{node.title}</span>
             </label>
           ) : (
-            <span
-              className={styles.nodeTitle}
-              onClick={() => this.handleCheck(node, !isChecked)}
-            >
-              {node.title}
-            </span>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="radio"
+                name={this.hgRadioGroupName}
+                className={styles.checkboxInput}
+                checked={isChecked}
+                onChange={() => this.handleCheck(node, true)}
+              />
+              <span className={styles.radioCustom} aria-hidden="true" />
+              <span className={styles.nodeTitle}>{node.title}</span>
+            </label>
           )}
         </div>
         {hasChildren && isExpanded && (
@@ -430,9 +426,9 @@ class HGTreeSelectPage extends React.Component {
    * @returns {string} 已选标题。
    */
   getSelectedTitles = () => {
-    const { treeData = [], showCheckedStrategy = "SHOW_CHILD" } = this.props;
+    const { treeData, showCheckedStrategy, treeCheckable } = this.props;
     const checkedSet = this.getCheckedSet();
-    const displayValues = filterByStrategy(treeData, checkedSet, showCheckedStrategy);
+    const displayValues = treeCheckable ? filterByStrategy(treeData, checkedSet, showCheckedStrategy) : [...checkedSet];
     return displayValues
       .map((v) => {
         const node = findNodeByValue(treeData, v);

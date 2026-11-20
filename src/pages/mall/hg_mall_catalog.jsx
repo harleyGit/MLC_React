@@ -10,6 +10,7 @@ import { HGAdvanceMallPage } from "./hg_mall_cursor.js";
 import styles from "./hg_mall_page.module.css";
 import { hgSecureRequestId } from "./hg_mall_security.js";
 import HGMallVM from "./hg_mall_vm.js";
+import HGCommerceVM from "./hg_commerce_vm.js";
 import HGMerchantApplyPage from "../../manager_antd/page_modules/user/user_center/hg_merchant_apply/hg_merchant_apply_page";
 
 const hgPendingBuyKey = "mlc.mall.pending-buy"; // 仅在会话内保存幂等键和请求摘要，不落盘收件隐私明文。
@@ -61,6 +62,9 @@ export default class HGMallCatalog extends React.Component {
     hgDetailId: "", // 正在打开详情的商品 ID；加载期间用于显示骨架屏，避免闪烁回目录。
     hgCreatedOrderId: "", // 本次成功创建的订单 ID；空字符串表示尚无可跳转的订单。
     hgBrokenImages: [], // 当前目录页或商品详情中加载失败的图片 URL；切换商品或翻页时清空。
+    hgPlatformCategories: [], // 平台类目平铺列表（depth 1-3）；空表示接口不可用，回退静态白名单。
+    hgTopKey: "", // 选中的一级类目 ID；空字符串为「全部商品」，也兼容静态白名单编码作为键。
+    hgSubCategory: "", // 选中的二级类目 ID；空字符串为该大类下全部，细分请求为后续占位。
   };
 
   hgMounted = false; // 卸载后丢弃异步响应。
@@ -85,7 +89,10 @@ export default class HGMallCatalog extends React.Component {
       return;
     }
     // 商家工作台视图由独立的 HGMerchantApplyPage 自行加载；目录视图在此读取首页。
-    if (this.state.hgView === "catalog") this.hgLoadCatalog("", "", []);
+    if (this.state.hgView === "catalog") {
+      this.hgLoadCatalog("", "", []);
+      this.hgLoadPlatformCategories(); // 一级/二级类目 Tab 数据；无权限或失败时回退静态白名单。
+    }
   }
 
   /** 同一路由复用组件实例：路由参数变化时必须重载详情，不能沿用旧商品。 */
@@ -102,6 +109,75 @@ export default class HGMallCatalog extends React.Component {
   }
 
   hgMessage = (hgError) => hgError?.message || "商城请求失败，请重试";
+
+  /**
+   * 读取平台类目（/commerce/admin/categories），驱动商品 Tab 的一级与二级类目展示。
+   * 边界：接口要求 mall:merchant:review 审核权限，无权限或失败时保持空数组并回退静态白名单，不打断目录浏览。
+   */
+  hgLoadPlatformCategories = async () => {
+    try {
+      const hgAccess = await HGMallVM.reviewAccess(); // 先确认权限，避免公开页反复触发 403。
+      if (!hgAccess?.canReview || !this.hgMounted) return;
+      const hgList = await HGCommerceVM.adminCategories();
+      if (this.hgMounted && Array.isArray(hgList))
+        this.setState({ hgPlatformCategories: hgList });
+    } catch {
+      /* 类目接口不可用时静默回退静态白名单；目录商品列表不受影响。 */
+    }
+  };
+
+  /**
+   * 一级类目 Tab：接口数据按 depth=1 动态生成；静态白名单作为回退来源。
+   * hgFilter 为商品目录过滤编码：服务端商品列表只接受白名单编码，动态类目按名称映射，未命中时以全部商品兜底。
+   */
+  hgTopTabs = () => {
+    if (!this.state.hgPlatformCategories.length)
+      return hgCategories
+        .filter(([hgCode]) => hgCode)
+        .map(([hgCode, hgLabel]) => ({
+          hgKey: hgCode,
+          hgName: hgLabel,
+          hgFilter: hgCode,
+        }));
+    const hgLabelToCode = new Map(
+      hgCategories.filter(([hgCode]) => hgCode !== "")
+    );
+    return this.state.hgPlatformCategories
+      .filter((hgItem) => hgItem.depth === 1)
+      .map((hgItem) => ({
+        hgKey: hgItem.categoryId,
+        hgName: hgItem.name,
+        hgFilter: hgLabelToCode.get(hgItem.name) || "",
+      }));
+  };
+
+  /** 当前一级类目下的二级类目；仅来自平台类目接口，静态白名单无层级数据故返回空。 */
+  hgSubTabs = () =>
+    this.state.hgTopKey
+      ? this.state.hgPlatformCategories.filter(
+          (hgItem) => hgItem.parentId === this.state.hgTopKey
+        )
+      : [];
+
+  /** 点击一级类目：重置二级选中并按映射编码重新请求目录；不自动加载，点击才发起请求。 */
+  hgSelectTopCategory = (hgTab) => {
+    if (
+      this.state.hgTopKey === hgTab.hgKey &&
+      this.state.hgCategory === hgTab.hgFilter
+    )
+      return;
+    this.setState({ hgTopKey: hgTab.hgKey, hgSubCategory: "" });
+    this.hgLoadCatalog(hgTab.hgFilter, "", []);
+  };
+
+  /**
+   * 点击二级类目（占位）：当前仅记录选中态。
+   * TODO(细分下钻): 后端 /admin/categories 暂无 parentId 下钻参数，二级类目的再细分请求
+   * 待后端支持后在此触发；目前不重复请求目录，服务端也暂不支持按二级类目过滤商品。
+   */
+  hgSelectSubCategory = (hgId) => {
+    this.setState({ hgSubCategory: hgId });
+  };
 
   /** 路由详情模式：由商品详情独立页注入 hgProductId，返回列表与关闭详情均走路由导航。 */
   hgIsRouteDetail = () => Boolean(this.props.hgProductId);
@@ -254,7 +330,11 @@ export default class HGMallCatalog extends React.Component {
     });
     // 商家工作台切换时由 HGMerchantApplyPage 重新挂载并自行读取申请状态。
     if (hgView === "review") this.hgLoadReview();
-    if (hgView === "catalog") this.hgLoadCatalog(this.state.hgCategory, "", []);
+    if (hgView === "catalog") {
+      this.hgLoadCatalog(this.state.hgCategory, "", []);
+      if (!this.state.hgPlatformCategories.length)
+        this.hgLoadPlatformCategories(); // 首次进入目录时补拉类目；已加载过则不重复请求。
+    }
   };
 
   /** 网络失败保留表单以便人工重试；同次点击不产生并发写请求。 */
@@ -479,7 +559,10 @@ export default class HGMallCatalog extends React.Component {
       hgNext,
       hgHistory,
       hgHistoryBase,
+      hgTopKey,
+      hgSubCategory,
     } = this.state;
+    const hgSubTabs = this.hgSubTabs(); // 二级类目行仅在选中一级大类且接口有子类目时出现。
     return (
       <>
         <p className={styles.shopFilterHint}>
@@ -488,17 +571,38 @@ export default class HGMallCatalog extends React.Component {
           <Link to={ROUTE_PATH.MALL_CNY}>进入 debug 拼团沙箱</Link>
         </p>
         <nav className={styles.shopCategoryBar} aria-label="商品类目">
-          {hgCategories.map(([hgCode, hgLabel]) => (
+          {this.hgTopTabs().map((hgTab) => (
             <button
-              key={hgCode}
+              key={hgTab.hgKey || "all"}
               type="button"
-              aria-pressed={hgCategory === hgCode}
-              onClick={() => this.hgLoadCatalog(hgCode, "", [])}
+              aria-pressed={hgTopKey === hgTab.hgKey}
+              onClick={() => this.hgSelectTopCategory(hgTab)}
             >
-              {hgLabel}
+              {hgTab.name}
             </button>
           ))}
         </nav>
+        {hgSubTabs.length > 0 && (
+          <nav className={styles.shopSubCategoryBar} aria-label="二级类目">
+            <button
+              type="button"
+              aria-pressed={!hgSubCategory}
+              onClick={() => this.hgSelectSubCategory("")}
+            >
+              全部
+            </button>
+            {hgSubTabs.map((hgSub) => (
+              <button
+                key={hgSub.categoryId}
+                type="button"
+                aria-pressed={hgSubCategory === hgSub.categoryId}
+                onClick={() => this.hgSelectSubCategory(hgSub.categoryId)}
+              >
+                {hgSub.name}
+              </button>
+            ))}
+          </nav>
+        )}
         <div className={styles.shopFilterBar}>
           <span className={styles.shopFilterCount}>
             本页 {hgItems.length} 件 · 第 {hgHistoryBase + hgHistory.length + 1}{" "}
@@ -516,7 +620,7 @@ export default class HGMallCatalog extends React.Component {
           loading={hgLoading}
           fillHeight={false}
           columnMinWidth={216}
-          resetKey={`${hgCategory}|${hgCursor}`}
+          resetKey={`${hgCategory}|${hgSubCategory}|${hgCursor}`}
           onRefresh={() =>
             this.hgLoadCatalog(hgCategory, hgCursor, hgHistory, hgHistoryBase)
           }

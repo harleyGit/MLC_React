@@ -1,16 +1,22 @@
 .button {
   min-height: 36px;
   padding: 8px 16px;
-  border: 1px solid var(--color-border, #d6e7f9);
+  border: 1px solid #1677ff;
   border-radius: 8px;
-  background: var(--color-primary, #438bfa);
-  color: var(--color-text-title, #0f2440);
+  /* 与 HGButtonPage 的“保存”主按钮保持一致，不使用旧主题亮蓝/深字搭配。 */
+  background: #1677ff;
+  color: #fff;
   font: inherit;
   cursor: pointer;
 }
 
+.button:hover:not(.blocked, .link) {
+  background: #4096ff;
+  border-color: #4096ff;
+}
+
 .button:focus-visible {
-  outline: 2px solid var(--color-border-focus, #438bfa);
+  outline: 2px solid var(--color-border-focus, #1677ff);
   outline-offset: 2px;
 }
 

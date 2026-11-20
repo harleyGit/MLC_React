@@ -20,7 +20,7 @@ function hgPaletteColor(hgToken) {
  * 职责边界：只处理颜色值和 CSS 变量，不负责 React 渲染、持久化或主题切换交互。
  */
 export default class HGThemeColorComponent {
-  /** 默认主题主色与预览色板的主交互一致；亮色按钮须配深色文字。 */
+  /** 默认主题主色与“保存”主按钮一致；主操作按钮使用白色文字。 */
   static DEFAULT_PRIMARY = hgPaletteColor("--color-primary");
 
   /** 品牌渐变的紫色终点；与主题规范保持一致。 */

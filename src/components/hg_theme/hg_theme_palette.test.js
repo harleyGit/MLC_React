@@ -29,9 +29,10 @@ function hgRenderPalette() {
 test("规范色板每个浅深色色块标注与 CSS 一致的 HEX 或渐变色标", () => {
   const hgCSS = readFileSync(new URL("./hg_theme_palette.module.css", import.meta.url), "utf8");
   const hgColors = new Set((hgCSS.match(/#[0-9a-f]{6}\b/gi) || []).map((hgColor) => hgColor.toUpperCase()));
-  assert.equal(hgColors.size, 53, "移除停用色及重复语义色后，色板保留 53 个独立 HEX");
+  assert.equal(hgColors.size, 54, "主按钮使用保存色及对应交互状态，色板保留 54 个独立 HEX");
   assert.doesNotMatch(hgCSS, /#CPF0FF/i, "规范中的错误示例不是有效色值");
-  assert.match(hgCSS, /\.palette\s*\{[^}]*--color-primary:\s*#438BFA;/);
+  assert.match(hgCSS, /\.palette\s*\{[^}]*--color-primary:\s*#1677FF;/);
+  assert.doesNotMatch(hgCSS, /#438BFA/i, "旧主色已从色板移除");
   assert.match(hgCSS, /\.darkPalette\s*\{[^}]*--color-primary:\s*#89C8FF;/);
   assert.match(hgCSS, /--color-price-red:\s*#E83E36;/);
   assert.match(hgCSS, /--gradient-brand:\s*linear-gradient\(120deg,/);

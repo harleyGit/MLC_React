@@ -1,7 +1,7 @@
 /*
  * 用户资料编辑页：由用户列表「编辑」按钮携带 user_id 跳转进入。
  * 路由参数 userId 指定编辑目标，location.state.user 提供资料回填。
- * 资料保存与受限即时角色分配为独立操作；权限仅供查看，实际授权由服务端复核。
+ * 资料先保存，再以一次 MFA 批量提交待分配角色；权限仅供查看，实际授权由服务端复核。
  * 「返回」通过浏览器后退（navigate(-1)）回到来源页。
  */
 import React, { Component } from "react";
@@ -11,14 +11,15 @@ import HGCardPage from "../../../components/hg_card/hg_card_page";
 import HGCollectionView from "../../../components/hg_collection_view/hg_collection_view";
 import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
+import HGModalPage from "../../../components/hg_modal/hg_modal_page";
 import HGPageHeaderPage from "../../../components/hg_page_header/hg_page_header_page";
 import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
+import { HGAuthButton } from "../../../modules/iam/hg_permission";
+import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_edit_role.module.css";
 import HGUserRoleAssignVM from "./hg_user_role_assign_vm";
 import HGUserVM from "./hg_user_vm";
-import { HGAuthButton } from "../../../modules/iam/hg_permission";
-import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
 
 /** 性别选项：与后端 gender 编码一致（1 男 / 2 女，其余按保密处理）。 */
 const HG_GENDER_OPTIONS = [
@@ -59,7 +60,8 @@ class HGUserEditRolePage extends Component {
     this.hgRolesRequest = 0; // 角色目录请求序号；同目标重试时也拒绝旧响应覆盖。
     this.hgBindingRequest = 0; // 绑定查询序号；刷新或卸载后拒绝旧结果覆盖。
     this.hgBindingPermissionEpoch = 0; // 绑定权限批次序号；刷新/切换用户后丢弃旧角色权限。
-    this.hgPermissionRequest = 0; // 角色权限查询序号；切换角色或卸载后丢弃旧响应。
+    this.hgPermissionRequest = 0; // 每条草稿的权限查询序号；切换角色或卸载后丢弃旧响应。
+    this.hgDraftSequence = 0; // 草稿稳定主键序号；删除或追加时不复用旧行标识。
     this.hgRoleSubmitting = false; // 授权提交同步锁；请求完成前阻止双击重复消费 MFA。
     this.state = {
       user, // 列表传入的编辑目标资料；缺省为空对象，不作为授权目标来源。
@@ -77,17 +79,12 @@ class HGUserEditRolePage extends Component {
       hgBindingsLoading: false, // 当前目标绑定查询进行中。
       hgBindingsError: "", // 绑定查询失败文案；空值表示正常。
       hgBindingPermissions: {}, // 按角色 ID 保存已有绑定的权限查询状态；空对象表示尚未读取。
-      hgShowAssignRow: false, // 点击图标后显示 HGTable 中的单条新分配行。
-      hgRoleIds: [], // 多选角色的主键列表；最多四个，以免批量授权事务无界增长。
-      hgScopeTypes: [], // 已选择的作用域类型编码；不限制数量，全部目录项可选。
-      hgScopeIDs: {}, // 按非全局类型填写的已登记 ID，空对象表示没有填写。
+      hgDrafts: [], // 待提交分配行；每行单选角色、可多选作用域，最多十二个绑定。
       hgScopeCatalog: [], // 服务端作用域字典；全部目录项（含 status=0）均可选用于授权。
-      hgMFACode: "", // 当前操作者六位 MFA 动态码；提交后清空，不保存至缓存。
-      hgPermissionRoleId: "", // 当前查看权限的角色 ID；空值表示未选择。
-      hgPermissions: [], // 当前角色的已生效业务权限，只用于展示。
-      hgPermissionLoading: false, // 权限请求中；避免旧角色权限误显示。
-      hgPermissionError: "", // 权限请求错误文案；空值表示正常。
-      hgRoleSaving: false, // 即时授权请求进行中，与资料保存独立。
+      hgMFAVisible: false, // 仅当存在待分配行且点击底部保存时显示验证弹窗。
+      hgMFACode: "", // 当前操作者六位 MFA 动态码；关闭或提交时清空。
+      hgProfileSaved: false, // 本轮待授权资料已保存且未再次编辑；重试授权不重复保存资料。
+      hgRoleSaving: false, // 资料与批量授权提交期间禁用草稿编辑。
     };
   }
 
@@ -131,16 +128,12 @@ class HGUserEditRolePage extends Component {
         hgBindingsLoading: false,
         hgBindingsError: "",
         hgBindingPermissions: {},
-        hgShowAssignRow: false,
-        hgRoleIds: [],
-        hgScopeTypes: [],
-        hgScopeIDs: {},
+        hgDrafts: [],
         hgScopeCatalog: [],
+        hgMFAVisible: false,
         hgMFACode: "",
-        hgPermissionRoleId: "",
-        hgPermissions: [],
-        hgPermissionLoading: false,
-        hgPermissionError: "",
+        hgProfileSaved: false,
+        hgRoleSaving: false,
       },
       this.hgLoadRolesAndBindings
     );
@@ -206,7 +199,12 @@ class HGUserEditRolePage extends Component {
       hgBindingsError: "",
       ...(cursor
         ? {}
-        : { hgBindings: [], hgBindingCursor: "", hgHasMoreBindings: false, hgBindingPermissions: {} }),
+        : {
+            hgBindings: [],
+            hgBindingCursor: "",
+            hgHasMoreBindings: false,
+            hgBindingPermissions: {},
+          }),
     });
     HGUserRoleAssignVM.fetchBindings(userId, cursor)
       .then((result) => {
@@ -218,13 +216,16 @@ class HGUserEditRolePage extends Component {
           return;
         if (!Array.isArray(result?.list))
           throw new Error("角色绑定响应格式无效");
-        this.setState((previous) => ({
-          hgBindings: cursor
-            ? [...previous.hgBindings, ...result.list]
-            : result.list,
-          hgBindingCursor: result.nextCursor || "",
-          hgHasMoreBindings: Boolean(result.hasMore),
-        }), () => this.hgLoadBindingPermissions(result.list, userId));
+        this.setState(
+          (previous) => ({
+            hgBindings: cursor
+              ? [...previous.hgBindings, ...result.list]
+              : result.list,
+            hgBindingCursor: result.nextCursor || "",
+            hgHasMoreBindings: Boolean(result.hasMore),
+          }),
+          () => this.hgLoadBindingPermissions(result.list, userId)
+        );
       })
       .catch((error) => {
         if (
@@ -249,14 +250,16 @@ class HGUserEditRolePage extends Component {
   /** 每页最多并行四个不同角色权限请求；刷新或切换用户时不再展示过期结果。 */
   hgLoadBindingPermissions = (bindings, userId) => {
     const epoch = this.hgBindingPermissionEpoch; // 当前绑定快照；翻页沿用，首页刷新更换。
-    const roleIds = [...new Set(bindings.map((item) => String(item.roleId)))].filter(
-      (id) => id && !this.state.hgBindingPermissions[id]
-    ); // 同一角色多个作用域只请求一次；已加载和请求中的角色不重复查询。
+    const roleIds = [
+      ...new Set(bindings.map((item) => String(item.roleId))),
+    ].filter((id) => id && !this.state.hgBindingPermissions[id]); // 同一角色多个作用域只请求一次；已加载和请求中的角色不重复查询。
     if (!roleIds.length) return;
     this.setState((previous) => ({
       hgBindingPermissions: {
         ...previous.hgBindingPermissions,
-        ...Object.fromEntries(roleIds.map((id) => [id, { loading: true, list: [], error: "" }])),
+        ...Object.fromEntries(
+          roleIds.map((id) => [id, { loading: true, list: [], error: "" }])
+        ),
       },
     }));
     let next = 0; // 下一个待读取角色位置；最多四个 worker，共享本次有界页的队列。
@@ -268,197 +271,180 @@ class HGUserEditRolePage extends Component {
           if (!Array.isArray(result?.list) || !Array.isArray(result?.selected))
             throw new Error("角色权限响应格式无效");
           const selected = new Set(result.selected); // 仅回填该角色已生效的权限，不包含目录未选项。
-          if (this.hgMounted && this.userId === userId && this.hgBindingPermissionEpoch === epoch)
+          if (
+            this.hgMounted &&
+            this.userId === userId &&
+            this.hgBindingPermissionEpoch === epoch
+          )
             this.setState((previous) => ({
               hgBindingPermissions: {
                 ...previous.hgBindingPermissions,
-                [roleId]: { loading: false, list: result.list.filter((item) => selected.has(item.code)), error: "" },
+                [roleId]: {
+                  loading: false,
+                  list: result.list.filter((item) => selected.has(item.code)),
+                  error: "",
+                },
               },
             }));
         } catch (error) {
-          if (this.hgMounted && this.userId === userId && this.hgBindingPermissionEpoch === epoch)
+          if (
+            this.hgMounted &&
+            this.userId === userId &&
+            this.hgBindingPermissionEpoch === epoch
+          )
             this.setState((previous) => ({
               hgBindingPermissions: {
                 ...previous.hgBindingPermissions,
-                [roleId]: { loading: false, list: [], error: error?.message || "业务权限加载失败" },
+                [roleId]: {
+                  loading: false,
+                  list: [],
+                  error: error?.message || "业务权限加载失败",
+                },
               },
             }));
         }
-        if (!this.hgMounted || this.userId !== userId || this.hgBindingPermissionEpoch !== epoch) return;
+        if (
+          !this.hgMounted ||
+          this.userId !== userId ||
+          this.hgBindingPermissionEpoch !== epoch
+        )
+          return;
       }
     };
-    for (let index = 0; index < Math.min(4, roleIds.length); index += 1) void loadNext();
+    for (let index = 0; index < Math.min(4, roleIds.length); index += 1)
+      void loadNext();
   };
 
-  /** 图标仅切换一行未提交的表单；关闭时清空权限、作用域和一次性验证码。 */
-  hgToggleAssignRow = () => {
-    this.hgPermissionRequest += 1;
+  /** 点击“分配新角色”才追加一条空草稿；每条草稿使用稳定行键。 */
+  hgAddDraft = () => {
+    if (this.state.saving || this.state.hgRoleSaving || this.state.hgDrafts.length >= 12) return;
+    const key = `draft-${++this.hgDraftSequence}`; // 删除后不复用，防止旧权限响应写入新草稿。
+    this.setState((previous) =>
+      previous.hgDrafts.length >= 12 ? null : {
+        hgDrafts: [...previous.hgDrafts, {
+          key, roleId: "", scopeTypes: [], scopeIDs: {},
+          permissions: [], permissionLoading: false, permissionError: "", permissionRequest: 0,
+        }],
+        hgMFAVisible: false,
+        hgMFACode: "",
+      }
+    );
+  };
+
+  /** 关闭/移除草稿不改变已有绑定，旧权限请求只能更新仍存在且匹配的行。 */
+  hgRemoveDraft = (key) => {
+    if (this.state.saving || this.state.hgRoleSaving) return;
     this.setState((previous) => ({
-      hgShowAssignRow: !previous.hgShowAssignRow,
-      hgRoleIds: [],
-      hgScopeTypes: [],
-      hgScopeIDs: {},
+      hgDrafts: previous.hgDrafts.filter((draft) => draft.key !== key),
+      hgMFAVisible: false,
       hgMFACode: "",
-      hgPermissionRoleId: "",
-      hgPermissions: [],
-      hgPermissionLoading: false,
-      hgPermissionError: "",
     }));
   };
 
-  /** 多选角色后分别读取已生效权限，合并为只读集合；旧响应不得覆盖当前选择。 */
-  hgSelectRoles = (ids) => {
-    const request = ++this.hgPermissionRequest; // 多选变更与卸载都会让旧权限结果失效。
-    this.setState({
-      hgRoleIds: ids,
-      hgPermissions: [],
-      hgPermissionRoleId: ids.join(","),
-      hgPermissionLoading: ids.length > 0,
-      hgPermissionError: "",
-    });
-    if (!ids.length) return;
-    Promise.all(ids.map((id) => HGUserRoleAssignVM.fetchRolePermissions(id)))
-      .then((results) => {
-        if (!this.hgMounted || request !== this.hgPermissionRequest) return;
-        const permissions = new Map(); // 服务端角色权限并集，展示用而非授权参数。
-        results.forEach((result) => {
-          if (!Array.isArray(result?.list) || !Array.isArray(result?.selected))
-            throw new Error("角色权限响应格式无效");
-          const selected = new Set(result.selected); // 服务端返回的实际生效权限编码。
-          result.list
-            .filter((item) => selected.has(item.code))
-            .forEach((item) => permissions.set(item.code, item));
-        });
-        this.setState({ hgPermissions: [...permissions.values()] });
+  /** 不可变地修改指定草稿；任何草稿变动都废弃尚未使用的 MFA。 */
+  hgUpdateDraft = (key, update) =>
+    this.setState((previous) => ({
+      hgDrafts: previous.hgDrafts.map((draft) =>
+        draft.key === key ? { ...draft, ...update(draft) } : draft
+      ),
+      hgMFAVisible: false,
+      hgMFACode: "",
+    }));
+
+  /** 每条草稿只选一个角色；权限仅回填所选角色，拒绝旧角色/已删除行的迟到响应。 */
+  hgSelectRole = (key, roleId) => {
+    const request = ++this.hgPermissionRequest; // 当前草稿本次权限查询身份。
+    this.hgUpdateDraft(key, () => ({
+      roleId, permissions: [], permissionLoading: Boolean(roleId),
+      permissionError: "", permissionRequest: request,
+    }));
+    if (!roleId) return;
+    HGUserRoleAssignVM.fetchRolePermissions(roleId)
+      .then((result) => {
+        if (!Array.isArray(result?.list) || !Array.isArray(result?.selected))
+          throw new Error("角色权限响应格式无效");
+        const selected = new Set(result.selected); // 仅展示服务端已生效权限，不作为授权入参。
+        if (!this.hgMounted) return;
+        this.setState((previous) => ({
+          hgDrafts: previous.hgDrafts.map((draft) =>
+            draft.key === key && draft.permissionRequest === request && draft.roleId === roleId
+              ? { ...draft, permissions: result.list.filter((item) => selected.has(item.code)), permissionLoading: false }
+              : draft
+          ),
+        }));
       })
       .catch((error) => {
-        if (this.hgMounted && request === this.hgPermissionRequest)
-          this.setState({
-            hgPermissionError: error?.message || "业务权限加载失败",
-          });
-      })
-      .finally(() => {
-        if (this.hgMounted && request === this.hgPermissionRequest)
-          this.setState({ hgPermissionLoading: false });
+        if (!this.hgMounted) return;
+        this.setState((previous) => ({
+          hgDrafts: previous.hgDrafts.map((draft) =>
+            draft.key === key && draft.permissionRequest === request && draft.roleId === roleId
+              ? { ...draft, permissionError: error?.message || "业务权限加载失败", permissionLoading: false }
+              : draft
+          ),
+        }));
       });
   };
 
-  /** 作用域类型多选后仅保留仍被选择的资源 ID；避免类型切换后错误复用 ID。 */
-  hgSelectScopeTypes = (types) =>
-    this.setState((previous) => ({
-      hgScopeTypes: types,
-      hgScopeIDs: Object.fromEntries(
-        Object.entries(previous.hgScopeIDs).filter(([type]) =>
-          types.includes(type)
-        )
+  /** 作用域类型多选时只保留当前草稿仍在选择中的资源 ID。 */
+  hgSelectScopeTypes = (key, types) =>
+    this.hgUpdateDraft(key, (draft) => ({
+      scopeTypes: types,
+      scopeIDs: Object.fromEntries(
+        Object.entries(draft.scopeIDs).filter(([type]) => types.includes(type))
       ),
     }));
 
-  /** 选好多个角色和作用域后一次 MFA 原子提交；失败不在本地伪造已授权绑定。 */
-  hgSubmitRole = async () => {
-    if (this.hgRoleSubmitting || !this.state.hgShowAssignRow) return;
-    const userId = this.userId; // 点击时的授权目标；路由切换后不刷新或显示旧用户结果。
-    const {
-      hgRoleIds,
-      hgScopeTypes,
-      hgScopeIDs,
-      hgMFACode,
-      hgBindings,
-      hgRoles,
-      hgScopeCatalog,
-    } = this.state; // 点击时的受控表单快照。
+  /** 聚合并检查全部草稿；角色单选，重复绑定和已生效绑定均不得提交。 */
+  hgGetPendingBindings = () => {
+    const { hgDrafts, hgBindings, hgRoles, hgScopeCatalog } = this.state;
     if (
-      this.state.hgBindingsLoading ||
-      this.state.hgBindingsError ||
-      this.state.hgRolesLoading ||
-      this.state.hgRolesError ||
-      this.state.hgPermissionLoading ||
-      this.state.hgPermissionError
+      this.state.hgBindingsLoading || this.state.hgBindingsError ||
+      this.state.hgHasMoreBindings || this.state.hgRolesLoading ||
+      this.state.hgRolesError || hgDrafts.some((draft) => draft.permissionLoading || draft.permissionError)
     ) {
-      message.error("请先完成角色与绑定查询");
-      return;
+      message.error("请先完成角色、权限与全部绑定查询");
+      return null;
     }
-    if (
-      !hgRoleIds.length ||
-      !hgScopeTypes.length ||
-      hgRoleIds.length * hgScopeTypes.length > 12 ||
-      hgRoleIds.some(
-        (id) =>
-          !hgRoles.some(
-            (role) => String(role.id) === id && role.code !== "super_admin"
-          )
-      )
-    ) {
-      message.error("请选择有效角色和作用域（最多 12 个绑定）");
-      return;
-    }
-    if (
-      hgScopeTypes.some(
-        (type) =>
-          !hgScopeCatalog.some((item) => item.code === type) ||
-          (type !== "global" && !hgScopeIDs[type]?.trim())
-      )
-    ) {
-      message.error("请输入有效的作用域 ID（shop 可填写已审核商家的 merchant_id）");
-      return;
-    }
-    const bindings = hgRoleIds.flatMap((roleId) =>
-      hgScopeTypes.map((scopeType) => ({
-        roleId,
-        scopeType,
-        scopeId: scopeType === "global" ? "" : hgScopeIDs[scopeType].trim(),
-      }))
-    ); // 多选的笛卡尔积，每项单独校验权限与目标。
-    if (
-      bindings.some((item) =>
-        hgBindings.some(
-          (binding) =>
-            String(binding.roleId) === item.roleId &&
-            binding.scopeType === item.scopeType &&
-            (binding.scopeId || "") === item.scopeId
-        )
-      )
-    ) {
-      message.error("选中的角色与作用域中存在已生效绑定");
-      return;
-    }
-    if (!/^\d{6}$/.test(hgMFACode.trim())) {
-      message.error("请输入操作者的 6 位 MFA 验证码");
-      return;
-    }
-    this.hgRoleSubmitting = true;
-    this.setState({ hgRoleSaving: true, hgMFACode: "" });
-    try {
-      const result = await HGUserRoleAssignVM.grantDirectBatch({
-        userId,
-        bindings,
-        mfaCode: hgMFACode,
-      });
+    const bindings = []; // 一次批量授权的有界绑定列表；最多十二项。
+    for (const draft of hgDrafts) {
       if (
-        this.hgMounted &&
-        this.userId === userId &&
-        result?.granted === true
+        !draft.roleId || !draft.scopeTypes.length ||
+        !hgRoles.some((role) => String(role.id) === draft.roleId && role.code !== "super_admin")
       ) {
-        message.success("角色已立即生效");
-        this.setState({
-          hgShowAssignRow: false,
-          hgRoleIds: [],
-          hgScopeTypes: [],
-          hgScopeIDs: {},
-          hgPermissions: [],
-          hgPermissionRoleId: "",
-        });
-        this.hgLoadBindings(0);
-      } else if (this.hgMounted && this.userId === userId) {
-        message.error("授权结果未确认，请重新查询后再操作");
+        message.error("每条分配行请选择一个有效角色和作用域");
+        return null;
       }
-    } catch (error) {
-      if (this.hgMounted && this.userId === userId)
-        message.error(error?.message || "角色分配失败，请查询后确认状态");
-    } finally {
-      this.hgRoleSubmitting = false;
-      if (this.hgMounted) this.setState({ hgRoleSaving: false });
+      for (const scopeType of draft.scopeTypes) {
+        if (
+          !hgScopeCatalog.some((item) => item.code === scopeType) ||
+          (scopeType !== "global" && !draft.scopeIDs[scopeType]?.trim())
+        ) {
+          message.error("请输入有效的作用域 ID（shop 可填写已审核商家的 merchant_id）");
+          return null;
+        }
+        bindings.push({
+          roleId: draft.roleId, scopeType,
+          scopeId: scopeType === "global" ? "" : draft.scopeIDs[scopeType].trim(),
+        });
+      }
     }
+    if (bindings.length > 12) {
+      message.error("一次最多分配 12 个角色作用域绑定");
+      return null;
+    }
+    const keys = bindings.map((item) => JSON.stringify([item.roleId, item.scopeType, item.scopeId])); // 精确匹配三元组，避免拼接歧义。
+    if (
+      new Set(keys).size !== keys.length ||
+      bindings.some((item) => hgBindings.some((binding) =>
+        String(binding.roleId) === item.roleId &&
+        binding.scopeType === item.scopeType &&
+        (binding.scopeId || "") === item.scopeId
+      ))
+    ) {
+      message.error("选中的角色与作用域中存在重复或已生效绑定");
+      return null;
+    }
+    return bindings;
   };
 
   /** 返回来源页；配合运维页选中态持久化，后退后停留在原「用户列表」子菜单。 */
@@ -476,6 +462,7 @@ class HGUserEditRolePage extends Component {
    * @param {*} fieldValue 字段新值。
    */
   handleProfileFieldChange = (fieldName, fieldValue) => {
+    if (this.state.saving) return;
     this.setState((previousState) => ({
       profileForm: {
         ...previousState.profileForm,
@@ -485,6 +472,9 @@ class HGUserEditRolePage extends Component {
         ...previousState.profileErrors,
         [fieldName]: "",
       },
+      hgProfileSaved: false,
+      hgMFAVisible: false,
+      hgMFACode: "",
     }));
   };
 
@@ -517,12 +507,28 @@ class HGUserEditRolePage extends Component {
     return Object.keys(errors).length === 0;
   };
 
-  /** 校验并保存用户资料；角色授权使用独立即时授权请求，不随资料保存提交。 */
+  /** 保存入口：无草稿时仅更新资料；有草稿时先检查全部授权参数，再要求一次 MFA。 */
   handleSubmit = async () => {
-    if (this.state.saving || !this.validateProfile()) return;
-    const userId = this.userId; // 提交时的路由目标；异步返回不覆盖其他用户的页面。
-    const { profileForm, user } = this.state;
+    if (this.state.saving || this.hgRoleSubmitting || !this.validateProfile()) return;
+    if (this.state.hgDrafts.length) {
+      if (!this.hgGetPendingBindings()) return;
+      this.setState({ hgMFAVisible: true, hgMFACode: "" });
+      return;
+    }
+    const userId = this.userId; // 切换目标后旧保存完成不得清除新目标的加载状态。
     this.setState({ saving: true });
+    try {
+      if (await this.hgSaveProfile()) message.success("用户资料已更新");
+    } finally {
+      if (this.hgMounted && this.userId === userId) this.setState({ saving: false });
+    }
+  };
+
+  /** 资料保存成功才推进授权；重试授权时不重复写入未修改的资料。 */
+  hgSaveProfile = async () => {
+    if (this.state.hgProfileSaved) return true;
+    const userId = this.userId; // 异步结果只能更新发起时的目标用户。
+    const { profileForm, user } = this.state;
     try {
       await HGUserVM.updateUserByUserId({
         userId,
@@ -535,13 +541,57 @@ class HGUserEditRolePage extends Component {
         phone: profileForm.phone.trim(),
         email: profileForm.email.trim(),
       });
-      if (this.hgMounted && this.userId === userId)
-        message.success("用户资料已更新");
+      if (!this.hgMounted || this.userId !== userId) return false;
+      this.setState({
+        user: { ...user, ...profileForm }, // 更新联系方式基线，避免下次提交重复使用旧值。
+        hgProfileSaved: true,
+      });
+      return true;
     } catch (error) {
       if (this.hgMounted && this.userId === userId) handleError(error);
+      return false;
+    }
+  };
+
+  /** 验证一次 MFA：资料先保存，再一次批量授予；失败保留草稿供核对、重试。 */
+  hgSubmitRole = async () => {
+    if (this.hgRoleSubmitting || !this.state.hgMFAVisible || this.state.saving) return;
+    if (!this.validateProfile()) return;
+    const bindings = this.hgGetPendingBindings(); // 弹窗打开后仍重新验证当前草稿及绑定。
+    if (!bindings) return;
+    const userId = this.userId;
+    const mfaCode = this.state.hgMFACode.trim(); // 一次性验证码只在此处进入请求。
+    if (!/^\d{6}$/.test(mfaCode)) {
+      message.error("请输入操作者的 6 位 MFA 验证码");
+      return;
+    }
+    this.hgRoleSubmitting = true;
+    this.setState({ saving: true, hgRoleSaving: true, hgMFAVisible: false, hgMFACode: "" });
+    try {
+      if (!await this.hgSaveProfile() || !this.hgMounted || this.userId !== userId) return;
+      const result = await HGUserRoleAssignVM.grantDirectBatch({ userId, bindings, mfaCode });
+      if (!this.hgMounted || this.userId !== userId) return;
+      if (result?.granted !== true) {
+        message.error("资料已保存，授权结果未确认；请查询角色绑定后再重试");
+        this.hgLoadBindings(0);
+        return;
+      }
+      message.success("用户资料已更新，角色已立即生效");
+      this.setState({ hgDrafts: [] });
+      this.hgLoadBindings(0);
+    } catch {
+      if (this.hgMounted && this.userId === userId) {
+        if (this.state.hgProfileSaved) {
+          message.error("资料已保存，角色授权失败或结果未确认；请查询绑定后再重试");
+          this.hgLoadBindings(0);
+        } else {
+          message.error("资料保存失败，未提交角色授权");
+        }
+      }
     } finally {
+      this.hgRoleSubmitting = false;
       if (this.hgMounted && this.userId === userId)
-        this.setState({ saving: false });
+        this.setState({ saving: false, hgRoleSaving: false });
     }
   };
 
@@ -674,19 +724,16 @@ class HGUserEditRolePage extends Component {
     );
   };
 
-  /** 角色权限仅展示服务端 selected 编码；下拉选择不改变角色的权限配置。 */
-  renderRolePermissions = (roleId) => {
-    if (this.state.hgPermissionRoleId !== String(roleId))
-      return <span>选择角色查看权限</span>;
-    const { hgPermissions, hgPermissionLoading, hgPermissionError } =
-      this.state;
-    if (hgPermissionError)
+  /** 单条草稿的业务权限只读展示；重试仅重新读取该角色。 */
+  renderRolePermissions = (draft) => {
+    if (!draft.roleId) return <span>选择角色查看权限</span>;
+    if (draft.permissionError)
       return (
         <span role="alert" className={styles.errorText}>
-          {hgPermissionError}{" "}
+          {draft.permissionError}{" "}
           <HGButtonPage
             type="link"
-            onClick={() => this.hgSelectRoles(this.state.hgRoleIds)}
+            onClick={() => this.hgSelectRole(draft.key, draft.roleId)}
           >
             重试
           </HGButtonPage>
@@ -696,13 +743,14 @@ class HGUserEditRolePage extends Component {
       <div role="group" aria-label="该角色已生效的业务权限（仅查看）">
         <HGTreeSelectPage
           treeCheckable
-          value={hgPermissions.map((item) => item.code)}
+          disabled
+          value={draft.permissions.map((item) => item.code)}
           onChange={() => {}}
-          treeData={hgPermissions.map((item) => ({
+          treeData={draft.permissions.map((item) => ({
             value: item.code,
             title: item.description || item.code,
           }))}
-          placeholder={hgPermissionLoading ? "权限加载中" : "暂无业务权限"}
+          placeholder={draft.permissionLoading ? "权限加载中" : "暂无业务权限"}
         />
       </div>
     );
@@ -719,13 +767,22 @@ class HGUserEditRolePage extends Component {
           {result.error}{" "}
           <HGButtonPage
             type="link"
-            onClick={() => this.setState((previous) => {
-              const permissions = { ...previous.hgBindingPermissions }; // 删除失败缓存以允许该角色重试。
-              delete permissions[roleKey];
-              return { hgBindingPermissions: permissions };
-            }, () => this.hgLoadBindingPermissions(
-              this.state.hgBindings.filter((binding) => String(binding.roleId) === roleKey), this.userId
-            ))}
+            onClick={() =>
+              this.setState(
+                (previous) => {
+                  const permissions = { ...previous.hgBindingPermissions }; // 删除失败缓存以允许该角色重试。
+                  delete permissions[roleKey];
+                  return { hgBindingPermissions: permissions };
+                },
+                () =>
+                  this.hgLoadBindingPermissions(
+                    this.state.hgBindings.filter(
+                      (binding) => String(binding.roleId) === roleKey
+                    ),
+                    this.userId
+                  )
+              )
+            }
           >
             重试
           </HGButtonPage>
@@ -769,15 +826,9 @@ class HGUserEditRolePage extends Component {
    * @returns {React.ReactNode} 行卡片 JSX。
    */
   renderRoleRow = (record, roleNames) => {
-    const {
-      hgRoles,
-      hgRoleIds,
-      hgScopeTypes,
-      hgScopeIDs,
-      hgScopeCatalog,
-      hgMFACode,
-    } = this.state;
+    const { hgRoles, hgScopeCatalog, hgRoleSaving } = this.state;
     if (record.hgIsNew) {
+      const draft = record.hgDraft; // 草稿字段只属于该行，不复用其他待分配行的输入。
       return (
         <article className={`${styles.roleCard} ${styles.roleCardDraft}`}>
           <header className={styles.roleCardHead}>
@@ -790,27 +841,25 @@ class HGUserEditRolePage extends Component {
           </header>
           <div className={styles.roleFieldGrid}>
             {this.renderRoleField(
-              "角色（最多四个）",
-              <div role="group" aria-label="分配角色（可多选）">
+              "角色",
+              <div role="group" aria-label="分配角色（单选）">
                 <HGTreeSelectPage
-                  treeCheckable
-                  showCheckedStrategy="SHOW_ALL"
-                  value={hgRoleIds}
-                  disabled={this.state.hgRoleSaving}
-                  onChange={(ids) => this.hgSelectRoles(ids.slice(0, 4))}
+                  value={draft.roleId || null}
+                  disabled={hgRoleSaving}
+                  onChange={(roleId) => this.hgSelectRole(draft.key, roleId ?? "")}
                   treeData={hgRoles
                     .filter((role) => role.code !== "super_admin")
                     .map((role) => ({
                       value: String(role.id),
                       title: role.name,
                     }))}
-                  placeholder="选择最多四个角色"
+                  placeholder="选择一个角色"
                 />
               </div>
             )}
             {this.renderRoleField(
               "业务权限（仅查看）",
-              this.renderRolePermissions(hgRoleIds.join(","))
+              this.renderRolePermissions(draft)
             )}
             {this.renderRoleField(
               "作用域类型",
@@ -818,9 +867,9 @@ class HGUserEditRolePage extends Component {
                 <HGTreeSelectPage
                   treeCheckable
                   showCheckedStrategy="SHOW_ALL"
-                  value={hgScopeTypes}
-                  disabled={this.state.hgRoleSaving}
-                  onChange={this.hgSelectScopeTypes}
+                  value={draft.scopeTypes}
+                  disabled={hgRoleSaving}
+                  onChange={(types) => this.hgSelectScopeTypes(draft.key, types)}
                   treeData={hgScopeCatalog.map((item) => ({
                     value: item.code,
                     title: item.name,
@@ -829,7 +878,7 @@ class HGUserEditRolePage extends Component {
                 />
               </div>
             )}
-            {hgScopeTypes
+            {draft.scopeTypes
               .filter((type) => type !== "global")
               .map((type) =>
                 this.renderRoleField(
@@ -838,46 +887,25 @@ class HGUserEditRolePage extends Component {
                     key={type}
                     aria-label={`${type} 作用域 ID`}
                     className={styles.control}
-                    value={hgScopeIDs[type] || ""}
+                    value={draft.scopeIDs[type] || ""}
                     maxLength={64}
-                    disabled={this.state.hgRoleSaving}
+                    disabled={hgRoleSaving}
                     onChange={(event) =>
-                      this.setState((previous) => ({
-                        hgScopeIDs: {
-                          ...previous.hgScopeIDs,
-                          [type]: event.target.value,
-                        },
+                      this.hgUpdateDraft(draft.key, (previous) => ({
+                        scopeIDs: { ...previous.scopeIDs, [type]: event.target.value },
                       }))
                     }
                   />,
-                  type === "shop" ? "填写已审核通过商家的 merchant_id；也支持已登记的 shop ID" : "填写服务端已登记的组织 ID"
+                  type === "shop"
+                    ? "填写已审核通过商家的 merchant_id；也支持已登记的 shop ID"
+                    : "填写服务端已登记的组织 ID"
                 )
               )}
-            {this.renderRoleField(
-              "操作者 MFA",
-              <input
-                aria-label="操作者 MFA 验证码"
-                className={styles.control}
-                value={hgMFACode}
-                maxLength={6}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                disabled={this.state.hgRoleSaving}
-                onChange={(event) =>
-                  this.setState({ hgMFACode: event.target.value })
-                }
-              />,
-              "仅本次提交使用，不缓存"
-            )}
           </div>
           <footer className={styles.roleCardActions}>
-            <HGAuthButton
-              allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
-              onClick={this.hgSubmitRole}
-              disabled={this.state.hgRoleSaving}
-            >
-              一次验证并授予
-            </HGAuthButton>
+            <HGButtonPage onClick={() => this.hgRemoveDraft(draft.key)} disabled={hgRoleSaving}>
+              移除此行
+            </HGButtonPage>
           </footer>
         </article>
       );
@@ -900,7 +928,10 @@ class HGUserEditRolePage extends Component {
             作用域 ID · {record.scopeId || "—"}
           </span>
         </div>
-        {this.renderRoleField("业务权限（仅查看）", this.renderBindingPermissions(record.roleId))}
+        {this.renderRoleField(
+          "业务权限（仅查看）",
+          this.renderBindingPermissions(record.roleId)
+        )}
       </article>
     );
   };
@@ -908,20 +939,21 @@ class HGUserEditRolePage extends Component {
   /**
    * 渲染分配入口按钮，置于卡片标题栏右侧。
    * 刷新改由列表顶部下拉触发，不再占用列表上方的独立工具栏行。
-   * @param {boolean} hgShowAssignRow 当前是否已展开待分配行。
-   * @returns {React.ReactNode} 分配/取消分配按钮。
+   * @returns {React.ReactNode} 追加单条待分配行的入口。
    */
-  renderRoleToolbar = (hgShowAssignRow) => (
+  renderRoleToolbar = () => (
     <HGAuthButton
       allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
-      onClick={this.hgToggleAssignRow}
+      onClick={this.hgAddDraft}
       disabled={
         this.state.hgRolesLoading ||
         Boolean(this.state.hgRolesError) ||
+        this.state.hgDrafts.length >= 12 ||
+        this.state.saving ||
         this.state.hgRoleSaving
       }
     >
-      <HGIconPage type="plus" /> {hgShowAssignRow ? "取消分配" : "分配角色"}
+      <HGIconPage type="plus" /> 分配新角色
     </HGAuthButton>
   );
 
@@ -979,10 +1011,7 @@ class HGUserEditRolePage extends Component {
    * @returns {React.ReactNode} 列表或空态 JSX。
    */
   renderRoleList = (rows, roleNames) => {
-    const {
-      hgBindingsLoading,
-      hgBindingsError,
-    } = this.state;
+    const { hgBindingsLoading, hgBindingsError } = this.state;
     if (rows.length === 0) {
       return !hgBindingsLoading && !hgBindingsError ? (
         <p>当前用户暂无已生效 IAM 角色绑定；普通账号身份不等于 IAM 授权。</p>
@@ -993,6 +1022,7 @@ class HGUserEditRolePage extends Component {
         items={rows}
         getKey={(row) => row.hgRowKey}
         renderCell={(row) => this.renderRoleRow(row, roleNames)}
+        fillHeight={false} // 待分配行是可编辑表单，不能进虚拟复用池：内部滚动视口中聚焦滚动会让池窗口位移、整行重挂载导致输入框失焦和列表跳动；自然高度模式由内容撑开。
         loading={hgBindingsLoading}
         onRefresh={this.hgLoadBindings} // 列表顶部下拉刷新绑定，替代独立的刷新按钮。
         ariaLabel="用户角色分配列表"
@@ -1016,9 +1046,9 @@ class HGUserEditRolePage extends Component {
     );
   };
 
-  /** 基本资料下方的独立分配区：先展示用户已有绑定；点击图标才追加一行即时授权表单。 */
+  /** 先展示已生效绑定；只在点击“分配新角色”后追加一条独立草稿。 */
   renderRoleAssignment = () => {
-    const { hgRoles, hgBindings, hgShowAssignRow } = this.state;
+    const { hgRoles, hgBindings, hgDrafts } = this.state;
     const roleNames = new Map(
       hgRoles.map((role) => [String(role.id), role.name || role.code])
     ); // 已有绑定角色未在当前目录时使用服务端角色编码。
@@ -1027,13 +1057,14 @@ class HGUserEditRolePage extends Component {
       hgRowKey: `binding-${binding.id}`,
       hgIsNew: false,
     })); // 已授权行使用稳定绑定主键。
-    if (hgShowAssignRow)
-      rows.push({ hgRowKey: "new-assignment", hgIsNew: true }); // 仅一条待分配行，非服务端生效绑定。
+    hgDrafts.forEach((draft) =>
+      rows.push({ hgRowKey: draft.key, hgIsNew: true, hgDraft: draft })
+    ); // 草稿行与服务端生效绑定使用不同主键，不在本地伪造已授权记录。
     return (
       <HGCardPage
         title="分配角色"
         className={styles.card}
-        extra={this.renderRoleToolbar(hgShowAssignRow)}
+        extra={this.renderRoleToolbar()}
       >
         {this.renderRoleStatus()}
         {this.renderRoleList(rows, roleNames)}
@@ -1049,17 +1080,48 @@ class HGUserEditRolePage extends Component {
   renderPageHeader = () => (
     <HGPageHeaderPage
       title="编辑用户"
-      description="修改用户基本资料，并按权限为其他用户批量分配已有角色。"
+      description="修改用户基本资料，并按权限为其他用户分配已有角色。"
       extra={<HGButtonPage onClick={this.handleBack}>返回</HGButtonPage>}
     />
   );
 
-  /** 渲染底部主提交栏：唯一提交按钮，右对齐。 */
+  /** 一次性验证码仅存在弹窗内存中；关闭时清除，不缓存、不按行重复填写。 */
+  renderMFAModal = () => (
+    <HGModalPage
+      visible={this.state.hgMFAVisible}
+      title="确认分配角色"
+      closable={!this.state.hgRoleSaving}
+      onClose={() => this.setState({ hgMFAVisible: false, hgMFACode: "" })}
+      footer={
+        <>
+          <HGButtonPage disabled={this.state.hgRoleSaving} onClick={() => this.setState({ hgMFAVisible: false, hgMFACode: "" })}>取消</HGButtonPage>
+          <HGButtonPage type="primary" loading={this.state.hgRoleSaving} onClick={this.hgSubmitRole}>验证并保存</HGButtonPage>
+        </>
+      }
+    >
+      <p>先保存基本资料，再用一次 MFA 批量分配 {this.state.hgDrafts.length} 条角色；授权失败时资料不会回滚。</p>
+      <label className={styles.field}>
+        <span className={styles.label}>操作者 MFA 验证码</span>
+        <input
+          aria-label="操作者 MFA 验证码"
+          className={styles.control}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          value={this.state.hgMFACode}
+          onChange={(event) => this.setState({ hgMFACode: event.target.value.replace(/\D/g, "").slice(0, 6) })}
+        />
+      </label>
+    </HGModalPage>
+  );
+
+  /** 底部唯一保存入口：草稿存在时先弹一次 MFA，未新增角色时仅保存资料。 */
   renderFooterBar = () => (
     <div className={styles.footerBar}>
       <HGButtonPage
         type="primary"
         loading={this.state.saving}
+        disabled={this.state.hgMFAVisible}
         onClick={this.handleSubmit}
       >
         保存
@@ -1074,6 +1136,7 @@ class HGUserEditRolePage extends Component {
         {this.renderProfileForm()}
         {this.renderRoleAssignment()}
         {this.renderFooterBar()}
+        {this.renderMFAModal()}
       </div>
     );
   }

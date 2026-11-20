@@ -1,21 +1,21 @@
 /* 主题规范的独立预览色板：变量仅在色板容器内生效，不覆盖全站现有 --hg-color-*。 */
 .palette {
   color-scheme: light;
-  --brand-glacier: #438BFA;
+  --brand-glacier: #1677FF;
   --brand-electric: #28B4F5;
-  --brand-sky: #438BFA;
+  --brand-sky: #1677FF;
   --brand-nebula: #8185F4;
   --brand-ocean: #89C8FF;
   --brand-ice: #89C8FF;
   --brand-sky-light: #5FA8FF;
   --brand-frost: #CFF0FF;
 
-  --color-primary: #438BFA;
-  --color-primary-hover: #2674E8;
-  --color-primary-active: #28B4F5;
+  --color-primary: #1677FF;
+  --color-primary-hover: #4096FF;
+  --color-primary-active: #0958D9;
   --color-primary-soft: #EAF4FF;
-  --color-secondary: #438BFA;
-  --color-secondary-hover: #2674E8;
+  --color-secondary: #1677FF;
+  --color-secondary-hover: #4096FF;
   --color-secondary-soft: #EDF4FF;
   --color-accent: #28B4F5;
   --color-accent-hover: #17A2E0;
@@ -38,11 +38,11 @@
   --color-text-secondary: #61758E;
   --color-text-muted: #71849B;
   --color-text-inverse: #FFFFFF;
-  --color-link: #438BFA;
-  --color-link-hover: #2674E8;
+  --color-link: #1677FF;
+  --color-link-hover: #4096FF;
   --color-border: #D6E7F9;
   --color-border-strong: #B5D0ED;
-  --color-border-focus: #438BFA;
+  --color-border-focus: #1677FF;
 
   --color-success: #16835D;
   --color-success-soft: #E8F8F0;
@@ -50,7 +50,7 @@
   --color-warning-soft: #FFF0F2;
   --color-danger: #DA332A;
   --color-danger-soft: #FFF0F2;
-  --color-info: #438BFA;
+  --color-info: #1677FF;
   --color-info-soft: #EAF4FF;
   --color-ocean: #89C8FF;
   --color-ocean-hover: #565AC4;
@@ -68,8 +68,8 @@
   --color-price-red: #E83E36;
   --color-index-rise-red: #D65E53;
 
-  --gradient-brand: linear-gradient(120deg, #438BFA 0%, #28B4F5 55%, #8185F4 100%);
-  --gradient-ai: linear-gradient(135deg, #438BFA 0%, #8185F4 100%);
+  --gradient-brand: linear-gradient(120deg, #1677FF 0%, #28B4F5 55%, #8185F4 100%);
+  --gradient-ai: linear-gradient(135deg, #1677FF 0%, #8185F4 100%);
   --gradient-soft: linear-gradient(135deg, #F0F7FF 0%, #E6F8FF 60%, #F0F0FF 100%);
 
   padding: 24px;

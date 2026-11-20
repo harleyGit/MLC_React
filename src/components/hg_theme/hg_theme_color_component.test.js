@@ -49,9 +49,9 @@ test("运行时色板与预览 CSS 浅色 token 一致，保留旧 CSS 变量与
     assert.ok(hgDefault[hgToken], `${hgToken} 必须能下发已有或新增的 CSS 变量`);
   });
   assert.equal(HGColor.CSS_VAR_MAP.primary, "--hg-color-primary", "既有消费方仍使用旧变量名");
-  assert.equal(hgDefault.primary, "#438bfa");
-  assert.equal(hgDefault.primaryHover, "#2674e8");
-  assert.equal(hgDefault.primaryActive, "#28b4f5");
+  assert.equal(hgDefault.primary, "#1677ff");
+  assert.equal(hgDefault.primaryHover, "#4096ff");
+  assert.equal(hgDefault.primaryActive, "#0958d9");
   assert.equal(hgDefault.warning, hgDefault.kLineRed, "警告使用已有中信红色");
   assert.equal(hgDefault.danger, hgDefault.buttonRedStrong, "危险状态使用已有中信红色");
   const hgCustom = HGColor.buildTheme("#f066aa"); // 非默认主色只能覆盖主题主色及其派生值，不改变十个中信红原值。

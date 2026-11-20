@@ -222,6 +222,37 @@
   transform: translate(-50%, -50%);
 }
 
+/* 单选使用圆形标记，多选继续使用现有方形复选框。 */
+.radioCustom {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #d8ddeb;
+  border-radius: 50%;
+  background: #fff;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.checkboxInput:checked + .radioCustom {
+  border-color: #1a73ff;
+}
+
+.checkboxInput:checked + .radioCustom::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #1a73ff;
+}
+
+.checkboxInput:focus-visible + .checkboxCustom,
+.checkboxInput:focus-visible + .radioCustom {
+  outline: 2px solid #1a73ff;
+  outline-offset: 2px;
+}
+
 .nodeTitle {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -594,6 +594,37 @@
   box-shadow: 0 4px 10px rgba(226, 46, 31, 0.22);
 }
 
+/* 二级类目行：选中一级大类后出现，小号描边胶囊弱化于一级 Tab。 */
+.shopSubCategoryBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 12px;
+}
+.shopSubCategoryBar button {
+  padding: 5px 14px;
+  border: 1px solid #f0d5d1;
+  border-radius: 999px;
+  background: #fff;
+  color: #4b5164;
+  font-size: 13px;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.shopSubCategoryBar button:hover {
+  color: #e22e1f;
+  border-color: #e22e1f;
+}
+.shopSubCategoryBar button[aria-pressed="true"] {
+  color: #e22e1f;
+  border-color: #e22e1f;
+  background: #fff3f1;
+  font-weight: 600;
+}
+
 .shopFilterBar {
   display: flex;
   align-items: center;

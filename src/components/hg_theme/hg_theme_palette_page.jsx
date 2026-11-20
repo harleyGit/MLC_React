@@ -6,8 +6,8 @@ const HG_COLOR_GROUPS = [
   {
     title: "品牌与辅助色",
     colors: [
-      ["晴空主蓝", "--brand-glacier", "#438BFA"], ["明媚电光蓝", "--brand-electric", "#28B4F5"],
-      ["晴空科技蓝", "--brand-sky", "#438BFA"], ["星云蓝紫", "--brand-nebula", "#8185F4"],
+      ["主蓝", "--brand-glacier", "#1677FF"], ["明媚电光蓝", "--brand-electric", "#28B4F5"],
+      ["科技蓝", "--brand-sky", "#1677FF"], ["星云蓝紫", "--brand-nebula", "#8185F4"],
       ["冰海浅蓝", "--brand-ocean", "#89C8FF"], ["冰川浅蓝", "--brand-ice", "#89C8FF"],
       ["浅蓝辅助", "--brand-sky-light", "#5FA8FF"], ["冰蓝背景", "--brand-frost", "#CFF0FF"],
     ],
@@ -15,9 +15,9 @@ const HG_COLOR_GROUPS = [
   {
     title: "主交互与次级交互",
     colors: [
-      ["主按钮", "--color-primary", "#438BFA"], ["主按钮 Hover", "--color-primary-hover", "#2674E8"],
-      ["主按钮 Active", "--color-primary-active", "#28B4F5"], ["主交互浅底", "--color-primary-soft", "#EAF4FF"],
-      ["次级按钮", "--color-secondary", "#438BFA"], ["次级 Hover", "--color-secondary-hover", "#2674E8"],
+      ["主按钮", "--color-primary", "#1677FF"], ["主按钮 Hover", "--color-primary-hover", "#4096FF"],
+      ["主按钮 Active", "--color-primary-active", "#0958D9"], ["主交互浅底", "--color-primary-soft", "#EAF4FF"],
+      ["次级按钮", "--color-secondary", "#1677FF"], ["次级 Hover", "--color-secondary-hover", "#4096FF"],
       ["次级浅底", "--color-secondary-soft", "#EDF4FF"],
     ],
   },
@@ -44,9 +44,9 @@ const HG_COLOR_GROUPS = [
     colors: [
       ["正文", "--color-text", "#172B4D"], ["标题", "--color-text-title", "#0F2440"],
       ["次级文字", "--color-text-secondary", "#61758E"], ["弱提示", "--color-text-muted", "#71849B"],
-      ["反色文字", "--color-text-inverse", "#FFFFFF"], ["链接", "--color-link", "#438BFA"],
-      ["链接 Hover", "--color-link-hover", "#2674E8"], ["边框", "--color-border", "#D6E7F9"],
-      ["强边框", "--color-border-strong", "#B5D0ED"], ["聚焦边框", "--color-border-focus", "#438BFA"],
+      ["反色文字", "--color-text-inverse", "#FFFFFF"], ["链接", "--color-link", "#1677FF"],
+      ["链接 Hover", "--color-link-hover", "#4096FF"], ["边框", "--color-border", "#D6E7F9"],
+      ["强边框", "--color-border-strong", "#B5D0ED"], ["聚焦边框", "--color-border-focus", "#1677FF"],
     ],
   },
   {
@@ -55,7 +55,7 @@ const HG_COLOR_GROUPS = [
       ["成功", "--color-success", "#16835D"], ["成功浅底", "--color-success-soft", "#E8F8F0"],
       ["警告", "--color-warning", "#C53225"], ["警告浅底", "--color-warning-soft", "#FFF0F2"],
       ["危险", "--color-danger", "#DA332A"], ["危险浅底", "--color-danger-soft", "#FFF0F2"],
-      ["信息", "--color-info", "#438BFA"], ["信息浅底", "--color-info-soft", "#EAF4FF"],
+      ["信息", "--color-info", "#1677FF"], ["信息浅底", "--color-info-soft", "#EAF4FF"],
       ["冰海", "--color-ocean", "#89C8FF"], ["冰海 Hover", "--color-ocean-hover", "#565AC4"],
       ["冰海边框", "--color-ocean-border", "#8185F4"],
     ],
@@ -78,8 +78,8 @@ const HG_COLOR_GROUPS = [
   {
     title: "渐变",
     colors: [
-      ["品牌渐变", "--gradient-brand", "#438BFA → #28B4F5 → #8185F4"],
-      ["AI 渐变", "--gradient-ai", "#438BFA → #8185F4"],
+      ["品牌渐变", "--gradient-brand", "#1677FF → #28B4F5 → #8185F4"],
+      ["AI 渐变", "--gradient-ai", "#1677FF → #8185F4"],
       ["柔和渐变", "--gradient-soft", "#F0F7FF → #E6F8FF → #F0F0FF"],
     ],
   },
