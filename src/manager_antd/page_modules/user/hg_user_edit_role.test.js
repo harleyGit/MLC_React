@@ -34,6 +34,8 @@ function hgUserEditPage(hgUpdate, hgRoleVM = {}) {
       if (hgDependency.endsWith("hg_message_page")) return { hgMessage: { success: (text) => hgMessages.push(text), error: (text) => hgMessages.push(text) } };
       if (hgDependency.endsWith("hg_collection_view")) return { default: HGTestCollectionView, __esModule: true };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
+      if (hgDependency.endsWith("hg_permission")) return { HGAuthButton: HGTestButton };
+      if (hgDependency.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant", IAM_GRANT_DIRECT: "iam:role:grant_direct" } };
       return { default: () => null, __esModule: true };
     },
   });

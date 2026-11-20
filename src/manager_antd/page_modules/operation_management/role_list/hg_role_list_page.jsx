@@ -315,17 +315,19 @@ class HGRoleListPage extends Component {
       width: 160,
       render: (_, record) => (
         <div className={styles.actionGroup}>
-          <HGButtonPage type="link" onClick={() => this.handleEdit(record)}>
+          <HGAuthButton permission={HG_PERMISSIONS.IAM_GRANT} appearance="link"
+            onClick={() => this.handleEdit(record)}>
             编辑
-          </HGButtonPage>
+          </HGAuthButton>
           <span className={styles.actionDivider} />
-          <HGButtonPage
-            type="link"
+          <HGAuthButton
+            permission={HG_PERMISSIONS.IAM_GRANT}
+            appearance="link"
             danger
             onClick={() => this.handleDelete(record)}
           >
             删除
-          </HGButtonPage>
+          </HGAuthButton>
         </div>
       ),
     },

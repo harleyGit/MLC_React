@@ -8,8 +8,36 @@
  */
 import HGNetManager from "../../api/hg_net_manager";
 import { HGMANAGER_API } from "../api/hg_api_constants";
+import { hgNotifyIAMChanged } from "../../modules/iam/hg_iam_events";
+
+// 仅已成功的 IAM 写入会改变展示；MFA 和只读/预判接口不应引发额外权限查询。
+const HG_IAM_MUTATION_PATHS = new Set([
+  HGMANAGER_API.IAM_ROLE_CREATE,
+  HGMANAGER_API.IAM_ROLE_UPDATE,
+  HGMANAGER_API.IAM_ROLE_DISABLE,
+  HGMANAGER_API.IAM_ROLE_PERMISSIONS,
+  HGMANAGER_API.IAM_SCOPE_TYPE_CREATE,
+  HGMANAGER_API.IAM_SCOPE_TYPE_UPDATE,
+  HGMANAGER_API.IAM_SCOPE_TYPE_DISABLE,
+  HGMANAGER_API.IAM_BINDING_GRANT,
+  HGMANAGER_API.IAM_BINDING_GRANT_DIRECT,
+  HGMANAGER_API.IAM_BINDING_GRANT_DIRECT_BATCH,
+  HGMANAGER_API.IAM_BINDING_REVOKE,
+  HGMANAGER_API.IAM_APPROVAL_APPROVE,
+  HGMANAGER_API.IAM_APPROVAL_REJECT,
+]);
 
 class HGNetManagerVM extends HGNetManager {
+  /** 仅 IAM 变更接口成功后广播刷新；预判、MFA 与只读接口不触发写后同步。 */
+  post(path, body, options = {}) {
+    const request = super.post(path, body, options);
+    if (!HG_IAM_MUTATION_PATHS.has(path)) return request;
+    return request.then((result) => {
+      hgNotifyIAMChanged();
+      return result;
+    });
+  }
+
   /* 获取当前登录用户信息 */
   getUserProfile = () => {
     return this.get(HGMANAGER_API.PROFILE);

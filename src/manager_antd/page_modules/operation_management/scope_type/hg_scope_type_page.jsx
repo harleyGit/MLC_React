@@ -7,6 +7,8 @@ import HGSwitchPage from "../../../../components/hg_switch/hg_switch_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import styles from "./hg_scope_type.module.css";
 import HGScopeTypeVM from "./hg_scope_type_vm";
+import { HGAuthButton } from "../../../../modules/iam/hg_permission";
+import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 
 /** 创建与编辑共用表单页面；编辑由详情接口回填，不依赖列表中可能过期的字段。 */
 class HGScopeTypeFormPage extends Component {
@@ -181,14 +183,13 @@ class HGScopeTypeFormPage extends Component {
           </p>
           {this.renderStatusField()}
           <p>启用后是否可授权仍由服务端资源校验决定；有关联绑定的类型不可停用。</p>
-          <HGButtonPage
-            type="primary"
+          <HGAuthButton
+            permission={HG_PERMISSIONS.IAM_GRANT}
             onClick={this.hgSave}
-            loading={saving}
-            disabled={loading || Boolean(error)}
+            disabled={saving || loading || Boolean(error)}
           >
             保存
-          </HGButtonPage>
+          </HGAuthButton>
         </HGCardPage>
       </div>
     );
@@ -305,14 +306,17 @@ export default class HGScopeTypePage extends Component {
         dataIndex: "code",
         render: (_, item) => (
           <>
-            <HGButtonPage
-              type="link"
+            <HGAuthButton
+              appearance="link"
+              permission={HG_PERMISSIONS.IAM_GRANT}
               onClick={() => this.props.pushPage("role_scope_type_edit", { code: item.code })}
             >
               编辑
-            </HGButtonPage>
-            <HGButtonPage
-              type="link"
+            </HGAuthButton>
+            <HGAuthButton
+              appearance="link"
+              danger
+              permission={HG_PERMISSIONS.IAM_GRANT}
               disabled={
                 item.status !== 1 ||
                 ["global", "shop", "org"].includes(item.code) ||
@@ -321,7 +325,7 @@ export default class HGScopeTypePage extends Component {
               onClick={() => this.hgDisable(item)}
             >
               删除
-            </HGButtonPage>
+            </HGAuthButton>
           </>
         ),
       },
@@ -332,12 +336,12 @@ export default class HGScopeTypePage extends Component {
           title="作用域类型"
           description="字典类型只定义授权范围；未启用类型不能用于新授权"
           extra={
-            <HGButtonPage
-              type="primary"
+            <HGAuthButton
+              permission={HG_PERMISSIONS.IAM_GRANT}
               onClick={() => this.props.pushPage("role_scope_type_create")}
             >
               创建作用域类型
-            </HGButtonPage>
+            </HGAuthButton>
           }
         />
         <HGCardPage title="作用域类型列表">

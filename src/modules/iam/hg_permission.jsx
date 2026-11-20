@@ -18,20 +18,23 @@ export function HGPermissionGate({
 
 /** 只处理有权限才执行的单击；aria-disabled 仍保留键盘触发与 Toast。 */
 export function HGAuthButton({
-  permission, // 必填操作权限码；未提供时默认拒绝。
-  scopeType, // 可选作用域类型；默认只允许全局授权。
-  scopeId, // 可选作用域 ID；不能替代服务端可信资源归属校验。
+  permission = undefined, // 单项操作权限码；缺省且没有 allOf 时默认拒绝。
+  allOf = undefined, // 可选同时具备的权限码集合；缺省只校验 permission，各码分别在请求作用域内匹配。
+  scopeType = undefined, // 缺省只允许全局授权；非全局须配合 scopeId。
+  scopeId = undefined, // 缺省无资源 ID；不能替代服务端可信资源归属校验。
   disabled = false, // 业务禁用时同样阻止执行，默认 false。
-  onClick, // 可选业务点击回调；无权限时绝不调用。
+  onClick = undefined, // 缺省无业务操作；无权限时绝不调用。
   children = null, // 按钮内容；默认空。
   type = "button", // 默认普通按钮，避免意外触发表单提交。
+  appearance = "button", // 默认主按钮；link 用于行操作且保持 button 原生交互语义。
+  danger = false, // 默认普通操作；true 用现有危险色语义强调撤销/拒绝。
   className = "", // 可选业务样式名，默认空。
   ...props
 }) {
-  const access = useHGPermission({ permission, scopeType, scopeId });
+  const access = useHGPermission({ permission, allOf, scopeType, scopeId });
   const blocked = disabled || !access.allowed;
   return <button {...props} type={type} aria-disabled={blocked}
-    className={`${styles.button} ${blocked ? styles.blocked : ""} ${className}`}
+    className={`${styles.button} ${appearance === "link" ? styles.link : ""} ${danger ? styles.danger : ""} ${blocked ? styles.blocked : ""} ${className}`}
     onClick={(event) => {
       if (!blocked) { onClick?.(event); return; }
       event.preventDefault();

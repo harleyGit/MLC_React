@@ -14,6 +14,7 @@ import { REFRESH_TOKEN_KEY, TOKEN_KEY } from "../manager_antd/auth/hg_auth";
 import { joinApiURL } from "./hg_api_url";
 import { normalizeSignPath as normalizeHGSignPath } from "./hg_sign_path";
 import { redirectToLogin, showError, showWarning } from "./hg_ui_feedback";
+import { hgNotifyIAMChanged } from "../modules/iam/hg_iam_events";
 
 const env = import.meta.env;
 const getApiBase = () => {
@@ -199,6 +200,10 @@ class NetAPI {
         }
 
         const errorData = await response.json().catch(() => null);
+        if (response.status === 403 && !url.includes("/iam/me/access")) {
+          // 服务端始终是最终授权方；权限撤销后尽快清理本地展示，不回写任何权限数据。
+          hgNotifyIAMChanged({ broadcast: false });
+        }
         throw {
           type: "HTTP_ERROR",
           status: response.status,

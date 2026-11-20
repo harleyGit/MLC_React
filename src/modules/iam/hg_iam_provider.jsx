@@ -52,6 +52,7 @@ export class HGIAMAccessProvider extends React.Component {
 
   /** 实时模块可只发送策略修订号事件；HTTP 仍是唯一授权快照来源。 */
   hgOnChange = (event) => {
+    if (event.detail?.force) { this.hgRefresh(); return; }
     const current = hgGetIAMSnapshot();
     if (event.detail?.user_id && current?.user_id === event.detail.user_id &&
         Number(event.detail.policy_version) > Number(current.policy_version)) this.hgRefresh();

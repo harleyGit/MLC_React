@@ -7,6 +7,8 @@ import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import styles from "./hg_employee_role.module.css";
 import HGEmployeeRoleVM, { INITIAL_BINDING_FORM } from "./hg_employee_role_vm";
+import { HGAuthButton } from "../../../../modules/iam/hg_permission";
+import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 
 /** 将服务端 RFC3339 失效时间转换为本地表单值；空值代表长期有效。 */
 const hgBindingLocalDateTime = (expiresAt) => {
@@ -493,13 +495,13 @@ class HGEmployeeRolePage extends Component {
       { title: "操作", dataIndex: "hgRowKey", width: 260, align: "left", render: (_, record) => record.hgRecordType === "pending" ? (
         <div className={styles.rowActions}>
           <span>申请 #{record.approvalId}</span>
-          <HGButtonPage type="link" onClick={() => this.decideApproval(record, true)} loading={this.state.approvalDecisionId === String(record.approvalId)} disabled={Boolean(this.state.approvalDecisionId)}>允许</HGButtonPage>
-          <HGButtonPage type="link" danger onClick={() => this.decideApproval(record, false)} disabled={Boolean(this.state.approvalDecisionId)}>拒绝</HGButtonPage>
+          <HGAuthButton appearance="link" allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]} onClick={() => this.decideApproval(record, true)} disabled={Boolean(this.state.approvalDecisionId)}>允许</HGAuthButton>
+          <HGAuthButton appearance="link" danger allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]} onClick={() => this.decideApproval(record, false)} disabled={Boolean(this.state.approvalDecisionId)}>拒绝</HGAuthButton>
         </div>
       ) : (
         <div className={styles.rowActions}>
           <HGButtonPage type="link" onClick={() => this.hgSelectBinding(record)}>查看回填</HGButtonPage>
-          <HGButtonPage type="link" danger onClick={() => this.revokeRole(record.id)} disabled={record.roleCode === "super_admin"}>撤销</HGButtonPage>
+          <HGAuthButton appearance="link" danger permission={HG_PERMISSIONS.IAM_GRANT} onClick={() => this.revokeRole(record.id)} disabled={record.roleCode === "super_admin"}>撤销</HGAuthButton>
         </div>
       ) },
     ]; // HGTablePage 通过 columns[].render(value, record) 分别展示两种操作，禁用内置全量分页以保留后端独立游标。
@@ -656,9 +658,9 @@ class HGEmployeeRolePage extends Component {
           </label>
         </div>
         <div className={styles.submitRow}>
-          <HGButtonPage type="primary" onClick={this.grantRole} loading={this.state.granting} disabled={Boolean(hgSelectedBindingId)}>
+          <HGAuthButton permission={HG_PERMISSIONS.IAM_GRANT} onClick={this.grantRole} disabled={this.state.granting || Boolean(hgSelectedBindingId)}>
             提交授权申请
-          </HGButtonPage>
+          </HGAuthButton>
         </div>
       </HGCardPage>
     );
@@ -756,16 +758,16 @@ class HGEmployeeRolePage extends Component {
               </td>
               <td>{new Date(item.expiresAt).toLocaleString()}</td>
               <td>
-                <HGButtonPage
+                <HGAuthButton allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
                    onClick={() => this.decideQueueApproval(item.id, true)}
                 >
                   批准
-                </HGButtonPage>
-                <HGButtonPage
+                </HGAuthButton>
+                <HGAuthButton allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]} danger
                    onClick={() => this.decideQueueApproval(item.id, false)}
                 >
                   拒绝
-                </HGButtonPage>
+                </HGAuthButton>
               </td>
             </tr>
           ))}

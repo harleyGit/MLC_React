@@ -31,6 +31,8 @@ function hgScopeTypePage(hgProps = {}, hgVM = {}, hgMessage = { success() {}, er
       if (hgDependency.endsWith("hg_card_page")) return { default: HGTestCard, __esModule: true };
       if (hgDependency.endsWith("hg_table_page")) return { default: HGTestTable, __esModule: true };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
+      if (hgDependency.endsWith("hg_permission")) return { HGAuthButton: HGTestButton };
+      if (hgDependency.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant" } };
       if (hgDependency.endsWith("hg_switch_page")) return { default: HGTestSwitch, __esModule: true };
       if (hgDependency.endsWith("hg_message_page")) return { hgMessage };
       if (hgDependency.endsWith("hg_scope_type.module.css")) return { scopeTypePage: "scopeTypePage" };

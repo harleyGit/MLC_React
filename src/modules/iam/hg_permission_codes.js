@@ -2,6 +2,8 @@
 export const HG_PERMISSIONS = Object.freeze({
   IAM_READ: "iam:role:read",
   IAM_GRANT: "iam:role:grant",
+  IAM_GRANT_DIRECT: "iam:role:grant_direct",
+  IAM_APPROVE: "iam:approval:approve",
   USER_READ: "user:directory:read",
   USER_WRITE: "user:directory:write",
   USER_DELETE: "user:directory:delete",

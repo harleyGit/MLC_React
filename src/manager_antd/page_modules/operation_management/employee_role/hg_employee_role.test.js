@@ -34,6 +34,8 @@ function hgEditRolePage(hgBindings, hgGrants, hgPending = async () => ({ list: [
         __esModule: true,
       };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
+      if (hgDependency.endsWith("hg_permission")) return { HGAuthButton: HGTestButton };
+      if (hgDependency.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant", IAM_APPROVE: "iam:approval:approve" } };
       if (hgDependency.endsWith("hg_table_page")) return { default: HGTestTable, __esModule: true };
       if (hgDependency.endsWith("hg_message_page")) return { hgMessage: { error: (text) => hgMessages.errors.push(text), success: (text) => hgMessages.successes.push(text) } };
       if (hgDependency.endsWith(".module.css")) return { default: {}, __esModule: true };

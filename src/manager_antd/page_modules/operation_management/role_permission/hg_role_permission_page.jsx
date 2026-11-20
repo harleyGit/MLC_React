@@ -22,6 +22,8 @@ import HGStatusTagPage from "../../../../components/hg_status_tag/hg_status_tag_
 import HGRolePermissionVM, {
 } from "./hg_role_permission_vm";
 import styles from "./hg_role_permission.module.css";
+import { HGAuthButton } from "../../../../modules/iam/hg_permission";
+import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 
 /**
  * 权限管理页面。
@@ -556,14 +558,13 @@ class HGRolePermissionPage extends Component {
           <HGButtonPage onClick={this.handleReset} disabled={!selectedRoleId || submitting}>
             重置
           </HGButtonPage>
-          <HGButtonPage
-            type="primary"
+          <HGAuthButton
+            permission={HG_PERMISSIONS.IAM_GRANT}
             onClick={this.handleSubmit}
-            loading={submitting}
-            disabled={!selectedRoleId || builtIn || Boolean(approvalId) || permissionTree.length === 0 || selectedValues.length > 50}
+            disabled={submitting || !selectedRoleId || builtIn || Boolean(approvalId) || permissionTree.length === 0 || selectedValues.length > 50}
           >
             提交审批申请
-          </HGButtonPage>
+          </HGAuthButton>
         </div>
       </div>
     );

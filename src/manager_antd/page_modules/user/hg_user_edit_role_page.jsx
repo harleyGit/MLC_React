@@ -17,6 +17,8 @@ import { WithNavigation } from "../../router/hg_naviagion_hook";
 import styles from "./hg_user_edit_role.module.css";
 import HGUserRoleAssignVM from "./hg_user_role_assign_vm";
 import HGUserVM from "./hg_user_vm";
+import { HGAuthButton } from "../../../modules/iam/hg_permission";
+import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
 
 /** 性别选项：与后端 gender 编码一致（1 男 / 2 女，其余按保密处理）。 */
 const HG_GENDER_OPTIONS = [
@@ -397,7 +399,7 @@ class HGUserEditRolePage extends Component {
           (type !== "global" && !hgScopeIDs[type]?.trim())
       )
     ) {
-      message.error("请输入已登记的作用域 ID");
+      message.error("请输入有效的作用域 ID（shop 可填写已审核商家的 merchant_id）");
       return;
     }
     const bindings = hgRoleIds.flatMap((roleId) =>
@@ -831,10 +833,10 @@ class HGUserEditRolePage extends Component {
               .filter((type) => type !== "global")
               .map((type) =>
                 this.renderRoleField(
-                  `${type} 已登记的作用域 ID`,
+                  `${type} 作用域 ID`,
                   <input
                     key={type}
-                    aria-label={`${type} 已登记的作用域 ID`}
+                    aria-label={`${type} 作用域 ID`}
                     className={styles.control}
                     value={hgScopeIDs[type] || ""}
                     maxLength={64}
@@ -848,7 +850,7 @@ class HGUserEditRolePage extends Component {
                       }))
                     }
                   />,
-                  "填写服务端已登记的资源标识"
+                  type === "shop" ? "填写已审核通过商家的 merchant_id；也支持已登记的 shop ID" : "填写服务端已登记的组织 ID"
                 )
               )}
             {this.renderRoleField(
@@ -869,13 +871,13 @@ class HGUserEditRolePage extends Component {
             )}
           </div>
           <footer className={styles.roleCardActions}>
-            <HGButtonPage
-              type="primary"
+            <HGAuthButton
+              allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
               onClick={this.hgSubmitRole}
-              loading={this.state.hgRoleSaving}
+              disabled={this.state.hgRoleSaving}
             >
               一次验证并授予
-            </HGButtonPage>
+            </HGAuthButton>
           </footer>
         </article>
       );
@@ -910,7 +912,8 @@ class HGUserEditRolePage extends Component {
    * @returns {React.ReactNode} 分配/取消分配按钮。
    */
   renderRoleToolbar = (hgShowAssignRow) => (
-    <HGButtonPage
+    <HGAuthButton
+      allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
       onClick={this.hgToggleAssignRow}
       disabled={
         this.state.hgRolesLoading ||
@@ -919,7 +922,7 @@ class HGUserEditRolePage extends Component {
       }
     >
       <HGIconPage type="plus" /> {hgShowAssignRow ? "取消分配" : "分配角色"}
-    </HGButtonPage>
+    </HGAuthButton>
   );
 
   /** 渲染目录与绑定的加载/错误/截断提示；无异常时返回 null，不占位。 */
