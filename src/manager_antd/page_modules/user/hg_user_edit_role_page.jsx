@@ -1,7 +1,7 @@
 /*
  * 用户资料编辑页：由用户列表「编辑」按钮携带 user_id 跳转进入。
  * 路由参数 userId 指定编辑目标，location.state.user 提供资料回填。
- * 资料先保存，再以一次 MFA 批量提交待分配角色；权限仅供查看，实际授权由服务端复核。
+ * 资料先保存，再以一次 MFA 批量提交待分配角色及每条绑定的权限子集；实际授权由服务端复核。
  * 「返回」通过浏览器后退（navigate(-1)）回到来源页。
  */
 import React, { Component } from "react";
@@ -224,7 +224,7 @@ class HGUserEditRolePage extends Component {
             hgBindingCursor: result.nextCursor || "",
             hgHasMoreBindings: Boolean(result.hasMore),
           }),
-          () => this.hgLoadBindingPermissions(result.list, userId)
+          () => this.hgLoadBindingPermissions(result.list.filter((binding) => !binding.permissionsLimited), userId)
         );
       })
       .catch((error) => {
@@ -323,7 +323,7 @@ class HGUserEditRolePage extends Component {
       previous.hgDrafts.length >= 12 ? null : {
         hgDrafts: [...previous.hgDrafts, {
           key, roleId: "", scopeTypes: [], scopeIDs: {},
-          permissions: [], permissionLoading: false, permissionError: "", permissionRequest: 0,
+          permissions: [], selectedPermissions: [], permissionLoading: false, permissionError: "", permissionRequest: 0,
         }],
         hgMFAVisible: false,
         hgMFACode: "",
@@ -351,11 +351,11 @@ class HGUserEditRolePage extends Component {
       hgMFACode: "",
     }));
 
-  /** 每条草稿只选一个角色；权限仅回填所选角色，拒绝旧角色/已删除行的迟到响应。 */
+  /** 每条草稿只选一个角色；默认选中该角色当前全部业务权限，拒绝旧角色/已删除行的迟到响应。 */
   hgSelectRole = (key, roleId) => {
     const request = ++this.hgPermissionRequest; // 当前草稿本次权限查询身份。
     this.hgUpdateDraft(key, () => ({
-      roleId, permissions: [], permissionLoading: Boolean(roleId),
+      roleId, permissions: [], selectedPermissions: [], permissionLoading: Boolean(roleId),
       permissionError: "", permissionRequest: request,
     }));
     if (!roleId) return;
@@ -368,7 +368,12 @@ class HGUserEditRolePage extends Component {
         this.setState((previous) => ({
           hgDrafts: previous.hgDrafts.map((draft) =>
             draft.key === key && draft.permissionRequest === request && draft.roleId === roleId
-              ? { ...draft, permissions: result.list.filter((item) => selected.has(item.code)), permissionLoading: false }
+              ? {
+                  ...draft,
+                  permissions: result.list.filter((item) => selected.has(item.code)),
+                  selectedPermissions: result.list.filter((item) => selected.has(item.code)).map((item) => item.code),
+                  permissionLoading: false,
+                }
               : draft
           ),
         }));
@@ -414,6 +419,13 @@ class HGUserEditRolePage extends Component {
         message.error("每条分配行请选择一个有效角色和作用域");
         return null;
       }
+      if (
+        draft.selectedPermissions.length > 200 ||
+        draft.selectedPermissions.some((code) => !draft.permissions.some((item) => item.code === code))
+      ) {
+        message.error("所选业务权限不属于当前角色");
+        return null;
+      }
       for (const scopeType of draft.scopeTypes) {
         if (
           !hgScopeCatalog.some((item) => item.code === scopeType) ||
@@ -425,6 +437,7 @@ class HGUserEditRolePage extends Component {
         bindings.push({
           roleId: draft.roleId, scopeType,
           scopeId: scopeType === "global" ? "" : draft.scopeIDs[scopeType].trim(),
+          permissions: draft.selectedPermissions,
         });
       }
     }
@@ -724,7 +737,7 @@ class HGUserEditRolePage extends Component {
     );
   };
 
-  /** 单条草稿的业务权限只读展示；重试仅重新读取该角色。 */
+  /** 单条草稿默认全选该角色权限；可多选限制本次用户绑定，不修改共享角色权限。 */
   renderRolePermissions = (draft) => {
     if (!draft.roleId) return <span>选择角色查看权限</span>;
     if (draft.permissionError)
@@ -740,12 +753,13 @@ class HGUserEditRolePage extends Component {
         </span>
       );
     return (
-      <div role="group" aria-label="该角色已生效的业务权限（仅查看）">
+      <div role="group" aria-label="本次绑定业务权限（可多选）">
         <HGTreeSelectPage
           treeCheckable
-          disabled
-          value={draft.permissions.map((item) => item.code)}
-          onChange={() => {}}
+          showCheckedStrategy="SHOW_ALL"
+          disabled={draft.permissionLoading || this.state.hgRoleSaving}
+          value={draft.selectedPermissions}
+          onChange={(codes) => this.hgUpdateDraft(draft.key, () => ({ selectedPermissions: codes }))}
           treeData={draft.permissions.map((item) => ({
             value: item.code,
             title: item.description || item.code,
@@ -858,7 +872,7 @@ class HGUserEditRolePage extends Component {
               </div>
             )}
             {this.renderRoleField(
-              "业务权限（仅查看）",
+              "业务权限（可多选）",
               this.renderRolePermissions(draft)
             )}
             {this.renderRoleField(
@@ -930,7 +944,9 @@ class HGUserEditRolePage extends Component {
         </div>
         {this.renderRoleField(
           "业务权限（仅查看）",
-          this.renderBindingPermissions(record.roleId)
+          record.permissionsLimited
+            ? <span>该绑定已单独限制权限；角色权限并非此用户实际权限，请以服务端授权为准</span>
+            : this.renderBindingPermissions(record.roleId)
         )}
       </article>
     );
@@ -1070,7 +1086,7 @@ class HGUserEditRolePage extends Component {
         {this.renderRoleList(rows, roleNames)}
         {this.renderRoleLoadMore()}
         <p className={styles.roleHint}>
-          此处仅分配已有角色；业务权限随角色生效，不会修改角色权限。需持有专门即时授权权限，且不可给自己分配。
+          此处仅分配已有角色；新增绑定可从角色当前权限中缩减权限，不会修改其他用户的角色权限。已有绑定若设置了权限子集，仅展示限制提示。需持有专门即时授权权限，且不可给自己分配。
         </p>
       </HGCardPage>
     );

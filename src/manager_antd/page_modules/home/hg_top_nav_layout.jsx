@@ -2,33 +2,41 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-02-03 10:29:22
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-04-30 21:31:34
+ * @LastEditTime: 2026-11-20 21:12:15
  * @FilePath: /MLC_React/src/manager_antd/page_modules/home/hg_top_nav_layout.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 // src/components/HGTopNavLayout.jsx
-import { HGLayoutPage as Layout, HGLayoutHeader as Header, HGLayoutContent as Content, HGLayoutFooter as Footer } from "../../../components/hg_layout/hg_layout_page";
-import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
 import React, { Component } from "react";
 import { Link, Outlet } from "react-router-dom";
-import { ROUTE_PATH } from "../../router/hg_router_path";
-import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
-import { logout } from "../../auth/hg_auth";
-import { hgRevokeIMDevice } from "../../auth/hg_im_device";
-import { hgIMOwner } from "../../storage/hg_im_session";
+import {
+  HGLayoutContent as Content,
+  HGLayoutFooter as Footer,
+  HGLayoutHeader as Header,
+  HGLayoutPage as Layout,
+} from "../../../components/hg_layout/hg_layout_page";
+import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
-import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
-import { hgGetAdminStatus } from "../../auth/hg_admin_status";
-import styles from "./hg_top_nav_layout.module.css";
-import { HG_IM_CONNECTION_EVENT, HG_IM_RECONNECT_EVENT } from "./hg_im_connection_events";
-import { hgTopNavKeyForPath } from "./hg_top_nav_selection";
-import { HGIAMContext } from "../../../modules/iam/hg_iam_provider";
-import { hgEvaluateAccess } from "../../../modules/iam/hg_access_evaluator";
-import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
-import { hgUserRepository } from "../../../modules/user/HGUserRepository";
-import { hgCurrentIAMUser } from "../../../modules/iam/hg_iam_session";
+import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { HG_STORES } from "../../../infrastructure/database/HGDatabaseSchema";
 import { hgLocalDataService } from "../../../infrastructure/storage/HGLocalDataService";
+import { hgEvaluateAccess } from "../../../modules/iam/hg_access_evaluator";
+import { HGIAMContext } from "../../../modules/iam/hg_iam_provider";
+import { hgCurrentIAMUser } from "../../../modules/iam/hg_iam_session";
+import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
+import { hgUserRepository } from "../../../modules/user/HGUserRepository";
+import { hgGetAdminStatus } from "../../auth/hg_admin_status";
+import { logout } from "../../auth/hg_auth";
+import { hgRevokeIMDevice } from "../../auth/hg_im_device";
+import { ROUTE_PATH } from "../../router/hg_router_path";
+import { hgIMOwner } from "../../storage/hg_im_session";
+import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
+import {
+  HG_IM_CONNECTION_EVENT,
+  HG_IM_RECONNECT_EVENT,
+} from "./hg_im_connection_events";
+import styles from "./hg_top_nav_layout.module.css";
+import { hgTopNavKeyForPath } from "./hg_top_nav_selection";
 
 class HGTopNavLayout extends Component {
   static contextType = HGIAMContext;
@@ -59,11 +67,18 @@ class HGTopNavLayout extends Component {
     this.updateCurrentPage();
     document.addEventListener("mousedown", this.handleDocumentClick);
     this.hgMounted = true;
-    this.hgUnsubscribeProfile = hgLocalDataService.subscribe(HG_STORES.USERS, this.hgLoadProfile);
+    this.hgUnsubscribeProfile = hgLocalDataService.subscribe(
+      HG_STORES.USERS,
+      this.hgLoadProfile
+    );
     this.hgLoadProfile();
     window.addEventListener(HG_IM_CONNECTION_EVENT, this.hgOnChatConnection);
     window.addEventListener("hg:auth-changed", this.hgResetChatConnection);
-    hgGetAdminStatus().then((hgIsAdmin) => { if (this.hgMounted) this.setState({ hgIsAdmin }); }).catch(() => {});
+    hgGetAdminStatus()
+      .then((hgIsAdmin) => {
+        if (this.hgMounted) this.setState({ hgIsAdmin });
+      })
+      .catch(() => {});
   }
 
   /**
@@ -95,7 +110,12 @@ class HGTopNavLayout extends Component {
   getCurrentPage = () => {
     const location = this.props.location; // Router 注入的当前历史项，包括同路径不同 query 的 entry。
     const path = location?.pathname || "/"; // 未注入路由时仅按首页处理。
-    return this.hgTabHistory.get(location?.key) ?? hgTopNavKeyForPath(path, ROUTE_PATH) ?? this.state?.current ?? "";
+    return (
+      this.hgTabHistory.get(location?.key) ??
+      hgTopNavKeyForPath(path, ROUTE_PATH) ??
+      this.state?.current ??
+      ""
+    );
   };
 
   /**
@@ -103,7 +123,8 @@ class HGTopNavLayout extends Component {
    */
   updateCurrentPage = () => {
     const current = this.getCurrentPage(); // 新历史项继承来源；POP 使用该项原来记录的归属。
-    if (this.props.location?.key) this.hgTabHistory.set(this.props.location.key, current);
+    if (this.props.location?.key)
+      this.hgTabHistory.set(this.props.location.key, current);
     this.setState({ current });
   };
 
@@ -114,7 +135,11 @@ class HGTopNavLayout extends Component {
   handleClick = (e) => {
     // 高亮只在路由真正变化后更新；修饰键打开新标签页不能改变当前页的 Tab。
     // 从其他路由进入时新页面会自动建连；仅同路由点击才通知存活的 VM，避免重复建连。
-    if (e.key === "home" && this.props.location?.pathname === ROUTE_PATH.HOME && import.meta.env.MODE === "debug") {
+    if (
+      e.key === "home" &&
+      this.props.location?.pathname === ROUTE_PATH.HOME &&
+      import.meta.env.MODE === "debug"
+    ) {
       window.dispatchEvent(new Event(HG_IM_RECONNECT_EVENT));
     }
   };
@@ -125,8 +150,10 @@ class HGTopNavLayout extends Component {
     if (!owner || owner !== hgIMOwner()) return;
     this.hgConnectionOwner = owner;
     const hgFailed = state === "failed";
-    if (hgFailed && !this.state.hgChatFailed) message.error(reason || "聊天实时连接失败，请等待 WebSocket 恢复", 8000);
-    if (hgFailed || state === "connected" || state === "idle") this.setState({ hgChatFailed: hgFailed });
+    if (hgFailed && !this.state.hgChatFailed)
+      message.error(reason || "聊天实时连接失败，请等待 WebSocket 恢复", 8000);
+    if (hgFailed || state === "connected" || state === "idle")
+      this.setState({ hgChatFailed: hgFailed });
   };
 
   /** 账号或聊天页关闭时清理旧账号的连接提示。 */
@@ -154,7 +181,10 @@ class HGTopNavLayout extends Component {
    * 约束：若点击点不在头像浮层容器内则强制关闭。
    */
   handleDocumentClick = (event) => {
-    if (this.state.showUserDropdown && !this.avatarMenuRef.current?.contains(event.target)) {
+    if (
+      this.state.showUserDropdown &&
+      !this.avatarMenuRef.current?.contains(event.target)
+    ) {
       this.setState({
         showUserDropdown: false,
       });
@@ -177,9 +207,13 @@ class HGTopNavLayout extends Component {
       if (this.hgMounted) this.setState({ hgProfile: sessionProfile });
       return;
     }
-    if (!owner) { if (this.hgMounted) this.setState({ hgProfile: null }); return; }
+    if (!owner) {
+      if (this.hgMounted) this.setState({ hgProfile: null });
+      return;
+    }
     const cached = await hgUserRepository.getProfile(owner).catch(() => null);
-    if (this.hgMounted && owner === hgCurrentIAMUser()) this.setState({ hgProfile: cached || null });
+    if (this.hgMounted && owner === hgCurrentIAMUser())
+      this.setState({ hgProfile: cached || null });
   };
 
   /**
@@ -220,7 +254,9 @@ class HGTopNavLayout extends Component {
    * @returns {string} 优先展示签名，其次邮箱、手机号；都不存在则为空。
    */
   getUserSubtitle = (userProfile) => {
-    return userProfile.signature || userProfile.email || userProfile.phone || "";
+    return (
+      userProfile.signature || userProfile.email || userProfile.phone || ""
+    );
   };
 
   /**
@@ -256,7 +292,12 @@ class HGTopNavLayout extends Component {
           await hgRevokeIMDevice();
         } catch {
           message.warning("设备撤销未确认，仍可能占用聊天设备名额。", 8000);
-          if (!window.confirm("设备撤销失败。是否仅退出本地登录？该设备可能继续占用名额。")) return;
+          if (
+            !window.confirm(
+              "设备撤销失败。是否仅退出本地登录？该设备可能继续占用名额。"
+            )
+          )
+            return;
         }
       }
       if (hgIMOwner() !== hgOwner) return;
@@ -281,24 +322,114 @@ class HGTopNavLayout extends Component {
         onClick={this.handleClick}
         className={styles.topMenu}
         items={[
-          { key: "home", label: <Link to={ROUTE_PATH.HOME} className={`${styles.menuLink} ${this.state.hgChatFailed && this.hgConnectionOwner === hgIMOwner() ? styles.menuLinkFailed : ""}`}>Chat</Link> },
-          { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>商品</Link> },
-          { key: "message", label: <Link to={ROUTE_PATH.MESSAGE_CENTER} className={styles.menuLink}>消息中心</Link> },
-          ...(this.state.hgIsAdmin && this.context?.status === "ready" && [
-            HG_PERMISSIONS.IAM_READ, HG_PERMISSIONS.USER_READ, HG_PERMISSIONS.OPS_METRICS_READ,
-            HG_PERMISSIONS.CRAWLER_READ, HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.OPS_FILE_READ,
-            HG_PERMISSIONS.OPS_MENU_READ, HG_PERMISSIONS.OPS_TAG_READ, HG_PERMISSIONS.ASSET_BALANCE_READ,
-            HG_PERMISSIONS.RECHARGE_READ, HG_PERMISSIONS.MALL_REVIEW, HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ,
-          ].some((permission) => hgEvaluateAccess(this.context.snapshot, { permission }).allowed) ? [
-            { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
-          ] : []),
-          ...(this.state.hgIsAdmin && this.context?.status === "ready" &&
-            hgEvaluateAccess(this.context.snapshot, { permission: HG_PERMISSIONS.CRAWLER_READ }).allowed ? [
-            { key: "crawler", label: <Link to={ROUTE_PATH.CRAWLER_PLATFORM} className={styles.menuLink}>采集平台</Link> },
-          ] : []),
-          { key: "test_module", label: <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>测试模块</Link> },
-          { key: "bili_douga", label: <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>B站动画</Link> },
-          { key: "profile", label: <Link to={ROUTE_PATH.USER_CENTER} className={styles.menuLink}>个人中心</Link> },
+          {
+            key: "home",
+            label: (
+              <Link
+                to={ROUTE_PATH.HOME}
+                className={`${styles.menuLink} ${
+                  this.state.hgChatFailed &&
+                  this.hgConnectionOwner === hgIMOwner()
+                    ? styles.menuLinkFailed
+                    : ""
+                }`}
+              >
+                Chat
+              </Link>
+            ),
+          },
+          {
+            key: "products",
+            label: (
+              <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>
+                商品
+              </Link>
+            ),
+          },
+          {
+            key: "message",
+            label: (
+              <Link to={ROUTE_PATH.MESSAGE_CENTER} className={styles.menuLink}>
+                消息中心
+              </Link>
+            ),
+          },
+          ...(this.state.hgIsAdmin &&
+          this.context?.status === "ready" &&
+          [
+            HG_PERMISSIONS.IAM_READ,
+            HG_PERMISSIONS.USER_READ,
+            HG_PERMISSIONS.OPS_METRICS_READ,
+            HG_PERMISSIONS.CRAWLER_READ,
+            HG_PERMISSIONS.IAM_GRANT,
+            HG_PERMISSIONS.OPS_FILE_READ,
+            HG_PERMISSIONS.OPS_MENU_READ,
+            HG_PERMISSIONS.OPS_TAG_READ,
+            HG_PERMISSIONS.ASSET_BALANCE_READ,
+            HG_PERMISSIONS.RECHARGE_READ,
+            HG_PERMISSIONS.MALL_REVIEW,
+            HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ,
+          ].some(
+            (permission) =>
+              hgEvaluateAccess(this.context.snapshot, { permission }).allowed
+          )
+            ? [
+                {
+                  key: "operation",
+                  label: (
+                    <Link
+                      to={ROUTE_PATH.OPERATION_MANAGEMENT}
+                      className={styles.menuLink}
+                    >
+                      运维管理
+                    </Link>
+                  ),
+                },
+              ]
+            : []),
+          ...(this.state.hgIsAdmin &&
+          this.context?.status === "ready" &&
+          hgEvaluateAccess(this.context.snapshot, {
+            permission: HG_PERMISSIONS.CRAWLER_READ,
+          }).allowed
+            ? [
+                {
+                  key: "crawler",
+                  label: (
+                    <Link
+                      to={ROUTE_PATH.CRAWLER_PLATFORM}
+                      className={styles.menuLink}
+                    >
+                      采集平台
+                    </Link>
+                  ),
+                },
+              ]
+            : []),
+          {
+            key: "test_module",
+            label: (
+              <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>
+                测试模块
+              </Link>
+            ),
+          },
+          {
+            key: "bili_douga",
+            label: (
+              <Link to={ROUTE_PATH.BILI_DOUGA} className={styles.menuLink}>
+                B站动画
+              </Link>
+            ),
+          },
+          {
+            key: "profile",
+            label: (
+              <Link to={ROUTE_PATH.USER_CENTER} className={styles.menuLink}>
+                个人中心
+              </Link>
+            ),
+          },
         ]}
       />
     );

@@ -143,7 +143,7 @@
   color: var(--hg-color-primary, #4472f0);
 }
 
-/* 每组标签与控件同排，按可用宽度自动换行；标签与下拉间隔 80px。 */
+/* 每组标签与控件同排，按可用宽度自动换行；标签与下拉间隔 16px。 */
 .roleFieldGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
@@ -154,7 +154,7 @@
 .roleField {
   display: flex;
   align-items: center;
-  gap: 80px;
+  gap: 16px;
   min-width: 0;
   flex-wrap: wrap;
 }

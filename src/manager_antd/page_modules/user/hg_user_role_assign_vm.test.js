@@ -34,15 +34,15 @@ test("角色目录最多聚合五页，异常游标不循环请求", async () =>
   await assert.rejects(hgInvalid.fetchAllRoles(), /游标无效/);
 });
 
-test("作用域目录来自服务端且批量授权只提交选定绑定与一次 MFA", async () => {
+test("作用域目录来自服务端且批量授权透传每个绑定的显式权限子集与一次 MFA", async () => {
   const hgCalls = []; // 不记录验证码内容，只断言其长度。
   const hgVM = hgRoleVM(async (url, params) => { hgCalls.push([url, params.pageSize]); return { list: [{ code: "shop", status: 1 }] }; }, async (url, payload) => {
-    hgCalls.push([url, payload.userId, payload.bindings.length, payload.mfaCode.length, Object.hasOwn(payload, "permissions")]);
+    hgCalls.push([url, payload.userId, payload.bindings.map((binding) => binding.permissions), payload.mfaCode.length]);
     return { granted: true };
   });
   assert.equal((await hgVM.fetchScopeTypes()).list[0].code, "shop");
-  await hgVM.grantDirectBatch({ userId: "target-1", bindings: [{ roleId: "7", scopeType: "shop", scopeId: "shop-1" }, { roleId: "8", scopeType: "shop", scopeId: "shop-1" }], mfaCode: "123456" });
-  assert.deepEqual(hgCalls, [["/scope-types/list", 50], ["/bindings/grant-direct-batch", "target-1", 2, 6, false]]);
+  await hgVM.grantDirectBatch({ userId: "target-1", bindings: [{ roleId: "7", scopeType: "shop", scopeId: "shop-1", permissions: ["mall:product:create"] }, { roleId: "8", scopeType: "shop", scopeId: "shop-1", permissions: [] }], mfaCode: "123456" });
+  assert.deepEqual(hgCalls, [["/scope-types/list", 50], ["/bindings/grant-direct-batch", "target-1", [["mall:product:create"], []], 6]]);
 });
 
 test("即时授权仅提交既有角色及绑定作用域；不提交客户端查看的权限编码", async () => {

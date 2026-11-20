@@ -127,28 +127,39 @@ export default class HGMallCatalog extends React.Component {
   };
 
   /**
-   * 一级类目 Tab：接口数据按 depth=1 动态生成；静态白名单作为回退来源。
-   * hgFilter 为商品目录过滤编码：服务端商品列表只接受白名单编码，动态类目按名称映射，未命中时以全部商品兜底。
+   * 一级类目 Tab：「全部商品」固定首位；接口数据按 depth=1 动态生成，静态白名单作为回退来源。
+   * 边界：接口返回非空但不含 depth=1（如一级类目被停用或标记需资质被服务端过滤）时，
+   * 必须回退静态白名单，避免类目栏渲染为空；hgFilter 未命中白名单编码时以全部商品目录兜底。
    */
   hgTopTabs = () => {
-    if (!this.state.hgPlatformCategories.length)
-      return hgCategories
-        .filter(([hgCode]) => hgCode)
-        .map(([hgCode, hgLabel]) => ({
-          hgKey: hgCode,
-          hgName: hgLabel,
-          hgFilter: hgCode,
-        }));
-    const hgLabelToCode = new Map(
-      hgCategories.filter(([hgCode]) => hgCode !== "")
+    const hgAllTab = { hgKey: "", hgName: "全部商品", hgFilter: "" };
+    const hgDynamic = this.state.hgPlatformCategories.filter(
+      (hgItem) => hgItem.depth === 1
     );
-    return this.state.hgPlatformCategories
-      .filter((hgItem) => hgItem.depth === 1)
-      .map((hgItem) => ({
+    if (!hgDynamic.length)
+      return [
+        hgAllTab,
+        ...hgCategories
+          .filter(([hgCode]) => hgCode)
+          .map(([hgCode, hgLabel]) => ({
+            hgKey: hgCode,
+            hgName: hgLabel,
+            hgFilter: hgCode,
+          })),
+      ];
+    const hgLabelToCode = new Map(
+      hgCategories
+        .filter(([hgCode]) => hgCode !== "")
+        .map(([hgCode, hgLabel]) => [hgLabel, hgCode])
+    );
+    return [
+      hgAllTab,
+      ...hgDynamic.map((hgItem) => ({
         hgKey: hgItem.categoryId,
         hgName: hgItem.name,
         hgFilter: hgLabelToCode.get(hgItem.name) || "",
-      }));
+      })),
+    ];
   };
 
   /** 当前一级类目下的二级类目；仅来自平台类目接口，静态白名单无层级数据故返回空。 */
@@ -578,7 +589,7 @@ export default class HGMallCatalog extends React.Component {
               aria-pressed={hgTopKey === hgTab.hgKey}
               onClick={() => this.hgSelectTopCategory(hgTab)}
             >
-              {hgTab.name}
+              {hgTab.hgName}
             </button>
           ))}
         </nav>

@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { hgMessage } from "../../components/hg_message/hg_message_page";
 import { useHGPermission } from "./hg_use_permission";
+import { hgCurrentIAMUser } from "./hg_iam_session";
 import styles from "./hg_permission.module.css";
 
 /** 无授权的模块不挂载，避免子组件自动发起敏感请求。 */
@@ -45,12 +46,38 @@ export function HGAuthButton({
 
 /** 无权限显示 403；请求失败单独提供重试，不泄露受保护页面内容。 */
 export function HGRouteGuard({
-  permission, // 单权限码；默认未指定时拒绝。
-  anyOf, // 可选任一权限码列表；与单权限二选一。
-  allOf, // 可选全部权限码列表；与单权限二选一。
+  permission = undefined, // 单权限码；默认未指定时拒绝。
+  anyOf = undefined, // 可选任一权限码列表；与单权限二选一。
+  allOf = undefined, // 可选全部权限码列表；与单权限二选一。
   children = null, // 被保护路由；默认无内容。
+  preserveOnRefresh = false, // 默认复核时卸载子树；编辑页可保留此前已授权的草稿，但复核期间隐藏并禁用交互。
 }) {
   const access = useHGPermission({ permission, anyOf, allOf });
+  const [hgApprovedOwner, hgSetApprovedOwner] = React.useState(""); // 上一次通过服务端核验的账号；空值表示尚未授权，不能首次挂载页面。
+  const hgCurrentOwner = preserveOnRefresh ? hgCurrentIAMUser() : ""; // 当前 JWT 的账号仅用于隔离旧草稿，不作为授权证明。
+  React.useEffect(() => {
+    if (!preserveOnRefresh) return;
+    if (access.status === "ready") {
+      hgSetApprovedOwner(access.allowed ? hgCurrentOwner : "");
+    } else if (access.status === "unauthenticated") {
+      hgSetApprovedOwner("");
+    }
+  }, [access.status, access.allowed, hgCurrentOwner, preserveOnRefresh]);
+  if (preserveOnRefresh) {
+    const hgReady = access.status === "ready" && access.allowed; // 只有服务端已确认权限时才可展示和交互。
+    const hgRetainHidden = !hgReady && (access.loading || access.status === "error") &&
+      Boolean(hgCurrentOwner) && hgApprovedOwner === hgCurrentOwner; // 仅当前账号短暂复核/网络失败时保留已挂载的草稿。
+    if (hgReady || hgRetainHidden) {
+      return <>
+        {hgRetainHidden && (access.status === "error"
+          ? <div role="alert">权限加载失败。<button type="button" onClick={access.refresh}>重试</button></div>
+          : <p role="status">正在核验权限...</p>)}
+        <div style={{ display: hgRetainHidden ? "none" : "contents" }} inert={hgRetainHidden}>
+          {children}
+        </div>
+      </>;
+    }
+  }
   if (access.loading) return <p role="status">正在核验权限...</p>;
   if (access.status === "unauthenticated") return <Navigate to="/login" replace />;
   if (access.status === "error") return <div role="alert">权限加载失败。<button type="button" onClick={access.refresh}>重试</button></div>;

@@ -22,13 +22,13 @@ export default class HGUserRoleAssignVM {
   /** 按精确用户 ID 获取一页已生效绑定；无角色时返回空列表，绝不把待审批申请当生效角色。 */
   static fetchBindings = (userId, cursor = 0) => HGNet.get(HGMANAGER_API.IAM_BINDING_LIST, { userId, cursor, pageSize: 20 });
 
-  /** 返回服务端角色权限目录和 selected；页面只读展示，不传权限码给授权接口。 */
+  /** 返回服务端角色权限目录和 selected；用于本绑定的权限子集，不能越过服务端委派校验。 */
   static fetchRolePermissions = (roleId) => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
 
   /** 字典包含停用类型；授权页只能从活动类型中选择，并由服务端再次验证。 */
   static fetchScopeTypes = () => HGNet.get(HGMANAGER_API.IAM_SCOPE_TYPE_LIST, { pageSize: 50, cursor: 0 });
 
-  /** 所有绑定在同一事务和一次 MFA 中提交；客户端只传角色/作用域，不提交权限码。 */
+  /** 所有绑定在同一事务和一次 MFA 中提交；每条绑定的 permissions 是角色当前权限的显式子集。 */
   static grantDirectBatch = ({ userId, bindings, mfaCode }) => HGNet.post(HGMANAGER_API.IAM_BINDING_GRANT_DIRECT_BATCH, {
     userId, bindings, mfaCode: mfaCode.trim(),
   });

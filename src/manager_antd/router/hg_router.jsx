@@ -183,7 +183,7 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.USER_EDIT_ROLE,
-        element: <HGRouteGuard permission={HG_PERMISSIONS.USER_READ}>{hgLazyElement(<WrappedHGUserEditRolePage />, "正在加载用户编辑...")}</HGRouteGuard>,
+        element: <HGRouteGuard permission={HG_PERMISSIONS.USER_READ} preserveOnRefresh>{hgLazyElement(<WrappedHGUserEditRolePage />, "正在加载用户编辑...")}</HGRouteGuard>,
       },
       {
         path: ROUTE_PATH.EDIT_USER_INFO,

@@ -1,5 +1,9 @@
 # MLC_React 项目长期记忆
 
+## MLC 技能强制加载（2026-11-20 用户要求，任何模型必须遵守）
+- 本项目任务开始前必须加载 `react` 技能；UI/配色用 `theme-color`；提交用 `dev_general_skill`；最终回复前执行 `~/.workbuddy/skills/` 无法注册的 `common/output/06-output.md`（路径 `/Users/ganghuang/HGFiles/GitHub/AITools/Skills/mlc-engineering/common/output/`），回复带 `‌[BóYí](๑•̀ㅂ•́)و✧` 前缀。
+- 技能未注册时直接 Read 对应 SKILL.md 执行；项目事实以根 `AGENTS.md` 为准。
+
 ## 用户交互约定
 - 增删改查交互约定（2026-11-20 用户明确要求）：所有类似的增删改查功能，全部操作（含查询）必须由用户显式点击按钮触发执行，禁止自动加载、自动提交、订阅自动刷新等隐式执行；每次操作结果通过提示文案反馈，列表展示点击查询时刻的数据快照。参考实现：`src/manager_antd/page_modules/test_module/hg_local_db_test_page.jsx` 数据管理面板（存储数据 / 查询列表 / 编辑→保存修改 / 删除 均为按钮触发）。
 

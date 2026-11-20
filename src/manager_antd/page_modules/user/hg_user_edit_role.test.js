@@ -115,7 +115,24 @@ test("独立读取角色目录与路由 user_id 的绑定；无绑定时不显�
   assert.equal(hgCollection.props.onRefresh, hgPage.hgLoadBindings); // 顶部下拉即刷新绑定，替代独立刷新按钮。
 });
 
-test("单选角色联动只读业务权限，底部保存弹一次 MFA 并刷新生效记录", async () => {
+test("受限绑定不将共享角色的全部权限误展示为当前用户权限", async () => {
+  let hgRolePermissionCalls = 0;
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
+    fetchBindings: async () => ({ list: [{
+      id: "18", roleId: "7", roleCode: "reviewer", scopeType: "global", scopeId: "", permissionsLimited: true,
+    }] }),
+    fetchRolePermissions: async () => { hgRolePermissionCalls += 1; return { list: [], selected: [] }; },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
+  const hgCard = hgCollection.props.renderCell(hgCollection.props.items[0]);
+  assert.ok(hgFindText(hgCard, "该绑定已单独限制权限；角色权限并非此用户实际权限，请以服务端授权为准"));
+  assert.equal(hgRolePermissionCalls, 0);
+});
+
+test("单选角色默认选中该角色权限，底部保存弹一次 MFA 并刷新生效记录", async () => {
   const hgRequests = []; // 不保留 MFA 明文，只记录目标、角色及作用域。
   let hgActive = false; // 模拟服务端授权前后活动绑定变化。
   let hgProfileWrites = 0; // 资料应先于授权保存一次。
@@ -150,7 +167,7 @@ test("单选角色联动只读业务权限，底部保存弹一次 MFA 并刷新
   hgPage.setState({ hgMFACode: "123456" });
   await hgPage.hgSubmitRole();
   await hgFlush();
-  assert.equal(JSON.stringify(hgRequests), JSON.stringify([["route-7", [{ roleId: "7", scopeType: "shop", scopeId: "shop-1" }], 1]]));
+  assert.equal(JSON.stringify(hgRequests), JSON.stringify([["route-7", [{ roleId: "7", scopeType: "shop", scopeId: "shop-1", permissions: ["mall:product:create"] }], 1]]));
   assert.ok(hgMessages.includes("用户资料已更新，角色已立即生效"));
   assert.equal(hgPage.state.hgMFACode, "");
   assert.equal(hgPage.state.hgDrafts.length, 0);
@@ -201,7 +218,7 @@ test("status=0 的作用域类型选中后可完成授权提交", async () => {
   await hgPage.handleSubmit();
   hgPage.setState({ hgMFACode: "123456" });
   await hgPage.hgSubmitRole();
-  assert.equal(JSON.stringify(hgRequests), JSON.stringify([[{ roleId: "7", scopeType: "region", scopeId: "region-1" }]]));
+  assert.equal(JSON.stringify(hgRequests), JSON.stringify([[{ roleId: "7", scopeType: "region", scopeId: "region-1", permissions: [] }]]));
 });
 
 test("切换角色时拒绝过期权限响应，重复授权或无效 MFA 不发送写请求", async () => {
@@ -440,6 +457,38 @@ test("选择其他角色不新增草稿；追加和移除只通过分配新角�
   assert.equal(hgPage.state.hgDrafts.length, 2);
   hgPage.hgRemoveDraft("draft-1");
   assert.equal(hgPage.state.hgDrafts[0].key, "draft-2");
+});
+
+test("新增角色默认全选当前权限，取消其中一项后仅给该用户绑定提交剩余权限", async () => {
+  const hgRequests = []; // 仅记录授权的权限编码，不保留 MFA 验证码。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", name: "商家", code: "merchant" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchRolePermissions: async () => ({
+      list: [{ code: "mall:product:create" }, { code: "mall:product:update" }, { code: "iam:role:grant" }],
+      selected: ["mall:product:create", "mall:product:update"],
+    }),
+    grantDirectBatch: async (payload) => { hgRequests.push(payload.bindings); return { granted: true }; },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgAddDraft();
+  hgPage.hgSelectRole("draft-1", "7");
+  await hgFlush();
+  const hgList = hgFindCollectionView(hgPage.renderRoleAssignment());
+  const hgDraftCard = hgList.props.renderCell(hgList.props.items[0]);
+  const hgPermissionTree = hgFindByAriaLabel(hgDraftCard, "本次绑定业务权限（可多选）").props.children;
+  assert.equal(hgPermissionTree.props.treeCheckable, true);
+  assert.equal(hgPermissionTree.props.disabled, false);
+  assert.deepEqual(Array.from(hgPermissionTree.props.value), ["mall:product:create", "mall:product:update"]);
+  hgPermissionTree.props.onChange(["mall:product:create"]);
+  hgPage.hgSelectScopeTypes("draft-1", ["global"]);
+  await hgPage.handleSubmit();
+  hgPage.setState({ hgMFACode: "123456" });
+  await hgPage.hgSubmitRole();
+  assert.equal(JSON.stringify(hgRequests), JSON.stringify([[{
+    roleId: "7", scopeType: "global", scopeId: "", permissions: ["mall:product:create"],
+  }]]));
 });
 
 test("资料已保存而授权失败时保留草稿，重试不重复保存资料", async () => {

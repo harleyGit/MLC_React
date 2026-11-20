@@ -33,6 +33,7 @@ test("无权限按钮鼠标及键盘激活均只提示、不调用删除请求",
       if (id === "react-router-dom") return { Navigate: () => null };
       if (id.endsWith("hg_message_page")) return { hgMessage: { warning: (text) => warnings.push(text) } };
       if (id.endsWith("hg_use_permission")) return { useHGPermission: () => ({ allowed, reason: "没有删除权限" }) };
+      if (id.endsWith("hg_iam_session")) return { hgCurrentIAMUser: () => "" };
       if (id.endsWith(".module.css")) return { default: { button: "button", blocked: "blocked", link: "link", danger: "danger" } };
       throw new Error(`未预期依赖: ${id}`);
     },
