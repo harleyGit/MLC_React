@@ -7,6 +7,7 @@ import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 import styles from "./hg_system_notify_template.module.css";
 import HGSystemNotifyTemplateVM, { HG_EMPTY_TEMPLATE } from "./hg_system_notify_template_vm";
 import { hgTemplatePayload, hgTemplateToForm } from "./hg_template_form.js";
+import { hgRoleUpdateTemplateDraft } from "./hg_role_update_template.js";
 
 const HG_CATEGORIES = Object.freeze([
   ["system", "系统"],
@@ -104,9 +105,11 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
     }
   };
 
-  /** 创建表单只设置空模板；没有从示例数据填充或写入数据库。 */
-  hgCreate = () => {
-    const form = { ...HG_EMPTY_TEMPLATE }; // 新建默认仅选枚举与空 JSON，无业务正文。
+  /** 创建页仅准备草稿；预设须由管理员确认并点击创建才会调用后端。 */
+  hgCreate = (roleUpdate = false) => {
+    const form = roleUpdate
+      ? hgRoleUpdateTemplateDraft(HG_EMPTY_TEMPLATE)
+      : { ...HG_EMPTY_TEMPLATE }; // 预设仅是表单初始值，绝不当作服务端已有数据。
     this.setState({
       hgEditing: true,
       hgEditingID: "",
@@ -190,7 +193,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
         hgSaving: false,
         hgError: "",
       });
-      this.hgLoad(true);
+      await this.hgLoad(true);
     } catch (error) {
       if (this.hgMounted)
         this.setState({
@@ -272,13 +275,14 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
           <p>管理纯文本模板草稿；发送、审核和发布尚未开放。</p>
         </div>
         {this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_CREATE) && (
-          <button
-            type="button"
-            className={styles.primary}
-            onClick={this.hgCreate}
-          >
-            新建模板
-          </button>
+          <div className={styles.actions}>
+            <button type="button" onClick={() => this.hgCreate(true)}>
+              创建角色更新模板
+            </button>
+            <button type="button" className={styles.primary} onClick={() => this.hgCreate()}>
+              新建模板
+            </button>
+          </div>
         )}
       </div>
       {this.state.hgError && (
@@ -377,7 +381,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
             返回列表
           </button>
         </div>
-        <p>仅保存草稿。编辑会创建新版本，模板编码不可更改；不发送通知。</p>
+        <p>仅保存草稿。编辑会创建新版本，模板编码不可更改；不发送通知，也不会自动关联角色变更事件。</p>
         {this.state.hgError && (
           <p role="alert" className={styles.error}>
             {this.state.hgError}
