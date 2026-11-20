@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { transformSync } from "@swc/core";
 import React from "react";
+import { hgSelectNotificationTemplatePermissions, HG_NOTIFICATION_TEMPLATE_PERMISSIONS } from "./hg_role_permission_presets.js";
 
 const HG_TEST_SOURCE = new URL("./hg_role_create_page.jsx", import.meta.url); // 创建、编辑共用页面的真实源码。
 const INITIAL_VALUES = {
@@ -37,6 +38,7 @@ function hgRoleFormPage(props, vmOverrides = {}, messages = []) {
     fetchPermissions: async () => ({ list: [], selected: [] }),
     submitRole: async () => ({}),
     submitRoleEdit: async () => ({}),
+    selectNotificationTemplatePermissions: hgSelectNotificationTemplatePermissions,
     ...vmOverrides,
   };
   runInNewContext(code, {
@@ -88,6 +90,27 @@ test("创建模式始终使用空白初始值", () => {
     INITIAL_VALUES
   );
   assert.equal(page.getEditRole(), null);
+});
+
+test("创建角色页从 IAM 目录预选通知模板权限，不改变已选项也不自动提交", async () => {
+  const messages = [];
+  const selected = [];
+  const page = hgRoleFormPage({ selectedKey: "role_create" }, {
+    fetchPermissions: async () => ({
+      list: HG_NOTIFICATION_TEMPLATE_PERMISSIONS.map((code) => ({ code, description: code })),
+      selected: [],
+    }),
+  }, messages);
+  page.formRef.current = {
+    getFieldValue: () => ["iam:role:read"],
+    setFieldsValue: (values) => selected.push(values),
+  };
+  await page.componentDidMount();
+  page.handleNotificationTemplatePreset();
+  assert.deepEqual(JSON.parse(JSON.stringify(selected.at(-1))), {
+    permissions: ["iam:role:read", ...HG_NOTIFICATION_TEMPLATE_PERMISSIONS],
+  });
+  assert.match(messages.at(-1), /另一名管理员审批/);
 });
 
 test("编辑模式核对 URL 角色 ID，并回填基础信息与服务端已选权限", async () => {

@@ -19,3 +19,14 @@
 .roleCreateButton {
   min-width: 96px;
 }
+
+/* 权限预选只修改当前表单草稿，不代替 MFA 与 IAM 审批。 */
+.rolePermissionPreset {
+  margin-top: 8px;
+}
+
+.rolePermissionPreset p {
+  margin: 8px 0 16px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}

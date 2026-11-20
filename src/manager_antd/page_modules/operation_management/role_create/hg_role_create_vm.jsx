@@ -8,6 +8,7 @@
  */
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
+import { hgSelectNotificationTemplatePermissions } from "./hg_role_permission_presets.js";
 
 /**
  * 创建角色表单初始值。
@@ -26,6 +27,8 @@ export const INITIAL_ROLE_CREATE_FORM_VALUES = {
  * 职责：封装角色创建页的校验规则、提交数据清洗和 API 调用。
  */
 export default class HGRoleCreateVM {
+  /** 使用服务端权限目录预选通知模板能力，缺项时拒绝而不提交不完整的授权草稿。 */
+  static selectNotificationTemplatePermissions = hgSelectNotificationTemplatePermissions;
   /**
    * 获取创建角色表单校验规则。
    * @returns {Object} 表单字段 rules 配置

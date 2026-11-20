@@ -214,6 +214,24 @@ class HGRoleCreatePage extends Component {
     }));
 
   /**
+   * 仅将后端目录已经登记的系统通知模板权限写入当前表单选择。
+   * 不发起授权；创建或编辑提交仍须申请人 MFA 和 IAM 双人审批。
+   */
+  handleNotificationTemplatePreset = () => {
+    if (this.state.permissionsLoading || this.state.loadError || this.state.submitting) return;
+    const form = this.formRef.current; // 当前角色的受控表单；未挂载时不能修改权限。
+    if (!form) return;
+    try {
+      const selected = form.getFieldValue("permissions") || []; // 以用户当前勾选值为准，保留其他业务权限。
+      const permissions = HGRoleCreateVM.selectNotificationTemplatePermissions(this.state.permissions, selected);
+      form.setFieldsValue({ permissions });
+      message.success("已预选系统通知模板管理权限，提交后仍需 MFA 和另一名管理员审批");
+    } catch (error) {
+      message.error(error?.message || "通知模板权限预选失败");
+    }
+  };
+
+  /**
    * 渲染角色编码字段。
    * @param {Object} rules 表单校验规则
    * @returns {React.ReactNode} 角色编码表单项
@@ -273,22 +291,33 @@ class HGRoleCreatePage extends Component {
    * @returns {React.ReactNode} 角色权限表单项
    */
   renderPermissionsField = (rules) => (
-    <Item
-      label="角色权限"
-      name="permissions"
-      rules={rules.permissions}
-      extra="新增或变更权限需经双人审批通过后才会生效，基础信息与权限审批分别处理。"
-    >
-      <HGTreeSelectPage
-        treeData={this.buildPermissionTreeData()}
-        placeholder="请选择权限（可多选）"
-        disabled={this.state.permissionsLoading || Boolean(this.state.loadError)}
-        allowClear
-        treeCheckable
-        treeDefaultExpandAll
-        showCheckedStrategy="SHOW_CHILD"
-      />
-    </Item>
+    <>
+      <Item
+        label="角色权限"
+        name="permissions"
+        rules={rules.permissions}
+        extra="新增或变更权限需经双人审批通过后才会生效，基础信息与权限审批分别处理。"
+      >
+        <HGTreeSelectPage
+          treeData={this.buildPermissionTreeData()}
+          placeholder="请选择权限（可多选）"
+          disabled={this.state.permissionsLoading || Boolean(this.state.loadError)}
+          allowClear
+          treeCheckable
+          treeDefaultExpandAll
+          showCheckedStrategy="SHOW_CHILD"
+        />
+      </Item>
+      <div className={styles.rolePermissionPreset}>
+        <HGButtonPage
+          onClick={this.handleNotificationTemplatePreset}
+          disabled={this.state.permissionsLoading || Boolean(this.state.loadError) || this.state.submitting}
+        >
+          预选系统通知模板管理权限
+        </HGButtonPage>
+        <p>从后端权限目录选择查看、创建、编辑、删除草稿四项能力；不会自动授予、审核或发布权限。</p>
+      </div>
+    </>
   );
 
   /**

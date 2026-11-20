@@ -151,3 +151,54 @@ test("编辑修改权限时先校验 MFA，再更新基础信息并提交权限�
   assert.equal(resultWithApproval.approvalId, "approval-1");
   delete globalThis.__hgRoleFormPost;
 });
+
+test("通知模板预选仅使用后端目录四项权限，保留原有选择且不接受缺项或超限", () => {
+  const codes = [
+    "notification:template:read", "notification:template:create",
+    "notification:template:update", "notification:template:delete",
+  ];
+  const directory = codes.map((code) => ({ code, description: code }));
+  const selected = HGRoleCreateVM.selectNotificationTemplatePermissions(directory, ["iam:role:read", codes[0]]);
+  assert.deepEqual(selected, ["iam:role:read", ...codes]);
+  assert.deepEqual(
+    HGRoleCreateVM.selectNotificationTemplatePermissions(directory, selected),
+    selected
+  );
+  assert.throws(() => HGRoleCreateVM.selectNotificationTemplatePermissions(directory.slice(0, 3), []), /权限目录/);
+  assert.throws(() => HGRoleCreateVM.selectNotificationTemplatePermissions(directory, Array.from({ length: 47 }, (_, index) => `fixture:${index}`)), /最多 50/);
+});
+
+test("新建角色选择通知模板预选项后仍调用后端创建及 MFA 权限审批接口", async () => {
+  const codes = [
+    "notification:template:read", "notification:template:create",
+    "notification:template:update", "notification:template:delete",
+  ];
+  const calls = [];
+  globalThis.__hgRoleFormPost = async (...args) => {
+    calls.push(args);
+    return args[0] === "/roles/create"
+      ? { id: "101", code: "notify_operator" }
+      : { approvalId: "approval-101", status: "pending" };
+  };
+  try {
+    const permissions = HGRoleCreateVM.selectNotificationTemplatePermissions(
+      codes.map((code) => ({ code, description: "" })), []
+    );
+    await assert.rejects(() => HGRoleCreateVM.submitRole({
+      code: "notify_operator", name: "通知模板管理员", description: "",
+      permissions, mfaCode: "",
+    }), /MFA/);
+    assert.equal(calls.length, 0);
+    const result = await HGRoleCreateVM.submitRole({
+      code: "notify_operator", name: "通知模板管理员", description: "",
+      permissions, mfaCode: "123456",
+    });
+    assert.deepEqual(calls, [
+      ["/roles/create", { code: "notify_operator", name: "通知模板管理员", description: "", permissions: [] }],
+      ["/roles/permissions", { roleId: "101", permissions: codes, mfaCode: "123456" }],
+    ]);
+    assert.equal(result.approvalId, "approval-101");
+  } finally {
+    delete globalThis.__hgRoleFormPost;
+  }
+});
