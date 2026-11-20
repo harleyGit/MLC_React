@@ -9,6 +9,10 @@
 import React from "react";
 import HGTooltipPage from "../hg_tooltip/hg_tooltip_page";
 import styles from "./hg_detail_grid.module.css";
+import {
+  HG_DETAIL_GRID_ITEM_DEFAULTS,
+  hgDetailGridItems,
+} from "./hg_detail_grid_contract.js";
 
 /**
  * 通用详情网格组件。
@@ -16,10 +20,16 @@ import styles from "./hg_detail_grid.module.css";
  */
 /** @extends {React.PureComponent<Partial<typeof HGDetailGridPage.defaultProps>>} */
 class HGDetailGridPage extends React.PureComponent {
+  /** JavaScript items 配置辅助函数；点击可查看全部字段、默认值与用途。 */
+  static configureItems = hgDetailGridItems;
+
+  /** items[] 子属性默认值与用途的可跳转入口；业务配置可使用 hgDetailGridItems 获得编辑器提示。 */
+  static itemDefaultProps = HG_DETAIL_GRID_ITEM_DEFAULTS;
+
   static defaultProps = {
     /** 详情区标题，默认 undefined 不展示。 @type {React.ReactNode} */
     title: undefined,
-    /** 详情字段列表，默认 []；每项提供 label、value，可携带展示配置。 @type {Array<any>} */
+    /** 详情字段列表，默认 []；使用 configureItems/hgDetailGridItems 可跳转查看子属性。 @type {ReturnType<typeof hgDetailGridItems>} */
     items: [],
     /** 网格列数，默认 2；小屏仍由响应式样式调整。 */
     columns: 2,

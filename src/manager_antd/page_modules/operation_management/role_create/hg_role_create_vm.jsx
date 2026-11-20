@@ -4,7 +4,7 @@
  * @LastEditors: GangHuang harleysor@qq.com
  * @LastEditTime: 2026-06-13
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/role_create/hg_role_create_vm.jsx
- * @Description: 创建角色 ViewModel，封装表单校验、数据转换与接口提交
+ * @Description: 角色表单 ViewModel，封装创建/编辑校验、数据转换与接口提交
  */
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
@@ -45,8 +45,12 @@ export default class HGRoleCreateVM {
     mfaCode: [{ pattern: /^\d{6}$/, message: "请选择权限时需输入 6 位 MFA 验证码" }],
   });
 
-  /** 从 IAM 权限目录加载角色可选权限。 */
-  static fetchPermissions = () => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST);
+  /** 从 IAM 权限目录加载角色可选权限；编辑时同时返回指定角色的已选权限。 */
+  static fetchPermissions = (roleId) =>
+    HGNet.get(
+      HGMANAGER_API.IAM_PERMISSION_LIST,
+      roleId ? { roleId } : undefined
+    );
 
   /**
    * 转换创建角色提交数据。
@@ -75,6 +79,47 @@ export default class HGRoleCreateVM {
       return { ...role, approvalId: approval?.approvalId };
     } catch (error) {
       throw new Error(`角色 ${role.code} 已创建，但权限审批申请失败：${error?.message || "请在角色列表重试"}`);
+    }
+  };
+
+  /** 比较权限快照时忽略顺序和重复项，避免仅树控件排序变化就发起审批。 */
+  static permissionsChanged = (before = [], after = []) => {
+    const normalize = (values) =>
+      [...new Set(values.map((value) => String(value)))].sort();
+    return JSON.stringify(normalize(before)) !== JSON.stringify(normalize(after));
+  };
+
+  /**
+   * 提交角色编辑：基础信息立即更新；权限发生变化时另行提交 MFA 双人审批。
+   * @param {{id: string, name: string, description: string, permissions: string[], mfaCode: string}} data 编辑表单数据。
+   * @param {string[]} initialPermissions 页面加载时的权限快照。
+   * @returns {Promise<Object>} 更新结果，权限有变化时包含 approvalId。
+   */
+  static submitRoleEdit = async (data, initialPermissions = []) => {
+    const permissionChanged = HGRoleCreateVM.permissionsChanged(
+      initialPermissions,
+      data.permissions
+    );
+    if (permissionChanged && !/^\d{6}$/.test(data.mfaCode)) {
+      throw new Error("修改权限时请输入 6 位 MFA 验证码");
+    }
+    const role = await HGNet.post(HGMANAGER_API.IAM_ROLE_UPDATE, {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+    });
+    if (!permissionChanged) return role;
+    try {
+      const approval = await HGNet.post(HGMANAGER_API.IAM_ROLE_PERMISSIONS, {
+        roleId: data.id,
+        permissions: data.permissions,
+        mfaCode: data.mfaCode,
+      });
+      return { ...role, approvalId: approval?.approvalId };
+    } catch (error) {
+      throw new Error(
+        `角色基础信息已更新，但权限审批申请失败：${error?.message || "请返回角色列表重试"}`
+      );
     }
   };
 }

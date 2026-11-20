@@ -48,12 +48,6 @@ class HGRoleListPage extends Component {
         pageSize: ROLE_LIST_PAGE_SIZE,
         total: 0,
       },
-      /** @type {boolean} 编辑弹窗可见性 */
-      editModalVisible: false,
-      /** @type {Object} 编辑表单数据 */
-      editFormData: { id: "", name: "", description: "" },
-      /** @type {boolean} 编辑提交加载状态 */
-      editLoading: false,
       /** @type {boolean} 删除确认弹窗可见性 */
       deleteModalVisible: false,
       /** @type {Object} 待删除的角色记录 */
@@ -163,64 +157,13 @@ class HGRoleListPage extends Component {
     }
   };
 
-  /**
-   * 打开编辑弹窗并回填角色信息。
-   * @param {Object} record 角色记录。
-   */
+  /** 进入角色表单的编辑模式；URL 只携带角色标识，非敏感回填数据保存在当前历史项 state。 */
   handleEdit = (record) => {
-    this.setState({
-      editModalVisible: true,
-      editFormData: {
-        id: record.id,
-        name: record.name,
-        description: record.description || "",
-      },
-    });
-  };
-
-  /**
-   * 关闭编辑弹窗。
-   */
-  handleEditModalClose = () => {
-    this.setState({
-      editModalVisible: false,
-      editFormData: { id: "", name: "", description: "" },
-    });
-  };
-
-  /**
-   * 编辑表单字段变化处理。
-   * @param {string} field 字段名。
-   * @param {string} value 字段值。
-   */
-  handleEditFormChange = (field, value) => {
-    this.setState((prevState) => ({
-      editFormData: { ...prevState.editFormData, [field]: value },
-    }));
-  };
-
-  /**
-   * 确认编辑角色。
-   */
-  handleEditConfirm = () => {
-    const { editFormData } = this.state;
-    if (!editFormData.name.trim()) {
-      message.error("角色名称不能为空");
-      return;
-    }
-    this.setState({ editLoading: true });
-    HGRoleListVM.updateRole(editFormData)
-      .then(() => {
-        message.success("角色更新成功");
-        this.handleEditModalClose();
-        this.handleRefresh();
-      })
-      .catch(() => {
-        message.error("角色更新失败，请稍后重试");
-      })
-      .finally(() => {
-        this.setState({ editLoading: false });
-      });
+    this.props.pushPage?.(
+      "role_edit",
+      { roleId: record.id },
+      { role: { ...record } }
+    );
   };
 
   /**
@@ -339,6 +282,7 @@ class HGRoleListPage extends Component {
       title: "角色名称",
       dataIndex: "name",
       width: 260,
+      align: "left",
       render: (_, record) => this.renderRoleCell(record),
     },
     {
@@ -447,54 +391,6 @@ class HGRoleListPage extends Component {
   };
 
   /**
-   * 渲染编辑弹窗表单内容。
-   * @returns {React.ReactNode} 表单节点。
-   */
-  renderEditForm = () => {
-    const { editFormData } = this.state;
-    return (
-      <div className={styles.formBody}>
-        <div className={styles.formItem}>
-          <label className={styles.formLabel}>角色ID</label>
-          <input
-            type="text"
-            className={`${styles.formInput} ${styles.formInputDisabled}`}
-            value={editFormData.id}
-            disabled
-          />
-        </div>
-        <div className={styles.formItem}>
-          <label className={styles.formLabel}>
-            角色名称 <span className={styles.requiredMark}>*</span>
-          </label>
-          <input
-            type="text"
-            className={styles.formInput}
-            value={editFormData.name}
-            onChange={(e) => this.handleEditFormChange("name", e.target.value)}
-            placeholder="请输入角色名称，例如：内容审核员"
-          />
-        </div>
-        <div className={styles.formItem}>
-          <label className={styles.formLabel}>角色描述</label>
-          <textarea
-            className={styles.formTextarea}
-            value={editFormData.description}
-            onChange={(e) =>
-              this.handleEditFormChange("description", e.target.value)
-            }
-            placeholder="描述该角色的职责范围，便于后续授权时判断"
-            rows={4}
-          />
-          <span className={styles.formHint}>
-            建议说明角色可操作的业务域，例如“可审核视频与弹幕，不可操作商城订单”。
-          </span>
-        </div>
-      </div>
-    );
-  };
-
-  /**
    * 渲染删除确认弹窗内容：角色标签 + 风险提示。
    * @returns {React.ReactNode} 删除确认节点。
    */
@@ -533,8 +429,6 @@ class HGRoleListPage extends Component {
       data,
       loading,
       pagination,
-      editModalVisible,
-      editLoading,
       deleteModalVisible,
     } = this.state;
     return (
@@ -569,20 +463,6 @@ class HGRoleListPage extends Component {
             autoRowHeight
           />
         </HGCardPage>
-
-        {/* 编辑角色弹窗 */}
-        <HGModalPage
-          visible={editModalVisible}
-          title="编辑角色"
-          onClose={this.handleEditModalClose}
-          onOk={this.handleEditConfirm}
-          onCancel={this.handleEditModalClose}
-          okText={editLoading ? "提交中..." : "保存"}
-          cancelText="取消"
-          okType="primary"
-        >
-          {this.renderEditForm()}
-        </HGModalPage>
 
         <HGModalPage
           visible={this.state.permissionModalVisible}

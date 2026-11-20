@@ -17,6 +17,7 @@ import HGAvatarPage from "../../../../components/hg_avatar/hg_avatar_page";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../../components/hg_card/hg_card_page";
 import HGDetailGridPage from "../../../../components/hg_detail_grid/hg_detail_grid_page";
+import { hgDetailGridItems } from "../../../../components/hg_detail_grid/hg_detail_grid_contract.js";
 import HGInputPage, {
   HGInputSearch,
 } from "../../../../components/hg_input/hg_input_page";
@@ -25,8 +26,10 @@ import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGPageHeaderPage from "../../../../components/hg_page_header/hg_page_header_page";
 import HGSpacePage from "../../../../components/hg_space/hg_space_page";
 import HGStatCardPage from "../../../../components/hg_stat_card/hg_stat_card_page";
+import { hgStatCardItems } from "../../../../components/hg_stat_card/hg_stat_card_contract.js";
 import HGStatusTagPage from "../../../../components/hg_status_tag/hg_status_tag_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
+import { hgTableColumns } from "../../../../components/hg_table/hg_table_contract.js";
 import HGUserPermissionVM, {
   USER_PERMISSION_PAGE_SIZE,
 } from "./hg_user_permission_vm";
@@ -307,37 +310,42 @@ class HGUserPermissionPage extends Component {
 
   /**
    * 用户表格列配置。
-   * @returns {Array<Object>} 表格列定义。
+   * @returns {ReturnType<typeof hgTableColumns>} 表格列定义；点击 hgTableColumns 可查看各字段默认值、作用与优先级。
    */
-  getColumns = () => [
+  getColumns = () => hgTableColumns([
     {
       title: "用户",
       dataIndex: "name",
       width: 220,
+      align: "left",
       render: (_, record) => this.renderUserCell(record),
     },
     {
       title: "用户ID",
       dataIndex: "id",
       width: 150,
+      align: "left",
       render: (text) => <span className={styles.idText}>{text || "-"}</span>,
     },
     {
       title: "邮箱",
       dataIndex: "email",
       width: 210,
+      align: "left",
       render: (text) => <span className={styles.cellText}>{text || "-"}</span>,
     },
     {
       title: "手机号",
       dataIndex: "mobile",
       width: 150,
+      align: "left",
       render: (text) => <span className={styles.cellText}>{text || "未绑定"}</span>,
     },
     {
       title: "状态",
       dataIndex: "status",
       width: 110,
+      align: "left",
       render: (text) => (
         <HGStatusTagPage tone={HGUserPermissionVM.getStatusTone(text)}>
           {HGUserPermissionVM.getStatusText(text)}
@@ -348,13 +356,14 @@ class HGUserPermissionPage extends Component {
       title: "操作",
       dataIndex: "action",
       width: 120,
+      align: "left",
       render: () => (
         <HGButtonPage type="link" disabled title="旧批量授权已停用，需通过 IAM 审批授权">
           IAM 授权
         </HGButtonPage>
       ),
     },
-  ];
+  ]);
 
   /**
    * 渲染顶部指标卡：用户总数、本页启用/禁用、每页条数。
@@ -365,7 +374,7 @@ class HGUserPermissionPage extends Component {
     const enabledCount = HGUserPermissionVM.countByStatus(data, 1);
     const disabledCount = data.length - enabledCount;
 
-    const items = [
+    const items = hgStatCardItems([
       {
         label: "用户总数",
         value: loading ? "-" : pagination.total,
@@ -394,7 +403,7 @@ class HGUserPermissionPage extends Component {
         tone: "purple",
         icon: "≡",
       },
-    ];
+    ]);
 
     return <HGStatCardPage items={items} />;
   };
@@ -456,7 +465,7 @@ class HGUserPermissionPage extends Component {
         </div>
         <HGDetailGridPage
           columns={2}
-          items={[
+          items={hgDetailGridItems([
             { label: "用户ID", value: editingAdmin.id },
             { label: "邮箱", value: editingAdmin.email },
             { label: "手机号", value: editingAdmin.mobile },
@@ -464,7 +473,7 @@ class HGUserPermissionPage extends Component {
               label: "已选角色",
               value: `${this.state.selectedRoleIds.length} 个`,
             },
-          ]}
+          ])}
         />
       </div>
     );
@@ -617,6 +626,7 @@ class HGUserPermissionPage extends Component {
         >
           {this.renderTip()}
           <HGTablePage
+            align="left"
             rowKey={(record) => record.id}
             columns={this.getColumns()}
             dataSource={data}

@@ -1,4 +1,4 @@
-/* 角色管理页面样式：角色标识徽标 + 表格 + 编辑/删除弹窗 */
+/* 角色管理页面样式：角色标识徽标 + 表格 + 删除弹窗 */
 .roleListContainer {
   min-width: 0;
 }
@@ -34,9 +34,11 @@
 /* 角色名称单元格 */
 .roleCell {
   display: flex;
-  align-items: left;
+  align-items: center;
+  justify-content: flex-start;
   gap: 10px;
   min-width: 0;
+  text-align: left;
 }
 
 .roleBadge {
@@ -55,7 +57,9 @@
 .roleMeta {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
+  text-align: left;
 }
 
 .roleName {
@@ -66,6 +70,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 
 .roleId {
@@ -76,6 +81,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 
 .descriptionText {
@@ -107,67 +113,6 @@
   width: 1px;
   height: 12px;
   background: #e6eaf2;
-}
-
-/* 编辑弹窗表单 */
-.formBody {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.formItem {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.formLabel {
-  font-size: 13px;
-  font-weight: 500;
-  color: #1f2c4a;
-}
-
-.requiredMark {
-  color: #f53f3f;
-}
-
-.formInput,
-.formTextarea {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px 12px;
-  border: 1px solid #dce1eb;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #1f2c4a;
-  background: #fff;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.formInput:focus,
-.formTextarea:focus {
-  border-color: #3370ff;
-  box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.12);
-}
-
-.formInputDisabled {
-  background: #f5f7fa;
-  color: #8a93a8;
-  cursor: not-allowed;
-}
-
-.formTextarea {
-  resize: vertical;
-  line-height: 1.6;
-  font-family: inherit;
-}
-
-.formHint {
-  font-size: 12px;
-  color: #8a93a8;
-  line-height: 1.5;
 }
 
 /* 删除确认弹窗 */

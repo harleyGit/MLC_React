@@ -2,6 +2,12 @@ import React from "react";
 import styles from "./hg_table.module.css";
 import { syncHorizontalScroll } from "./hg_table_scroll.js";
 import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
+import {
+  HG_TABLE_COLUMN_DEFAULTS,
+  HG_TABLE_PAGINATION_DEFAULTS,
+  hgTableColumns,
+  hgNormalizeTableAlign,
+} from "./hg_table_contract.js";
 
 /**
  * 默认行高（px）。
@@ -25,6 +31,23 @@ const BUFFER_ROWS = 5;
 
 /** 填充模式首次测量前的表体估算高度（px），不用于自然高度列表。 */
 const FILL_BODY_ESTIMATE = 500;
+
+/**
+ * @typedef {'left'|'center'|'right'} HGTableAlign
+ * 表格支持的水平对齐枚举；非法值统一回落到 center。
+ */
+
+/**
+ * @typedef {Object} HGTableColumn
+ * @property {React.Key} [key] 列的稳定标识；缺省依次使用 dataIndex 或 title。
+ * @property {React.ReactNode} [title] 表头内容。
+ * @property {string} [dataIndex] 当前列读取的记录字段。
+ * @property {number} [width] 固定列宽（px）。
+ * @property {number} [minWidth] 弹性列最小宽度（px）。
+ * @property {HGTableAlign} [align] 当前列标题和内容的水平对齐；优先级高于 HGTablePage.align。
+ * @property {HGTableAlign} [titleAlign] 仅覆盖当前列表头对齐；优先级高于当前列 align。
+ * @property {(value: any, record: any, index: number) => React.ReactNode} [render] 当前列内容渲染函数。
+ */
 
 /**
  * 虚拟行类型枚举。
@@ -137,7 +160,7 @@ function getColumnStyle(col, isHeader = false) {
     ? { width: col.width, flex: `0 0 ${col.width}px` }
     : { flex: "1 0 0", minWidth: col.minWidth ?? 0 }; // 未指定 width 时平分剩余空间。
   const requestedAlign = isHeader ? col.titleAlign ?? col.align : col.align; // 标题未单独配置时沿用列对齐方式。
-  const align = ["left", "center", "right"].includes(requestedAlign) ? requestedAlign : "center"; // 缺省或非法值统一居中。
+  const align = hgNormalizeTableAlign(requestedAlign); // 缺省或非法值统一居中。
   return isHeader
     ? { ...widthStyle, textAlign: align }
     : { ...widthStyle, textAlign: align, justifyContent: { left: "flex-start", center: "center", right: "flex-end" }[align] };
@@ -257,22 +280,42 @@ class VirtualRow extends React.PureComponent {
  *   - sectionHeader 吸顶：滚动时当前 section 的 header 固定在顶部
  *   - sectionFooter 吸底：滚动时当前 section 的 footer 固定在底部
  *
- * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, width, height, scroll, fillHeight, rowSelection, renderRowAction, getRowStripeIndex, rowHover。
+ * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, width, height, scroll, fillHeight, align, rowSelection, renderRowAction, getRowStripeIndex, rowHover。
  * rowHover：数据行是否在鼠标悬浮时改变背景，默认 true；false 时保留原有背景及选中态。
  * getRowStripeIndex(record, rowIndex)：可选斑马纹分组序号，同组行共用底色；缺省使用数据行号。
- * columns[].align：标题与内容的水平对齐，left/center/right，默认 center；titleAlign 可单独覆盖标题。
+ * align：全部列的默认水平对齐，left/center/right，默认 center。
+ * columns[].align：覆盖当前列的标题与内容水平对齐；titleAlign 可继续单独覆盖标题。
  * renderRowAction(record, rowIndex)：可选行尾操作，控件不超过 32px；不占表格列，配置后统一预留行尾宽度。
  * rowSelection：{type: "radio" | "checkbox", selectedRowKeys: [], onChange(keys, rows)}；由调用方持有选择状态。
  * fillHeight 说明：默认开启；表格作为父级弹性布局的子项占满剩余高度，
  *                  表体高度由 ResizeObserver 实测（容器高度扣除表头与分页器）或弹性布局决定，
  *                  随窗口/父级高度动态变化；显式 height 约束表格整体，scroll.y 优先约束表体。
  * width/height 说明：数字单位为 px，也支持 CSS 长度；仅内容超过指定宽高后，表体才出现对应滚动。
+ *
+ * @example
+ * // 全表左对齐，但“金额”列仍由 columns[].align 以最高优先级右对齐。
+ * <HGTablePage
+ *   align="left"
+ *   columns={[
+ *     { title: "角色", dataIndex: "name" },
+ *     { title: "金额", dataIndex: "amount", align: "right" },
+ *   ]}
+ * />
  * @extends {React.Component<Partial<typeof HGTablePage.defaultProps>>}
  */
 class HGTablePage extends React.Component {
+  /** JavaScript columns 配置辅助函数；点击可查看 columns[] 全部属性、默认值与作用。 */
+  static configureColumns = hgTableColumns;
+
+  /** columns[] 子属性默认值与用途的可跳转入口；业务配置可使用 hgTableColumns 获得编辑器提示。 */
+  static columnDefaultProps = HG_TABLE_COLUMN_DEFAULTS;
+
+  /** pagination 子属性默认值与用途的可跳转入口。 */
+  static paginationDefaultProps = HG_TABLE_PAGINATION_DEFAULTS;
+
   /** 可选属性默认值；数据与选择状态始终由调用方拥有。 */
   static defaultProps = {
-    /** 列定义，默认 [] 不显示业务列；dataIndex 取值，render(value, record, index) 自定义内容，width 为 px。 @type {Array<{key?: React.Key, title?: React.ReactNode, dataIndex?: string, width?: number, minWidth?: number, align?: 'left'|'center'|'right', titleAlign?: 'left'|'center'|'right', render?: (value: any, record: any, index: number) => React.ReactNode}>} */
+    /** 列定义，默认 [] 不显示业务列；使用 configureColumns/hgTableColumns 可跳转查看子属性。 @type {ReturnType<typeof hgTableColumns>} */
     columns: [],
     /** 普通表格行数据，默认 [] 展示空态；传 sections 时改用分组数据。 @type {Array<any>} */
     dataSource: [],
@@ -296,6 +339,8 @@ class HGTablePage extends React.Component {
     fillHeight: true,
     /** 默认按内容换行计算行高；false 使用 48px 固定行高复用池，sections 始终使用分组复用池。 */
     autoRowHeight: true,
+    /** 全部列默认水平居中；columns[].align 优先，其次使用本属性，最后回落到 center。 @type {HGTableAlign} */
+    align: "center",
     /** 默认开启数据行悬浮底色，false 保留斑马纹和选中底色。 */
     rowHover: true,
     /** 默认 undefined 不显示选择列；type 默认单选，selectedRowKeys 与 onChange(keys, rows) 由页面受控。 @type {{type?: 'radio'|'checkbox', selectedRowKeys?: Array<React.Key>, onChange?: (keys: Array<React.Key>, rows: Array<any>) => void}|undefined} */
@@ -456,7 +501,12 @@ class HGTablePage extends React.Component {
   /** 配置选择列；未传 rowSelection 时维持原表格列与交互。 */
   getColumns = () => {
     const { columns = [], rowSelection } = this.props;
-    if (!rowSelection) return columns;
+    const tableAlign = hgNormalizeTableAlign(this.props.align); // 非法组件级值不向单元格透传，统一回落到居中。
+    const alignedColumns = columns.map((column) => ({
+      ...column,
+      align: hgNormalizeTableAlign(column.align, tableAlign),
+    }));
+    if (!rowSelection) return alignedColumns;
     const rows = this.getSelectionRows();
     const selectedKeys = rowSelection.selectedRowKeys || [];
     const allKeys = rows.map((row, index) => this.getRowKey(row, index));
@@ -465,6 +515,7 @@ class HGTablePage extends React.Component {
     return [{
       key: "hg-selection",
       width: 56,
+      align: tableAlign,
       title: multiple ? (
         <input
           type="checkbox"
@@ -486,7 +537,7 @@ class HGTablePage extends React.Component {
           />
         );
       },
-    }, ...columns];
+    }, ...alignedColumns];
   };
 
   /**

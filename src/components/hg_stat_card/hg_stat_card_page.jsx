@@ -8,6 +8,10 @@
  */
 import React from "react";
 import styles from "./hg_stat_card.module.css";
+import {
+  HG_STAT_CARD_ITEM_DEFAULTS,
+  hgStatCardItems,
+} from "./hg_stat_card_contract.js";
 
 /** 指标色调映射：用于区分不同指标的强调色。 */
 const TONE_CLASS_MAP = {
@@ -29,8 +33,14 @@ const TONE_CLASS_MAP = {
  */
 /** @extends {React.PureComponent<Partial<typeof HGStatCardPage.defaultProps>>} */
 class HGStatCardPage extends React.PureComponent {
+  /** JavaScript items 配置辅助函数；点击可查看全部字段、默认值与用途。 */
+  static configureItems = hgStatCardItems;
+
+  /** items[] 子属性默认值与用途的可跳转入口；业务配置可使用 hgStatCardItems 获得编辑器提示。 */
+  static itemDefaultProps = HG_STAT_CARD_ITEM_DEFAULTS;
+
   static defaultProps = {
-    /** 统计项列表，默认 []；每项的标题、数值、配色由调用方提供。 @type {Array<any>} */
+    /** 统计项列表，默认 []；使用 configureItems/hgStatCardItems 可跳转查看子属性。 @type {ReturnType<typeof hgStatCardItems>} */
     items: [],
     /** 网格列数，默认 undefined 使用组件按统计项数量推导的布局。 @type {number|undefined} */
     columns: undefined,

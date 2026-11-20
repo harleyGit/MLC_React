@@ -5,10 +5,20 @@ import {
 } from "./hg_collection_layout.js";
 import styles from "./hg_collection_view.module.css";
 import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
+import {
+  HG_COLLECTION_PAGINATION_DEFAULTS,
+  hgCollectionPagination,
+  hgNormalizeCollectionAlign,
+} from "./hg_collection_view_contract.js";
 
 const HG_OVERSCAN = 240; // 可视区域上下额外预渲染的像素，减少快速滚动时的空白。
 const HG_LOAD_THRESHOLD = 120; // 距底部不足此像素数时触发下一页。
 const HG_PULL_THRESHOLD = 70; // 触摸从顶部下拉超过此像素数才刷新。
+
+/**
+ * @typedef {'left'|'center'|'right'} HGCollectionAlign
+ * CollectionView cell 支持的水平对齐枚举；非法值统一回落到 center。
+ */
 
 /**
  * @typedef {object} HGCollectionViewProps
@@ -17,6 +27,7 @@ const HG_PULL_THRESHOLD = 70; // 触摸从顶部下拉超过此像素数才刷�
  * @property {number|string} [width] 列表整体宽度，数字单位为 px；缺省铺满父级宽度。
  * @property {number|string} [height] 列表整体高度，数字单位为 px；优先于 fillHeight，分页与状态栏包含在该高度内。
  * @property {number} [columnMinWidth] 自然高度模式的网格最小列宽（px）；缺省保持单列，仅 fillHeight=false 且无 height 时生效。
+ * @property {HGCollectionAlign} [align="center"] cell 内容的水平对齐；非法值回落到居中。
  * @property {boolean} [loading=false] true 展示加载提示，并阻止重复触底或下拉请求。
  * @property {boolean} [hasMore=false] true 且提供 onLoadMore 时允许触底加载下一批数据。
  * @property {false|{current: number, pageSize: number, loadedCount: number, hasMore: boolean}} [pagination=false] 受控分页配置；启用时关闭触底加载。
@@ -39,9 +50,24 @@ const HG_PULL_THRESHOLD = 70; // 触摸从顶部下拉超过此像素数才刷�
  * 子组件以业务 key 隔离状态，不能跨订单复用业务状态。
  * 数据、游标及网络错误均由调用方管理；视口模式仅缓存当前挂载期间的高度。
  * 可选 pagination 使用受控页码和每页条数；分页时不再触底自动加载，避免重复翻页。
+ *
+ * @example
+ * // HGCollectionView 没有 columns；组件级 align 直接控制所有 cell，缺省为 center。
+ * <HGCollectionView
+ *   align="left"
+ *   items={roles}
+ *   getKey={(role) => role.id}
+ *   renderCell={(role) => <RoleCard role={role} />}
+ * />
  * @extends {React.Component<HGCollectionViewProps>}
  */
 export default class HGCollectionView extends React.Component {
+  /** JavaScript pagination 配置辅助函数；点击可查看全部字段与用途。 */
+  static configurePagination = hgCollectionPagination;
+
+  /** pagination 子属性默认值与用途的可跳转入口；业务配置可使用 hgCollectionPagination 获得编辑器提示。 */
+  static paginationDefaultProps = HG_COLLECTION_PAGINATION_DEFAULTS;
+
   /** 可选属性默认值；仅省略或传 undefined 时采用，null 保留调用方语义。 */
   static defaultProps = {
     /** 列表数据，按数组顺序展示；默认 [] 显示空态，不在组件内请求或修改数据。 @type {Array<any>} */
@@ -56,7 +82,7 @@ export default class HGCollectionView extends React.Component {
     loading: false,
     /** 默认没有后续数据；true 且提供 onLoadMore 时允许触底加载。 */
     hasMore: false,
-    /** 受控分页配置；默认 false 隐藏分页，启用时关闭触底加载。 @type {false|{current: number, pageSize: number, loadedCount: number, hasMore: boolean}} */
+    /** 受控分页配置；默认 false 隐藏分页；使用 configurePagination/hgCollectionPagination 可跳转查看子属性。 @type {false|ReturnType<typeof hgCollectionPagination>} */
     pagination: false,
     /** 翻页回调，返回 {current, pageSize}；默认 undefined，由调用方维护分页数据。 @type {((page: {current: number, pageSize: number}) => void)|undefined} */
     onChange: undefined,
@@ -76,6 +102,8 @@ export default class HGCollectionView extends React.Component {
     loadedText: "已加载全部订单",
     /** 自然高度模式的最小列宽（px）；默认 undefined 保持单列，传入后按 auto-fill 自动分列。仅 fillHeight=false 且无 height 时生效。 @type {number|undefined} */
     columnMinWidth: undefined,
+    /** cell 内容默认水平居中；支持 left/center/right，非法值回落到 center。 @type {HGCollectionAlign} */
+    align: "center",
   };
 
   state = {
@@ -304,6 +332,9 @@ export default class HGCollectionView extends React.Component {
     this.hgPullDistance = 0;
   };
 
+  /** 归一化 cell 水平对齐值，避免向样式透传无效枚举。 */
+  hgCellAlign = () => hgNormalizeCollectionAlign(this.props.align);
+
   /** 按测量后的累计偏移确定池范围；池编号稳定，内容由业务 key 隔离。 */
   renderSlots = (offsets) => {
     const { items, getKey, renderCell } = this.props;
@@ -324,7 +355,11 @@ export default class HGCollectionView extends React.Component {
           role={inBounds ? "listitem" : undefined}
           data-index={inBounds ? index : undefined}
           data-key={inBounds ? String(getKey(item, index)) : undefined}
-          style={{ top: inBounds ? offsets[index] : 0, display: inBounds ? undefined : "none" }}
+          style={{
+            top: inBounds ? offsets[index] : 0,
+            display: inBounds ? undefined : "none",
+            textAlign: this.hgCellAlign(),
+          }}
         >
           {inBounds ? <React.Fragment key={getKey(item, index)}>{renderCell(item, index)}</React.Fragment> : null}
         </div>
@@ -336,7 +371,12 @@ export default class HGCollectionView extends React.Component {
   renderNaturalSlots = () => {
     const { items, getKey, renderCell, columnMinWidth } = this.props;
     const slots = items.map((item, index) => (
-      <div key={getKey(item, index)} className={styles.naturalSlot} role="listitem">
+      <div
+        key={getKey(item, index)}
+        className={styles.naturalSlot}
+        role="listitem"
+        style={{ textAlign: this.hgCellAlign() }}
+      >
         {renderCell(item, index)}
       </div>
     ));

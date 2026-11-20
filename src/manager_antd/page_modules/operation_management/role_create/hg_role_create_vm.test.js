@@ -1,0 +1,153 @@
+import assert from "node:assert/strict";
+import { Buffer } from "node:buffer";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
+
+// 只替换角色表单 VM 的网络边界，验证创建/编辑共用页不会发起错误的写请求。
+const result = await build({
+  entryPoints: [
+    fileURLToPath(new URL("./hg_role_create_vm.jsx", import.meta.url)),
+  ],
+  bundle: true,
+  write: false,
+  format: "esm",
+  platform: "neutral",
+  plugins: [
+    {
+      name: "mock-role-form-network",
+      setup(plugin) {
+        plugin.onResolve(
+          { filter: /hg_api_constants|hg_net_manager_vm/ },
+          (args) => ({ path: args.path, namespace: "mock-role-form-network" })
+        );
+        plugin.onLoad(
+          { filter: /.*/, namespace: "mock-role-form-network" },
+          (args) => ({
+            contents: args.path.includes("hg_api_constants")
+              ? `export const HGMANAGER_API = {
+                  IAM_PERMISSION_LIST: "/permissions/list",
+                  IAM_ROLE_CREATE: "/roles/create",
+                  IAM_ROLE_UPDATE: "/roles/update",
+                  IAM_ROLE_PERMISSIONS: "/roles/permissions"
+                };`
+              : `export default {
+                  get: (...args) => globalThis.__hgRoleFormGet(...args),
+                  post: (...args) => globalThis.__hgRoleFormPost(...args)
+                };`,
+            loader: "js",
+          })
+        );
+      },
+    },
+  ],
+});
+
+const { default: HGRoleCreateVM } = await import(
+  `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString(
+    "base64"
+  )}`
+);
+
+test("编辑页按角色 ID 读取权限，创建页只读取权限目录", async () => {
+  const calls = [];
+  globalThis.__hgRoleFormGet = async (...args) => {
+    calls.push(args);
+    return { list: [], selected: [] };
+  };
+  await HGRoleCreateVM.fetchPermissions();
+  await HGRoleCreateVM.fetchPermissions("9007199254740993");
+  assert.deepEqual(calls, [
+    ["/permissions/list", undefined],
+    ["/permissions/list", { roleId: "9007199254740993" }],
+  ]);
+  delete globalThis.__hgRoleFormGet;
+});
+
+test("权限快照比较忽略顺序和重复项", () => {
+  assert.equal(
+    HGRoleCreateVM.permissionsChanged(["video:read", "role:list"], [
+      "role:list",
+      "video:read",
+      "video:read",
+    ]),
+    false
+  );
+  assert.equal(
+    HGRoleCreateVM.permissionsChanged(["video:read"], ["video:write"]),
+    true
+  );
+});
+
+test("编辑未改权限时只更新基础信息，不要求 MFA", async () => {
+  const calls = [];
+  globalThis.__hgRoleFormPost = async (...args) => {
+    calls.push(args);
+    return { id: "101" };
+  };
+  await HGRoleCreateVM.submitRoleEdit(
+    {
+      id: "101",
+      name: "运营主管",
+      description: "负责运营",
+      permissions: ["role:list", "video:read"],
+      mfaCode: "",
+    },
+    ["video:read", "role:list"]
+  );
+  assert.deepEqual(calls, [
+    [
+      "/roles/update",
+      { id: "101", name: "运营主管", description: "负责运营" },
+    ],
+  ]);
+  delete globalThis.__hgRoleFormPost;
+});
+
+test("编辑修改权限时先校验 MFA，再更新基础信息并提交权限审批", async () => {
+  const calls = [];
+  globalThis.__hgRoleFormPost = async (...args) => {
+    calls.push(args);
+    return args[0] === "/roles/permissions"
+      ? { approvalId: "approval-1" }
+      : { id: "101" };
+  };
+  await assert.rejects(
+    HGRoleCreateVM.submitRoleEdit(
+      {
+        id: "101",
+        name: "运营主管",
+        description: "",
+        permissions: ["video:write"],
+        mfaCode: "",
+      },
+      ["video:read"]
+    ),
+    /6 位 MFA/
+  );
+  assert.equal(calls.length, 0);
+
+  const resultWithApproval = await HGRoleCreateVM.submitRoleEdit(
+    {
+      id: "101",
+      name: "运营主管",
+      description: "",
+      permissions: ["video:write"],
+      mfaCode: "123456",
+    },
+    ["video:read"]
+  );
+  assert.deepEqual(calls, [
+    ["/roles/update", { id: "101", name: "运营主管", description: "" }],
+    [
+      "/roles/permissions",
+      {
+        roleId: "101",
+        permissions: ["video:write"],
+        mfaCode: "123456",
+      },
+    ],
+  ]);
+  assert.equal(resultWithApproval.approvalId, "approval-1");
+  delete globalThis.__hgRoleFormPost;
+});

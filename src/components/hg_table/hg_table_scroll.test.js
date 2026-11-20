@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { syncHorizontalScroll } from "./hg_table_scroll.js";
+import {
+  HG_TABLE_COLUMN_DEFAULTS,
+  HG_TABLE_PAGINATION_DEFAULTS,
+  hgTableColumns,
+  hgNormalizeTableAlign,
+} from "./hg_table_contract.js";
 import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -22,6 +28,12 @@ new Function("require", "module", "exports", hgCode)((name) => {
   if (name.endsWith(".css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
   if (name === "./hg_table_scroll.js") return { syncHorizontalScroll };
   if (name === "../hg_drag_scroll/hg_drag_scroll.js") return { hgStartDrag, hgMoveDrag };
+  if (name === "./hg_table_contract.js") return {
+    HG_TABLE_COLUMN_DEFAULTS,
+    HG_TABLE_PAGINATION_DEFAULTS,
+    hgTableColumns,
+    hgNormalizeTableAlign,
+  };
   return hgRequire(name);
 }, hgModule, hgModule.exports);
 const HGTablePage = hgModule.exports.default;
@@ -156,8 +168,9 @@ test("显式列宽固定，其他列平分剩余空间并保留一致的最小�
   assert.equal(table.renderHeader().props.children.props.children[1].props.style.minWidth, 170);
 });
 
-test("标题和内容默认居中，align 可选左中右，titleAlign 仅覆盖标题", () => {
+test("标题和内容默认居中，组件级 align 设置全部列且列配置可单独覆盖", () => {
   const table = new HGTablePage({
+    align: "left",
     columns: [
       { title: "默认" },
       { title: "左", align: "left" },
@@ -171,9 +184,26 @@ test("标题和内容默认居中，align 可选左中右，titleAlign 仅覆盖
   const headerCells = table.renderHeader().props.children.props.children;
   const row = table.renderAutoRowHeightBody().props.children.props.children[0];
   const bodyCells = new row.type(row.props).render().props.children[0];
-  assert.deepEqual(headerCells.map((cell) => cell.props.style.textAlign), ["center", "left", "center", "right", "right", "left"]);
-  assert.deepEqual(bodyCells.map((cell) => cell.props.style.textAlign), ["center", "left", "center", "right", "left", "center"]);
-  assert.deepEqual(bodyCells.map((cell) => cell.props.style.justifyContent), ["center", "flex-start", "center", "flex-end", "flex-start", "center"]);
+  assert.deepEqual(headerCells.map((cell) => cell.props.style.textAlign), ["left", "left", "center", "right", "right", "left"]);
+  assert.deepEqual(bodyCells.map((cell) => cell.props.style.textAlign), ["left", "left", "center", "right", "left", "left"]);
+  assert.deepEqual(bodyCells.map((cell) => cell.props.style.justifyContent), ["flex-start", "flex-start", "center", "flex-end", "flex-start", "flex-start"]);
+
+  table.props = { ...table.props, align: undefined, columns: [{ title: "默认" }] };
+  assert.equal(table.renderHeader().props.children.props.children[0].props.style.textAlign, "center");
+});
+
+test("表格 JavaScript 契约公开 columns 子属性的默认值、作用及对齐优先级", () => {
+  const contract = readFileSync(
+    new URL("./hg_table_contract.js", import.meta.url),
+    "utf8"
+  );
+  assert.match(contract, /@typedef \{Object\} HGTableColumn/);
+  assert.match(contract, /\[align=undefined\]/);
+  assert.match(contract, /优先级高于表格级 align/);
+  assert.match(
+    contract,
+    /export function hgTableColumns\(columns\)/
+  );
 });
 
 test("自然行高的内容在被图片撑高的单元格中保持竖直居中", () => {

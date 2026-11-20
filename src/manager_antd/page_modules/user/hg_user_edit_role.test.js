@@ -84,9 +84,17 @@ function hgFindText(hgNode, hgText) {
   return hgFindText(hgNode.props.children, hgText);
 }
 
+/** 查找错误提示容器，验证权限失败与绑定空态不会混淆。 */
+function hgFindByRole(hgNode, hgRole) {
+  if (Array.isArray(hgNode)) return hgNode.map((child) => hgFindByRole(child, hgRole)).find(Boolean);
+  if (!React.isValidElement(hgNode)) return null;
+  if (hgNode.props.role === hgRole) return hgNode;
+  return hgFindByRole(hgNode.props.children, hgRole);
+}
+
 const hgFlush = () => new Promise((resolve) => setImmediate(resolve)); // 等待 Promise 链清空，无固定睡眠。
 
-test("先读取有界角色目录再按路由 user_id 查询绑定；无绑定时不显示已授权行", async () => {
+test("独立读取角色目录与路由 user_id 的绑定；无绑定时不显示已授权行", async () => {
   const hgCalls = []; // 只记录调用顺序与目标 ID。
   const { hgPage } = hgUserEditPage(async () => {}, {
     fetchAllRoles: async () => { hgCalls.push("roles"); return { list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }; },
@@ -94,8 +102,9 @@ test("先读取有界角色目录再按路由 user_id 查询绑定；无绑定�
   });
   await hgPage.hgLoadRolesAndBindings();
   await hgFlush();
-  assert.deepEqual(hgCalls, ["roles", "route-7"]);
+  assert.deepEqual(hgCalls, ["route-7", "roles"]);
   assert.equal(hgFindCollectionView(hgPage.renderRoleAssignment()) ?? null, null);
+  assert.ok(hgFindText(hgPage.renderRoleAssignment(), "当前用户暂无已生效 IAM 角色绑定；普通账号身份不等于 IAM 授权。"));
   hgPage.hgToggleAssignRow();
   const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
   assert.equal(hgCollection.props.getKey(hgCollection.props.items[0]), "new-assignment");
@@ -238,7 +247,7 @@ test("同一页面实例切换用户时清空旧角色与 MFA，旧请求不得�
   assert.equal(hgPage.state.profileForm.nickname, "新用户");
 });
 
-test("角色目录重复加载时忽略较早响应，分配期间已有绑定的权限入口不覆盖待分配角色", async () => {
+test("角色目录重复加载时忽略较早响应，已有绑定权限与待分配权限相互独立", async () => {
   let hgResolveOldRoles; // 同一目标第一次角色目录请求稍后返回。
   let hgRoleFetches = 0; // 只在新角色目录完成后读取绑定。
   const { hgPage } = hgUserEditPage(async () => {}, {
@@ -260,8 +269,109 @@ test("角色目录重复加载时忽略较早响应，分配期间已有绑定�
   const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
   const hgExisting = hgCollection.props.items.find((item) => !item.hgIsNew);
   const hgExistingCard = hgCollection.props.renderCell(hgExisting, 0);
-  assert.ok(hgFindText(hgExistingCard, "分配完成后可查看"));
+  assert.ok(hgFindText(hgExistingCard, "该角色暂无业务权限"));
   assert.equal(hgPage.state.hgPermissionRoleId, "7");
+});
+
+test("已有绑定自动回填角色、作用域和已选业务权限；同角色多作用域只查询一次", async () => {
+  const hgRoles = []; // 仅记录查询角色 ID，验证相同角色复用一次请求。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
+    fetchBindings: async () => ({ list: [
+      { id: "18", roleId: "7", scopeType: "shop", scopeId: "shop-1" },
+      { id: "19", roleId: "7", scopeType: "org", scopeId: "org-1" },
+    ] }),
+    fetchRolePermissions: async (id) => {
+      hgRoles.push(id);
+      return { list: [
+        { code: "video:submission:read", description: "读取投稿" },
+        { code: "iam:role:grant", description: "管理授权" },
+      ], selected: ["video:submission:read"] };
+    },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  assert.deepEqual(hgRoles, ["7"]);
+  const hgList = hgFindCollectionView(hgPage.renderRoleAssignment());
+  assert.equal(hgList.props.items.length, 2);
+  const hgCard = hgList.props.renderCell(hgList.props.items[0], 0);
+  assert.ok(hgFindText(hgCard, "审核员"));
+  const hgScopeFields = hgCard.props.children[1].props.children.map((item) => item.props.children.join(""));
+  assert.deepEqual(hgScopeFields, ["作用域类型 · shop", "作用域 ID · shop-1"]);
+  const hgPermissions = hgFindByAriaLabel(hgCard, "该角色已生效的业务权限（仅查看）").props.children;
+  assert.deepEqual(Array.from(hgPermissions.props.value), ["video:submission:read"]);
+  assert.equal(hgPermissions.props.treeData[0].title, "读取投稿");
+  assert.equal(hgPermissions.props.disabled, true);
+});
+
+test("目录故障不遮挡已生效绑定；权限查询失败可以按角色重试", async () => {
+  let hgPermissionCalls = 0; // 第一次权限请求失败后，重试恢复，不影响绑定本身。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => { throw new Error("目录暂不可用"); },
+    fetchBindings: async () => ({ list: [
+      { id: "18", roleId: "7", roleCode: "reviewer", scopeType: "global", scopeId: "" },
+    ] }),
+    fetchRolePermissions: async () => {
+      hgPermissionCalls += 1;
+      if (hgPermissionCalls === 1) throw new Error("权限暂不可用");
+      return { list: [{ code: "video:submission:read" }], selected: ["video:submission:read"] };
+    },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  assert.equal(hgPage.state.hgRolesError, "目录暂不可用");
+  let hgList = hgFindCollectionView(hgPage.renderRoleAssignment());
+  assert.equal(hgList.props.items.length, 1);
+  let hgCard = hgList.props.renderCell(hgList.props.items[0], 0);
+  assert.ok(hgFindText(hgCard, "reviewer"));
+  assert.equal(hgFindByRole(hgCard, "alert").props.children[0], "权限暂不可用");
+  const hgRetry = hgFindText(hgCard, "重试");
+  hgRetry.props.onClick();
+  await hgFlush();
+  hgList = hgFindCollectionView(hgPage.renderRoleAssignment());
+  hgCard = hgList.props.renderCell(hgList.props.items[0], 0);
+  assert.ok(hgFindByAriaLabel(hgCard, "该角色已生效的业务权限（仅查看）"));
+  assert.equal(hgPermissionCalls, 2);
+});
+
+test("绑定查询失败显示错误而不是无角色，并可重新读取", async () => {
+  let hgBindingCalls = 0; // 首次绑定读取失败；重试后返回空列表。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [], truncated: false }),
+    fetchBindings: async () => {
+      if (++hgBindingCalls === 1) throw new Error("绑定暂不可用");
+      return { list: [] };
+    },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  assert.equal(hgFindCollectionView(hgPage.renderRoleAssignment()) ?? null, null);
+  assert.equal(hgFindByRole(hgPage.renderRoleAssignment(), "alert").props.children[0], "绑定暂不可用");
+  assert.ok(!hgFindText(hgPage.renderRoleAssignment(), "当前用户暂无已生效 IAM 角色绑定；普通账号身份不等于 IAM 授权。"));
+  const hgRetry = hgFindText(hgPage.renderRoleAssignment(), "重试");
+  hgRetry.props.onClick();
+  await hgFlush();
+  assert.equal(hgBindingCalls, 2);
+  assert.ok(hgFindText(hgPage.renderRoleAssignment(), "当前用户暂无已生效 IAM 角色绑定；普通账号身份不等于 IAM 授权。"));
+});
+
+test("刷新绑定后旧权限响应不能回填到新查询结果", async () => {
+  let hgResolveOld; // 首次权限查询保持未完成，用于模拟刷新前的迟到响应。
+  let hgPermissionCalls = 0; // 第二次权限查询立即返回新的角色权限。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [], truncated: false }),
+    fetchBindings: async () => ({ list: [{ id: "18", roleId: "7", roleCode: "reviewer", scopeType: "global", scopeId: "" }] }),
+    fetchRolePermissions: () => ++hgPermissionCalls === 1
+      ? new Promise((resolve) => { hgResolveOld = resolve; })
+      : Promise.resolve({ list: [{ code: "new:permission:read" }], selected: ["new:permission:read"] }),
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgLoadBindings(0);
+  await hgFlush();
+  hgResolveOld({ list: [{ code: "old:permission:read" }], selected: ["old:permission:read"] });
+  await hgFlush();
+  assert.deepEqual(Array.from(hgPage.state.hgBindingPermissions["7"].list.map((item) => item.code)), ["new:permission:read"]);
 });
 
 test("两个角色与两个作用域仅提交一次 MFA，权限只读取服务端并集", async () => {

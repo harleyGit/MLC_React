@@ -6,6 +6,11 @@ import { transformSync } from "@swc/core";
 import React from "react";
 import { hgCollectionOffsets, hgCollectionStart } from "./hg_collection_layout.js";
 import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
+import {
+  HG_COLLECTION_PAGINATION_DEFAULTS,
+  hgCollectionPagination,
+  hgNormalizeCollectionAlign,
+} from "./hg_collection_view_contract.js";
 
 /** 运行真实 JSX 组件；DOM 和样式只使用本地替身，不启动网络服务。 */
 function hgCollection(props) {
@@ -24,6 +29,11 @@ function hgCollection(props) {
       if (name === "react") return React;
       if (name.endsWith("hg_collection_layout.js")) return { hgCollectionOffsets, hgCollectionStart };
       if (name.endsWith("hg_drag_scroll.js")) return { hgStartDrag, hgMoveDrag };
+      if (name.endsWith("hg_collection_view_contract.js")) return {
+        HG_COLLECTION_PAGINATION_DEFAULTS,
+        hgCollectionPagination,
+        hgNormalizeCollectionAlign,
+      };
       return { default: {}, __esModule: true };
     },
   });
@@ -275,4 +285,38 @@ test("自然高度模式兼容单列与多列网格：columnMinWidth 启用网�
   );
   assert.equal(wrapped.props.children.length, items.length);
   assert.equal(wrapped.props.children[0].props.children, "item-0");
+});
+
+test("cell 默认居中，align 可将虚拟和自然高度模式统一设为左对齐", () => {
+  const items = [{ id: "item-1" }];
+  const common = {
+    items,
+    getKey: (item) => item.id,
+    renderCell: (item) => item.id,
+  };
+  const centered = hgCollection(common);
+  const centeredOffsets = hgCollectionOffsets(
+    items,
+    centered.props.getKey,
+    centered.hgHeights
+  );
+  assert.equal(
+    centered.renderSlots(centeredOffsets)[0].props.style.textAlign,
+    "center"
+  );
+
+  const left = hgCollection({ ...common, align: "left", fillHeight: false });
+  assert.equal(left.renderNaturalSlots()[0].props.style.textAlign, "left");
+  left.props = { ...left.props, align: "invalid" };
+  assert.equal(left.renderNaturalSlots()[0].props.style.textAlign, "center");
+});
+
+test("CollectionView JavaScript 契约公开分页及 cell 配置的默认值与作用", () => {
+  const contract = readFileSync(
+    new URL("./hg_collection_view_contract.js", import.meta.url),
+    "utf8"
+  );
+  assert.match(contract, /@typedef \{Object\} HGCollectionPagination/);
+  assert.match(contract, /HG_COLLECTION_PAGINATION_DEFAULTS/);
+  assert.match(contract, /export function hgCollectionPagination\(pagination\)/);
 });

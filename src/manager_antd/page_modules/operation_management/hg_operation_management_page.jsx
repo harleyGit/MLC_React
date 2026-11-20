@@ -239,6 +239,7 @@ const PAGE_MAP = {
   role_employee: HGEmployeeRolePage,
   // 创建角色页已从左侧菜单收敛为角色列表页头按钮入口；此处保留映射供 onMenuSelect("role_create") 渲染。
   role_create: HGRoleCreatePage,
+  role_edit: HGRoleCreatePage,
   permission_list: PermissionListPage,
   permission_menu: HGPermissionMenuPage,
   permission_role: HGRoleListPage,
@@ -297,6 +298,14 @@ const HIDDEN_BREADCRUMB_PATHS = {
       { key: "role_create", label: "创建角色" },
     ],
   },
+  role_edit: {
+    parentKey: "role_list",
+    breadcrumb: [
+      { key: "role", label: "角色管理" },
+      { key: "role_list", label: "角色列表" },
+      { key: "role_edit", label: "编辑角色" },
+    ],
+  },
 };
 
 /**
@@ -334,10 +343,14 @@ class HGOperationManagementPage extends Component {
    * 返回时后退一步即可回到来源列表页。
    * @param {string} key 目标子页 key
    * @param {Object} params 编辑对象标识，默认无额外参数。
+   * @param {Object|undefined} state 当前历史项的非敏感页面数据；刷新和前进/后退时由浏览器 history 保留。
    */
-  pushPage = (key, params = {}) => {
+  pushPage = (key, params = {}, state = undefined) => {
     const { navigate } = this.props;
-    navigate(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key, params));
+    navigate(
+      hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key, params),
+      state === undefined ? undefined : { state }
+    );
   };
 
   /** 有来源时与浏览器后退一致；直达编辑网址时回到明确父列表。 */
@@ -379,6 +392,7 @@ class HGOperationManagementPage extends Component {
         <div className={styles.contentBody}>
           <Suspense fallback={<HGLoading text="正在加载页面..." />}>
             <PageComponent
+              key={selectedKey}
               selectedKey={selectedKey}
               location={this.props.location}
               onMenuSelect={this.handleMenuSelect}
