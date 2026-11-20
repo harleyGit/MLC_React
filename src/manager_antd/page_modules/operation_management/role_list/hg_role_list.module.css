@@ -34,7 +34,7 @@
 /* 角色名称单元格 */
 .roleCell {
   display: flex;
-  align-items: center;
+  align-items: left;
   gap: 10px;
   min-width: 0;
 }

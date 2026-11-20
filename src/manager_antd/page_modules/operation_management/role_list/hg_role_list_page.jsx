@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-07-05
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-11-04 21:19:32
+ * @LastEditTime: 2026-11-20 14:30:53
  * @FilePath: /MLC_React/src/manager_antd/page_modules/operation_management/role_list/hg_role_list_page.jsx
  * @Description: 角色管理页面，默认 cursor 分页展示角色列表并支持编辑、删除、跳转创建角色
  */
@@ -324,7 +324,7 @@ class HGRoleListPage extends Component {
       </span>
       <div className={styles.roleMeta}>
         <span className={styles.roleName}>{record.name || "-"}</span>
-        <span className={styles.roleId}>ID：{record.id || "-"}</span>
+        <span className={styles.roleId}>ID：{record.code || "-"}</span>
       </div>
     </div>
   );
