@@ -17,6 +17,10 @@ class HGAccountSecurityPage extends React.Component {
   constructor(props) {
     super(props);
     this.state = HGAccountSecurityPageVM.createInitialState(props.userProfile);
+    // 由父页按安全项 key 重挂载；仅从 URL 恢复允许的页面标识，任何验证凭证和草稿均不恢复。
+    const securityKey = ["qq", "password", "phone", "email", "wechat"].includes(props.securityKey) ? props.securityKey : "";
+    this.state.activeSecurityKey = securityKey;
+    this.state.securityForm = HGAccountSecurityPageVM.createSecurityForm(securityKey, props.userProfile);
     this.countdownTimer = null;
     this.isUnmounted = false;
     this.captchaPhoneTarget = ""; // 本轮点选验证码对应的手机号；关闭弹窗、离开安全项或使用凭证后立即清空。
@@ -109,23 +113,8 @@ class HGAccountSecurityPage extends React.Component {
       return;
     }
 
-    this.captchaPhoneTarget = "";
-    this.codeRequestSeq += 1;
-    if (this.countdownTimer) {
-      clearInterval(this.countdownTimer);
-      this.countdownTimer = null;
-    }
-    this.setState({
-      activeSecurityKey: itemKey,
-      captchaVisible: false,
-      codeLoading: false,
-      countdown: 0,
-      securityForm: HGAccountSecurityPageVM.createSecurityForm(
-        itemKey,
-        this.state.userProfile
-      ),
-      tips: "",
-    });
+    // 页面重挂载负责清理计时器和验证码，浏览器前进/后退执行相同清理路径。
+    this.props.onNavigate(itemKey);
   };
 
   /**
@@ -133,21 +122,7 @@ class HGAccountSecurityPage extends React.Component {
    * 约束：返回时清理详情表单和倒计时，避免旧验证码影响下一次设置。
    */
   handleBackSecurityList = () => {
-    this.captchaPhoneTarget = "";
-    this.codeRequestSeq += 1;
-    if (this.countdownTimer) {
-      clearInterval(this.countdownTimer);
-      this.countdownTimer = null;
-    }
-    this.setState({
-      activeSecurityKey: "",
-      securityForm: HGAccountSecurityPageVM.createSecurityForm(),
-      codeLoading: false,
-      saving: false,
-      countdown: 0,
-      captchaVisible: false,
-      tips: "",
-    });
+    this.props.onBack();
   };
 
   /**
@@ -286,6 +261,7 @@ class HGAccountSecurityPage extends React.Component {
         itemKey: activeSecurityKey,
         securityForm,
       });
+      if (this.isUnmounted) return; // 返回/切换安全页后不让旧提交结果改写新页面或再次导航。
       const nextUserProfile = HGAccountSecurityPageVM.buildNextUserProfile(
         userProfile,
         activeSecurityKey,
@@ -301,12 +277,13 @@ class HGAccountSecurityPage extends React.Component {
         activeSecurityKey: "",
         securityForm: HGAccountSecurityPageVM.createSecurityForm(),
         tips: HGAccountSecurityPageVM.buildSecuritySuccessTip(activeSecurityKey),
-      });
+      }, this.handleBackSecurityList);
     } catch (error) {
+      if (this.isUnmounted) return;
       handleError(error);
       this.setState({ tips: "账号安全设置失败，请稍后重试。" });
     } finally {
-      this.setState({ saving: false });
+      if (!this.isUnmounted) this.setState({ saving: false });
     }
   };
 

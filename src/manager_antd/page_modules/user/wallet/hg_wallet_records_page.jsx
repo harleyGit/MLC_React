@@ -321,7 +321,7 @@ export default class HGWalletRecordsPage extends React.Component {
   /** 独立页提供明确的钱包返回链接，直接访问或刷新也可以返回。 */
   renderHeader = () => (
     <header className={styles.header}>
-      <Link className={styles.backButton} to={ROUTE_PATH.WALLET}>
+      <Link className={styles.backButton} to={ROUTE_PATH.WALLET} onClick={(event) => this.props.pageNavigator.backFromLink(event, ROUTE_PATH.WALLET)}>
         <span aria-hidden="true">‹</span>我的钱包
       </Link>
       <div className={styles.headerInner}>

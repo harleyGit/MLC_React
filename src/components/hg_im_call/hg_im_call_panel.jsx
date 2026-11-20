@@ -4,6 +4,12 @@ import { hgIMEndpoint } from "../../manager_antd/net_handle/hg_im_endpoint";
 import styles from "./hg_im_call.module.css";
 
 /** 单条 LiveKit 媒体轨道；track/local 均来自 Room，无默认值。 */
+/**
+ * @typedef {object} HGIMTrackProps
+ * @property {Object} track 必传，无默认值；LiveKit 媒体轨道，挂载/卸载时配对 attach/detach。
+ * @property {boolean} local 必传，无默认值；是否本机轨道，本机播放静音以避免回声。
+ */
+/** @extends {React.Component<HGIMTrackProps>} */
 class HGIMTrack extends React.Component {
   hgElement = React.createRef(); // SDK track 绑定的原生 video/audio 元素。
   componentDidMount() { this.props.track.attach(this.hgElement.current); }
@@ -16,6 +22,13 @@ class HGIMTrack extends React.Component {
 }
 
 /** 通话控制面板：vm 提供已鉴权 API/设备，deviceReady 与 conversationId 由首页传入，无默认值；发起入口位于聊天输入框。 */
+/**
+ * @typedef {object} HGIMCallPanelProps
+ * @property {Object} vm 必传，无默认值；当前账号的 IM VM，提供已鉴权 API、设备凭据与生命周期判断。
+ * @property {boolean} deviceReady 必传，无默认值；首页同步的设备就绪状态，false 时禁止建立呼叫。
+ * @property {string} conversationId 必传，无默认值；当前单聊会话标识，空字符串表示未选择会话。
+ */
+/** @extends {React.Component<HGIMCallPanelProps>} */
 export default class HGIMCallPanel extends React.Component {
   state = {
     hgCall: null, // 从 Go 读取的权威状态；null 时没有已知呼叫。

@@ -26,7 +26,37 @@ const CloseIcon = () => (
  * 输入：visible, title, size, onClose, children, footer, className。
  * 约束：visible 控制显示隐藏，onClose 关闭回调。
  */
+/** @extends {React.Component<Partial<typeof HGModalPage.defaultProps>>} */
 class HGModalPage extends React.Component {
+  static defaultProps = {
+    /** 受控显示开关，默认 false 隐藏弹窗。 */
+    visible: false,
+    /** 标题节点，默认 undefined 不提供标题内容。 @type {React.ReactNode} */
+    title: undefined,
+    /** 弹窗正文，默认 undefined 无内容。 @type {React.ReactNode} */
+    children: undefined,
+    /** 默认允许关闭；控制关闭图标、遮罩点击及 Escape。 */
+    closable: true,
+    /** 关闭请求回调，默认 undefined；父级需将 visible 改为 false。 @type {Function|undefined} */
+    onClose: undefined,
+    /** 确认回调，默认 undefined 不执行提交。 @type {Function|undefined} */
+    onOk: undefined,
+    /** 取消按钮回调，默认 undefined 不执行取消操作。 @type {Function|undefined} */
+    onCancel: undefined,
+    /** 底栏节点，默认 undefined 使用内置确认/取消按钮；null 隐藏底栏。 @type {React.ReactNode} */
+    footer: undefined,
+    /** 确认按钮文字，默认 undefined 使用内置“确定”。 @type {React.ReactNode} */
+    okText: undefined,
+    /** 取消按钮文字，默认 undefined 使用内置“取消”。 @type {React.ReactNode} */
+    cancelText: undefined,
+    /** 确认按钮视觉类型，默认 primary。 */
+    okType: "primary",
+    /** 弹窗尺寸档位，默认 default。 */
+    size: "default",
+    /** 弹窗附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   /**
    * 处理遮罩层点击。
    * @param {React.MouseEvent} e 鼠标事件。

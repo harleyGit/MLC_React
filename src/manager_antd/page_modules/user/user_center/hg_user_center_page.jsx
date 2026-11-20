@@ -3,10 +3,12 @@
  */
 import React, { Component } from "react";
 import HGSideMenuPage from "../../../../components/menu_component/hg_side_menu_page";
-import HGSideMenuVM from "../../../../components/menu_component/hg_side_menu_vm";
+import HGMenuBreadcrumb from "../../../../components/hg_breadcrumb/hg_menu_breadcrumb";
+import { hgBuildSubMenuUrl, hgReadSubMenuKey } from "../../../../components/hg_navigation/hg_sub_nav";
+import { ROUTE_PATH } from "../../../../components/hg_navigation/hg_route_path";
 import HGMallPaidOrdersPage from "../../../../pages/mall/hg_mall_paid_orders_page";
 import HGMallPendingOrdersPage from "../../../../pages/mall/hg_mall_pending_orders_page";
-import HGMallCatalog from "../../../../pages/mall/hg_mall_catalog";
+import HGMerchantApplyPage from "./hg_merchant_apply/hg_merchant_apply_page";
 import HGMerchantProductsPage from "../../../../pages/mall/hg_merchant_products_page";
 import HGMerchantPublishPage from "../../../../pages/mall/hg_merchant_publish_page";
 import HGMerchantOrdersPage from "../../../../pages/mall/hg_merchant_orders_page";
@@ -25,44 +27,30 @@ import styles from "./hg_user_center.module.css";
  * 约束：订单数据由各自订单页面独立请求，页面本身不缓存收件隐私信息。
  */
 class HGUserCenterPage extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      selectedKey: HGUserCenterVM.getDefaultSelectedKey(),
-    };
-  }
+  /** 子菜单由 URL 恢复，离开订单列表后返回时不再重置为默认菜单。 */
+  getSelectedKey = () => hgReadSubMenuKey(this.props.location?.search, HGUserCenterVM.getDefaultSelectedKey());
 
   /**
    * 菜单选中回调：更新右侧内容区页面。
    * @param {string} key 选中的叶子节点菜单 key。
    */
   handleMenuSelect = (key) => {
-    this.setState({ selectedKey: key });
+    if (key === this.getSelectedKey()) return;
+    this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.USER_CENTER, key));
   };
+
+  /** 点击祖先节点复用历史中的父页，直达时使用明确的站内目标。 */
+  navigateBreadcrumb = (href) => this.props.pageNavigator.returnTo(href);
 
   /**
    * 渲染面包屑，帮助确认当前菜单路径。
    * @returns {React.ReactNode} 面包屑节点。
    */
   renderBreadcrumb = () => {
-    const { selectedKey } = this.state;
-    const path = HGSideMenuVM.findPathToKey(USER_CENTER_MENU_ITEMS, selectedKey);
-    if (!path || path.length === 0) return null;
-
     return (
-      <div className={styles.breadcrumb}>
-        {path.map((node, index) => {
-          const isLast = index === path.length - 1;
-          return (
-            <span key={node.key} className={styles.breadcrumbItem}>
-              <span className={isLast ? styles.breadcrumbCurrent : styles.breadcrumbLink}>
-                {node.label}
-              </span>
-              {!isLast && <span className={styles.breadcrumbSeparator}>{">"}</span>}
-            </span>
-          );
-        })}
-      </div>
+      <HGMenuBreadcrumb menuItems={USER_CENTER_MENU_ITEMS} selectedKey={this.getSelectedKey()}
+        basePath={ROUTE_PATH.USER_CENTER} rootLabel="个人中心"
+        onNavigate={this.navigateBreadcrumb} className={styles.breadcrumb} />
     );
   };
 
@@ -71,7 +59,7 @@ class HGUserCenterPage extends Component {
    * @returns {React.ReactNode} 右侧内容节点。
    */
   renderContent = () => {
-    const { selectedKey } = this.state;
+    const selectedKey = this.getSelectedKey(); // URL 对应的业务菜单，浏览器前进/后退自动恢复。
     if (selectedKey === USER_CENTER_MENU_KEYS.UNPAID) {
       return <HGMallPendingOrdersPage />;
     }
@@ -80,7 +68,7 @@ class HGUserCenterPage extends Component {
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT) {
       // 商家入驻申请只展示申请卡片；商品、发布与订单由下面的子菜单各自渲染。
-      return <HGMallCatalog hgInitialView="merchant" hgMerchantSection="apply" />;
+      return <HGMerchantApplyPage hgApplyOnly />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.MERCHANT_PRODUCTS) {
       return <HGMerchantProductsPage />;
@@ -111,7 +99,7 @@ class HGUserCenterPage extends Component {
   };
 
   render() {
-    const { selectedKey } = this.state;
+    const selectedKey = this.getSelectedKey(); // 与内容区使用同一导航来源。
 
     return (
       <div className={styles.userCenterContainer}>

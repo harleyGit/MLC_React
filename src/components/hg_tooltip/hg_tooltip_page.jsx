@@ -12,7 +12,27 @@ import styles from "./hg_tooltip.module.css";
  *
  * 输入：content, placement, delay, children, className, style, tooltipClassName, contentClassName。
  */
+/** @extends {React.Component<Partial<typeof HGTooltipPage.defaultProps>>} */
 class HGTooltipPage extends React.Component {
+  static defaultProps = {
+    /** 浮层内容，默认 undefined 不提供提示正文。 @type {React.ReactNode} */
+    content: undefined,
+    /** 触发提示的包裹内容，默认 undefined 无触发内容。 @type {React.ReactNode} */
+    children: undefined,
+    /** 显示/隐藏延迟，默认 200 毫秒。 */
+    delay: 200,
+    /** 提示位置，默认 top；支持组件已有的位置样式。 */
+    placement: "top",
+    /** 触发容器附加样式类，默认空字符串。 */
+    className: "",
+    /** 触发容器行内样式，默认空对象，仅使用组件样式。 @type {React.CSSProperties} */
+    style: {},
+    /** 浮层附加样式类，默认空字符串。 */
+    tooltipClassName: "",
+    /** 提示正文附加样式类，默认空字符串。 */
+    contentClassName: "",
+  };
+
   constructor(props) {
     super(props);
     this.state = {

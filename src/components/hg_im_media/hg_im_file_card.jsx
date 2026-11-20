@@ -16,7 +16,13 @@ import React from "react";
 import { hgIMFileVisual, hgIMFormatSize } from "./hg_im_file_meta.js";
 import styles from "./hg_im_media.module.css";
 
-/** 微信样式文件卡片；size 未知时展示占位，避免把“未获取”伪装成真实大小。 */
+/**
+ * 微信样式文件卡片；三个属性均来自已鉴权文件元数据，无业务安全的虚构默认值。
+ * @param {object} props 文件展示属性。
+ * @param {string} props.name 必传，无默认值；真实文件名，同时作为 title。
+ * @param {number|undefined} props.size 必传，无默认值；字节数，undefined 表示尚未获取并展示占位。
+ * @param {string|undefined} props.mime 必传，无默认值；MIME 用于选择文件类型图标。
+ */
 export default function HGIMFileCard({ name, size, mime }) {
   const hgVisual = hgIMFileVisual(name, mime);
   return (

@@ -52,14 +52,25 @@ function hgCanvasToBlob(hgCanvas, hgType) {
  * 上传前图片裁切包装器。
  * 通过克隆唯一子上传组件注入 beforeUpload，确认后返回裁切生成的新 File。
  */
+/**
+ * @typedef {object} HGImageCropContentProps
+ * @property {React.ReactElement} children 必传，无默认值；唯一上传子组件，需支持 beforeUpload 返回 File/Blob/false 或 Promise。
+ */
+/** @extends {React.Component<Partial<typeof HGImageCrop.defaultProps> & HGImageCropContentProps>} */
 export default class HGImageCrop extends React.Component {
   static defaultProps = {
-    aspect: 1, // 默认裁切为 1:1 正方形。
-    cropShape: "rect", // 默认使用矩形裁切区域。
-    cropShapes: ["rect", "round", "ellipse"], // 默认允许在矩形、圆形和椭圆形间切换。
-    outputWidth: 800, // 默认输出宽度 800 像素，高度由 aspect 推导。
-    rotationSlider: false, // 默认不显示旋转滑杆；传 true 开启 -180° 至 180° 调节。
-    title: "裁切图片", // 裁切弹窗默认标题。
+    /** 裁切宽高比，默认 1（正方形），应为正数。 */
+    aspect: 1,
+    /** 初始裁切形状，默认 rect；须属于 cropShapes，否则使用其中首个有效形状。 */
+    cropShape: "rect",
+    /** 可选形状，默认矩形/圆形/椭圆；空或无效配置回退矩形。 @type {Array<string>} */
+    cropShapes: ["rect", "round", "ellipse"],
+    /** 输出图片宽度，默认 800 像素，高度由 aspect 推导。 */
+    outputWidth: 800,
+    /** 默认隐藏旋转滑杆；true 允许 -180° 至 180° 调节。 */
+    rotationSlider: false,
+    /** 裁切弹窗标题，默认“裁切图片”。 */
+    title: "裁切图片",
   };
 
   state = {

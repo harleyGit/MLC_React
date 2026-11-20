@@ -2,7 +2,19 @@ import React from "react";
 import { createVideoDanmaku, getVideoDanmaku } from "../../pages/bilibili/hg_bili_danmaku_api";
 
 /** 官方iframe不暴露可靠播放时钟；本站弹幕按用户指定时间点读写，不模拟同步叠加。父组件按CID重挂载。 */
+/**
+ * @typedef {object} HGExternalDanmakuDataProps
+ * @property {string} videoId 必传，无默认值；当前分 P 的本站视频标识，用于查询与发送弹幕。
+ * @property {number} duration 必传，无默认值；当前分 P 时长（秒），限制弹幕时间点。
+ * @property {number} page 必传，无默认值；展示的分 P 序号，从 1 开始。
+ */
+/** @extends {React.Component<Partial<typeof HGExternalDanmaku.defaultProps> & HGExternalDanmakuDataProps>} */
 export default class HGExternalDanmaku extends React.Component {
+  static defaultProps = {
+    /** 发送成功后返回弹幕正文，默认 undefined 不通知外层叠加显示。 @type {((content: string) => void)|undefined} */
+    onSent: undefined,
+  };
+
   state = { hgSeconds: "0", hgContent: "", hgItems: [], hgCursor: "", hgMore: false, hgTotal: 0, hgLoading: false, hgSending: false, hgError: "" };
   hgActive = false;
   hgSequence = 0;

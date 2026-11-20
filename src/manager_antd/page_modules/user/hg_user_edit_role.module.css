@@ -88,13 +88,9 @@
   line-height: 1.5;
 }
 
-/* 即时授权操作栏：窄屏自动换行，不挤压列表内容。 */
-.roleToolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
+/* 目录/绑定状态提示：仅异常时输出，收紧段落间距避免列表上方留白。 */
+.roleStatus p {
+  margin: 0 0 8px;
 }
 
 /* 角色卡片：由内容自然撑高，multi-column 网格随容器宽度增减列数。 */

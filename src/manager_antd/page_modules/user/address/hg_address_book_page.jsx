@@ -4,7 +4,7 @@ import HGCollectionView from "../../../../components/hg_collection_view/hg_colle
 import { HGSkeletonList } from "../../../../components/hg_loading_animations/hg_loading_animations.jsx";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import { hgMessage } from "../../../../components/hg_message/hg_message_page";
-import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
+import { ROUTE_PATH } from "../../../../components/hg_navigation/hg_route_path";
 import HGAddressBookVM, { ADDRESS_MAX_COUNT } from "./hg_address_book_vm";
 import HGAddressFormModal from "./hg_address_form_modal";
 import styles from "./hg_address_book_page.module.css";
@@ -55,10 +55,10 @@ class HGAddressBookPage extends React.Component {
   };
 
   /**
-   * 返回账号设置页，保留明确的回退路径。
+    * 与浏览器后退复用来源历史；直达时回账号设置。
    */
   handleBack = () => {
-    this.props.pageNavigator?.open({ page: PAGE.EDIT_USER_INFO });
+    this.props.pageNavigator?.back(ROUTE_PATH.EDIT_USER_INFO);
   };
 
   /**

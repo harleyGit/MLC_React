@@ -4,7 +4,19 @@ import styles from "./hg_verify_code_input.module.css";
 /**
  * 通用 6 位验证码输入组件：负责方格输入、粘贴、自动跳格和焦点高亮。
  */
+/** @extends {React.Component<Partial<typeof HGVerifyCodeInput.defaultProps>>} */
 class HGVerifyCodeInput extends React.Component {
+  static defaultProps = {
+    /** 验证码格数，默认 6；应传正整数。 */
+    length: 6,
+    /** 受控验证码，默认空字符串显示空格；由父级回填，不在组件内保存业务值。 */
+    value: "",
+    /** 默认可输入；true 禁用所有验证码格。 */
+    disabled: false,
+    /** 输入/粘贴变化返回纯数字字符串，默认 undefined 不通知。 @type {((value: string) => void)|undefined} */
+    onChange: undefined,
+  };
+
   /**
    * 构造函数：初始化输入框引用与焦点状态。
    * @param {Object} props 组件属性。

@@ -11,7 +11,23 @@ import styles from "./hg_dropdown_selector.module.css";
  * @param {boolean} props.disabled 是否禁用。
  * @param {Function} props.onChange 选中变化回调。
  */
+/** @extends {React.Component<Partial<typeof HGDropdownSelector.defaultProps>>} */
 class HGDropdownSelector extends React.Component {
+  static defaultProps = {
+    /** 候选项，默认 [] 显示空选项列表；value 为稳定标识，label 为显示文字。 @type {Array<{value: string, label: string}>} */
+    options: [],
+    /** 受控选中值，默认 undefined 未选择；多选传数组，单选传字符串。 @type {string|Array<string>|undefined} */
+    value: undefined,
+    /** 默认单选；true 允许选择多个值。 */
+    multiple: false,
+    /** 未选择时的文案，默认“请选择”。 */
+    placeholder: "请选择",
+    /** 默认可展开；true 禁止展开选择框。 */
+    disabled: false,
+    /** 返回新选中值（多选为数组），默认 undefined 不提交选择变化。 @type {((value: string|Array<string>) => void)|undefined} */
+    onChange: undefined,
+  };
+
   /**
    * 构造函数：初始化下拉展开状态。
    * @param {Object} props 组件属性。

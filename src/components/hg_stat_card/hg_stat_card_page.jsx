@@ -27,7 +27,19 @@ const TONE_CLASS_MAP = {
  * - columns: 每行卡片数，默认按 items.length 自适应。
  * - className: 追加到根节点的样式类。
  */
+/** @extends {React.PureComponent<Partial<typeof HGStatCardPage.defaultProps>>} */
 class HGStatCardPage extends React.PureComponent {
+  static defaultProps = {
+    /** 统计项列表，默认 []；每项的标题、数值、配色由调用方提供。 @type {Array<any>} */
+    items: [],
+    /** 网格列数，默认 undefined 使用组件按统计项数量推导的布局。 @type {number|undefined} */
+    columns: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 渲染单个指标卡。
    * @param {Object} item 指标配置 {label, value, suffix, tone, icon}。

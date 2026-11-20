@@ -40,7 +40,27 @@ export function normalizeToastType(type) {
 /**
  * 通用 Toast 展示组件：只负责渲染和自动关闭，不持有全局状态。
  */
+/** @extends {React.PureComponent<Partial<typeof HGToast.defaultProps>>} */
 class HGToast extends React.PureComponent {
+  static defaultProps = {
+    /** 提示正文，默认 undefined 不渲染提示。 @type {React.ReactNode} */
+    message: undefined,
+    /** 提示语义，默认 info；支持 success/warning/error，兼容 warn/warm。 */
+    type: "info",
+    /** 受控显示状态，默认 false 隐藏。 */
+    visible: false,
+    /** 自动关闭等待时间，默认 2400 毫秒；<=0 时不自动关闭。 */
+    duration: 2400,
+    /** 显示位置，默认 top；可选 center/bottom。 */
+    position: "top",
+    /** 默认不显示关闭按钮；true 允许手动关闭。 */
+    closable: false,
+    /** 自动或手动关闭通知，默认 undefined；父级负责更新 visible。 @type {(() => void)|undefined} */
+    onClose: undefined,
+    /** 提示根节点附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   /**
    * 构造函数：初始化自动关闭定时器引用。
    * @param {Object} props 组件属性。

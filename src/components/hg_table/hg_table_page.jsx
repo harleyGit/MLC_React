@@ -27,11 +27,6 @@ const BUFFER_ROWS = 5;
 const FILL_BODY_ESTIMATE = 500;
 
 /**
- * 填充模式下表体最小高度（px），防止父级高度异常时表体被压没。
- */
-const MIN_FILL_BODY_HEIGHT = 120;
-
-/**
  * 虚拟行类型枚举。
  * 职责：标识 flatten 后每行的渲染类型。
  */
@@ -152,6 +147,12 @@ function getColumnStyle(col, isHeader = false) {
  * sectionHeader 行组件（PureComponent）。
  * 职责：渲染 section 头部区域。
  */
+/**
+ * @typedef {object} HGTableSectionProps
+ * @property {Object|null} section 必传，无默认值；父表格提供的分组，null 表示该槽无内容。
+ * @property {Array<any>} columns 必传，无默认值；传给分组 header/footer 渲染函数的列定义。
+ */
+/** @extends {React.PureComponent<HGTableSectionProps>} */
 class VirtualSectionHeader extends React.PureComponent {
   render() {
     const { section, columns } = this.props;
@@ -169,6 +170,7 @@ class VirtualSectionHeader extends React.PureComponent {
  * sectionFooter 行组件（PureComponent）。
  * 职责：渲染 section 尾部区域。
  */
+/** @extends {React.PureComponent<HGTableSectionProps>} */
 class VirtualSectionFooter extends React.PureComponent {
   render() {
     const { section, columns } = this.props;
@@ -186,6 +188,19 @@ class VirtualSectionFooter extends React.PureComponent {
  * 单行组件（PureComponent）。
  * 职责：渲染一行中所有单元格。以 poolIndex 为 key 实现 React 级 cell 复用。
  */
+/**
+ * @typedef {object} HGTableRowProps
+ * @property {Array<any>} columns 必传，无默认值；父表格传入包含选择列的最终列定义。
+ * @property {Object|null} record 必传，无默认值；null 表示复用池中的空槽。
+ * @property {number} rowIndex 必传，无默认值；真实数据行号，从 0 开始。
+ * @property {number} [stripeIndex] 默认使用 rowIndex；分组序号相同的行使用相同斑马纹。
+ * @property {boolean} [autoRowHeight=false] 默认固定行高，true 允许内容换行撑高。
+ * @property {boolean} [selected=false] 默认未选中，true 使用选中底色。
+ * @property {Function} [onSelect] 默认 undefined 不响应行选择；传入后点击非交互内容可选中行。
+ * @property {React.ReactNode} [rowAction] 默认 undefined 不渲染行尾操作。
+ * @property {boolean} [reserveRowAction=false] 默认不预留行尾区域；父表格有操作列时统一开启。
+ */
+/** @extends {React.PureComponent<HGTableRowProps>} */
 class VirtualRow extends React.PureComponent {
   render() {
     // stripeIndex 缺省为实际行号；分组时可由表格注入同一根节点的序号，让父子行共用背景色。
@@ -248,11 +263,46 @@ class VirtualRow extends React.PureComponent {
  * columns[].align：标题与内容的水平对齐，left/center/right，默认 center；titleAlign 可单独覆盖标题。
  * renderRowAction(record, rowIndex)：可选行尾操作，控件不超过 32px；不占表格列，配置后统一预留行尾宽度。
  * rowSelection：{type: "radio" | "checkbox", selectedRowKeys: [], onChange(keys, rows)}；由调用方持有选择状态。
- * fillHeight 说明：可选填充模式；开启后表格作为父级弹性布局的子项占满剩余高度，
+ * fillHeight 说明：默认开启；表格作为父级弹性布局的子项占满剩余高度，
  *                  表体高度由 ResizeObserver 实测（容器高度扣除表头与分页器）或弹性布局决定，
- *                  随窗口/父级高度动态变化；普通数据表未显式指定 scroll.y 时由内容撑开。
+ *                  随窗口/父级高度动态变化；显式 scroll.y 优先约束表体。
+ * @extends {React.Component<Partial<typeof HGTablePage.defaultProps>>}
  */
 class HGTablePage extends React.Component {
+  /** 可选属性默认值；数据与选择状态始终由调用方拥有。 */
+  static defaultProps = {
+    /** 列定义，默认 [] 不显示业务列；dataIndex 取值，render(value, record, index) 自定义内容，width 为 px。 @type {Array<{key?: React.Key, title?: React.ReactNode, dataIndex?: string, width?: number, minWidth?: number, align?: 'left'|'center'|'right', titleAlign?: 'left'|'center'|'right', render?: (value: any, record: any, index: number) => React.ReactNode}>} */
+    columns: [],
+    /** 普通表格行数据，默认 [] 展示空态；传 sections 时改用分组数据。 @type {Array<any>} */
+    dataSource: [],
+    /** 分组配置，默认 undefined 使用 dataSource；数组（含 []）启用分组，header/footer 可为节点或渲染函数。 @type {Array<{data?: Array<any>, header?: React.ReactNode|Function, footer?: React.ReactNode|Function, headerHeight?: number, footerHeight?: number}>|undefined} */
+    sections: undefined,
+    /** 行主键字段或函数，默认 undefined 回退索引；动态列表应传稳定业务主键。 @type {string|((record: any) => React.Key)|undefined} */
+    rowKey: undefined,
+    /** 默认不显示加载遮罩；true 覆盖表格区域。 */
+    loading: false,
+    /** 默认不显示分页；对象中 current/pageSize/total 分别默认 1/10/0，由页面管理数据。 @type {false|{current?: number, pageSize?: number, total?: number, showSizeChanger?: boolean, showQuickJumper?: boolean}} */
+    pagination: false,
+    /** 分页变化通知 {current, pageSize, total}，默认 undefined 不通知；组件不自行请求或切片。 @type {((page: {current: number, pageSize: number, total: number}) => void)|undefined} */
+    onChange: undefined,
+    /** 默认 undefined 随父级填充；y 为显式表体高度（px），优先于填充；横向范围由列宽决定。 @type {{x?: number, y?: number}|undefined} */
+    scroll: undefined,
+    /** 默认填满父级可用宽高；无父级高度时保留 500px 表体；false 且无 scroll.y 时随内容展开。 */
+    fillHeight: true,
+    /** 默认按内容换行计算行高；false 使用 48px 固定行高复用池，sections 始终使用分组复用池。 */
+    autoRowHeight: true,
+    /** 默认开启数据行悬浮底色，false 保留斑马纹和选中底色。 */
+    rowHover: true,
+    /** 默认 undefined 不显示选择列；type 默认单选，selectedRowKeys 与 onChange(keys, rows) 由页面受控。 @type {{type?: 'radio'|'checkbox', selectedRowKeys?: Array<React.Key>, onChange?: (keys: Array<React.Key>, rows: Array<any>) => void}|undefined} */
+    rowSelection: undefined,
+    /** 行尾操作渲染函数，默认 undefined 不预留操作区；控件尺寸不超过 32px。 @type {((record: any, index: number) => React.ReactNode)|undefined} */
+    renderRowAction: undefined,
+    /** 斑马纹分组序号，默认 undefined 使用数据行号；返回相同序号可让父子行共用底色。 @type {((record: any, index: number) => number)|undefined} */
+    getRowStripeIndex: undefined,
+    /** 根容器附加样式类，默认空字符串，仅保留组件样式。 */
+    className: "",
+  };
+
   constructor(props) {
     super(props);
     this.state = {
@@ -301,11 +351,13 @@ class HGTablePage extends React.Component {
     }
     // 填充模式下按需监听容器节点；节点更换（如模式切换）时重建监听。
     const container = this.containerRef.current;
-    if (container !== this.hgObservedContainer) {
+    const fillsParent = this.hgFillsParent(); // 显式 scroll.y 优先于默认填充。
+    if (container !== this.hgObservedContainer || fillsParent !== this.hgObservedFill) {
       this.hgContainerResizeObserver?.disconnect();
-      if (container && this.props.fillHeight)
+      if (container && fillsParent)
         this.hgContainerResizeObserver?.observe(container);
       this.hgObservedContainer = container;
+      this.hgObservedFill = fillsParent;
     }
     this.hgRefreshScrollLayout();
     this.hgMeasureFillHeight();
@@ -317,20 +369,17 @@ class HGTablePage extends React.Component {
    *       避免 ResizeObserver 回调与 setState 形成死循环。
    */
   hgMeasureFillHeight = () => {
-    if (!this.props.fillHeight) return;
-    const container = this.containerRef.current;
-    if (!container || container.clientHeight === 0) return;
-    const reservedHeight =
-      (this.headerRef.current?.offsetHeight || 0) +
-      (this.paginationRef.current?.offsetHeight || 0);
-    const nextHeight = Math.max(
-      container.clientHeight - reservedHeight,
-      MIN_FILL_BODY_HEIGHT
-    );
+    if (!this.hgFillsParent()) return;
+    // 直接测量 CSS 分配后的表体，避免分页换行、边框或小容器导致高度相加溢出。
+    const nextHeight = this.scrollRef.current?.clientHeight;
+    if (!nextHeight) return;
     if (nextHeight !== this.state.fillBodyHeight) {
       this.setState({ fillBodyHeight: nextHeight });
     }
   };
+
+  /** 显式滚动高度优先；其余场景默认由父级区域决定表体大小。 */
+  hgFillsParent = () => Boolean(this.props.fillHeight && !this.props.scroll?.y);
 
   /** 表头使用表体的可视宽度，使两端最大横滚范围相同且列保持像素对齐。 */
   hgRefreshScrollLayout = () => {
@@ -340,6 +389,7 @@ class HGTablePage extends React.Component {
     const width = `${body.clientWidth}px`;
     if (header.style.width !== width) header.style.width = width;
     this.syncScrollPosition(body, header);
+    this.hgMeasureFillHeight();
   };
 
   /**
@@ -439,8 +489,8 @@ class HGTablePage extends React.Component {
   getBodyHeight = () => {
     const { scroll, fillHeight } = this.props;
     const { fillBodyHeight } = this.state;
-    if (fillHeight && fillBodyHeight) return fillBodyHeight;
     if (scroll?.y) return scroll.y;
+    if (fillHeight && fillBodyHeight) return fillBodyHeight;
     // 填充模式首次测量前保留适当的复用池估值，避免只渲染缓冲区内的行。
     if (fillHeight) return FILL_BODY_ESTIMATE;
     return this.isSectionMode()
@@ -971,10 +1021,8 @@ class HGTablePage extends React.Component {
    */
   hgAutoBodyStyle = () => {
     const { fillHeight, scroll } = this.props;
-    if (fillHeight) {
-      return { flex: "1 1 auto", minHeight: 0 };
-    }
-    return scroll?.y ? { maxHeight: scroll.y } : undefined;
+    if (scroll?.y) return { maxHeight: scroll.y };
+    return fillHeight ? { flex: `1 1 ${FILL_BODY_ESTIMATE}px`, minHeight: 0 } : undefined;
   };
 
   /**
@@ -1038,7 +1086,8 @@ class HGTablePage extends React.Component {
     // 默认开启自然行高：表格字段超出列宽时换行展示，避免固定行高虚拟列表裁切长内容。
     // fillHeight：填充模式开关，开启后容器作为父级弹性子项占满剩余高度，表体高度随容器动态变化。
     // rowHover：默认开启行悬浮背景；关闭时不覆盖斑马纹或分组底色。
-    const { className = "", autoRowHeight = true, fillHeight = false, rowHover = true } = this.props;
+    const { className = "", autoRowHeight = true, rowHover = true } = this.props; // 默认值和用途见 defaultProps。
+    const fillHeight = this.hgFillsParent(); // 显式 scroll.y 时保持固定视口，不拉伸外层。
     const useSections = this.isSectionMode();
     const tableClassName = `${styles.tableContainer} ${fillHeight ? styles.fillContainer : ""} ${autoRowHeight ? styles.autoHeightTableContainer : ""} ${rowHover ? styles.hoverRows : ""} ${className}`;
 

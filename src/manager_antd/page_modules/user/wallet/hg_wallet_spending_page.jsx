@@ -84,7 +84,7 @@ export default class HGWalletSpendingPage extends React.Component {
   render() {
     return <div className={styles.page}>
       <header className={styles.header}>
-        <Link className={styles.backButton} to={ROUTE_PATH.WALLET}>‹ 我的钱包</Link>
+        <Link className={styles.backButton} to={ROUTE_PATH.WALLET} onClick={(event) => this.props.pageNavigator.backFromLink(event, ROUTE_PATH.WALLET)}>‹ 我的钱包</Link>
         <div className={styles.headerInner}><div className={styles.brandMark} aria-hidden="true">M</div><h1>消费记录</h1></div>
       </header>
       <main className={styles.main}>

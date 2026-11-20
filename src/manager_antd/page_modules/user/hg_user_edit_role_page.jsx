@@ -854,6 +854,113 @@ class HGUserEditRolePage extends Component {
     );
   };
 
+  /**
+   * 渲染分配入口按钮，置于卡片标题栏右侧。
+   * 刷新改由列表顶部下拉触发，不再占用列表上方的独立工具栏行。
+   * @param {boolean} hgShowAssignRow 当前是否已展开待分配行。
+   * @returns {React.ReactNode} 分配/取消分配按钮。
+   */
+  renderRoleToolbar = (hgShowAssignRow) => (
+    <HGButtonPage
+      onClick={this.hgToggleAssignRow}
+      disabled={
+        this.state.hgRolesLoading ||
+        Boolean(this.state.hgRolesError) ||
+        this.state.hgRoleSaving
+      }
+    >
+      <HGIconPage type="plus" /> {hgShowAssignRow ? "取消分配" : "分配角色"}
+    </HGButtonPage>
+  );
+
+  /** 渲染目录与绑定的加载/错误/截断提示；无异常时返回 null，不占位。 */
+  renderRoleStatus = () => {
+    const {
+      hgRolesLoading,
+      hgRolesError,
+      hgRolesTruncated,
+      hgBindingsError,
+    } = this.state;
+    if (
+      !hgRolesLoading &&
+      !hgRolesError &&
+      !hgRolesTruncated &&
+      !hgBindingsError
+    )
+      return null;
+    return (
+      <div className={styles.roleStatus}>
+        {hgRolesLoading && <p>角色列表加载中…</p>}
+        {hgRolesError && (
+          <p role="alert" className={styles.errorText}>
+            {hgRolesError}{" "}
+            <HGButtonPage type="link" onClick={this.hgLoadRolesAndBindings}>
+              重试
+            </HGButtonPage>
+          </p>
+        )}
+        {hgRolesTruncated && (
+          <p role="status">
+            角色超过 500 个，仅加载前 500
+            个；如需其他角色请在员工角色管理页操作。
+          </p>
+        )}
+        {hgBindingsError && (
+          <p role="alert" className={styles.errorText}>
+            {hgBindingsError}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * 渲染角色列表或空态；自然高度模式由内容撑开，不预留固定高度空白。
+   * @param {Array} rows 已生效绑定与待分配行组成的列表数据。
+   * @param {Map} roleNames 角色 ID 到展示名的映射。
+   * @returns {React.ReactNode} 列表或空态 JSX。
+   */
+  renderRoleList = (rows, roleNames) => {
+    const {
+      hgRolesLoading,
+      hgRolesError,
+      hgBindingsLoading,
+      hgBindingsError,
+    } = this.state;
+    if (hgRolesLoading || hgRolesError) return null;
+    if (rows.length === 0) {
+      return !hgBindingsLoading && !hgBindingsError ? (
+        <p>当前用户暂无已生效角色</p>
+      ) : null;
+    }
+    return (
+      <HGCollectionView
+        items={rows}
+        getKey={(row) => row.hgRowKey}
+        renderCell={(row) => this.renderRoleRow(row, roleNames)}
+        loading={hgBindingsLoading}
+        onRefresh={this.hgLoadBindings} // 列表顶部下拉刷新绑定，替代独立的刷新按钮。
+        ariaLabel="用户角色分配列表"
+        loadedText="已展示全部已生效角色"
+      />
+    );
+  };
+
+  /** 渲染「加载更多」入口；没有续页时不输出。 */
+  renderRoleLoadMore = () => {
+    const { hgHasMoreBindings, hgBindingsLoading, hgBindingCursor } =
+      this.state;
+    if (!hgHasMoreBindings) return null;
+    return (
+      <HGButtonPage
+        onClick={() => this.hgLoadBindings(hgBindingCursor)}
+        disabled={hgBindingsLoading}
+      >
+        加载更多已授权角色
+      </HGButtonPage>
+    );
+  };
+
   /** 基本资料下方的独立分配区：先展示用户已有绑定；点击图标才追加一行即时授权表单。 */
   renderRoleAssignment = () => {
     const { hgRoles, hgBindings, hgShowAssignRow } = this.state;
@@ -868,71 +975,14 @@ class HGUserEditRolePage extends Component {
     if (hgShowAssignRow)
       rows.push({ hgRowKey: "new-assignment", hgIsNew: true }); // 仅一条待分配行，非服务端生效绑定。
     return (
-      <HGCardPage title="分配角色" className={styles.card}>
-        <div className={styles.roleToolbar}>
-          <HGButtonPage
-            onClick={this.hgToggleAssignRow}
-            disabled={
-              this.state.hgRolesLoading ||
-              Boolean(this.state.hgRolesError) ||
-              this.state.hgRoleSaving
-            }
-          >
-            <HGIconPage type="plus" />{" "}
-            {hgShowAssignRow ? "取消分配" : "分配角色"}
-          </HGButtonPage>
-          <HGButtonPage
-            onClick={() => this.hgLoadBindings(0)}
-            disabled={
-              this.state.hgRolesLoading || Boolean(this.state.hgRolesError)
-            }
-            loading={this.state.hgBindingsLoading}
-          >
-            刷新已授权角色
-          </HGButtonPage>
-        </div>
-        {this.state.hgRolesLoading && <p>角色列表加载中…</p>}
-        {this.state.hgRolesError && (
-          <p role="alert" className={styles.errorText}>
-            {this.state.hgRolesError}{" "}
-            <HGButtonPage type="link" onClick={this.hgLoadRolesAndBindings}>
-              重试
-            </HGButtonPage>
-          </p>
-        )}
-        {this.state.hgRolesTruncated && (
-          <p role="status">
-            角色超过 500 个，仅加载前 500
-            个；如需其他角色请在员工角色管理页操作。
-          </p>
-        )}
-        {this.state.hgBindingsError && (
-          <p role="alert" className={styles.errorText}>
-            {this.state.hgBindingsError}
-          </p>
-        )}
-        {!this.state.hgRolesLoading &&
-          !this.state.hgRolesError &&
-          (rows.length > 0 ? (
-            <HGCollectionView
-              items={rows}
-              getKey={(row) => row.hgRowKey}
-              renderCell={(row) => this.renderRoleRow(row, roleNames)}
-              loading={this.state.hgBindingsLoading}
-              ariaLabel="用户角色分配列表"
-              loadedText="已展示全部已生效角色"
-            />
-          ) : !this.state.hgBindingsLoading && !this.state.hgBindingsError ? (
-            <p>当前用户暂无已生效角色</p>
-          ) : null)}
-        {this.state.hgHasMoreBindings && (
-          <HGButtonPage
-            onClick={() => this.hgLoadBindings(this.state.hgBindingCursor)}
-            disabled={this.state.hgBindingsLoading}
-          >
-            加载更多已授权角色
-          </HGButtonPage>
-        )}
+      <HGCardPage
+        title="分配角色"
+        className={styles.card}
+        extra={this.renderRoleToolbar(hgShowAssignRow)}
+      >
+        {this.renderRoleStatus()}
+        {this.renderRoleList(rows, roleNames)}
+        {this.renderRoleLoadMore()}
         <p className={styles.roleHint}>
           此处仅分配已有角色；业务权限随角色生效，不会修改角色权限。需持有专门即时授权权限，且不可给自己分配。
         </p>
@@ -940,26 +990,35 @@ class HGUserEditRolePage extends Component {
     );
   };
 
+  /** 渲染页头：标题、说明与返回入口。 */
+  renderPageHeader = () => (
+    <HGPageHeaderPage
+      title="编辑用户"
+      description="修改用户基本资料，并按权限为其他用户批量分配已有角色。"
+      extra={<HGButtonPage onClick={this.handleBack}>返回</HGButtonPage>}
+    />
+  );
+
+  /** 渲染底部主提交栏：唯一提交按钮，右对齐。 */
+  renderFooterBar = () => (
+    <div className={styles.footerBar}>
+      <HGButtonPage
+        type="primary"
+        loading={this.state.saving}
+        onClick={this.handleSubmit}
+      >
+        保存
+      </HGButtonPage>
+    </div>
+  );
+
   render() {
-    const { saving } = this.state;
     return (
       <div className={styles.pageContainer}>
-        <HGPageHeaderPage
-          title="编辑用户"
-          description="修改用户基本资料，并按权限为其他用户批量分配已有角色。"
-          extra={<HGButtonPage onClick={this.handleBack}>返回</HGButtonPage>}
-        />
+        {this.renderPageHeader()}
         {this.renderProfileForm()}
         {this.renderRoleAssignment()}
-        <div className={styles.footerBar}>
-          <HGButtonPage
-            type="primary"
-            loading={saving}
-            onClick={this.handleSubmit}
-          >
-            保存
-          </HGButtonPage>
-        </div>
+        {this.renderFooterBar()}
       </div>
     );
   }

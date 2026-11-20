@@ -20,7 +20,21 @@ const SIZE_GAP_MAP = {
  * 支持 direction、size、className、style 等属性。
  * 使用 flexbox 布局，通过 gap 控制子元素间距。
  */
+/** @extends {React.PureComponent<Partial<typeof HGSpacePage.defaultProps>>} */
 class HGSpacePage extends React.PureComponent {
+  static defaultProps = {
+    /** 项间距，默认 middle；支持 small/middle/large 或像素数。 @type {string|number} */
+    size: "middle",
+    /** 排列方向，默认 horizontal 横向；vertical 纵向。 */
+    direction: "horizontal",
+    /** 需要添加间距的子节点，默认 undefined 无内容。 @type {React.ReactNode} */
+    children: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 获取 gap 数值（像素）。
    * @returns {number} gap 值。

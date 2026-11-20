@@ -14,7 +14,31 @@ import styles from "./hg_input_number.module.css";
  * 数字输入组件，兼容 antd InputNumber 主要 props。
  * 支持 min、max、step、disabled、placeholder 等属性。
  */
+/** @extends {React.PureComponent<Partial<typeof HGInputNumberPage.defaultProps>>} */
 class HGInputNumberPage extends React.PureComponent {
+  static defaultProps = {
+    /** 受控数值，默认 undefined 使用内部状态；清空可传 null。 @type {number|null|undefined} */
+    value: undefined,
+    /** 非受控初始数值，默认 undefined 由既有初始化逻辑留空。 @type {number|undefined} */
+    defaultValue: undefined,
+    /** 下限，默认 undefined 不限制。 @type {number|undefined} */
+    min: undefined,
+    /** 上限，默认 undefined 不限制。 @type {number|undefined} */
+    max: undefined,
+    /** 加减按钮步长，默认 1；单位与输入数值一致。 */
+    step: 1,
+    /** 变化返回数值或清空值，默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 默认可编辑；true 禁用输入和加减按钮。 */
+    disabled: false,
+    /** 空值占位文案，默认 undefined。 @type {string|undefined} */
+    placeholder: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.inputRef = React.createRef();

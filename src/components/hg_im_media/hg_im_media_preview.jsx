@@ -8,7 +8,21 @@ import HGIMFileCard from "./hg_im_file_card.jsx";
 import styles from "./hg_im_media.module.css";
 
 /** 单条已发送附件：api/message/onDelete 由列表提供；仅图片/视频进入视口后自动读取。 */
+/**
+ * @typedef {object} HGIMMediaPreviewServiceProps
+ * @property {Object} api 必传，无默认值；当前会话的已鉴权媒体读取/撤销 API。
+ * @property {Object} message 必传，无默认值；已发送附件消息，包含 messageType 与 content.mediaId。
+ * @property {Function} onDelete 必传，无默认值；附件撤销成功后让列表同步消息状态。
+ */
+/** @extends {React.Component<Partial<typeof HGIMMediaPreview.defaultProps> & HGIMMediaPreviewServiceProps>} */
 export default class HGIMMediaPreview extends React.Component {
+  static defaultProps = {
+    /** 默认不自动下载；true 由可视区域包装器触发图片/视频读取。 */
+    autoLoad: false,
+    /** 会话媒体缓存，默认 undefined 直接走既有读取流程；缓存仍需验证有效期。 @type {Object|undefined} */
+    cache: undefined,
+  };
+
   state = {
     hgURL: "", // 已完成鉴权下载的本机 Blob URL，卸载/撤销时释放。
     hgProgress: 0, // 已确认下载字节百分比，未开始为0。

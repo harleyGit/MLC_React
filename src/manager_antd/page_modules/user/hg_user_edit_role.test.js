@@ -101,6 +101,7 @@ test("先读取有界角色目录再按路由 user_id 查询绑定；无绑定�
   assert.equal(hgCollection.props.getKey(hgCollection.props.items[0]), "new-assignment");
   assert.equal(hgCollection.props.items.length, 1);
   assert.equal(hgCollection.props.items[0].hgIsNew, true);
+  assert.equal(hgCollection.props.onRefresh, hgPage.hgLoadBindings); // 顶部下拉即刷新绑定，替代独立刷新按钮。
 });
 
 test("多选角色联动只读业务权限，一次 MFA 原子提交并刷新生效记录", async () => {

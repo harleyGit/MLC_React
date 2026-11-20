@@ -14,7 +14,35 @@ import styles from "./hg_user_card.module.css";
  * 职责：展示用户头像、昵称、签名、统计数据（关注、粉丝、播放量）
  * 约束：类组件，通过 props 接收用户数据
  */
+/**
+ * @typedef {object} HGUserCardDataProps
+ * @property {number} following 关注人数，必传，无默认值；未知数据由调用方处理，不伪造为 0。
+ * @property {number} followers 粉丝人数，必传，无默认值。
+ * @property {number} plays 总播放次数，必传，无默认值。
+ */
+/** @extends {Component<Partial<typeof HGUserCardPage.defaultProps> & HGUserCardDataProps>} */
 class HGUserCardPage extends Component {
+  static defaultProps = {
+    /** 用户头像地址，默认 undefined 无图片源。 @type {string|undefined} */
+    avatar: undefined,
+    /** 昵称及头像替代文字，默认空字符串。 */
+    name: "",
+    /** 用户简介，默认空字符串不展示。 */
+    bio: "",
+    /** 用户等级，默认 undefined 隐藏等级标记。 @type {number|undefined} */
+    level: undefined,
+    /** 用户标识，默认 undefined 隐藏 UID。 @type {string|number|undefined} */
+    uid: undefined,
+    /** 受控关注状态，默认 false 显示关注入口。 */
+    isFollowed: false,
+    /** 默认不提交关注；true 禁用关注按钮并显示处理中。 */
+    followLoading: false,
+    /** 点击关注通知，默认 undefined 不发起关注。 @type {React.MouseEventHandler<HTMLButtonElement>|undefined} */
+    onFollow: undefined,
+    /** 发消息入口通知，默认 undefined 不跳转。 @type {React.MouseEventHandler<HTMLButtonElement>|undefined} */
+    onMessage: undefined,
+  };
+
   /**
    * 格式化数字：大于10000显示为x.x万
    * @param {number} num 数字

@@ -4,7 +4,7 @@
  * @LastEditors: GangHuang harleysor@qq.com
  * @LastEditTime: 2026-10-31 00:05:00
  * @FilePath: /MLC_React/src/components/hg_message_list/hg_message_list.jsx
- * @Description: 消息气泡列表组件，默认随内容撑高；显式指定高度时复用 HGCollectionView 的虚拟滚动。
+ * @Description: 消息气泡列表组件，默认使用 HGCollectionView 的填充视口；可指定视口高度。
  */
 import React from "react";
 import HGCollectionView from "../hg_collection_view/hg_collection_view.jsx";
@@ -164,7 +164,29 @@ const hgRenderMessageContent = (message) => {
  * 输入：messages、currentUserId、onSendRead、onRefresh、loading、hasMore、onLoadMore。
  * 约束：复用 HGCollectionView 的虚拟滚动；cell 自身无业务状态，由 getKey 隔离。
  */
+/**
+ * @typedef {object} HGMessageListIdentityProps
+ * @property {string|number} currentUserId 必传，无默认值；用于区分自己与对方的气泡，避免缺失身份误判。
+ */
+/** @extends {React.Component<Partial<typeof HGMessageList.defaultProps> & HGMessageListIdentityProps>} */
 export default class HGMessageList extends React.Component {
+  static defaultProps = {
+    /** 气泡数据，默认 [] 显示暂无消息；每项 id 必须稳定且唯一。 @type {Array<any>} */
+    messages: [],
+    /** 默认未加载；true 展示加载状态并阻止重复刷新/触底请求。 */
+    loading: false,
+    /** 默认无更多消息；true 配合 onLoadMore 允许触底读取。 */
+    hasMore: false,
+    /** 视口高度，默认 undefined 使用 HGCollectionView 的填充布局；数字单位为 px。 @type {number|string|undefined} */
+    height: undefined,
+    /** 气泡点击通知，默认 undefined 不标记已读；由业务判断能否发送已读回执。 @type {Function|undefined} */
+    onSendRead: undefined,
+    /** 顶部下拉刷新通知，默认 undefined 不刷新。 @type {(() => void)|undefined} */
+    onRefresh: undefined,
+    /** 触底加载通知，默认 undefined 不读取更多。 @type {(() => void)|undefined} */
+    onLoadMore: undefined,
+  };
+
   /**
    * 渲染顶部下拉刷新指示。
    * @returns {React.ReactNode} 指示节点。

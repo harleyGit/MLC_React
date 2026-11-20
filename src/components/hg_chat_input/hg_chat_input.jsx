@@ -49,7 +49,23 @@ const PLUS_ACTIONS = [
 ];
 
 /** IM 输入：api、conversationId、onSend、onUploadChange、onCall、callReady 均由首页提供，无默认值；审核通过才发送附件。 */
+/**
+ * @typedef {object} HGChatInputServiceProps
+ * @property {Object} api 必传，无默认值；当前账号的 IM API，负责附件上传、审核查询和删除。
+ * @property {string} conversationId 必传，无默认值；发送与上传归属的会话 ID，切换会话不可复用旧任务。
+ * @property {(command: Object) => Promise<any>} onSend 必传，无默认值；提交消息命令并返回服务端回执。
+ * @property {(update: Object) => void} onUploadChange 必传，无默认值；同步当前附件上传/审核状态给消息列表。
+ * @property {(mediaType: string) => void} onCall 必传，无默认值；音视频呼叫入口，由父级通话面板处理。
+ */
+/** @extends {React.Component<Partial<typeof HGChatInput.defaultProps> & HGChatInputServiceProps>} */
 export default class HGChatInput extends React.Component {
+  static defaultProps = {
+    /** 默认允许编辑/发送；true 禁止发起新的输入、上传或录音操作。 */
+    disabled: false,
+    /** 通话设备就绪标记，默认 false 不允许呼叫；由已鉴权设备状态决定。 */
+    callReady: false,
+  };
+
   state = {
     hgDraft: "", // 当前文本草稿，不写入浏览器持久存储。
     hgBusy: false, // 文件准备/上传/发送互斥，防止重复预留配额。

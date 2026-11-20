@@ -90,7 +90,29 @@ function validateFieldRules(value, rules) {
  * 通过 ref 暴露 getFieldsValue / getFieldValue / setFieldsValue / resetFields / validateFields 方法。
  * 支持 layout、size、initialValues、onFinish 等属性。
  */
+/** @extends {React.Component<Partial<typeof HGFormPage.defaultProps>>} */
 class HGFormPage extends React.Component {
+  static defaultProps = {
+    /** 初始字段值，默认 {}；初始化及 resetFields 时使用，不随 prop 更新自动覆盖草稿。 @type {Object<string, any>} */
+    initialValues: {},
+    /** 校验通过后的提交回调，参数为字段值对象；默认 undefined 不提交。 @type {((values: Object<string, any>) => void)|undefined} */
+    onFinish: undefined,
+    /** 字段布局，默认 vertical；horizontal 等样式按组件规则处理。 */
+    layout: "vertical",
+    /** 表单尺寸档位，默认 middle。 */
+    size: "middle",
+    /** 表单样式命名标识，默认 undefined 不添加命名样式。 @type {string|undefined} */
+    name: undefined,
+    /** 浏览器自动填充提示，默认 undefined 使用浏览器行为。 @type {string|undefined} */
+    autoComplete: undefined,
+    /** 表单内容，默认 undefined 无字段。 @type {React.ReactNode} */
+    children: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.fields = {};
@@ -266,7 +288,27 @@ class HGFormPage extends React.Component {
  * 表单项组件，配合 HGFormPage 使用。
  * 通过 Context 与父表单通信，自动注入 value / onChange，支持校验规则与错误展示。
  */
+/** @extends {React.Component<Partial<typeof HGFormItem.defaultProps>>} */
 class HGFormItem extends React.Component {
+  static defaultProps = {
+    /** 字段名，默认 undefined 仅作展示；有名称时向父表单注册并参与提交。 @type {string|undefined} */
+    name: undefined,
+    /** 字段标签，默认 undefined 不展示。 @type {React.ReactNode} */
+    label: undefined,
+    /** 校验规则，默认 [] 不做字段校验。 @type {Array<any>} */
+    rules: [],
+    /** 父表单未提供值时的初始值，默认 undefined 保留空值语义。 @type {any} */
+    initialValue: undefined,
+    /** 注入子控件的受控属性名，默认 value；开关类控件可传 checked。 */
+    valuePropName: "value",
+    /** 被注入受控值与 onChange 的控件，默认 undefined 无控件。 @type {React.ReactNode} */
+    children: undefined,
+    /** 字段附加说明，默认 undefined 不展示。 @type {React.ReactNode} */
+    extra: undefined,
+    /** 字段容器行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   static contextType = FormContext;
 
   constructor(props) {

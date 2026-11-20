@@ -17,11 +17,17 @@ export const HG_SUB_MENU_QUERY_KEY = "menu";
  * 由基础路径与子页 key 构造完整 URL（含 query）。
  * @param {string} basePath 基础路径，如 "/operation"。
  * @param {string} key 子页 key；为空时返回纯净基础路径。
+ * @param {Object} params 当前子页需要的标识，如 code；不携带表单草稿或敏感数据。
  * @returns {string} 编码后的 URL。
  */
-export function hgBuildSubMenuUrl(basePath, key) {
+export function hgBuildSubMenuUrl(basePath, key, params = {}) {
   if (!key) return basePath;
-  return `${basePath}?${HG_SUB_MENU_QUERY_KEY}=${encodeURIComponent(key)}`;
+  // 每次导航重建子页参数，避免上一个详情页的标识污染下一个页面。
+  const query = new URLSearchParams({ [HG_SUB_MENU_QUERY_KEY]: key });
+  Object.entries(params).forEach(([name, value]) => {
+    if (name !== HG_SUB_MENU_QUERY_KEY && value !== undefined && value !== null) query.set(name, String(value));
+  });
+  return `${basePath}?${query}`;
 }
 
 /**

@@ -10,7 +10,21 @@ import styles from "./hg_tag_selector.module.css";
  * @param {number} props.maxCount 多选时最大可选数量，0 表示不限制。
  * @param {Function} props.onChange 选中变化回调，参数为新的选中值。
  */
+/** @extends {React.Component<Partial<typeof HGTagSelector.defaultProps>>} */
 class HGTagSelector extends React.Component {
+  static defaultProps = {
+    /** 标签候选项，默认 []；value 为标识、label 为文字、icon 为可选图片地址。 @type {Array<{value: string, label: string, icon?: string}>} */
+    options: [],
+    /** 受控选择值，默认 undefined 未选择；多选传字符串数组。 @type {string|Array<string>|undefined} */
+    value: undefined,
+    /** 默认单选；true 允许多选与逐项取消。 */
+    multiple: false,
+    /** 多选数量上限，默认 0 不限制；正数达到上限后禁用未选项。 */
+    maxCount: 0,
+    /** 选择变化返回新值或数组，默认 undefined 不提交变化。 @type {((value: string|Array<string>) => void)|undefined} */
+    onChange: undefined,
+  };
+
   /**
    * 判断某个标签是否被选中。
    * @param {string} tagValue 标签值。

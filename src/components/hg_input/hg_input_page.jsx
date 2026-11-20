@@ -14,7 +14,51 @@ import styles from "./hg_input.module.css";
  * 基础输入框组件，兼容 antd Input 主要 props。
  * 支持 prefix、allowClear、maxLength 等属性。
  */
+/** @extends {React.PureComponent<Partial<typeof HGInputPage.defaultProps>>} */
 class HGInputPage extends React.PureComponent {
+  static defaultProps = {
+    /** 受控文本，默认 undefined 使用内部值；不能设为 ""，否则会锁定非受控输入。 @type {string|undefined} */
+    value: undefined,
+    /** 非受控初始文本，默认空字符串；后续修改请使用 value。 */
+    defaultValue: "",
+    /** 文本变化事件，读取 event.target.value；默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 聚焦通知，默认 undefined。 @type {React.FocusEventHandler<HTMLInputElement>|undefined} */
+    onFocus: undefined,
+    /** 失焦通知，默认 undefined。 @type {React.FocusEventHandler<HTMLInputElement>|undefined} */
+    onBlur: undefined,
+    /** 按键通知，默认 undefined；业务可处理回车和候选项导航。 @type {React.KeyboardEventHandler<HTMLInputElement>|undefined} */
+    onKeyDown: undefined,
+    /** 最大字符数，默认 undefined 不截断且不显示计数。 @type {number|undefined} */
+    maxLength: undefined,
+    /** 默认不显示清除按钮；true 且有值时允许清空。 */
+    allowClear: false,
+    /** 默认可输入；true 禁用输入与清除。 */
+    disabled: false,
+    /** 输入前缀节点，默认 undefined 不占位。 @type {React.ReactNode} */
+    prefix: undefined,
+    /** 空值占位文字，默认 undefined 不显示。 @type {string|undefined} */
+    placeholder: undefined,
+    /** 原生表单字段名，默认 undefined；由业务指定。 @type {string|undefined} */
+    name: undefined,
+    /** 浏览器自动填充标记，默认 undefined 使用浏览器行为。 @type {string|undefined} */
+    autoComplete: undefined,
+    /** 输入框辅助技术角色，默认 undefined 使用原生语义。 @type {React.AriaRole|undefined} */
+    role: undefined,
+    /** 自动补全方式，默认 undefined 不声明候选补全。 @type {React.AriaAttributes['aria-autocomplete']} */
+    "aria-autocomplete": undefined,
+    /** 受控候选列表的 DOM id，默认 undefined 无关联。 @type {string|undefined} */
+    "aria-controls": undefined,
+    /** 候选列表展开状态，默认 undefined 不声明展开关系。 @type {React.AriaAttributes['aria-expanded']} */
+    "aria-expanded": undefined,
+    /** 当前键盘选中候选项的 DOM id，默认 undefined 无激活项。 @type {string|undefined} */
+    "aria-activedescendant": undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.inputRef = React.createRef();
@@ -203,7 +247,31 @@ class HGInputPage extends React.PureComponent {
 /**
  * 密码输入组件，支持可见性切换。
  */
+/** @extends {React.PureComponent<Partial<typeof HGInputPassword.defaultProps>>} */
 class HGInputPassword extends React.PureComponent {
+  static defaultProps = {
+    /** 受控密码，默认 undefined 使用内部值；缺省不切换为受控模式。 @type {string|undefined} */
+    value: undefined,
+    /** 非受控初始密码，默认空字符串，仅初始化读取。 */
+    defaultValue: "",
+    /** 原生输入变化事件，默认 undefined 不通知。 @type {React.ChangeEventHandler<HTMLInputElement>|undefined} */
+    onChange: undefined,
+    /** 默认可输入；true 禁用原生输入。 */
+    disabled: false,
+    /** 密码框前缀节点，默认 undefined 不展示。 @type {React.ReactNode} */
+    prefix: undefined,
+    /** 空值占位文案，默认 undefined 不展示。 @type {string|undefined} */
+    placeholder: undefined,
+    /** 原生字段名，默认 undefined；供表单和密码管理器识别。 @type {string|undefined} */
+    name: undefined,
+    /** 密码管理器提示，如 current-password/new-password；默认 undefined。 @type {string|undefined} */
+    autoComplete: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.inputRef = React.createRef();
@@ -321,7 +389,31 @@ class HGInputPassword extends React.PureComponent {
 /**
  * 搜索输入组件，支持 onSearch 回车搜索和清除。
  */
+/** @extends {React.PureComponent<Partial<typeof HGInputSearch.defaultProps>>} */
 class HGInputSearch extends React.PureComponent {
+  static defaultProps = {
+    /** 受控搜索词，默认 undefined 使用内部值。 @type {string|undefined} */
+    value: undefined,
+    /** 非受控初始搜索词，默认空字符串，仅初始化读取。 */
+    defaultValue: "",
+    /** 输入变化事件，默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 回车、搜索按钮或清空时返回搜索词，默认 undefined 不执行搜索。 @type {((value: string) => void)|undefined} */
+    onSearch: undefined,
+    /** 默认不显示搜索按钮；true 显示“搜索”，节点可自定义按钮内容。 @type {React.ReactNode} */
+    enterButton: false,
+    /** 默认不显示清除入口；true 且有值时可清空并触发空词搜索。 */
+    allowClear: false,
+    /** 默认可输入；true 禁用输入和搜索按钮。 */
+    disabled: false,
+    /** 空搜索词占位文案，默认 undefined。 @type {string|undefined} */
+    placeholder: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.inputRef = React.createRef();
@@ -450,7 +542,29 @@ class HGInputSearch extends React.PureComponent {
 /**
  * 多行文本输入组件。
  */
+/** @extends {React.PureComponent<Partial<typeof HGInputTextArea.defaultProps>>} */
 class HGInputTextArea extends React.PureComponent {
+  static defaultProps = {
+    /** 受控正文，默认 undefined 使用内部文本，不改变非受控语义。 @type {string|undefined} */
+    value: undefined,
+    /** 非受控初始正文，默认空字符串，仅初始化读取。 */
+    defaultValue: "",
+    /** 文本变化事件，读取 event.target.value；默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 最大字符数，默认 undefined 不截断且不显示字数统计。 @type {number|undefined} */
+    maxLength: undefined,
+    /** 默认显示 4 行；实际高度仍可由样式覆盖。 */
+    rows: 4,
+    /** 默认可输入；true 禁用正文编辑。 */
+    disabled: false,
+    /** 空正文占位文案，默认 undefined。 @type {string|undefined} */
+    placeholder: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.textareaRef = React.createRef();

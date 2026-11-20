@@ -33,8 +33,19 @@ const hgJoinClass = (moduleClass, className = "") => {
   return `${moduleClass} ${className}`.trim();
 };
 
+/**
+ * @typedef {object} HGLoadingAnimationProps
+ * @property {string} [className=""] 根节点附加样式类，默认空字符串。
+ * @property {Object} [style] 根节点行内样式，默认 undefined；可覆盖尺寸。
+ * @property {string} [color] 动画主色，默认 undefined，使用 currentColor 继承周围文字色。
+ */
+
 /** 动画 1：旋转圆环 —— 渐变边框旋转，经典加载指示器 */
-export function HGRingSpinner({ className, style, color }) {
+export function HGRingSpinner({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+  color = undefined, // 默认继承 currentColor。
+}) {
   return (
     <span
       className={hgJoinClass(styles.ringSpinner, className)}
@@ -45,7 +56,11 @@ export function HGRingSpinner({ className, style, color }) {
 }
 
 /** 动画 2：脉冲圆点 —— 三点交错缩放，简约节奏感 */
-export function HGPulseDots({ className, style, color }) {
+export function HGPulseDots({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+  color = undefined, // 默认继承 currentColor。
+}) {
   return (
     <span
       className={hgJoinClass(styles.pulseDots, className)}
@@ -61,7 +76,12 @@ export function HGPulseDots({ className, style, color }) {
  * 动画 3：弹跳柱条 —— 五柱交错弹跳。
  * @param {string} size 尺寸："default"（56px 高）| "small"（18px 高，语音气泡等紧凑场景）。
  */
-export function HGBounceBars({ className, style, color, size = "default" }) {
+export function HGBounceBars({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+  color = undefined, // 默认继承 currentColor。
+  size = "default", // 默认使用 56px 高动画；small 用于语音气泡等紧凑区域。
+}) {
   const sizeClass = size === "small" ? styles.bounceBarsSmall : "";
   return (
     <span
@@ -75,7 +95,11 @@ export function HGBounceBars({ className, style, color, size = "default" }) {
 }
 
 /** 动画 4：波纹圆圈 —— 涟漪扩散，雷达探测感 */
-export function HGRipple({ className, style, color }) {
+export function HGRipple({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+  color = undefined, // 默认继承 currentColor。
+}) {
   return (
     <span
       className={hgJoinClass(styles.ripple, className)}
@@ -88,7 +112,11 @@ export function HGRipple({ className, style, color }) {
 }
 
 /** 动画 5：渐变旋转器 —— conic-gradient 锥形渐变旋转，请求加载推荐样式 */
-export function HGConicSpinner({ className, style, color }) {
+export function HGConicSpinner({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+  color = undefined, // 默认继承 currentColor。
+}) {
   return (
     <span
       className={hgJoinClass(styles.conicSpinner, className)}
@@ -99,7 +127,10 @@ export function HGConicSpinner({ className, style, color }) {
 }
 
 /** 动画 6：打字指示器 —— 聊天气泡三点，对话 UI 必备 */
-export function HGTypingBubble({ className, style }) {
+export function HGTypingBubble({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+}) {
   return (
     <span
       className={hgJoinClass(styles.typingBubble, className)}
@@ -112,7 +143,10 @@ export function HGTypingBubble({ className, style }) {
 }
 
 /** 动画 7：骨架屏微光 —— 头像 + 文本行 + 内容块的扫光占位组合 */
-export function HGSkeleton({ className, style }) {
+export function HGSkeleton({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+}) {
   return (
     <div
       className={hgJoinClass(styles.skeleton, className)}
@@ -135,7 +169,11 @@ export function HGSkeleton({ className, style }) {
  * 列表骨架屏：按行数渲染「头像 + 文本行」占位卡片，用于列表数据未返回前的占位。
  * @param {number} rows 占位行数，范围 1-10，默认 3。
  */
-export function HGSkeletonList({ className, style, rows = 3 }) {
+export function HGSkeletonList({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+  rows = 3, // 默认渲染 3 行；最终限制在 1 至 10 行。
+}) {
   const safeRows = Math.max(1, Math.min(Number(rows) || 3, 10));
   return (
     <div
@@ -158,7 +196,11 @@ export function HGSkeletonList({ className, style, rows = 3 }) {
 }
 
 /** 动画 8：DNA 双螺旋 —— 双链旋转，科技生物感 */
-export function HGDnaHelix({ className, style, color }) {
+export function HGDnaHelix({
+  className = "", // 默认不附加调用方样式类。
+  style = undefined, // 默认不提供行内样式。
+  color = undefined, // 默认继承 currentColor。
+}) {
   return (
     <span
       className={hgJoinClass(styles.dna, className)}

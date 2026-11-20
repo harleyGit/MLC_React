@@ -35,7 +35,21 @@ const RefreshIcon = () => (
  * 输入：visible, onClose, onSuccess, onError。
  * 约束：visible 控制显示隐藏，验证成功后调用 onSuccess 并传递 verifyToken。
  */
+/** @extends {React.Component<Partial<typeof HGClickCaptchaPage.defaultProps>>} */
 class HGClickCaptchaPage extends React.Component {
+  static defaultProps = {
+    /** 默认隐藏验证弹窗；true 打开并按既有流程获取挑战。 */
+    visible: false,
+    /** 验证弹窗标题，默认“安全验证”。 */
+    title: "安全验证",
+    /** 验证通过后通知调用方，参数沿用服务返回的验证凭证；默认 undefined。 @type {Function|undefined} */
+    onSuccess: undefined,
+    /** 验证失败通知，默认 undefined 仅保留组件内错误提示。 @type {Function|undefined} */
+    onError: undefined,
+    /** 请求关闭弹窗的回调，默认 undefined；visible 仍由调用方控制。 @type {(() => void)|undefined} */
+    onClose: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.state = {

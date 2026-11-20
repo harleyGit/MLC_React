@@ -7,6 +7,8 @@ import HGAccountSecurityPage from "./hg_account_security_page";
 import HGEditUserPageVM, { MENU_KEYS, MENU_LIST } from "./hg_edit_user_page_vm";
 import HGVideoUploadPage from "../../hg_video_upload/hg_video_upload_page";
 import { PAGE } from "../../../../components/hg_navigation/hg_page_registry";
+import { ROUTE_PATH } from "../../../../components/hg_navigation/hg_route_path";
+import { hgBuildSubMenuUrl, hgReadSubMenuKey } from "../../../../components/hg_navigation/hg_sub_nav";
 
 class HGEditUserPage extends React.Component {
   /**
@@ -78,11 +80,19 @@ class HGEditUserPage extends React.Component {
       return;
     }
 
-    this.setState({
-      activeMenuKey: menuKey,
-      operationTips: "",
-    });
+    if (menuKey === this.getActiveMenuKey()) return;
+    this.setState({ operationTips: "" });
+    this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.EDIT_USER_INFO, menuKey));
   };
+
+  /** 账号设置子菜单从当前历史项恢复，不依赖离页前的组件内存。 */
+  getActiveMenuKey = () => hgReadSubMenuKey(this.props.location?.search, MENU_KEYS.INFO);
+
+  /** URL 仅记录安全项名称，不包含密码、手机号、验证码或表单草稿。 */
+  navigateSecurity = (security) => this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.EDIT_USER_INFO, MENU_KEYS.SECURITY, { security }));
+
+  /** 返回与浏览器后退一致；直达安全详情时以明确的安全列表替换。 */
+  backSecurity = () => this.props.pageNavigator.back(hgBuildSubMenuUrl(ROUTE_PATH.EDIT_USER_INFO, MENU_KEYS.SECURITY));
 
   /**
    * 同步账号安全子模块更新后的用户资料快照。
@@ -239,7 +249,7 @@ class HGEditUserPage extends React.Component {
    * @returns {React.ReactNode} 菜单 JSX。
    */
   renderLeftMenu = () => {
-    const { activeMenuKey } = this.state;
+    const activeMenuKey = this.getActiveMenuKey(); // 当前 URL 中的设置菜单。
     return (
       <aside className={styles.menuWrap}>
         <h2 className={styles.menuTitle}>用户中心</h2>
@@ -383,8 +393,13 @@ class HGEditUserPage extends React.Component {
    * @returns {React.ReactNode} 独立账号安全子模块。
    */
   renderSecurityContent = () => {
+    const security = new URLSearchParams(this.props.location?.search).get("security") || ""; // 仅作为安全项标识，子页校验允许值。
     return (
       <HGAccountSecurityPage
+        key={security}
+        securityKey={security}
+        onNavigate={this.navigateSecurity}
+        onBack={this.backSecurity}
         userProfile={this.state.userProfile}
         onUserProfileChange={this.handleUserProfileChange}
       />
@@ -404,7 +419,7 @@ class HGEditUserPage extends React.Component {
    * @returns {React.ReactNode} 当前激活模块对应的 JSX。
    */
   renderRightContent = () => {
-    const { activeMenuKey } = this.state;
+    const activeMenuKey = this.getActiveMenuKey(); // 与侧边菜单使用同一历史项。
     if (activeMenuKey === MENU_KEYS.AVATAR) {
       return this.renderAvatarContent();
     }
@@ -422,7 +437,8 @@ class HGEditUserPage extends React.Component {
    * @returns {React.ReactNode} 页面根节点 JSX。
    */
   render() {
-    const { activeMenuKey, loading, operationTips } = this.state;
+    const activeMenuKey = this.getActiveMenuKey(); // URL 控制内容，组件状态只保存表单和加载情况。
+    const { loading, operationTips } = this.state;
     const shouldShowTips = operationTips && activeMenuKey !== MENU_KEYS.SECURITY;
     return (
       <div className={styles.page}>

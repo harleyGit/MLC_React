@@ -13,7 +13,21 @@ import styles from "./hg_card.module.css";
  * 自定义卡片组件，兼容 antd Card 主要 props。
  * 支持 title、extra、className、style 等属性。
  */
+/** @extends {React.PureComponent<Partial<typeof HGCardPage.defaultProps>>} */
 class HGCardPage extends React.PureComponent {
+  static defaultProps = {
+    /** 卡片标题，默认 undefined；title 与 extra 均为空时不渲染头部。 @type {React.ReactNode} */
+    title: undefined,
+    /** 头部右侧操作区域，默认 undefined 不显示。 @type {React.ReactNode} */
+    extra: undefined,
+    /** 卡片正文，默认 undefined 保留空内容区域。 @type {React.ReactNode} */
+    children: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 判断是否需要渲染卡片头部。
    * @returns {boolean} 有 title 或 extra 时返回 true。

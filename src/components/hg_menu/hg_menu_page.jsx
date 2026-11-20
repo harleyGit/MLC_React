@@ -37,7 +37,27 @@ const ArrowIcon = ({ open }) => (
  *   - 主题：dark（深色侧边栏）/ light（浅色）
  *   - 模式：horizontal（顶部水平）/ inline（侧边栏垂直）
  */
+/** @extends {React.Component<Partial<typeof HGMenuPage.defaultProps>>} */
 class HGMenuPage extends React.Component {
+  static defaultProps = {
+    /** 菜单树，默认 []；每项以 key 标识，label 展示，children 表示子菜单。 @type {Array<any>} */
+    items: [],
+    /** 受控选中 key，默认 [] 不高亮任何菜单。 @type {Array<React.Key>} */
+    selectedKeys: [],
+    /** 受控展开 key，默认 [] 全部收起；onOpenChange 后由父级回填。 @type {Array<React.Key>} */
+    openKeys: [],
+    /** 布局模式，默认 horizontal；inline 等模式沿用既有菜单布局。 */
+    mode: "horizontal",
+    /** 菜单主题，默认 light；dark 使用深色样式。 */
+    theme: "light",
+    /** 菜单项点击回调，默认 undefined 不执行导航。 @type {Function|undefined} */
+    onClick: undefined,
+    /** 子菜单展开变化回调，返回 key 数组；默认 undefined 不通知。 @type {((keys: Array<React.Key>) => void)|undefined} */
+    onOpenChange: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   /**
    * 判断给定 key 是否为当前选中项。
    * @param {string} key - 菜单项 key。

@@ -43,7 +43,25 @@ const formatDuration = (seconds) => {
  * - publishTime: string 发布时间
  * - onClick: () => void 点击回调
  */
+/**
+ * @typedef {object} HGVideoCardDataProps
+ * @property {number} playCount 播放次数，必传，无默认值；由调用方提供真实统计。
+ */
+/** @extends {Component<Partial<typeof HGVideoCardPage.defaultProps> & HGVideoCardDataProps>} */
 class HGVideoCardPage extends Component {
+  static defaultProps = {
+    /** 封面图片地址，默认 undefined 无图片源。 @type {string|undefined} */
+    cover: undefined,
+    /** 视频标题及图片替代文字，默认空字符串。 */
+    title: "",
+    /** 时长（秒），默认 undefined 隐藏时长标签，不把未知时长显示成 0。 @type {number|undefined} */
+    duration: undefined,
+    /** 已格式化发布时间，默认空字符串不展示。 */
+    publishTime: "",
+    /** 卡片点击通知，默认 undefined 不跳转。 @type {React.MouseEventHandler<HTMLDivElement>|undefined} */
+    onClick: undefined,
+  };
+
   render() {
     const { cover, title, playCount, duration, publishTime, onClick } = this.props;
     return (

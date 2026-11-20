@@ -37,6 +37,7 @@ function hgCreateHarness() {
   const hgPageNavigation = { params: { source: "test" } };
   const hgNavigator = {
     open: (hgOptions) => hgCalls.push(hgOptions),
+    back: (hgFallback) => hgCalls.push({ fallback: hgFallback }),
     getPageNavigation: (hgValue) => {
       assert.equal(hgValue, hgLocation);
       return hgPageNavigation;
@@ -156,6 +157,9 @@ test("真实路由为首页、商品订单、钱包及独立记录页注入导�
     ["/account/wallet/recharge", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_RECHARGE).component],
     ["/account/wallet/records", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_RECORDS).component],
     ["/account/wallet/spending", hgRegistry.getHGPageConfig(hgRegistry.PAGE.WALLET_SPENDING).component],
+    ["/test", hgRegistry.getHGPageConfig(hgRegistry.PAGE.TEST_MODULE).component],
+    ["/personal/center", hgRegistry.getHGPageConfig(hgRegistry.PAGE.PERSONAL_CENTER).component],
+    ["/account/center", hgRegistry.getHGPageConfig(hgRegistry.PAGE.USER_CENTER).component],
   ]) {
     const hgRoute = hgMain.children.find((hgValue) => hgValue.path === hgPath);
     assert.ok(hgRoute, `缺少路由 ${hgPath}`);
@@ -176,9 +180,8 @@ test("真实路由为首页、商品订单、钱包及独立记录页注入导�
       hgInstance.handleRecharge();
     }
   }
-  assert.deepEqual(hgHarness.hgCalls.map((hgCall) => hgCall.page), [
-    hgRegistry.PAGE.EDIT_USER_INFO, hgRegistry.PAGE.WALLET_RECHARGE,
-  ]);
+  assert.equal(hgHarness.hgCalls[0].fallback, hgPaths.ROUTE_PATH.EDIT_USER_INFO);
+  assert.equal(hgHarness.hgCalls[1].page, hgRegistry.PAGE.WALLET_RECHARGE);
   assert.equal(hgHarness.hgCalls[1].params.source, "wallet");
   assert.equal(typeof hgHarness.hgCalls[1].onSuccess, "function");
 });

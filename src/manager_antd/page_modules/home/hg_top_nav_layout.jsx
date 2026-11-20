@@ -27,6 +27,7 @@ class HGTopNavLayout extends Component {
   hgMounted = false; // 页面挂载标记；卸载后忽略延迟返回的管理员状态。
   hgLoggingOut = false; // 退出请求进行中，防止重复撤销和清空后续账号的登录态。
   hgConnectionOwner = ""; // 上一次连接状态所属账号；切换账号时不沿用旧状态。
+  hgTabHistory = new Map(); // 按路由 entry key 保存展示归属；同 URL 从不同栏目进入时不会互相覆盖。
   /**
    * 构造函数：初始化当前导航选中态和头像浮层状态，并创建浮层容器引用。
    */
@@ -34,7 +35,7 @@ class HGTopNavLayout extends Component {
     super(props);
     this.state = {
       current: this.getCurrentPage(), // 当前高亮 Tab；直达无明确归属的路径时为空，不默认高亮 Chat。
-      showUserDropdown: false,
+      showUserDropdown: false, // 头像浮层显示状态，不再修改页面的 Tab 归属。
       hgIsAdmin: false, // 后端确认有效管理员前一律隐藏运维和采集入口。
       hgChatFailed: false, // 仅当前账号实时连接最终失败时标红；消息操作在断线时失败关闭。
     };
@@ -59,7 +60,7 @@ class HGTopNavLayout extends Component {
    * @param {object} prevProps 更新前 props。
    */
   componentDidUpdate(prevProps) {
-    if (prevProps.location?.pathname !== this.props.location?.pathname) {
+    if (prevProps.location !== this.props.location) {
       this.updateCurrentPage();
       this.setState({ showUserDropdown: false });
     }
@@ -80,15 +81,18 @@ class HGTopNavLayout extends Component {
    * @returns {string} 对应 Menu key。
    */
   getCurrentPage = () => {
-    const path = this.props.location?.pathname || "/";
-    return hgTopNavKeyForPath(path, ROUTE_PATH) ?? this.state?.current ?? "";
+    const location = this.props.location; // Router 注入的当前历史项，包括同路径不同 query 的 entry。
+    const path = location?.pathname || "/"; // 未注入路由时仅按首页处理。
+    return this.hgTabHistory.get(location?.key) ?? hgTopNavKeyForPath(path, ROUTE_PATH) ?? this.state?.current ?? "";
   };
 
   /**
    * 将菜单高亮状态同步为当前路由对应 key。
    */
   updateCurrentPage = () => {
-    this.setState({ current: this.getCurrentPage() });
+    const current = this.getCurrentPage(); // 新历史项继承来源；POP 使用该项原来记录的归属。
+    if (this.props.location?.key) this.hgTabHistory.set(this.props.location.key, current);
+    this.setState({ current });
   };
 
   /**
@@ -96,7 +100,7 @@ class HGTopNavLayout extends Component {
    * @param {{key: string}} e antd Menu 点击事件对象。
    */
   handleClick = (e) => {
-    this.setState({ current: e.key });
+    // 高亮只在路由真正变化后更新；修饰键打开新标签页不能改变当前页的 Tab。
     // 从其他路由进入时新页面会自动建连；仅同路由点击才通知存活的 VM，避免重复建连。
     if (e.key === "home" && this.props.location?.pathname === ROUTE_PATH.HOME && import.meta.env.MODE === "debug") {
       window.dispatchEvent(new Event(HG_IM_RECONNECT_EVENT));
@@ -127,7 +131,6 @@ class HGTopNavLayout extends Component {
     this.setState((prevState) => {
       const nextShowUserDropdown = !prevState.showUserDropdown;
       return {
-        current: nextShowUserDropdown ? "avatar" : this.getCurrentPage(),
         showUserDropdown: nextShowUserDropdown,
       };
     });
@@ -139,9 +142,8 @@ class HGTopNavLayout extends Component {
    * 约束：若点击点不在头像浮层容器内则强制关闭。
    */
   handleDocumentClick = (event) => {
-    if (!this.avatarMenuRef.current?.contains(event.target)) {
+    if (this.state.showUserDropdown && !this.avatarMenuRef.current?.contains(event.target)) {
       this.setState({
-        current: this.getCurrentPage(),
         showUserDropdown: false,
       });
     }
@@ -282,7 +284,7 @@ class HGTopNavLayout extends Component {
     const avatarText = this.getAvatarText(userDisplayName);
     const userSubtitle = this.getUserSubtitle(userProfile);
     const avatarButtonClassName = `${styles.avatarButton} ${
-      current === "avatar" ? styles.avatarButtonActive : ""
+      current === "avatar" || showUserDropdown ? styles.avatarButtonActive : ""
     }`;
 
     return (

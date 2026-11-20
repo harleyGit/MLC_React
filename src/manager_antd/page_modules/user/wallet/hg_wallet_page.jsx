@@ -72,10 +72,10 @@ class HGWalletPage extends React.Component {
   };
 
   /**
-   * 返回账号设置页，保留用户从钱包回到个人中心的明确路径。
+    * 有站内来源时与浏览器后退一致；直达时回账号设置。
    */
   handleBack = () => {
-    this.props.pageNavigator?.open({ page: PAGE.EDIT_USER_INFO });
+    this.props.pageNavigator?.back(ROUTE_PATH.EDIT_USER_INFO);
   };
 
   /** 两个入口共用充值会话；回调只发全局通知，返回后由新挂载的钱包读取余额。 */

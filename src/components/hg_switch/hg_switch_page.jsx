@@ -14,7 +14,25 @@ import styles from "./hg_switch.module.css";
  * 自定义开关组件：替代 antd Switch。
  * 支持受控/非受控模式、自定义文案和禁用状态。
  */
+/** @extends {React.Component<Partial<typeof HGSwitchPage.defaultProps>>} */
 class HGSwitchPage extends React.Component {
+  static defaultProps = {
+    /** 受控开关值，默认 undefined 使用内部状态；不能默认 false 否则会锁定非受控开关。 @type {boolean|undefined} */
+    checked: undefined,
+    /** 非受控初始状态，默认 false 关闭。 */
+    defaultChecked: false,
+    /** 默认允许切换；true 禁用操作。 */
+    disabled: false,
+    /** 开启时的标签，默认 undefined 不显示。 @type {React.ReactNode} */
+    checkedChildren: undefined,
+    /** 关闭时的标签，默认 undefined 不显示。 @type {React.ReactNode} */
+    unCheckedChildren: undefined,
+    /** 切换后返回布尔值，默认 undefined 不通知。 @type {((checked: boolean) => void)|undefined} */
+    onChange: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   constructor(props) {
     super(props);
     this.state = {

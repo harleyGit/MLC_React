@@ -27,7 +27,9 @@ function hgCollection(props) {
       return { default: {}, __esModule: true };
     },
   });
-  const instance = new module.exports.default(props);
+  const Component = module.exports.default;
+  // React 渲染类组件时会合并 defaultProps；直接实例化的测试需显式模拟同一契约。
+  const instance = new Component({ ...Component.defaultProps, ...props });
   instance.setState = (update) => {
     instance.state = { ...instance.state, ...(typeof update === "function" ? update(instance.state) : update) };
   };
@@ -120,13 +122,16 @@ test("受控分页展示页码、每页条数及前后页；分页模式不触�
   assert.equal(children[2].props.disabled, true); // 第一页无上一页。
 });
 
-test("默认列表由全部卡片自然撑高；显式高度仍使用虚拟视口", () => {
+test("默认列表使用填充虚拟视口；显式关闭填充时才由全部卡片自然撑高", () => {
   const items = Array.from({ length: 30 }, (_, index) => ({ id: String(index) }));
   const collection = hgCollection({ items, getKey: (item) => item.id, renderCell: (item) => item.id });
   const viewport = collection.render().props.children[0];
   assert.equal(viewport.props.style, undefined);
-  assert.equal(viewport.props.children[0].length, items.length);
-  assert.equal(viewport.props.children[0][29].props.children, "29");
+  assert.ok(viewport.props.children[0].props.children.length < items.length);
+  collection.props = { ...collection.props, fillHeight: false };
+  const natural = collection.render().props.children[0];
+  assert.equal(natural.props.children[0].length, items.length);
+  assert.equal(natural.props.children[0][29].props.children, "29");
   collection.props = { ...collection.props, height: 320 };
   const fixed = collection.render().props.children[0];
   assert.equal(fixed.props.style.height, 320);
@@ -148,7 +153,7 @@ test("自然高度列表只在页面底部标记进入可视区后请求下一�
     let loads = 0;
     const collection = hgCollection({
       items: [{ id: "a" }], getKey: (item) => item.id, renderCell: () => null,
-      hasMore: true, loading: false, onLoadMore: () => { loads += 1; },
+      hasMore: true, loading: false, fillHeight: false, onLoadMore: () => { loads += 1; },
     });
     collection.hgViewport.current = { scrollHeight: 156, clientHeight: 156, scrollTop: 0 };
     let sentinelTop = 500; // 追加新记录后标记会移出页面视口。
@@ -230,4 +235,24 @@ test("鼠标拖动列表后不会误点卡片，页面未回顶时下拉不误�
   viewport.props.onClickCapture({ preventDefault: () => { prevented += 1; }, stopPropagation: () => {} });
   assert.equal(prevented, 1);
   assert.equal(nativeDragPrevented, 1);
+});
+
+test("自然高度模式兼容单列与多列网格：columnMinWidth 启用网格容器，缺省仍为单列数组", () => {
+  const items = Array.from({ length: 5 }, (_, index) => ({ id: `item-${index}` }));
+  const common = { items, getKey: (item) => item.id, renderCell: (item) => item.id, fillHeight: false };
+  // 缺省行为：槽位保持单列数组，订单页等既有调用方不受影响。
+  const slots = hgCollection({ ...common }).renderNaturalSlots();
+  assert.ok(Array.isArray(slots));
+  assert.equal(slots.length, items.length);
+  assert.equal(slots[0].props.children, "item-0");
+
+  // 传入 columnMinWidth：槽位包进 auto-fill 网格容器，列宽跟随调用方数值。
+  const wrapped = hgCollection({ ...common, columnMinWidth: 216 }).renderNaturalSlots();
+  assert.equal(wrapped.type, "div");
+  assert.equal(
+    wrapped.props.style.gridTemplateColumns,
+    "repeat(auto-fill, minmax(216px, 1fr))"
+  );
+  assert.equal(wrapped.props.children.length, items.length);
+  assert.equal(wrapped.props.children[0].props.children, "item-0");
 });

@@ -14,7 +14,19 @@ import styles from "./hg_checkbox.module.css";
  * Props：checked, onChange, disabled, children（标签文本）
  * 约束：受控组件，需外部管理 checked 状态
  */
+/** @extends {React.Component<Partial<typeof HGCheckbox.defaultProps>>} */
 class HGCheckbox extends React.Component {
+  static defaultProps = {
+    /** 受控勾选状态，默认 false 不勾选；变更由调用方回填。 */
+    checked: false,
+    /** 默认允许勾选；true 禁用交互。 */
+    disabled: false,
+    /** 复选框旁的标签，默认 undefined 不显示。 @type {React.ReactNode} */
+    children: undefined,
+    /** 勾选变化事件，可读取 event.target.checked；默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+  };
+
   handleChange = (e) => {
     const { onChange, disabled } = this.props;
     if (disabled) return;
@@ -56,7 +68,21 @@ class HGCheckbox extends React.Component {
  * Props：options（[{label, value, disabled?}]）, value（已选值数组）, onChange（值变更回调）, disabled
  * 约束：兼容 antd Checkbox.Group API，value 为 value 数组，onChange 回调 value 数组
  */
+/** @extends {React.Component<Partial<typeof HGCheckboxGroup.defaultProps>>} */
 class HGCheckboxGroup extends React.Component {
+  static defaultProps = {
+    /** 可选项，默认 []；支持值或 {label, value, disabled} 对象。 @type {Array<any>} */
+    options: [],
+    /** 受控已选值，默认 undefined 使用内部状态；不要以 [] 代替非受控缺省值。 @type {Array<any>|undefined} */
+    value: undefined,
+    /** 非受控初始勾选项，默认 []；仅初始化时读取。 @type {Array<any>} */
+    defaultValue: [],
+    /** 默认允许操作整组；true 禁用全部选项。 */
+    disabled: false,
+    /** 变化后返回已选值数组，默认 undefined 不通知。 @type {((values: Array<any>) => void)|undefined} */
+    onChange: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.state = {

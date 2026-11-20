@@ -18,7 +18,17 @@ import styles from "./hg_page_header.module.css";
  * - description: 标题下方的说明文字。
  * - extra: 右侧操作区节点。
  */
+/** @extends {React.PureComponent<Partial<typeof HGPageHeaderPage.defaultProps>>} */
 class HGPageHeaderPage extends React.PureComponent {
+  static defaultProps = {
+    /** 页面主标题，默认 undefined 不提供标题内容。 @type {React.ReactNode} */
+    title: undefined,
+    /** 标题下的补充说明，默认 undefined 不显示。 @type {React.ReactNode} */
+    description: undefined,
+    /** 页头右侧操作节点，默认 undefined 不显示。 @type {React.ReactNode} */
+    extra: undefined,
+  };
+
   render() {
     const { title, description, extra } = this.props;
     const showHeader = title != null || extra != null;

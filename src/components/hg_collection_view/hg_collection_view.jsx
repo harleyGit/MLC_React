@@ -11,13 +11,69 @@ const HG_LOAD_THRESHOLD = 120; // 距底部不足此像素数时触发下一页�
 const HG_PULL_THRESHOLD = 70; // 触摸从顶部下拉超过此像素数才刷新。
 
 /**
+ * @typedef {object} HGCollectionViewProps
+ * @property {Array<any>} [items=[]] 列表数据，按数组顺序展示；缺省显示空态，组件不会请求或修改数据。
+ * @property {boolean} [fillHeight=true] 默认填满父级可用宽高；false 且未传 height 时由内容撑高。
+ * @property {number|string} [height] 显式视口高度，数字单位为 px；优先于自适应填充。
+ * @property {number} [columnMinWidth] 自然高度模式的网格最小列宽（px）；缺省保持单列，仅 fillHeight=false 且无 height 时生效。
+ * @property {boolean} [loading=false] true 展示加载提示，并阻止重复触底或下拉请求。
+ * @property {boolean} [hasMore=false] true 且提供 onLoadMore 时允许触底加载下一批数据。
+ * @property {false|{current: number, pageSize: number, loadedCount: number, hasMore: boolean}} [pagination=false] 受控分页配置；启用时关闭触底加载。
+ * @property {(page: {current: number, pageSize: number}) => void} [onChange] 翻页回调；调用方负责维护页码和数据。
+ * @property {() => void} [onLoadMore] 触底追加数据回调；缺省不自动加载。
+ * @property {() => void} [onRefresh] 顶部下拉超过 70px 后触发；缺省不刷新。
+ * @property {string|number} [resetKey] 数据集身份；变化时回到顶部并清除高度缓存。
+ * @property {string|number} [pageKey] 展示页身份；变化时仅回到顶部并保留高度缓存。
+ * @property {string} [ariaLabel="列表"] 辅助技术读取的列表名称，业务页面应按场景覆盖。
+ * @property {React.ReactNode} [emptyText="暂无数据"] 无记录且未加载时的占位内容。
+ * @property {React.ReactNode} [loadedText="已加载全部订单"] 非分页列表全部加载完成后的提示。
+ * @property {(item: any, index: number) => React.Key} getKey 必传，无默认值；返回稳定业务主键，重排和复用时用于隔离子组件状态。
+ * @property {(item: any, index: number) => React.ReactNode} renderCell 必传，无默认值；将一条数据渲染为卡片，行高由实际内容测量。
+ */
+
+/**
  * 类似 UICollectionView 的单列变高复用列表。
- * 默认由内容撑高；显式传入 height 时固定视口，slot 按池索引复用 DOM。
+ * 默认填满父级分配的区域；父级没有高度约束时使用 520px 视口，slot 按池索引复用 DOM。
  * 子组件以业务 key 隔离状态，不能跨订单复用业务状态。
- * 数据、游标及网络错误均由调用方管理；固定视口模式仅缓存当前挂载期间的高度。
+ * 数据、游标及网络错误均由调用方管理；视口模式仅缓存当前挂载期间的高度。
  * 可选 pagination 使用受控页码和每页条数；分页时不再触底自动加载，避免重复翻页。
+ * @extends {React.Component<HGCollectionViewProps>}
  */
 export default class HGCollectionView extends React.Component {
+  /** 可选属性默认值；仅省略或传 undefined 时采用，null 保留调用方语义。 */
+  static defaultProps = {
+    /** 列表数据，按数组顺序展示；默认 [] 显示空态，不在组件内请求或修改数据。 @type {Array<any>} */
+    items: [],
+    /** 默认撑满父级可用宽高；false 且未传 height 时由内容撑高。 */
+    fillHeight: true,
+    /** 显式视口高度（px 或 CSS 长度），优先于自适应填充；默认 undefined 使用父级区域。 @type {number|string|undefined} */
+    height: undefined,
+    /** 默认不加载；true 展示加载提示并阻止重复触底/下拉请求。 */
+    loading: false,
+    /** 默认没有后续数据；true 且提供 onLoadMore 时允许触底加载。 */
+    hasMore: false,
+    /** 受控分页配置；默认 false 隐藏分页，启用时关闭触底加载。 @type {false|{current: number, pageSize: number, loadedCount: number, hasMore: boolean}} */
+    pagination: false,
+    /** 翻页回调，返回 {current, pageSize}；默认 undefined，由调用方维护分页数据。 @type {((page: {current: number, pageSize: number}) => void)|undefined} */
+    onChange: undefined,
+    /** 触底追加数据回调；默认 undefined 不自动加载，失败重试由页面负责。 @type {(() => void)|undefined} */
+    onLoadMore: undefined,
+    /** 顶部下拉超过 70px 后触发；默认 undefined 不刷新。 @type {(() => void)|undefined} */
+    onRefresh: undefined,
+    /** 数据集身份；变化时回到顶部并清除高度缓存，默认 undefined 不主动重置。 @type {string|number|undefined} */
+    resetKey: undefined,
+    /** 展示页身份；变化时仅回到顶部并保留高度缓存，默认 undefined 不切页。 @type {string|number|undefined} */
+    pageKey: undefined,
+    /** 辅助技术读取的列表名称，默认“列表”，业务页面可覆盖。 */
+    ariaLabel: "列表",
+    /** 无记录且未加载时的占位文案，默认“暂无数据”。 @type {React.ReactNode} */
+    emptyText: "暂无数据",
+    /** 非分页列表全部加载完成后的提示，默认沿用订单场景文案。 @type {React.ReactNode} */
+    loadedText: "已加载全部订单",
+    /** 自然高度模式的最小列宽（px）；默认 undefined 保持单列，传入后按 auto-fill 自动分列。仅 fillHeight=false 且无 height 时生效。 @type {number|undefined} */
+    columnMinWidth: undefined,
+  };
+
   state = {
     hgScrollTop: 0, // 当前纵向滚动像素，初始在顶部。
     hgViewportHeight: 520, // 视口测量高度（px）；挂载前用默认高度估算可见池。
@@ -39,12 +95,12 @@ export default class HGCollectionView extends React.Component {
   hgLoadVisible = false; // 标记是否进入页面可视区，仅在自然高度模式用于触底加载。
 
   componentDidMount() {
-    if (this.props.height != null && typeof ResizeObserver !== "undefined") {
+    if (this.hgUsesViewport() && typeof ResizeObserver !== "undefined") {
       this.hgObserver = new ResizeObserver(this.hgOnResize);
       if (this.hgViewport.current) this.hgObserver.observe(this.hgViewport.current);
       this.hgSlots.forEach((node) => this.hgObserver.observe(node));
     }
-    if (this.props.height != null) {
+    if (this.hgUsesViewport()) {
       this.hgSyncSize();
       this.hgSlots.forEach((node) => this.hgMeasureSlot(node));
     }
@@ -53,7 +109,7 @@ export default class HGCollectionView extends React.Component {
   }
 
   componentDidUpdate(prevProps) {
-    if ((prevProps.height == null) !== (this.props.height == null)) {
+    if (this.hgUsesViewport(prevProps) !== this.hgUsesViewport()) {
       this.hgObserver?.disconnect();
       this.hgObserver = undefined;
       this.hgHeights.clear();
@@ -61,7 +117,7 @@ export default class HGCollectionView extends React.Component {
       this.hgLoadVisible = false;
       this.hgLoadObserver?.disconnect();
       this.hgLoadObserver = undefined;
-      if (this.props.height != null && typeof ResizeObserver !== "undefined") {
+      if (this.hgUsesViewport() && typeof ResizeObserver !== "undefined") {
         this.hgObserver = new ResizeObserver(this.hgOnResize);
         if (this.hgViewport.current) this.hgObserver.observe(this.hgViewport.current);
         this.hgSlots.forEach((node) => this.hgObserver.observe(node));
@@ -82,7 +138,7 @@ export default class HGCollectionView extends React.Component {
       this.setState({ hgScrollTop: 0 });
       return;
     }
-    if (this.props.height != null) {
+    if (this.hgUsesViewport()) {
       this.hgSyncSize();
       this.hgSlots.forEach((node) => this.hgMeasureSlot(node));
     }
@@ -98,6 +154,9 @@ export default class HGCollectionView extends React.Component {
     this.hgHeights.clear();
   }
 
+  /** 填充或显式高度均使用内部虚拟视口；只有明确关闭填充且无高度时随内容展开。 */
+  hgUsesViewport = (props = this.props) => Boolean(props.fillHeight || props.height != null);
+
   /** slot 引用只在实际节点更换时更新监听；业务子组件随 key 更换而重新挂载。 */
   hgSetSlot = (index, node) => {
     const previous = this.hgSlots.get(index);
@@ -111,7 +170,7 @@ export default class HGCollectionView extends React.Component {
 
   /** 自然高度列表使用页面视口的底部标记触发加载，避免无内部滚动条时一次性请求全部页。 */
   hgObserveLoadMore = () => {
-    if (this.props.height != null || typeof IntersectionObserver === "undefined" || !this.hgLoadSentinel || this.hgLoadObserver) return;
+    if (this.hgUsesViewport() || typeof IntersectionObserver === "undefined" || !this.hgLoadSentinel || this.hgLoadObserver) return;
     this.hgLoadObserver = new IntersectionObserver((entries) => {
       this.hgLoadVisible = entries[0]?.isIntersecting ?? false;
       this.hgCheckLoadMore();
@@ -176,7 +235,7 @@ export default class HGCollectionView extends React.Component {
     // IO 回调之后列表可能已变长；每次请求前复核标记位置，避免旧的可见状态连续拉取远处的页。
     const sentinelTop = this.hgLoadSentinel?.getBoundingClientRect?.().top;
     const naturalBottomVisible = this.hgLoadVisible && (sentinelTop == null || typeof window === "undefined" || sentinelTop <= window.innerHeight + HG_LOAD_THRESHOLD);
-    if (this.props.height == null ? naturalBottomVisible : node.scrollHeight - node.scrollTop - node.clientHeight <= HG_LOAD_THRESHOLD) {
+    if (!this.hgUsesViewport() ? naturalBottomVisible : node.scrollHeight - node.scrollTop - node.clientHeight <= HG_LOAD_THRESHOLD) {
       this.hgLastLoadLength = items.length;
       onLoadMore();
     }
@@ -269,14 +328,23 @@ export default class HGCollectionView extends React.Component {
     });
   };
 
-  /** 默认模式随卡片内容自然排版；不使用视口复用池，页面滚动时所有卡片均可访问。 */
+  /** 自然高度列表：默认单列随内容排版；传入 columnMinWidth 时按最小列宽自动分列成网格。 */
   renderNaturalSlots = () => {
-    const { items, getKey, renderCell } = this.props;
-    return items.map((item, index) => (
+    const { items, getKey, renderCell, columnMinWidth } = this.props;
+    const slots = items.map((item, index) => (
       <div key={getKey(item, index)} className={styles.naturalSlot} role="listitem">
         {renderCell(item, index)}
       </div>
     ));
+    if (!columnMinWidth) return slots;
+    return (
+      <div
+        className={styles.naturalGrid}
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${columnMinWidth}px, 1fr))` }}
+      >
+        {slots}
+      </div>
+    );
   };
 
   /** 页码来自调用方，只有已加载的记录或服务端 hasMore 才允许继续翻页。 */
@@ -319,17 +387,16 @@ export default class HGCollectionView extends React.Component {
   render() {
     const {
       items, getKey, loading, hasMore, pagination,
-      height, // 未传时由卡片内容自然撑高；显式高度保留虚拟滚动模式。
-      ariaLabel = "列表", // 未配置时使用通用辅助技术名称；业务页面应覆盖。
-      emptyText = "暂无数据", // 空列表占位文案；业务页面可按领域改写。
-      loadedText = "已加载全部订单", // 无分页时末页状态文案；业务页面可按领域改写。
+      height, fillHeight, ariaLabel, emptyText, loadedText, // 默认值和用途统一见 defaultProps。
     } = this.props;
-    const offsets = height == null ? null : hgCollectionOffsets(items, getKey, this.hgHeights); // 仅固定视口需要累计偏移。
+    const usesViewport = this.hgUsesViewport(); // 填充/固定视口需要复用池，自然高度时完整渲染。
+    const fillsParent = fillHeight && height == null; // 显式 height 优先，避免被父级弹性拉伸。
+    const offsets = usesViewport ? hgCollectionOffsets(items, getKey, this.hgHeights) : null; // 仅虚拟视口需要累计偏移。
     return (
-      <div>
+      <div className={`${styles.container} ${fillsParent ? styles.fillContainer : ""}`}>
         <div
           ref={this.hgViewport}
-          className={`${styles.viewport} ${height == null ? styles.naturalViewport : ""}`}
+          className={`${styles.viewport} ${fillsParent ? styles.fillViewport : ""} ${usesViewport ? "" : styles.naturalViewport}`}
           style={height == null ? undefined : { height }}
           tabIndex={0}
           role="list"
@@ -348,13 +415,13 @@ export default class HGCollectionView extends React.Component {
           onTouchEnd={this.hgOnTouchEnd}
           onTouchCancel={this.hgOnTouchCancel}
         >
-          {height == null ? this.renderNaturalSlots() : (
+          {!usesViewport ? this.renderNaturalSlots() : (
             <div className={styles.spacer} style={{ height: offsets[items.length] }}>
               {this.renderSlots(offsets)}
             </div>
           )}
           {!items.length && <div className={styles.status}>{loading ? "加载中…" : emptyText}</div>}
-          {height == null && <div ref={(node) => { this.hgLoadSentinel = node; }} aria-hidden="true" />}
+          {!usesViewport && <div ref={(node) => { this.hgLoadSentinel = node; }} aria-hidden="true" />}
         </div>
         {items.length > 0 && !pagination && <div className={styles.status} role="status">
           {loading ? "加载中…" : hasMore ? "上滑加载更多 · 顶部下拉刷新" : loadedText}

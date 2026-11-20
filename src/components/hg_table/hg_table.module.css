@@ -1,6 +1,8 @@
 .tableContainer {
   position: relative;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   font-size: 14px;
   color: rgba(0, 0, 0, 0.85);
   overflow-x: auto;
@@ -13,9 +15,16 @@
 }
 
 /* ===== 填充模式 ===== */
-/* fillContainer：表格作为父级弹性布局的子项占满剩余高度；父级非弹性布局时该属性不生效，安全降级。 */
+/* 填充父级分配的区域；无父级高度时由表体的 500px 基准建立视口。 */
 .fillContainer {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fillContainer > .bodyWrap {
+  flex: 1 1 500px;
   min-height: 0;
 }
 
@@ -250,6 +259,7 @@
 
 /* ===== 分页器 ===== */
 .pagination {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;

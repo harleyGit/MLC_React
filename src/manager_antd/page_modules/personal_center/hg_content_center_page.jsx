@@ -8,7 +8,9 @@
  */
 import React from "react";
 import HGMenuPage from "../../../components/hg_menu/hg_menu_page";
-import HGBreadcrumbPage from "../../../components/hg_breadcrumb/hg_breadcrumb_page";
+import HGMenuBreadcrumb from "../../../components/hg_breadcrumb/hg_menu_breadcrumb";
+import { hgBuildSubMenuUrl, hgReadSubMenuKey } from "../../../components/hg_navigation/hg_sub_nav";
+import { ROUTE_PATH } from "../../../components/hg_navigation/hg_route_path";
 import HGCourseManagementPage from "./course_management/hg_course_management_page";
 import HGCourseDirectoryPage from "./course_directory/hg_course_directory_page";
 import HGCourseLessonPage from "./course_lesson/hg_course_lesson_page";
@@ -51,13 +53,12 @@ const MENU_ITEMS = [
 /**
  * 内容中心页面组件。
  * 职责：展示左侧菜单（投稿功能、课程管理）和右侧内容区。
- * 约束：使用类组件实现，菜单切换不触发路由跳转。
+ * 约束：使用类组件实现，子菜单以 URL query 记录，浏览器前进/后退可恢复。
  */
 class HGContentCenterPage extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      activeMenu: MENU_KEY.UPLOAD,
       openKeys: [MENU_KEY.COURSE],
       uploads: [],
       courses: [],
@@ -98,8 +99,15 @@ class HGContentCenterPage extends React.Component {
    * @param {{key: string}} e 菜单点击事件对象。
    */
   handleMenuClick = (e) => {
-    this.setState({ activeMenu: e.key });
+    if (e.key === this.getActiveMenu()) return;
+    this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.PERSONAL_CENTER, e.key));
   };
+
+  /** URL 是内容菜单的唯一来源，默认进入投稿页。 */
+  getActiveMenu = () => hgReadSubMenuKey(this.props.location?.search, MENU_KEY.UPLOAD);
+
+  /** 面包屑进入祖先列表时复用已知历史。 */
+  navigateBreadcrumb = (href) => this.props.pageNavigator.returnTo(href);
 
   /**
    * 处理子菜单展开/折叠。
@@ -114,7 +122,8 @@ class HGContentCenterPage extends React.Component {
    * @returns {React.ReactNode} 菜单节点。
    */
   renderSider = () => {
-    const { activeMenu, openKeys } = this.state;
+    const activeMenu = this.getActiveMenu(); // 当前历史项中的菜单。
+    const { openKeys } = this.state; // 用户展开的分组，与导航选中态分开管理。
     return (
       <div className={styles.sider}>
         <div className={styles.siderTitle}>内容中心</div>
@@ -136,11 +145,10 @@ class HGContentCenterPage extends React.Component {
    * @returns {React.ReactNode} 面包屑节点。
    */
   renderBreadcrumb = () => {
-    const { activeMenu } = this.state;
-    const breadcrumbItems = HGContentCenterVM.getBreadcrumbItems(activeMenu);
     return (
       <div className={styles.breadcrumbWrap}>
-        <HGBreadcrumbPage items={breadcrumbItems} />
+        <HGMenuBreadcrumb menuItems={MENU_ITEMS} selectedKey={this.getActiveMenu()}
+          basePath={ROUTE_PATH.PERSONAL_CENTER} rootLabel="内容中心" onNavigate={this.navigateBreadcrumb} />
       </div>
     );
   };
@@ -223,7 +231,7 @@ class HGContentCenterPage extends React.Component {
    * @returns {React.ReactNode} 内容节点。
    */
   renderContent = () => {
-    const { activeMenu } = this.state;
+    const activeMenu = this.getActiveMenu(); // 渲染与面包屑读取相同 URL。
     return (
       <div className={styles.content}>
         {this.renderBreadcrumb()}

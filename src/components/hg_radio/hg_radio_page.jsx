@@ -14,7 +14,23 @@ import styles from "./hg_radio.module.css";
  * 自定义单选按钮组组件：替代 antd Radio.Group。
  * 支持默认样式和按钮样式两种模式。
  */
+/** @extends {React.Component<Partial<typeof HGRadioGroup.defaultProps>>} */
 class HGRadioGroup extends React.Component {
+  static defaultProps = {
+    /** 受控选中值，默认 undefined 使用内部选择状态。 @type {string|number|undefined} */
+    value: undefined,
+    /** 非受控初始值，默认 undefined 未选择；仅初始化时读取。 @type {string|number|undefined} */
+    defaultValue: undefined,
+    /** 单选项列表，默认 []；可使用值或 {label, value, disabled} 对象。 @type {Array<any>} */
+    options: [],
+    /** 选项样式，默认 default；button 使用按钮样式。 */
+    optionType: "default",
+    /** 选中变化事件，读取 event.target.value；默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   constructor(props) {
     super(props);
     this.state = {

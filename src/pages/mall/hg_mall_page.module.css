@@ -1400,9 +1400,14 @@
 @media (prefers-reduced-motion: reduce) {
   .shopStage .shopGoodsCard,
   .shopStage .shopSkeletonMedia,
-  .shopStage .shopSkeletonLine {
+  .shopStage .shopSkeletonLine,
+  .shopStage .shopCategoryBar button[aria-pressed="true"] {
     transition: none;
     animation: none;
+  }
+  /* 动画降级时保留选中的放大终态，仅去掉过程动画。 */
+  .shopStage .shopCategoryBar button[aria-pressed="true"] {
+    transform: scale(1.1);
   }
 }
 
@@ -1417,4 +1422,40 @@
 }
 .shopStage .shopGoodsPrice small {
   color: #222222;
+}
+
+/* 类目选中态：不再使用背景色，改为文字放大动画 + 电光蓝强调色（主题 token
+   --color-accent，即 #28B4F5）；动画先过冲再回落到放大后的稳定态，
+   背景与字体无色块干扰、层级分明。未选中项仍保留键盘焦点环与浅色悬浮态。 */
+.shopStage .shopCategoryBar button[aria-pressed="true"] {
+  border: 0;
+  background: none;
+  color: var(--color-accent, #28b4f5);
+  font-weight: 700;
+  box-shadow: none;
+  outline: none;
+  transform: scale(1.18);
+  animation: shopCategoryPop 0.25s ease;
+}
+.shopStage .shopCategoryBar button[aria-pressed="true"]:hover {
+  background: none;
+  color: var(--color-accent-hover, #17a2e0);
+}
+/* 类目条按钮统一禁用焦点描边：选中态已有放大+变色双重标识，
+   覆盖全局样式 button:focus 注入的 outline，避免选中后残留边框感。 */
+.shopStage .shopCategoryBar button:focus,
+.shopStage .shopCategoryBar button:focus-visible {
+  outline: none;
+}
+/* 选中瞬间的放大动画：1 -> 1.24 过冲 -> 1.18 稳定，与上方 transform 终值一致。 */
+@keyframes shopCategoryPop {
+  0% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(1.24);
+  }
+  100% {
+    transform: scale(1.18);
+  }
 }

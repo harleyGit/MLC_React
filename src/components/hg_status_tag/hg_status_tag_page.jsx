@@ -27,7 +27,17 @@ const TONE_CLASS_MAP = {
  * - dot: 是否展示前置圆点，默认 true。
  * - children: 标签文本。
  */
+/** @extends {React.PureComponent<Partial<typeof HGStatusTagPage.defaultProps>>} */
 class HGStatusTagPage extends React.PureComponent {
+  static defaultProps = {
+    /** 状态语义配色，默认 neutral；具体档位由 TONE_CLASS_MAP 定义。 */
+    tone: "neutral",
+    /** 默认显示状态圆点；false 仅展示标签内容。 */
+    dot: true,
+    /** 标签文字或节点，默认 undefined 无正文。 @type {React.ReactNode} */
+    children: undefined,
+  };
+
   render() {
     const { tone = "neutral", dot = true, children } = this.props;
     const rootClass = [

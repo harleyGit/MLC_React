@@ -29,7 +29,15 @@ function hgAvatarColor(hgName) {
 }
 
 /** 统一渲染真实头像和文字兜底；URL 变化时重建图片以清除旧的加载失败状态。 */
+/** @extends {React.Component<Partial<typeof HGIMAvatar.defaultProps>>} */
 class HGIMAvatar extends React.Component {
+  static defaultProps = {
+    /** 昵称与无图占位字来源，默认空字符串使用“用”。 */
+    name: "",
+    /** 公开头像地址，默认 undefined 显示文字占位。 @type {string|undefined} */
+    url: undefined,
+  };
+
   render() {
     const hgName = this.props.name; // 占位字与无障碍名称，资料为空时仍显示默认字。
     const hgURL = this.props.url; // 仅使用当前账号/会话对应的公开头像 URL；空值展示首字。
@@ -44,6 +52,15 @@ class HGIMAvatar extends React.Component {
 }
 
 /** 媒体只在进入列表可视区时自动读取；短暂离屏仍保持组件直到虚拟槽被复用。 */
+/**
+ * @typedef {object} HGIMVisibleMediaProps
+ * @property {React.RefObject<HTMLElement|null>} scrollRef 必传，无默认值；用于判定附件可见性的消息滚动容器。
+ * @property {Object} api 必传，无默认值；当前会话的媒体 API，由父列表传入。
+ * @property {Object} message 必传，无默认值；需要按可见性读取的附件消息。
+ * @property {Object} [cache] 默认 undefined；可选会话媒体缓存，透传给预览组件。
+ * @property {Function} onDelete 必传，无默认值；媒体撤销通知，透传给预览组件。
+ */
+/** @extends {React.Component<HGIMVisibleMediaProps>} */
 class HGIMVisibleMedia extends React.Component {
   hgNode = React.createRef(); // 单条附件可见性观察目标。
   hgObserver = null; // IntersectionObserver；卸载后取消回调。
@@ -83,6 +100,22 @@ class HGIMVisibleMedia extends React.Component {
 }
 
 /** 只挂载可见行；业务 ID 保证滚动窗口移动时仍可见的媒体不会被替换或重新解码。 */
+/**
+ * @typedef {object} HGIMMessageCellProps
+ * @property {Object} message 必传，无默认值；当前消息记录，seq 用于高度测量身份。
+ * @property {(seq: number, height: number) => void} onHeight 必传，无默认值；报告实测行高（px），用于保持滚动锚点。
+ * @property {string} [peerName] 默认 undefined；对方昵称缺失时使用发送者 ID 或“用户”。
+ * @property {boolean} [showTime=false] 是否展示本行时间分隔，默认不展示。
+ * @property {string} sentAt 必传，无默认值；当前消息的发送时间，由列表兼容协议后传入。
+ * @property {number} now 必传，无默认值；列表维护的当前时间（毫秒），统一格式化时间标签。
+ * @property {string} [selfAvatarUrl] 默认 undefined；自己的头像地址，缺失时显示文字头像。
+ * @property {string} [peerAvatarUrl] 默认 undefined；对方头像地址，缺失时显示文字头像。
+ * @property {Object} api 必传，无默认值；当前会话的媒体 API。
+ * @property {Object} [cache] 默认 undefined；会话媒体缓存。
+ * @property {React.RefObject<HTMLElement|null>} scrollRef 必传，无默认值；附件可见性观察根容器。
+ * @property {Function} onDelete 必传，无默认值；撤销附件后的列表同步回调。
+ */
+/** @extends {React.Component<HGIMMessageCellProps>} */
 class HGIMMessageCell extends React.Component {
   hgNode = React.createRef(); // 当前消息的 DOM 节点，退出虚拟窗口后释放。
   hgObserver = null; // 行高度测量器，消息退出虚拟窗口时断开。
@@ -176,7 +209,29 @@ class HGIMMessageCell extends React.Component {
 }
 
 /** 有界消息窗口：下拉到顶取旧页，上拉到底取新页；只挂载可见行而不一次挂载 200 个媒体节点。 */
+/**
+ * @typedef {object} HGIMMessageListServiceProps
+ * @property {Object} api 必传，无默认值；当前账号 IM API，用于资料与媒体读取。
+ * @property {number} latestSeq 必传，无默认值；服务端最新序号，用于判断是否需要加载后续消息。
+ * @property {(direction: string) => Promise<number>} onHistory 必传，无默认值；按 older/newer 拉取历史并返回记录数。
+ * @property {(error: Error) => void} onHistoryError 必传，无默认值；历史读取失败交给页面展示。
+ * @property {Function} onDelete 必传，无默认值；附件撤销成功后的消息同步入口。
+ */
+/** @extends {React.Component<Partial<typeof HGIMMessageList.defaultProps> & HGIMMessageListServiceProps>} */
 export default class HGIMMessageList extends React.Component {
+  static defaultProps = {
+    /** 当前会话消息，默认 [] 展示空列表；VM 管理顺序及至多 200 条的内存裁剪。 @type {Array<any>} */
+    messages: [],
+    /** 默认未加载历史；true 阻止重复分页读取。 */
+    loading: false,
+    /** 对方用户标识，默认 undefined 不请求对方公开资料。 @type {string|undefined} */
+    peerId: undefined,
+    /** 对方昵称，默认 undefined 由气泡回退到发送者 ID。 @type {string|undefined} */
+    peerName: undefined,
+    /** 当前会话的单条上传任务，默认 undefined 不显示上传气泡。 @type {Object|undefined} */
+    upload: undefined,
+  };
+
   hgList = React.createRef(); // 原生滚动容器，窗口变化时按序号锚定原视野。
   hgResize = null; // 容器尺寸观察器，挂载时创建、卸载时断开。
   hgCache = new HGIMMediaCache(); // 仅此会话持有，组件销毁即清理。

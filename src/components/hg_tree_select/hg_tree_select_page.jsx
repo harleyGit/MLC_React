@@ -126,7 +126,35 @@ const findNodeByValue = (treeData, targetValue) => {
  * 自定义树选择组件：替代 antd TreeSelect。
  * 支持多选、勾选框、展示策略和下拉树形结构。
  */
+/** @extends {React.Component<Partial<typeof HGTreeSelectPage.defaultProps>>} */
 class HGTreeSelectPage extends React.Component {
+  static defaultProps = {
+    /** 树节点，默认 []；每项包含 value、title 与可选 children。 @type {Array<any>} */
+    treeData: [],
+    /** 受控选中值，默认 undefined 使用内部状态；多选传数组。 @type {string|number|Array<string|number>|undefined} */
+    value: undefined,
+    /** 非受控初始选中值，默认 undefined 未选择，仅初始化读取。 @type {string|number|Array<string|number>|undefined} */
+    defaultValue: undefined,
+    /** 默认单选；true 显示复选框并启用父子节点勾选逻辑。 */
+    treeCheckable: false,
+    /** 默认不展开全部树节点；true 在初始化时展开目录。 */
+    treeDefaultExpandAll: false,
+    /** 勾选结果策略，默认 SHOW_CHILD；SHOW_ALL 保留父节点与子节点。 */
+    showCheckedStrategy: "SHOW_CHILD",
+    /** 空选中占位文案，默认“请选择”。 */
+    placeholder: "请选择",
+    /** 默认不显示清除入口；true 可清空选择。 */
+    allowClear: false,
+    /** 默认允许选择；true 禁用交互。 */
+    disabled: false,
+    /** 返回单值或已选值数组，默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 下拉面板附加样式类，默认空字符串。 */
+    dropdownClassName: "",
+  };
+
   constructor(props) {
     super(props);
     const defaultVal = props.defaultValue ?? [];

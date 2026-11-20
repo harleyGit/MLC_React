@@ -90,6 +90,9 @@ const WrappedHGAddContactPage = WithNavigation(HGAddContactPage);
 // 运维管理与采集平台使用 URL query 驱动子页栈式导航，需注入 navigate/location。
 const WrappedHGOperationManagementPage = WithNavigation(HGOperationManagementPage);
 const WrappedHGCrawlerPlatformPage = WithNavigation(HGCrawlerPlatformPage);
+// 这些栏目也通过 URL 记录子菜单，统一浏览器前进/后退及面包屑导航。
+const WrappedHGTestModulePage = WithNavigation(HGTestModulePage);
+const WrappedHGContentCenterPage = WithNavigation(HGContentCenterPage);
 
 const HGRouter = createBrowserRouter([
   //受保护的主布局路由
@@ -225,7 +228,7 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.TEST_MODULE,
-        element: hgLazyElement(<HGTestModulePage />),
+        element: hgLazyElement(<WrappedHGTestModulePage />),
       },
       {
         path: ROUTE_PATH.TABLE_DEMO,
@@ -245,7 +248,7 @@ const HGRouter = createBrowserRouter([
       },
       {
         path: ROUTE_PATH.PERSONAL_CENTER,
-        element: hgLazyElement(<HGContentCenterPage />),
+        element: hgLazyElement(<WrappedHGContentCenterPage />),
       },
       {
         path: ROUTE_PATH.USER_SPACE,

@@ -8,7 +8,17 @@ import styles from "./hg_tab_selector.module.css";
  * @param {string} props.activeKey 当前激活的 tab key。
  * @param {Function} props.onChange 切换 tab 回调，参数为新的 tab key。
  */
+/** @extends {React.Component<Partial<typeof HGTabSelector.defaultProps>>} */
 class HGTabSelector extends React.Component {
+  static defaultProps = {
+    /** 标签列表，默认 []；key 标识标签、label 显示文字。 @type {Array<{key: React.Key, label: React.ReactNode}>} */
+    tabs: [],
+    /** 受控激活 key，默认 undefined 不选中任何标签。 @type {React.Key|undefined} */
+    activeKey: undefined,
+    /** 切换到不同标签时返回 key，默认 undefined 不通知。 @type {((key: React.Key) => void)|undefined} */
+    onChange: undefined,
+  };
+
   /**
    * 处理 tab 点击。
    * @param {string} tabKey 被点击的 tab key。

@@ -108,11 +108,16 @@ export default class HGMallOrderPage extends React.Component {
     </article>;
   }
 
-  /** 返回保留浏览器链接语义；直接访问和刷新详情页也能回到商品订单。 */
+  /** 普通返回复用真实历史，避免丢失个人中心的订单子菜单；修饰键仍按链接打开。 */
+  hgBack = (event) => {
+    return this.props.pageNavigator.backFromLink(event, ROUTE_PATH.USER_CENTER);
+  };
+
+  /** 直接访问订单详情时返回个人中心，站内进入时返回原列表。 */
   render() {
     return <main className={styles.page}>
       <div className={styles.content}>
-        <Link to={ROUTE_PATH.USER_CENTER}>← 返回个人中心</Link>
+        <Link to={ROUTE_PATH.USER_CENTER} onClick={this.hgBack}>← 返回</Link>
         <section className={styles.section} aria-label="商品订单详情">
           <h1>商品订单详情</h1>
           {this.state.hgLoading && <p role="status">正在加载订单详情...</p>}

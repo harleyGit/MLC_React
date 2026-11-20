@@ -1,3 +1,19 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* 优先填满父级分配的区域；flex 子项允许收缩，分页和状态栏计入同一区域。 */
+.fillContainer {
+  flex: 1 1 0%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .viewport {
   width: 100%;
   overflow-y: auto;
@@ -6,9 +22,16 @@
   box-sizing: border-box;
 }
 
-/* 默认列表交由页面滚动，卡片直接参与文档流，避免固定视口和未渲染行。 */
+/* 无父级高度约束时以 520px 建立视口；有约束时伸缩到扣除底栏后的剩余高度。 */
+.fillViewport { flex: 1 1 520px; min-height: 0; }
+.container > .status, .pagination { flex-shrink: 0; }
+
+/* 显式关闭填充后交由页面滚动，卡片直接参与文档流。 */
 .naturalViewport { overflow: visible; }
 .naturalSlot { box-sizing: border-box; padding-bottom: 12px; }
+
+/* 自然高度多列网格：columnMinWidth 启用；横向间距用列间隙，纵向沿用槽位内边距。 */
+.naturalGrid { display: grid; min-width: 0; align-items: start; column-gap: var(--hg-collection-column-gap, 14px); row-gap: 0; }
 
 .spacer { position: relative; width: 100%; }
 

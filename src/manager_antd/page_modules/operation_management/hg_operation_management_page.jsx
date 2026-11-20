@@ -15,7 +15,7 @@ import {
   hgResolveHighlightKey,
 } from "../../../components/hg_navigation/hg_sub_nav";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
-import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
+import HGMenuBreadcrumb from "../../../components/hg_breadcrumb/hg_menu_breadcrumb";
 import styles from "./hg_operation_management.module.css";
 import HGOperationManagementVM, {
   OPERATION_MENU_ITEMS,
@@ -234,6 +234,8 @@ const PAGE_MAP = {
   // 角色与权限管理：部分页面已经拆分为独立业务页面，部分仍是占位页面。
   role_list: HGRoleListPage, //角色列表
   role_scope_type: HGScopeTypePage,
+  role_scope_type_create: HGScopeTypePage,
+  role_scope_type_edit: HGScopeTypePage,
   role_employee: HGEmployeeRolePage,
   // 创建角色页已从左侧菜单收敛为角色列表页头按钮入口；此处保留映射供 onMenuSelect("role_create") 渲染。
   role_create: HGRoleCreatePage,
@@ -271,6 +273,22 @@ const PAGE_MAP = {
  * - breadcrumb：面包屑兜底路径，结构与 HGSideMenuVM.findPathToKey 返回一致。
  */
 const HIDDEN_BREADCRUMB_PATHS = {
+  role_scope_type_create: {
+    parentKey: "role_scope_type",
+    breadcrumb: [
+      { key: "role", label: "角色管理" },
+      { key: "role_scope_type", label: "作用域类型" },
+      { key: "role_scope_type_create", label: "创建作用域类型" },
+    ],
+  },
+  role_scope_type_edit: {
+    parentKey: "role_scope_type",
+    breadcrumb: [
+      { key: "role", label: "角色管理" },
+      { key: "role_scope_type", label: "作用域类型" },
+      { key: "role_scope_type_edit", label: "编辑作用域类型" },
+    ],
+  },
   role_create: {
     parentKey: "role_list",
     breadcrumb: [
@@ -303,30 +321,34 @@ class HGOperationManagementPage extends Component {
     );
 
   /**
-   * 左侧菜单点击（tab 切换）：替换当前历史项，避免每个 tab 都堆积历史。
+   * 菜单切换写入历史；后退、前进按相同 URL 恢复子页，重复点击不新增历史。
    * @param {string} key 叶子菜单 key
    */
   handleMenuSelect = (key) => {
-    const { navigate } = this.props;
-    navigate(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key), {
-      replace: true,
-    });
+    if (key === this.getSelectedKey()) return;
+    this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key));
   };
 
   /**
    * 子页跳转（push）：进入隐藏子页（如创建角色），压入历史栈。
    * 返回时后退一步即可回到来源列表页。
    * @param {string} key 目标子页 key
+   * @param {Object} params 编辑对象标识，默认无额外参数。
    */
-  pushPage = (key) => {
+  pushPage = (key, params = {}) => {
     const { navigate } = this.props;
-    navigate(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key));
+    navigate(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, key, params));
   };
 
-  /** 返回上一子页：后退一步历史栈；与浏览器返回按钮行为一致。 */
+  /** 有来源时与浏览器后退一致；直达编辑网址时回到明确父列表。 */
   back = () => {
-    this.props.navigate(-1);
+    const parent = HIDDEN_BREADCRUMB_PATHS[this.getSelectedKey()]?.parentKey; // 隐藏子页对应的列表。
+    if (parent) return this.props.pageNavigator.back(hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, parent));
+    return this.props.navigate(-1);
   };
+
+  /** 面包屑进入祖先页面；复用历史中的父项，使前进仍能恢复编辑页。 */
+  navigateBreadcrumb = (href) => this.props.pageNavigator.returnTo(href);
 
   /**
    * 渲染面包屑导航：根据 selectedKey 显示完整路径（A > B > C）
@@ -335,29 +357,11 @@ class HGOperationManagementPage extends Component {
    * @returns {React.ReactNode} 面包屑节点
    */
   renderBreadcrumb = (selectedKey) => {
-    const menuPath = HGSideMenuVM.findPathToKey(OPERATION_MENU_ITEMS, selectedKey);
-    const hidden = HIDDEN_BREADCRUMB_PATHS[selectedKey];
-    const path = menuPath.length > 0 ? menuPath : hidden?.breadcrumb;
-    if (!path || path.length === 0) return null;
-
     return (
-      <div className={styles.breadcrumb}>
-        {path.map((node, index) => {
-          const isLast = index === path.length - 1;
-          return (
-            <span key={node.key} className={styles.breadcrumbItem}>
-              {!isLast ? (
-                <span className={styles.breadcrumbLink}>{node.label}</span>
-              ) : (
-                <span className={styles.breadcrumbCurrent}>{node.label}</span>
-              )}
-              {!isLast && (
-                <span className={styles.breadcrumbSeparator}>{">"}</span>
-              )}
-            </span>
-          );
-        })}
-      </div>
+      <HGMenuBreadcrumb menuItems={OPERATION_MENU_ITEMS} selectedKey={selectedKey}
+        basePath={ROUTE_PATH.OPERATION_MANAGEMENT} rootLabel="运维管理"
+        hiddenPath={HIDDEN_BREADCRUMB_PATHS[selectedKey]?.breadcrumb}
+        onNavigate={this.navigateBreadcrumb} className={styles.breadcrumb} />
     );
   };
 
@@ -375,6 +379,8 @@ class HGOperationManagementPage extends Component {
         <div className={styles.contentBody}>
           <Suspense fallback={<HGLoading text="正在加载页面..." />}>
             <PageComponent
+              selectedKey={selectedKey}
+              location={this.props.location}
               onMenuSelect={this.handleMenuSelect}
               pushPage={this.pushPage}
               onBack={this.back}

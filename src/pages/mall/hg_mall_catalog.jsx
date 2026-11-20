@@ -1,18 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { hgPageNavigator } from "../../components/hg_navigation/hg_page_navigator";
-import { PAGE } from "../../components/hg_navigation/hg_page_registry";
 import { ROUTE_PATH } from "../../manager_antd/router/hg_router_path";
 import { normalizeVideoCoverUrl } from "../bilibili/hg_bili_media_url.js";
+import HGCollectionView from "../../components/hg_collection_view/hg_collection_view";
 import { HGFormatCoin } from "./hg_mall_amount.js";
 import { HG_MALL_CATEGORIES as hgCategories } from "./hg_mall_categories.js";
 import { HGAdvanceMallPage } from "./hg_mall_cursor.js";
 import styles from "./hg_mall_page.module.css";
 import { hgSecureRequestId } from "./hg_mall_security.js";
 import HGMallVM from "./hg_mall_vm.js";
-import HGMerchantOrdersPage from "./hg_merchant_orders_page";
-import HGMerchantProductsPage from "./hg_merchant_products_page";
-import HGMerchantPublishPage from "./hg_merchant_publish_page";
+import HGMerchantApplyPage from "../../manager_antd/page_modules/user/user_center/hg_merchant_apply/hg_merchant_apply_page";
 
 const hgPendingBuyKey = "mlc.mall.pending-buy"; // 仅在会话内保存幂等键和请求摘要，不落盘收件隐私明文。
 
@@ -35,8 +33,6 @@ export default class HGMallCatalog extends React.Component {
     hgHistory: [], // 当前类目最近最多 64 页的旧游标，限制亿级目录下前端内存使用。
     hgHistoryBase: 0, // 被丢弃的更早返回游标数量；换类目时归零，仍可准确显示当前页码。
     hgDetail: null, // 正在查看的商品详情；null 为目录视图。
-    hgMerchant: null, // 本人商家申请；null 代表尚未申请或尚未加载。
-    hgMerchantLoading: false, // 商家申请读取中；尚未获取时不显示空态。
     hgPendingMerchants: [], // 审核员当前页商家申请，未授权时为空。
     hgPendingProducts: [], // 审核员当前页商品，未授权时为空。
     hgPendingMedia: [], // 审核员当前页待审补图，按图片独立审核。
@@ -49,7 +45,6 @@ export default class HGMallCatalog extends React.Component {
     hgMediaReviewNext: "", // 待审补图下一页游标；空表示结束。
     hgEditReviewCursor: "", // 文字编辑审核当前页游标；空为第一页。
     hgEditReviewNext: "", // 文字编辑审核下一页游标；空表示结束。
-    hgShopName: "", // 用户输入的店铺名；提交前无默认值。
     hgBuyForm: {
       quantity: "1",
       receiverName: "",
@@ -72,7 +67,6 @@ export default class HGMallCatalog extends React.Component {
   hgSeq = 0; // 目录与详情读操作递增序号，忽略旧请求。
   hgWriteFlight = false; // 同步写入门闩，不依赖异步 setState 生效。
   hgBuyRequestId = ""; // 当前一次购买尝试的幂等键；失败后保持，修改请求内容时作废。
-  hgMerchantSeq = 0; // 商家申请读取序号；过期响应不覆盖新结果。
   hgReviewSeq = 0; // 审核双列表请求序号；不同游标响应不可相互覆盖。
   hgLastProductId = ""; // 最近加载的商品 ID；重试同一详情时保留收货信息以复用原请求。
 
@@ -90,9 +84,8 @@ export default class HGMallCatalog extends React.Component {
       this.hgShowDetail(this.props.hgProductId);
       return;
     }
-    if (this.state.hgView === "merchant") {
-      this.hgLoadMerchant();
-    } else this.hgLoadCatalog("", "", []);
+    // 商家工作台视图由独立的 HGMerchantApplyPage 自行加载；目录视图在此读取首页。
+    if (this.state.hgView === "catalog") this.hgLoadCatalog("", "", []);
   }
 
   /** 同一路由复用组件实例：路由参数变化时必须重载详情，不能沿用旧商品。 */
@@ -105,7 +98,6 @@ export default class HGMallCatalog extends React.Component {
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgSeq += 1;
-    this.hgMerchantSeq += 1;
     this.hgReviewSeq += 1;
   }
 
@@ -206,31 +198,6 @@ export default class HGMallCatalog extends React.Component {
     }
   };
 
-  /** 商家工作台组合模式：仅加载本人商家申请；商品、发布与订单由子页面各自读取。 */
-  hgLoadMerchant = async () => {
-    const hgSeq = ++this.hgMerchantSeq; // 本次商家申请请求身份，过期响应不得覆盖新结果。
-    this.setState({ hgMerchantLoading: true });
-    try {
-      const hgMerchant = await HGMallVM.merchant();
-      if (
-        this.hgMounted &&
-        this.state.hgView === "merchant" &&
-        hgSeq === this.hgMerchantSeq
-      )
-        this.setState({ hgMerchant, hgError: "" });
-    } catch (hgError) {
-      if (
-        this.hgMounted &&
-        this.state.hgView === "merchant" &&
-        hgSeq === this.hgMerchantSeq
-      )
-        this.setState({ hgError: this.hgMessage(hgError) });
-    } finally {
-      if (this.hgMounted && hgSeq === this.hgMerchantSeq)
-        this.setState({ hgMerchantLoading: false });
-    }
-  };
-
   hgLoadReview = async (
     hgMerchantCursor = "",
     hgProductCursor = "",
@@ -277,7 +244,6 @@ export default class HGMallCatalog extends React.Component {
 
   hgSelectView = (hgView) => {
     ++this.hgSeq;
-    ++this.hgMerchantSeq;
     ++this.hgReviewSeq;
     this.setState({
       hgView,
@@ -286,7 +252,7 @@ export default class HGMallCatalog extends React.Component {
       hgError: "",
       hgNotice: "",
     });
-    if (hgView === "merchant") this.hgLoadMerchant();
+    // 商家工作台切换时由 HGMerchantApplyPage 重新挂载并自行读取申请状态。
     if (hgView === "review") this.hgLoadReview();
     if (hgView === "catalog") this.hgLoadCatalog(this.state.hgCategory, "", []);
   };
@@ -299,9 +265,7 @@ export default class HGMallCatalog extends React.Component {
     try {
       await hgAction();
       if (this.hgMounted) this.setState({ hgNotice: hgSuccess });
-      // 商品、发布与订单子页面各自刷新数据；本页只维护商家申请与审核视图。
-      if (this.hgMounted && this.state.hgView === "merchant")
-        await this.hgLoadMerchant();
+      // 商家申请由 HGMerchantApplyPage 自行刷新；本页只维护审核视图数据。
       if (this.hgMounted && this.state.hgView === "review")
         await this.hgLoadReview();
     } catch (hgError) {
@@ -459,6 +423,53 @@ export default class HGMallCatalog extends React.Component {
   }
 
   /** 商品目录：PC 端类目条 + 卡片网格 + 分页，对标拼多多电脑版商品列表。 */
+  /** 单个商品卡片；既服务 HGCollectionView 的单列槽位，也不依赖外层网格布局。 */
+  hgRenderGoodsCard = (hgItem) => {
+    const hgLabel =
+      hgCategories.find(([hgCode]) => hgCode === hgItem.category)?.[1] ||
+      "商品";
+    return (
+      <Link
+        className={styles.shopGoodsCard}
+        to={ROUTE_PATH.PRODUCT_DETAIL.replace(
+          ":productId",
+          encodeURIComponent(hgItem.productId)
+        )}
+      >
+        <div className={styles.shopGoodsThumb}>
+          {hgItem.imageURLs?.length &&
+          !this.state.hgBrokenImages.includes(hgItem.imageURLs[0]) ? (
+            <img
+              src={normalizeVideoCoverUrl(hgItem.imageURLs[0])}
+              alt={`${hgItem.title} 展示图`}
+              loading="lazy"
+              onError={() => this.hgImageFailed(hgItem.imageURLs[0])}
+            />
+          ) : (
+            <span className={styles.shopGoodsPlaceholder}>{hgLabel}</span>
+          )}
+        </div>
+        <div className={styles.shopGoodsInfo}>
+          <h3 className={styles.shopGoodsTitle}>{hgItem.title}</h3>
+          <div className={styles.shopGoodsPrice}>
+            <b>{HGFormatCoin(hgItem.amount)}</b>
+            <small>M 币</small>
+          </div>
+          <div className={styles.shopGoodsMeta}>
+            <span className={styles.shopGoodsShop}>{hgItem.shopName}</span>
+            {hgItem.type === "MEMBERSHIP" ? (
+              <span className={styles.shopGoodsSold}>会员仅展示</span>
+            ) : (
+              <span className={styles.shopGoodsSold}>
+                可售 {hgItem.available} 件
+              </span>
+            )}
+          </div>
+        </div>
+      </Link>
+    );
+  };
+
   renderProductList() {
     const {
       hgCategory,
@@ -495,67 +506,24 @@ export default class HGMallCatalog extends React.Component {
           </span>
           <span className={styles.shopFilterHint}>综合推荐</span>
         </div>
-        {hgLoading && (
-          <p role="status" className={styles.shopLoading}>
-            正在加载商品...
-          </p>
-        )}
-        {!hgLoading && !hgItems.length && (
-          <div className={styles.shopEmpty}>该类目暂无已审核商品</div>
-        )}
-        <div className={styles.shopGoodsGrid}>
-          {hgItems.map((hgItem) => {
-            const hgLabel =
-              hgCategories.find(
-                ([hgCode]) => hgCode === hgItem.category
-              )?.[1] || "商品";
-            return (
-              <Link
-                key={hgItem.productId}
-                className={styles.shopGoodsCard}
-                to={ROUTE_PATH.PRODUCT_DETAIL.replace(
-                  ":productId",
-                  encodeURIComponent(hgItem.productId)
-                )}
-              >
-                <div className={styles.shopGoodsThumb}>
-                  {hgItem.imageURLs?.length &&
-                  !this.state.hgBrokenImages.includes(hgItem.imageURLs[0]) ? (
-                    <img
-                      src={normalizeVideoCoverUrl(hgItem.imageURLs[0])}
-                      alt={`${hgItem.title} 展示图`}
-                      loading="lazy"
-                      onError={() => this.hgImageFailed(hgItem.imageURLs[0])}
-                    />
-                  ) : (
-                    <span className={styles.shopGoodsPlaceholder}>
-                      {hgLabel}
-                    </span>
-                  )}
-                </div>
-                <div className={styles.shopGoodsInfo}>
-                  <h3 className={styles.shopGoodsTitle}>{hgItem.title}</h3>
-                  <div className={styles.shopGoodsPrice}>
-                    <b>{HGFormatCoin(hgItem.amount)}</b>
-                    <small>M 币</small>
-                  </div>
-                  <div className={styles.shopGoodsMeta}>
-                    <span className={styles.shopGoodsShop}>
-                      {hgItem.shopName}
-                    </span>
-                    {hgItem.type === "MEMBERSHIP" ? (
-                      <span className={styles.shopGoodsSold}>会员仅展示</span>
-                    ) : (
-                      <span className={styles.shopGoodsSold}>
-                        可售 {hgItem.available} 件
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        {/* 商品列表复用 HGCollectionView：自然高度多列网格（columnMinWidth 对齐原
+            shopGoodsGrid 的 216px 自适应列宽）+ 顶部下拉刷新；分页仍由下方游标
+            分页条驱动，不启用组件内受控分页。 */}
+        <HGCollectionView
+          items={hgItems}
+          getKey={(hgItem) => hgItem.productId}
+          renderCell={this.hgRenderGoodsCard}
+          loading={hgLoading}
+          fillHeight={false}
+          columnMinWidth={216}
+          resetKey={`${hgCategory}|${hgCursor}`}
+          onRefresh={() =>
+            this.hgLoadCatalog(hgCategory, hgCursor, hgHistory, hgHistoryBase)
+          }
+          ariaLabel="商品目录列表"
+          emptyText="该类目暂无已审核商品"
+          loadedText="本页商品已全部展示 · 顶部下拉可刷新"
+        />
         <div className={styles.shopPager}>
           <button
             type="button"
@@ -999,11 +967,11 @@ export default class HGMallCatalog extends React.Component {
     this.hgUpdateBuy("quantity", String(hgNext));
   };
 
-  /** 关闭详情返回目录；路由详情模式导航到商品列表页，内联模式仅还原本地状态。 */
+  /** 路由详情返回真实来源，直达时回目录；不再 push 列表产生“返回后又回到详情”的循环。 */
   hgCloseDetail = () => {
     this.hgBuyRequestId = "";
     if (this.hgIsRouteDetail()) {
-      hgPageNavigator.open({ page: PAGE.PRODUCTS });
+      hgPageNavigator.back(ROUTE_PATH.PRODUCTS);
       return;
     }
     this.setState({ hgDetail: null, hgDetailId: "", hgMainImage: 0 });
@@ -1013,70 +981,15 @@ export default class HGMallCatalog extends React.Component {
    * 商家工作台：入驻申请卡片由本页维护；商品管理、新增商品与订单发货
    * 组合独立子页面，同一实现同时服务商城工作台与个人中心菜单，不重复设计。
    */
+  /**
+   * 商家工作台：入驻申请卡片、申请写操作与商品/发布/订单子页面组合
+   * 已独立为 HGMerchantApplyPage；本页仅按入口模式传参，不再维护申请状态。
+   */
   renderMerchant() {
-    const { hgMerchant, hgShopName, hgBusy } = this.state;
-    // 个人中心「商家入驻申请」菜单只展示申请卡片；完整工作台仍保留在商城页。
-    const hgApplyOnly = this.props.hgMerchantSection === "apply";
     return (
-      <div className={styles.workspace}>
-        <section>
-          <h2>商家入驻</h2>
-          <p>
-            申请由管理员审核，通过后可发布单规格商品；商品再次审核通过才公开。
-          </p>
-          {this.state.hgMerchantLoading ? (
-            <p role="status">正在读取店铺与商品...</p>
-          ) : hgMerchant ? (
-            <p>
-              店铺：<strong>{hgMerchant.shopName}</strong> ·{" "}
-              {hgMerchant.status === 1
-                ? "审核通过"
-                : hgMerchant.status === 2
-                ? "审核未通过，可重新提交"
-                : "等待审核"}
-            </p>
-          ) : (
-            <p>尚未提交申请。</p>
-          )}
-          {!this.state.hgMerchantLoading &&
-            (!hgMerchant || hgMerchant.status === 2) && (
-              <form
-                onSubmit={(hgEvent) => {
-                  hgEvent.preventDefault();
-                  this.hgWrite(
-                    () => HGMallVM.apply(hgShopName.trim()),
-                    "申请已提交，请等待审核"
-                  );
-                }}
-              >
-                <label>
-                  店铺名称{" "}
-                  <input
-                    required
-                    maxLength={128}
-                    value={hgShopName}
-                    onChange={(hgEvent) =>
-                      this.setState({ hgShopName: hgEvent.target.value })
-                    }
-                  />
-                </label>
-                <button type="submit" disabled={hgBusy}>
-                  提交入驻申请
-                </button>
-              </form>
-            )}
-          {hgApplyOnly && hgMerchant?.status === 1 && (
-            <p>商品发布、管理与发货请使用左侧「商家中心」子菜单。</p>
-          )}
-        </section>
-        {!hgApplyOnly && hgMerchant?.status === 1 && (
-          <>
-            <HGMerchantProductsPage hgMerchant={hgMerchant} />
-            <HGMerchantPublishPage hgMerchant={hgMerchant} />
-            <HGMerchantOrdersPage hgMerchant={hgMerchant} />
-          </>
-        )}
-      </div>
+      <HGMerchantApplyPage
+        hgApplyOnly={this.props.hgMerchantSection === "apply"}
+      />
     );
   }
 

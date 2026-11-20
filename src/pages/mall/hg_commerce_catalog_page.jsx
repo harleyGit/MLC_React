@@ -52,7 +52,7 @@ export default class HGCommerceCatalogPage extends React.Component {
       <p className={styles.desc}>商品已通过审核，但人民币库存订单和支付宝/微信支付尚未开放。本页没有购买入口，请勿向商家付款。</p>
       {hgError && <p role="alert" className={styles.errorBar}>{hgError}</p>}
       {hgLoading ? <p role="status" className={styles.loading}>正在读取线上商品...</p> : hgDetail ? <>
-        <Link to={ROUTE_PATH.COMMERCE_PRODUCTS}>返回人民币商品列表</Link>
+        <Link to={ROUTE_PATH.COMMERCE_PRODUCTS} onClick={(event) => this.props.pageNavigator.backFromLink(event, ROUTE_PATH.COMMERCE_PRODUCTS)}>返回人民币商品列表</Link>
         {hgDetail.imageURLs?.length && <div className={styles.imgGrid}>{hgDetail.imageURLs.map((hgURL, hgIndex) => <img key={hgURL} src={normalizeVideoCoverUrl(hgURL)} alt={`商品展示图 ${hgIndex + 1}`} loading="lazy" />)}</div>}
         <h1>{hgDetail.title}</h1><p>{hgDetail.subtitle}</p><p>{hgDetail.description}</p>
         <div className={styles.commerceSku}>{hgDetail.skus?.map((hgSKU) => <div key={hgSKU.skuId}><strong>{hgSKU.skuCode}</strong><p>{Object.entries(hgSKU.specs || {}).map(([hgKey, hgValue]) => `${hgKey}：${hgValue}`).join(" · ") || "默认规格"}</p><span className={styles.price}>{hgCentToYuan(hgSKU.priceCent)}</span></div>)}</div>

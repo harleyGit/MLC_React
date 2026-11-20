@@ -53,7 +53,19 @@ function formatPubDate(dateStr) {
  * 视频卡片组件（PureComponent）。
  * 职责：渲染单个视频卡片，包含封面、标题、播放量、作者等信息。
  */
+/** @extends {React.PureComponent<Partial<typeof VideoCard.defaultProps>>} */
 class VideoCard extends React.PureComponent {
+  static defaultProps = {
+    /** 视频记录，默认 undefined 不渲染卡片；字段含 cover/title/duration/play/author/pubDate。 @type {Object|undefined} */
+    video: undefined,
+    /** 布局模式，默认 grid；horizontal 横向展示封面与简介。 */
+    layout: "grid",
+    /** 点击卡片返回视频记录，默认 undefined 不通知。 @type {Function|undefined} */
+    onClick: undefined,
+    /** 点击作者返回视频记录，默认 undefined 不通知，并阻止卡片点击冒泡。 @type {Function|undefined} */
+    onAuthorClick: undefined,
+  };
+
   state = { coverFailed: false };
 
   /** 卡片复用到新封面时清理上一张图片的失败状态。 */
@@ -158,7 +170,33 @@ class VideoCard extends React.PureComponent {
  *
  * 输入：videos, layout, tags, activeTag, onTagChange, onVideoClick, onLoadMore, loading。
  */
+/** @extends {React.Component<Partial<typeof HGVideoGridPage.defaultProps>>} */
 class HGVideoGridPage extends React.Component {
+  static defaultProps = {
+    /** 视频记录，默认 [] 显示暂无视频；每项需有稳定 id。 @type {Array<any>} */
+    videos: [],
+    /** 默认 grid 网格布局；horizontal 使用横向卡片。 */
+    layout: "grid",
+    /** 网格列数，默认 4，仅 grid 模式生效。 */
+    columns: 4,
+    /** 顶部分区标签，默认 [] 隐藏标签栏。 @type {Array<string>} */
+    tags: [],
+    /** 激活标签，默认 undefined 初始化为首个标签或“推荐”。 @type {string|undefined} */
+    activeTag: undefined,
+    /** 标签变化返回标签文字，默认 undefined 不通知。 @type {((tag: string) => void)|undefined} */
+    onTagChange: undefined,
+    /** 点击视频返回记录，默认 undefined 不跳转。 @type {Function|undefined} */
+    onVideoClick: undefined,
+    /** 点击加载更多通知，默认 undefined 不发起请求。 @type {Function|undefined} */
+    onLoadMore: undefined,
+    /** 默认未加载；true 显示遮罩并禁用加载更多。 */
+    loading: false,
+    /** 默认没有后续数据；true 显示加载更多按钮。 */
+    hasMore: false,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   constructor(props) {
     super(props);
     this.state = {

@@ -8,15 +8,53 @@ let hgUploadUid = 0;
  * 照片墙式上传组件。
  * 支持图片与普通文件、受控文件列表、上传前转换、自定义上传、图片预览和删除。
  */
+/** @extends {React.Component<Partial<typeof HGUpload.defaultProps>>} */
 export default class HGUpload extends React.Component {
   static defaultProps = {
-    accept: "", // 默认允许选择任意文件；调用方可使用 input accept 语法限制类型。
-    disabled: false, // 默认允许选择和操作文件。
-    fileList: undefined, // 缺省时由组件内部维护列表；传入数组后切换为受控模式。
-    listType: "picture-card", // 默认使用照片墙卡片布局。
-    maxCount: 8, // 默认最多展示 8 个文件，达到上限后隐藏上传入口。
-    multiple: true, // 默认允许一次选择多个文件。
-    uploadText: "上传", // 上传卡片的默认文案。
+    /** 文件类型筛选，默认空字符串允许任意文件；语法同 input accept。 */
+    accept: "",
+    /** 默认允许选择和操作文件；true 禁用上传入口。 */
+    disabled: false,
+    /** 受控文件列表，默认 undefined 使用内部列表；不能默认 [] 以免改变受控模式。 @type {Array<any>|undefined} */
+    fileList: undefined,
+    /** 非受控初始文件列表，默认 []；每项应有稳定 uid。 @type {Array<any>} */
+    defaultFileList: [],
+    /** 列表展示样式，默认 picture-card 照片墙。 */
+    listType: "picture-card",
+    /** 文件数量上限，默认 8，达到后隐藏入口。 */
+    maxCount: 8,
+    /** 默认允许一次选择多个文件，false 限制单次选择。 */
+    multiple: true,
+    /** 上传卡片文字，默认“上传”。 @type {React.ReactNode} */
+    uploadText: "上传",
+    /** 自定义上传入口，默认 undefined 使用内置图标和文字。 @type {React.ReactNode} */
+    children: undefined,
+    /** 原生文件输入 id，默认 undefined。 @type {string|undefined} */
+    id: undefined,
+    /** 上传地址，默认 undefined；没有 action/customRequest 时只维护文件列表。 @type {string|undefined} */
+    action: undefined,
+    /** 上传字段名，默认 file，供 FormData 或 customRequest 使用。 */
+    name: "file",
+    /** 原生上传请求方法，默认 POST。 */
+    method: "POST",
+    /** 附加请求头，默认 undefined 不添加；凭据由调用方现有请求契约管理。 @type {HeadersInit|undefined} */
+    headers: undefined,
+    /** 默认仅同源携带凭据；true 使用 fetch credentials=include。 */
+    withCredentials: false,
+    /** 上传前转换/校验，返回 false 跳过、File/Blob 替换文件，支持 Promise；默认 undefined。 @type {Function|undefined} */
+    beforeUpload: undefined,
+    /** 自定义上传函数，接收 {file, filename} 并返回响应；默认 undefined 使用 action。 @type {Function|undefined} */
+    customRequest: undefined,
+    /** 列表变化通知 {file, fileList}，默认 undefined；受控模式由父级回填。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 上传成功通知 (response, file)，默认 undefined。 @type {Function|undefined} */
+    onSuccess: undefined,
+    /** 上传前或上传失败通知 (error, file)，默认 undefined。 @type {Function|undefined} */
+    onError: undefined,
+    /** 移除前通知，返回 false 可阻止移除；默认 undefined 允许移除。 @type {Function|undefined} */
+    onRemove: undefined,
+    /** 图片预览回调，默认 undefined 使用内置预览。 @type {Function|undefined} */
+    onPreview: undefined,
   };
 
   state = {

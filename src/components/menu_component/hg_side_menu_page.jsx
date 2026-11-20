@@ -18,7 +18,17 @@ import styles from "./hg_side_menu.module.css";
  * 约束：菜单数据格式为 [{key, label, children?}]，支持无限层级嵌套
  * 实现：使用 antd v6 items 属性传递菜单数据，无需手动递归渲染
  */
+/** @extends {Component<Partial<typeof HGSideMenuPage.defaultProps>>} */
 class HGSideMenuPage extends Component {
+  static defaultProps = {
+    /** 侧栏菜单树，默认 [] 无菜单；节点包含 key、label、children 等既有配置。 @type {Array<any>} */
+    menuItems: [],
+    /** 受控当前菜单 key，默认 undefined 不高亮叶子项。 @type {string|undefined} */
+    selectedKey: undefined,
+    /** 选中菜单通知，默认 undefined 不执行页面切换。 @type {Function|undefined} */
+    onSelect: undefined,
+  };
+
   constructor(props) {
     super(props);
     const { menuItems = [] } = props;

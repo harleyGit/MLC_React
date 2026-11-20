@@ -5,6 +5,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import React from "react";
 import { HGFormatCoin } from "./hg_mall_amount.js";
+import * as hgSubNav from "../../components/hg_navigation/hg_sub_nav.js";
 import {
   HG_MALL_ORDER_PAGE_SIZE,
   hgOrderCursorAt,
@@ -29,7 +30,8 @@ function hgPage(hgPath, hgVM, hgProps = {}) {
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
       if (hgDependency === "react-router-dom") return { Link: "a" };
-      if (hgDependency.includes("hg_router_path"))
+      if (hgDependency.includes("hg_sub_nav")) return hgSubNav;
+      if (hgDependency.includes("hg_router_path") || hgDependency.includes("hg_route_path"))
         return {
           ROUTE_PATH: {
             WALLET: "/account/wallet",
@@ -60,6 +62,8 @@ function hgPage(hgPath, hgVM, hgProps = {}) {
         return { default: "HGMallPaidOrdersPage", __esModule: true };
       if (hgDependency.includes("hg_mall_catalog"))
         return { default: "HGMallCatalog", __esModule: true };
+      if (hgDependency.includes("hg_merchant_apply_page"))
+        return { default: "HGMerchantApplyPage", __esModule: true };
       if (hgDependency.includes("hg_user_center_vm"))
         return {
           default: { getDefaultSelectedKey: () => "unpaid" },
@@ -409,6 +413,10 @@ test("个人中心增加商家入驻申请菜单并展示商家工作台", () =>
     {},
     {}
   );
+  // 模拟 Router 注入新的 location，不能再通过组件本地状态伪造导航。
+  hgInstance.props = { location: { search: "" }, navigate: (href) => {
+    hgInstance.props = { ...hgInstance.props, location: new URL(href, "https://hg.invalid") };
+  } };
   const hgTree = hgInstance.render();
   const hgTypesList = hgTypes(hgTree);
   assert.ok(hgTypesList.includes("HGSideMenuPage"));
@@ -427,10 +435,10 @@ test("个人中心增加商家入驻申请菜单并展示商家工作台", () =>
   hgInstance.handleMenuSelect("review");
   assert.ok(hgTypes(hgInstance.render()).includes("HGMallPaidOrdersPage"));
 
-  // 商家菜单复用原商家工作台，且固定为 merchant 模式，不再经过商城聚合页。
+  // 商家入驻申请菜单直接渲染独立申请页，固定为仅申请卡片模式，不经过商城聚合页。
   hgInstance.handleMenuSelect("merchant");
-  const hgMerchant = hgFind(hgInstance.render(), "HGMallCatalog");
-  assert.equal(hgMerchant.props.hgInitialView, "merchant");
+  const hgMerchant = hgFind(hgInstance.render(), "HGMerchantApplyPage");
+  assert.equal(hgMerchant.props.hgApplyOnly, true);
 });
 
 test("本人详情从待支付快照打开，点击继续支付后重读服务端已支付状态", async () => {

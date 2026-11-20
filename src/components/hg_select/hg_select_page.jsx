@@ -14,7 +14,29 @@ import styles from "./hg_select.module.css";
  * 自定义下拉选择组件：替代 antd Select，支持原生 select 样式化。
  * Props 兼容 antd Select 接口。
  */
+/** @extends {React.Component<Partial<typeof HGSelectPage.defaultProps>>} */
 class HGSelectPage extends React.Component {
+  static defaultProps = {
+    /** 候选项，默认 []；每项使用 label 展示、value 标识选中值。 @type {Array<any>} */
+    options: [],
+    /** 受控值，默认 undefined 使用内部状态，不强制转成受控输入。 @type {string|number|undefined} */
+    value: undefined,
+    /** 非受控初始值，默认 undefined 表示未选择。 @type {string|number|undefined} */
+    defaultValue: undefined,
+    /** 未选中时的占位文案，默认 undefined 沿用组件展示逻辑。 @type {string|undefined} */
+    placeholder: undefined,
+    /** 默认不显示清除入口；true 允许清空已选值。 */
+    allowClear: false,
+    /** 默认允许选择；true 禁用下拉及清除。 */
+    disabled: false,
+    /** 选择回调，参数为新值及对应选项；默认 undefined 不通知。 @type {Function|undefined} */
+    onChange: undefined,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+    /** 根节点行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.state = {

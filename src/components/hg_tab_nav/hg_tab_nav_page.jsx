@@ -17,7 +17,17 @@ import styles from "./hg_tab_nav.module.css";
  * - activeKey: string 当前选中 key
  * - onChange: (key) => void 切换回调
  */
+/** @extends {Component<Partial<typeof HGTabNavPage.defaultProps>>} */
 class HGTabNavPage extends Component {
+  static defaultProps = {
+    /** 导航标签，默认 []；key 为稳定标识，label 为标题，count 为可选计数。 @type {Array<{key: React.Key, label: React.ReactNode, count?: number}>} */
+    tabs: [],
+    /** 受控当前标签，默认 undefined 不选中任何标签。 @type {React.Key|undefined} */
+    activeKey: undefined,
+    /** 点击返回标签 key，默认 undefined 不通知；父级负责更新 activeKey。 @type {((key: React.Key) => void)|undefined} */
+    onChange: undefined,
+  };
+
   render() {
     const { tabs, activeKey, onChange } = this.props;
     return (

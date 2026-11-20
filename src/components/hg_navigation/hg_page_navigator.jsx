@@ -63,6 +63,7 @@ export class HGPageNavigator {
   // 只记录 attach 后亲眼观察到的 history，绝不推测刷新前或外站的历史位置。
   entries = [];
   index = 0;
+  hrefs = new Map(); // 已观察到的历史项地址；仅保存 URL，用于返回列表而不猜测外站历史。
 
   /** 更换路由实例时先断开旧订阅并丢弃旧页面的回调，避免跨路由实例误消费。 */
   attach = (hgRouter) => {
@@ -74,10 +75,12 @@ export class HGPageNavigator {
     this.router = hgRouter;
     this.entries = [hgRouter.state.location.key];
     this.index = 0;
+    this.hrefs = new Map([[hgRouter.state.location.key, hgLocationHref(hgRouter.state.location)]]);
     this.unsubscribe = hgRouter.subscribe((hgState) => {
       // loading/submitting 阶段的 location 仍可能是旧值，必须等 idle 再清理会话。
       if (hgState?.navigation?.state !== "idle") return;
       const hgKey = hgState.location.key;
+      this.hrefs.set(hgKey, hgLocationHref(hgState.location));
       if (this.entries[this.index] === hgKey) {
         this.cleanupAwaySessions(hgState.location);
         return;
@@ -93,6 +96,9 @@ export class HGPageNavigator {
           this.entries = [hgKey];
           this.index = 0;
         }
+      }
+      for (const hgEntry of this.hrefs.keys()) {
+        if (!this.entries.includes(hgEntry)) this.hrefs.delete(hgEntry);
       }
       this.cleanupAwaySessions(hgState.location, hgState.historyAction === "POP");
     });
@@ -206,10 +212,30 @@ export class HGPageNavigator {
     return hgNavigation;
   };
 
-  /** 仅执行路由器的后退操作；业务完成操作使用 getPageNavigation 返回的布尔结果。 */
-  back = () => {
+  /** 默认等同浏览器后退；提供 fallback 时，仅在未知历史（直达/刷新）使用明确的站内父页。 */
+  back = (hgFallback) => {
     if (!this.router) return false;
+    if (hgFallback !== undefined && this.index === 0) return this.returnTo(hgFallback);
     return this.router.navigate(-1);
+  };
+
+  /** 返回链接只接管当前窗口的普通点击；保留 Ctrl/Cmd、中键和指定 target 的浏览器行为。 */
+  backFromLink = (hgEvent, hgFallback) => {
+    if (hgEvent.defaultPrevented || hgEvent.button !== 0 || hgEvent.metaKey || hgEvent.ctrlKey ||
+        hgEvent.shiftKey || hgEvent.altKey || (hgEvent.currentTarget?.target && hgEvent.currentTarget.target !== "_self")) return;
+    hgEvent.preventDefault();
+    return this.back(hgFallback);
+  };
+
+  /** 返回已知站内父页时复用真实历史；直达或刷新后无法证明来源时替换为父页，避免退到 Chat 或外站。 */
+  returnTo = (hgHref) => {
+    if (!getHGPageTarget(hgHref)) throw new Error("返回目标必须是已注册的站内页面");
+    if (!this.router) return false;
+    if (hgLocationHref(this.router.state.location) === hgHref) return;
+    for (let hgIndex = this.index - 1; hgIndex >= 0; hgIndex -= 1) {
+      if (this.hrefs.get(this.entries[hgIndex]) === hgHref) return this.router.navigate(hgIndex - this.index);
+    }
+    return this.router.navigate(hgHref, { replace: true });
   };
 
   /** 错误只消费仍存活的会话，不返回、不重复通知已完成会话。 */

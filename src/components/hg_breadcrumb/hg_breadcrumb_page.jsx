@@ -25,7 +25,19 @@ const DefaultSeparator = () => (
  * 输入：items, separator, className。
  * 约束：items 格式为 [{label, href?, onClick?}]，最后一项为当前页。
  */
+/** @extends {React.Component<Partial<typeof HGBreadcrumbPage.defaultProps>>} */
 class HGBreadcrumbPage extends React.Component {
+  static defaultProps = {
+    /** 路径节点，默认 [] 不展示路径；末项为当前页，href/onClick 控制前级导航。 @type {Array<{label: React.ReactNode, href?: string, onClick?: (event: React.MouseEvent) => void}>} */
+    items: [],
+    /** 自定义分隔节点；默认 undefined 使用内置箭头。 @type {React.ReactNode} */
+    separator: undefined,
+    /** 普通点击链接时的站内导航回调；默认 undefined 由浏览器打开 href。 @type {((href: string) => void)|undefined} */
+    onNavigate: undefined,
+    /** 根节点附加样式类；默认空字符串。 */
+    className: "",
+  };
+
   /**
    * 渲染单个面包屑项。
    * @param {Object} item - 面包屑项配置 {label, href?, onClick?}。
@@ -38,14 +50,17 @@ class HGBreadcrumbPage extends React.Component {
 
     if (isLast || (!item.href && !item.onClick)) {
       return (
-        <span key={index} className={styles.breadcrumbItem}>
+        <span key={index} className={styles.breadcrumbItem} aria-current={isLast ? "page" : undefined}>
           {item.label}
         </span>
       );
     }
 
     const handleClick = (e) => {
+      // 仅接管普通左键；Ctrl/Cmd、Shift 和中键保持浏览器链接行为。
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       if (item.onClick) {
+        if (item.href) e.preventDefault();
         item.onClick(e);
       } else if (item.href && onNavigate) {
         e.preventDefault();

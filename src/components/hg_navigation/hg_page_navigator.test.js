@@ -118,6 +118,57 @@ function createHarness(initialEntries = ["/home"]) {
   return { hgRouter, hgNavigator };
 }
 
+test("返回列表复用原历史项，浏览器前进仍恢复编辑对象，直达时不退到未知页面", async () => {
+  const { hgRouter, hgNavigator } = createHarness();
+  const list = "/operation?menu=role_scope_type";
+  const edit = "/operation?menu=role_scope_type_edit&code=shop";
+  await hgRouter.navigate(list);
+  const listKey = hgRouter.state.location.key;
+  await hgRouter.navigate(edit);
+  await hgNavigator.returnTo(list);
+  assert.equal(hgRouter.state.location.key, listKey);
+  assert.equal(hgRouter.state.historyAction, "POP");
+  await hgRouter.navigate(1);
+  assert.equal(hgRouter.state.location.search, "?menu=role_scope_type_edit&code=shop");
+  await hgRouter.navigate(-1);
+  assert.equal(hgRouter.state.location.key, listKey);
+
+  const direct = createHarness(["/home", edit]);
+  await direct.hgNavigator.returnTo(list);
+  assert.equal(direct.hgRouter.state.historyAction, "REPLACE");
+  assert.equal(direct.hgRouter.state.location.pathname, "/operation");
+  assert.throws(() => direct.hgNavigator.returnTo("https://example.com/"), /站内/);
+});
+
+test("普通返回与浏览器 POP 一致并保留原列表 query，直达采用明确的 fallback", async () => {
+  const { hgRouter, hgNavigator } = createHarness(["/account/center?menu=review"]);
+  const sourceKey = hgRouter.state.location.key;
+  await hgRouter.navigate("/mall/orders/ORDER_1");
+  await hgNavigator.back("/account/center");
+  assert.equal(hgRouter.state.location.key, sourceKey);
+  assert.equal(hgRouter.state.location.search, "?menu=review");
+  await hgRouter.navigate(1);
+  assert.equal(hgRouter.state.location.pathname, "/mall/orders/ORDER_1");
+  const direct = createHarness(["/account/address"]);
+  await direct.hgNavigator.back("/account/setting");
+  assert.equal(direct.hgRouter.state.location.pathname, "/account/setting");
+  assert.equal(direct.hgRouter.state.historyAction, "REPLACE");
+});
+
+test("返回链接保留修饰键和新窗口语义，普通点击才执行真实后退", async () => {
+  const { hgRouter, hgNavigator } = createHarness(["/products"]);
+  await hgRouter.navigate("/products/P1");
+  for (const options of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { button: 1 }, { currentTarget: { target: "_blank" } }]) {
+    hgNavigator.backFromLink({ button: 0, preventDefault: () => assert.fail("不拦截浏览器原生链接行为"), ...options }, "/products");
+    assert.equal(hgRouter.state.location.pathname, "/products/P1");
+  }
+  let prevented = false;
+  await hgNavigator.backFromLink({ button: 0, preventDefault: () => { prevented = true; } }, "/products");
+  assert.equal(prevented, true);
+  assert.equal(hgRouter.state.historyAction, "POP");
+  assert.equal(hgRouter.state.location.pathname, "/products");
+});
+
 /** 以状态通知等待异步 loader，不使用固定延迟猜测完成时机。 */
 async function waitForIdle(hgRouter) {
   if (hgRouter.state.navigation.state === "idle") return;

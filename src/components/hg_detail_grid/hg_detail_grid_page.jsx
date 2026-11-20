@@ -14,7 +14,23 @@ import styles from "./hg_detail_grid.module.css";
  * 通用详情网格组件。
  * 职责：按 label/value 列表展示对象详情；只负责展示，不处理业务选择和提交逻辑。
  */
+/** @extends {React.PureComponent<Partial<typeof HGDetailGridPage.defaultProps>>} */
 class HGDetailGridPage extends React.PureComponent {
+  static defaultProps = {
+    /** 详情区标题，默认 undefined 不展示。 @type {React.ReactNode} */
+    title: undefined,
+    /** 详情字段列表，默认 []；每项提供 label、value，可携带展示配置。 @type {Array<any>} */
+    items: [],
+    /** 网格列数，默认 2；小屏仍由响应式样式调整。 */
+    columns: 2,
+    /** 溢出内容提示方向，默认 top。 */
+    tooltipPlacement: "top",
+    /** 字段值最多显示的行数，默认 1，超出时通过提示查看。 */
+    maxValueLines: 1,
+    /** 根节点附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   getColumnStyle = () => {
     const { columns = 2 } = this.props;
     const safeColumns = Math.max(1, Math.min(Number(columns) || 2, 6));

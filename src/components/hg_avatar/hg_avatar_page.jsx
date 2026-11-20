@@ -37,7 +37,17 @@ const AVATAR_COLORS = [
  * - src: 头像图片地址；有值时优先展示图片。
  * - size: 尺寸，small / default / large，默认 default。
  */
+/** @extends {React.PureComponent<Partial<typeof HGAvatarPage.defaultProps>>} */
 class HGAvatarPage extends React.PureComponent {
+  static defaultProps = {
+    /** 用户名，用于无图片时的首字和底色；默认空字符串显示通用占位。 */
+    name: "",
+    /** 头像地址；默认 undefined 使用文字头像。 @type {string|undefined} */
+    src: undefined,
+    /** 头像尺寸档位，默认 default；可选 small/default/large。 */
+    size: "default",
+  };
+
   /**
    * 取名称展示字符：中文取首字，英文取首字母并大写。
    * @param {string} name 用户名称。

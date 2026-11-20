@@ -22,10 +22,12 @@ test("作用域字典列表、编辑回填、创建与停用各调用对应接�
   const vm = module.exports.default; // 实际静态方法集合。
   await vm.list("21");
   await vm.detail("shop");
-  await vm.create({ code: "new_scope", name: "测试类型", description: "仅登记" });
-  await vm.update({ code: "shop", name: "店铺", description: "现有类型" });
+  await vm.create({ code: "new_scope", name: "测试类型", description: "类型登记", status: 1 });
+  await vm.update({ code: "region", name: "区域", description: "现有类型", status: 0 });
   await vm.disable("shop");
   assert.deepEqual(calls.map((item) => item.slice(0, 2)), [["GET", "/list"], ["GET", "/detail"], ["POST", "/create"], ["POST", "/update"], ["POST", "/disable"]]);
   assert.equal(calls[0][2], JSON.stringify({ cursor: "21", pageSize: 50 }));
   assert.equal(calls[1][2], JSON.stringify({ code: "shop" }));
+  assert.deepEqual(JSON.parse(calls[2][2]), { code: "new_scope", name: "测试类型", description: "类型登记", status: 1 });
+  assert.deepEqual(JSON.parse(calls[3][2]), { code: "region", name: "区域", description: "现有类型", status: 0 });
 });

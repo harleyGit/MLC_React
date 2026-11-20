@@ -5,7 +5,17 @@ import HGVideoPlayerPage from "../hg_video_player/hg_video_player_page";
 const hgNet = new HGNetManager();
 
 /** 外部分P经鉴权媒体代理交给本站video，弹幕使用真实播放时间而非手填或墙上时钟。 */
+/**
+ * @typedef {object} HGExternalPlayerDataProps
+ * @property {Object} video 必传，无默认值；包含 externalContentId 与 externalDetail 的已采集视频详情。
+ */
+/** @extends {React.Component<Partial<typeof HGExternalPlayer.defaultProps> & HGExternalPlayerDataProps>} */
 export default class HGExternalPlayer extends React.Component {
+  static defaultProps = {
+    /** 当前分 P 详情，含 cid；默认 undefined 提示详情未就绪，不请求播放源。 @type {Object|undefined} */
+    part: undefined,
+  };
+
   state = { hgURL: "", hgError: "", hgLoading: false, hgRevision: 0 };
   hgSequence = 0;
   hgActive = false;

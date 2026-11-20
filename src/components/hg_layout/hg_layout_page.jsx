@@ -14,7 +14,17 @@ import styles from "./hg_layout.module.css";
  * 职责：提供页面整体布局结构（flex 纵向排列）。
  * 输入：className, style, children。
  */
+/** @extends {React.Component<Partial<typeof HGLayoutPage.defaultProps>>} */
 class HGLayoutPage extends React.Component {
+  static defaultProps = {
+    /** 布局子区块，默认 undefined 无内容。 @type {React.ReactNode} */
+    children: undefined,
+    /** 根布局附加样式类，默认空字符串。 */
+    className: "",
+    /** 根布局行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 渲染根布局容器。
    * @returns {React.ReactNode} 布局节点。
@@ -34,7 +44,17 @@ class HGLayoutPage extends React.Component {
  * 职责：渲染深色顶部导航栏，固定在页面顶部。
  * 输入：className, style, children。
  */
+/** @extends {React.Component<Partial<typeof HGLayoutHeader.defaultProps>>} */
 class HGLayoutHeader extends React.Component {
+  static defaultProps = {
+    /** 页头内容，默认 undefined 无内容。 @type {React.ReactNode} */
+    children: undefined,
+    /** 页头附加样式类，默认空字符串。 */
+    className: "",
+    /** 页头行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 渲染顶部 Header 容器。
    * @returns {React.ReactNode} header 节点。
@@ -54,7 +74,17 @@ class HGLayoutHeader extends React.Component {
  * 职责：占据剩余空间渲染页面主体内容。
  * 输入：className, style, children。
  */
+/** @extends {React.Component<Partial<typeof HGLayoutContent.defaultProps>>} */
 class HGLayoutContent extends React.Component {
+  static defaultProps = {
+    /** 页面主体，默认 undefined 无内容。 @type {React.ReactNode} */
+    children: undefined,
+    /** 主体附加样式类，默认空字符串。 */
+    className: "",
+    /** 主体行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 渲染主内容区域。
    * @returns {React.ReactNode} main 节点。
@@ -74,7 +104,17 @@ class HGLayoutContent extends React.Component {
  * 职责：渲染页面底部区域。
  * 输入：className, style, children。
  */
+/** @extends {React.Component<Partial<typeof HGLayoutFooter.defaultProps>>} */
 class HGLayoutFooter extends React.Component {
+  static defaultProps = {
+    /** 页脚内容，默认 undefined 无内容。 @type {React.ReactNode} */
+    children: undefined,
+    /** 页脚附加样式类，默认空字符串。 */
+    className: "",
+    /** 页脚行内样式，默认 undefined。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 渲染底部 Footer 容器。
    * @returns {React.ReactNode} footer 节点。

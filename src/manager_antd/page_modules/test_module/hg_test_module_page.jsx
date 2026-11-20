@@ -3,7 +3,9 @@
  */
 import React, { Component } from "react";
 import HGSideMenuPage from "../../../components/menu_component/hg_side_menu_page";
-import HGSideMenuVM from "../../../components/menu_component/hg_side_menu_vm";
+import HGMenuBreadcrumb from "../../../components/hg_breadcrumb/hg_menu_breadcrumb";
+import { hgBuildSubMenuUrl, hgReadSubMenuKey } from "../../../components/hg_navigation/hg_sub_nav";
+import { ROUTE_PATH } from "../../../components/hg_navigation/hg_route_path";
 import GuideVideoListView from "../../../pages/app/guide_video/GuideVideoListView";
 import GuideVideoView from "../../../pages/app/guide_video/GuideVideoView";
 import HGLoadingShowcasePage from "./hg_loading_showcase_page.jsx";
@@ -55,44 +57,30 @@ const PAGE_MAP = {
  * 职责：管理左侧菜单选中态，并根据菜单 key 渲染右侧测试页面。
  */
 class HGTestModulePage extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      selectedKey: HGTestModuleVM.getDefaultSelectedKey(),
-    };
-  }
+  /** URL 驱动菜单，避免刷新和浏览器返回时重置测试页。 */
+  getSelectedKey = () => hgReadSubMenuKey(this.props.location?.search, HGTestModuleVM.getDefaultSelectedKey());
 
   /**
    * 菜单选中回调：更新右侧内容区页面。
    * @param {string} key 选中的叶子节点菜单 key。
    */
   handleMenuSelect = (key) => {
-    this.setState({ selectedKey: key });
+    if (key === this.getSelectedKey()) return;
+    this.props.navigate(hgBuildSubMenuUrl(ROUTE_PATH.TEST_MODULE, key));
   };
+
+  /** 面包屑跳转通过导航器复用父页历史。 */
+  navigateBreadcrumb = (href) => this.props.pageNavigator.returnTo(href);
 
   /**
    * 渲染面包屑，帮助确认当前菜单路径。
    * @returns {React.ReactNode} 面包屑节点。
    */
   renderBreadcrumb = () => {
-    const { selectedKey } = this.state;
-    const path = HGSideMenuVM.findPathToKey(TEST_MODULE_MENU_ITEMS, selectedKey);
-    if (!path || path.length === 0) return null;
-
     return (
-      <div className={styles.breadcrumb}>
-        {path.map((node, index) => {
-          const isLast = index === path.length - 1;
-          return (
-            <span key={node.key} className={styles.breadcrumbItem}>
-              <span className={isLast ? styles.breadcrumbCurrent : styles.breadcrumbLink}>
-                {node.label}
-              </span>
-              {!isLast && <span className={styles.breadcrumbSeparator}>{">"}</span>}
-            </span>
-          );
-        })}
-      </div>
+      <HGMenuBreadcrumb menuItems={TEST_MODULE_MENU_ITEMS} selectedKey={this.getSelectedKey()}
+        basePath={ROUTE_PATH.TEST_MODULE} rootLabel="测试模块"
+        onNavigate={this.navigateBreadcrumb} className={styles.breadcrumb} />
     );
   };
 
@@ -101,7 +89,7 @@ class HGTestModulePage extends Component {
    * @returns {React.ReactNode} 右侧内容节点。
    */
   renderContent = () => {
-    const { selectedKey } = this.state;
+    const selectedKey = this.getSelectedKey(); // 与侧边菜单一致的 URL 子页 key。
     const PageComponent = PAGE_MAP[selectedKey];
     if (PageComponent) {
       return <PageComponent />;
@@ -110,7 +98,7 @@ class HGTestModulePage extends Component {
   };
 
   render() {
-    const { selectedKey } = this.state;
+    const selectedKey = this.getSelectedKey(); // 由当前历史项恢复，不维护第二份菜单状态。
 
     return (
       <div className={styles.testModuleContainer}>

@@ -79,7 +79,19 @@ const ICON_PATHS = {
  * 输入：type（图标类型字符串；image-broken 使用独立资源）、style、className（默认空字符串）、onClick。
  * 约束：普通图标使用 ICON_PATHS；铺满缩略图的裂纹占位从 svg/image-broken.svg 蒙版加载。
  */
+/** @extends {React.PureComponent<Partial<typeof HGIconPage.defaultProps>>} */
 class HGIconPage extends React.PureComponent {
+  static defaultProps = {
+    /** 图标名称，默认 user；候选见 ICON_PATHS，image-broken 使用裂纹图片占位。 */
+    type: "user",
+    /** 图标点击通知，默认 undefined 使用纯展示语义。 @type {React.MouseEventHandler<HTMLSpanElement>|undefined} */
+    onClick: undefined,
+    /** 图标附加样式类，默认空字符串。 */
+    className: "",
+    /** 图标行内样式，可设置字号和颜色；默认 undefined 继承周围样式。 @type {React.CSSProperties|undefined} */
+    style: undefined,
+  };
+
   /**
    * 获取图标 SVG 路径。
    * @returns {string} SVG path d 属性值。

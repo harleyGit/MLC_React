@@ -324,7 +324,17 @@ const LONG_PRESS_RATE = 3;
 /**
  * 视频播放组件，模仿 B 站播放器风格。
  */
+/**
+ * @typedef {object} HGVideoPlayerDataProps
+ * @property {Object} video 必传，无默认值；视频详情与播放源，由页面提供 id/url/filePath 等已有字段。
+ */
+/** @extends {React.Component<Partial<typeof HGVideoPlayerPage.defaultProps> & HGVideoPlayerDataProps>} */
 class HGVideoPlayerPage extends React.Component {
+  static defaultProps = {
+    /** 播放器根节点附加样式类，默认空字符串。 */
+    className: "",
+  };
+
   constructor(props) {
     super(props);
     this.videoRef = React.createRef();

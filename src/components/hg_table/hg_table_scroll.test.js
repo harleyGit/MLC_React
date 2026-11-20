@@ -26,7 +26,7 @@ new Function("require", "module", "exports", hgCode)((name) => {
 }, hgModule, hgModule.exports);
 const HGTablePage = hgModule.exports.default;
 
-test("普通表格由内容撑高，显式滚动与填充模式仍保留高度约束", () => {
+test("显式关闭填充时由内容撑高，scroll.y 优先于填充模式约束高度", () => {
   const table = new HGTablePage({ dataSource: [{ id: 1 }] });
   assert.equal(table.renderAutoRowHeightBody().props.style, undefined);
   table.props = { ...table.props, scroll: { x: 1020 } };
@@ -34,7 +34,21 @@ test("普通表格由内容撑高，显式滚动与填充模式仍保留高度�
   table.props = { ...table.props, dataSource: [], scroll: { y: 360 } };
   assert.deepEqual(table.renderAutoRowHeightBody().props.style, { maxHeight: 360 });
   table.props = { ...table.props, fillHeight: true };
-  assert.deepEqual(table.renderAutoRowHeightBody().props.style, { flex: "1 1 auto", minHeight: 0 });
+  assert.deepEqual(table.renderAutoRowHeightBody().props.style, { maxHeight: 360 });
+});
+
+test("默认属性启用铺满模式，调用方可显式关闭恢复内容高度", () => {
+  const filled = new HGTablePage({
+    ...HGTablePage.defaultProps,
+    dataSource: [{ id: 1 }],
+  });
+  assert.equal(filled.props.fillHeight, true);
+  assert.deepEqual(filled.renderAutoRowHeightBody().props.style, {
+    flex: "1 1 500px",
+    minHeight: 0,
+  });
+  filled.props = { ...filled.props, fillHeight: false };
+  assert.equal(filled.renderAutoRowHeightBody().props.style, undefined);
 });
 
 test("固定行及分组模式不指定滚动高度时完整渲染，空态不保留固定视口", () => {
