@@ -20,6 +20,8 @@ import styles from "./hg_operation_management.module.css";
 import HGOperationManagementVM, {
   OPERATION_MENU_ITEMS,
 } from "./hg_operation_management_vm";
+import { HGIAMContext } from "../../../modules/iam/hg_iam_provider";
+import { hgCanOpenOperation, hgFilterOperationMenu } from "../../../modules/iam/hg_menu_access";
 
 // 真实业务页按菜单项独立拆包；占位页保留同步渲染，避免无意义的小 chunk。
 const HGAdminAddPage = lazy(() => import("./admin_add/hg_admin_add_page"));
@@ -314,6 +316,7 @@ const HIDDEN_BREADCRUMB_PATHS = {
  * 约束：使用 HGSideMenuPage 组件渲染菜单，PAGE_MAP 映射右侧内容
  */
 class HGOperationManagementPage extends Component {
+  static contextType = HGIAMContext;
   /** 隐藏子页 -> 父菜单 key 的映射，用于菜单高亮。 */
   static HIDDEN_PARENT_KEY = Object.fromEntries(
     Object.entries(HIDDEN_BREADCRUMB_PATHS).map(([key, cfg]) => [key, cfg.parentKey])
@@ -386,6 +389,9 @@ class HGOperationManagementPage extends Component {
    * @returns {React.ReactNode} 右侧内容区节点
    */
   renderContent = (selectedKey) => {
+    if (this.context?.status !== "ready" || !hgCanOpenOperation(this.context.snapshot, selectedKey)) {
+      return <div className={styles.contentBody} role="alert">没有该模块的访问权限</div>;
+    }
     const PageComponent = PAGE_MAP[selectedKey];
     if (PageComponent) {
       return (
@@ -412,6 +418,8 @@ class HGOperationManagementPage extends Component {
 
   render() {
     const selectedKey = this.getSelectedKey();
+    const menuItems = this.context?.status === "ready"
+      ? hgFilterOperationMenu(OPERATION_MENU_ITEMS, this.context.snapshot) : [];
     // 隐藏子页（如创建角色）高亮其父菜单，使「角色列表」保持选中态。
     const highlightKey = hgResolveHighlightKey(
       selectedKey,
@@ -421,7 +429,7 @@ class HGOperationManagementPage extends Component {
     return (
       <div className={styles.operationContainer}>
         <HGSideMenuPage
-          menuItems={OPERATION_MENU_ITEMS}
+          menuItems={menuItems}
           selectedKey={highlightKey}
           onSelect={this.handleMenuSelect}
         />

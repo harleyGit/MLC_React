@@ -1,5 +1,6 @@
 import HGStorage from "./hg_storage";
 import HGUserProfileSession from "./hg_user_profile_session";
+import { hgUserRepository } from "../../modules/user/HGUserRepository";
 
 /** 用户资料本地入口：只在当前标签页短期保存最小展示资料；联系方式仅留在运行时内存。 */
 export default class HGUserProfileStorage {
@@ -11,7 +12,9 @@ export default class HGUserProfileStorage {
   /** 保存当前登录用户的服务端资料快照；其他账号的数据不缓存。 */
   static saveUserProfile(profile) {
     this.hgRemoveLegacyProfile();
-    return HGUserProfileSession.save(profile);
+    const saved = HGUserProfileSession.save(profile);
+    if (saved) this.hgPersistDisplayProfile(saved);
+    return saved;
   }
 
   /** 其他页面可读取当前用户资料；刷新后只恢复非敏感展示字段。 */
@@ -23,7 +26,17 @@ export default class HGUserProfileStorage {
   /** 服务端局部更新成功后同步已缓存的资料字段，不允许任意字段覆盖。 */
   static patchUserProfile(fields) {
     this.hgRemoveLegacyProfile();
-    return HGUserProfileSession.patch(fields);
+    const saved = HGUserProfileSession.patch(fields);
+    if (saved) this.hgPersistDisplayProfile(saved);
+    return saved;
+  }
+
+  /** 只异步持久化当前账号非敏感展示字段；数据库不可用时保留现有会话内存副本。 */
+  static hgPersistDisplayProfile(profile) {
+    const owner = profile.user_id;
+    hgUserRepository.getProfile(owner).then((existing) =>
+      hgUserRepository.saveProfile({ ...existing, ...profile, user_id: owner })
+    ).catch(() => {});
   }
 
   /** 登出或登录过期时清除新旧缓存。 */

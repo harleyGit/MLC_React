@@ -1,0 +1,23 @@
+// 与 MLC_GO/internal/pkg/permission/hg_permission.go 一致；不要使用文档中的示例 product:* 权限码。
+export const HG_PERMISSIONS = Object.freeze({
+  IAM_READ: "iam:role:read",
+  IAM_GRANT: "iam:role:grant",
+  USER_READ: "user:directory:read",
+  USER_WRITE: "user:directory:write",
+  USER_DELETE: "user:directory:delete",
+  CRAWLER_READ: "crawler:task:read",
+  CRAWLER_RUN: "crawler:task:run",
+  OPS_METRICS_READ: "ops:metrics:read",
+  OPS_FILE_READ: "ops:file:read",
+  OPS_MENU_READ: "ops:menu:read",
+  OPS_TAG_READ: "ops:bilibili_tag:read",
+  ASSET_BALANCE_READ: "asset:coin_balance:read",
+  RECHARGE_READ: "payment:recharge_sku:read",
+  NOTIFICATION_CHANNEL_READ: "notification:channel:read",
+  MALL_REVIEW: "mall:merchant:review",
+  PRODUCT_CREATE: "mall:product:create",
+  PRODUCT_UPDATE: "mall:product:update",
+  PRODUCT_PUBLISH: "mall:product:publish",
+  VIDEO_CREATE: "video:submission:create",
+  VIDEO_UPDATE: "video:submission:update",
+});

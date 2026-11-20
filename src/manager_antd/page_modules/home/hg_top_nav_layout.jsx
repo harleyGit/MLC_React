@@ -22,8 +22,16 @@ import { hgGetAdminStatus } from "../../auth/hg_admin_status";
 import styles from "./hg_top_nav_layout.module.css";
 import { HG_IM_CONNECTION_EVENT, HG_IM_RECONNECT_EVENT } from "./hg_im_connection_events";
 import { hgTopNavKeyForPath } from "./hg_top_nav_selection";
+import { HGIAMContext } from "../../../modules/iam/hg_iam_provider";
+import { hgEvaluateAccess } from "../../../modules/iam/hg_access_evaluator";
+import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
+import { hgUserRepository } from "../../../modules/user/HGUserRepository";
+import { hgCurrentIAMUser } from "../../../modules/iam/hg_iam_session";
+import { HG_STORES } from "../../../infrastructure/database/HGDatabaseSchema";
+import { hgLocalDataService } from "../../../infrastructure/storage/HGLocalDataService";
 
 class HGTopNavLayout extends Component {
+  static contextType = HGIAMContext;
   hgMounted = false; // 页面挂载标记；卸载后忽略延迟返回的管理员状态。
   hgLoggingOut = false; // 退出请求进行中，防止重复撤销和清空后续账号的登录态。
   hgConnectionOwner = ""; // 上一次连接状态所属账号；切换账号时不沿用旧状态。
@@ -38,6 +46,7 @@ class HGTopNavLayout extends Component {
       showUserDropdown: false, // 头像浮层显示状态，不再修改页面的 Tab 归属。
       hgIsAdmin: false, // 后端确认有效管理员前一律隐藏运维和采集入口。
       hgChatFailed: false, // 仅当前账号实时连接最终失败时标红；消息操作在断线时失败关闭。
+      hgProfile: HGUserProfileStorage.getUserProfile(), // 当前标签页展示资料；null 时才读取 IndexedDB。
     };
     this.avatarMenuRef = React.createRef();
   }
@@ -50,6 +59,8 @@ class HGTopNavLayout extends Component {
     this.updateCurrentPage();
     document.addEventListener("mousedown", this.handleDocumentClick);
     this.hgMounted = true;
+    this.hgUnsubscribeProfile = hgLocalDataService.subscribe(HG_STORES.USERS, this.hgLoadProfile);
+    this.hgLoadProfile();
     window.addEventListener(HG_IM_CONNECTION_EVENT, this.hgOnChatConnection);
     window.addEventListener("hg:auth-changed", this.hgResetChatConnection);
     hgGetAdminStatus().then((hgIsAdmin) => { if (this.hgMounted) this.setState({ hgIsAdmin }); }).catch(() => {});
@@ -71,6 +82,7 @@ class HGTopNavLayout extends Component {
    */
   componentWillUnmount() {
     this.hgMounted = false;
+    this.hgUnsubscribeProfile?.();
     window.removeEventListener(HG_IM_CONNECTION_EVENT, this.hgOnChatConnection);
     window.removeEventListener("hg:auth-changed", this.hgResetChatConnection);
     document.removeEventListener("mousedown", this.handleDocumentClick);
@@ -154,7 +166,20 @@ class HGTopNavLayout extends Component {
    * @returns {Object} 当前可用于页面展示的用户资料；无缓存时返回空对象。
    */
   getUserProfile = () => {
-    return HGUserProfileStorage.getUserProfile() || {};
+    return this.state.hgProfile || {};
+  };
+
+  /** 组件已有资料优先使用；无值时读取与当前账号绑定的本地非敏感字段。 */
+  hgLoadProfile = async () => {
+    const owner = hgCurrentIAMUser();
+    const sessionProfile = HGUserProfileStorage.getUserProfile();
+    if (sessionProfile?.user_id === owner) {
+      if (this.hgMounted) this.setState({ hgProfile: sessionProfile });
+      return;
+    }
+    if (!owner) { if (this.hgMounted) this.setState({ hgProfile: null }); return; }
+    const cached = await hgUserRepository.getProfile(owner).catch(() => null);
+    if (this.hgMounted && owner === hgCurrentIAMUser()) this.setState({ hgProfile: cached || null });
   };
 
   /**
@@ -259,8 +284,16 @@ class HGTopNavLayout extends Component {
           { key: "home", label: <Link to={ROUTE_PATH.HOME} className={`${styles.menuLink} ${this.state.hgChatFailed && this.hgConnectionOwner === hgIMOwner() ? styles.menuLinkFailed : ""}`}>Chat</Link> },
           { key: "products", label: <Link to={ROUTE_PATH.PRODUCTS} className={styles.menuLink}>商品</Link> },
           { key: "message", label: <Link to={ROUTE_PATH.MESSAGE_CENTER} className={styles.menuLink}>消息中心</Link> },
-          ...(this.state.hgIsAdmin ? [
+          ...(this.state.hgIsAdmin && this.context?.status === "ready" && [
+            HG_PERMISSIONS.IAM_READ, HG_PERMISSIONS.USER_READ, HG_PERMISSIONS.OPS_METRICS_READ,
+            HG_PERMISSIONS.CRAWLER_READ, HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.OPS_FILE_READ,
+            HG_PERMISSIONS.OPS_MENU_READ, HG_PERMISSIONS.OPS_TAG_READ, HG_PERMISSIONS.ASSET_BALANCE_READ,
+            HG_PERMISSIONS.RECHARGE_READ, HG_PERMISSIONS.MALL_REVIEW, HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ,
+          ].some((permission) => hgEvaluateAccess(this.context.snapshot, { permission }).allowed) ? [
             { key: "operation", label: <Link to={ROUTE_PATH.OPERATION_MANAGEMENT} className={styles.menuLink}>运维管理</Link> },
+          ] : []),
+          ...(this.state.hgIsAdmin && this.context?.status === "ready" &&
+            hgEvaluateAccess(this.context.snapshot, { permission: HG_PERMISSIONS.CRAWLER_READ }).allowed ? [
             { key: "crawler", label: <Link to={ROUTE_PATH.CRAWLER_PLATFORM} className={styles.menuLink}>采集平台</Link> },
           ] : []),
           { key: "test_module", label: <Link to={ROUTE_PATH.TEST_MODULE} className={styles.menuLink}>测试模块</Link> },

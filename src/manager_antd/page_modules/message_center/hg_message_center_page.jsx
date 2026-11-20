@@ -26,6 +26,8 @@ import styles from "./hg_message_center.module.css";
 import HGIMAPI from "../../net_handle/hg_im_api";
 import HGIMRealtime from "../home/hg_im_realtime";
 import { hgIMOwner, hgIMSession } from "../../storage/hg_im_session";
+import { hgPreferencesRepository } from "../../../modules/preferences/HGPreferencesRepository";
+import { hgCurrentIAMUser } from "../../../modules/iam/hg_iam_session";
 
 /** 时间 medium 琐碎格式化，避免每帧重复构造 Intl 实例。 */
 const TIME_FORMATTER = new Intl.DateTimeFormat("zh-CN", {
@@ -650,10 +652,22 @@ class HGMessageCenterPage extends Component {
   /* ================= 通知偏好 ================= */
 
   /** 打开偏好弹窗。 */
-  openPreferences = () => {
+  openPreferences = async () => {
     if (HGMessageCenterVM.isRemote()) {
+      const owner = hgCurrentIAMUser();
+      // 组件变量已有值时不重复读库；本地缓存仅供展示，更新仍以服务端结果为准。
+      if (!this.state.preferences && owner) {
+        const cached = await hgPreferencesRepository.getPreference(owner, "notification").catch(() => null);
+        if (this.hgMounted && owner === hgCurrentIAMUser() && cached) {
+          this.setState({ preferences: cached, preferencesOpen: true });
+        }
+      }
       HGMessageCenterVM.fetchPreferences()
-        .then((preferences) => { if (this.hgMounted) this.setState({ preferences, preferencesOpen: true }); })
+        .then(async (preferences) => {
+          if (!this.hgMounted || owner !== hgCurrentIAMUser()) return;
+          this.setState({ preferences, preferencesOpen: true });
+          await hgPreferencesRepository.saveServerPreference(owner, "notification", preferences).catch(() => {});
+        })
         .catch((error) => message.error(error?.message || "通知偏好加载失败"));
       return;
     }
@@ -707,7 +721,9 @@ class HGMessageCenterPage extends Component {
     }
     this.setState({ preferencesSaving: true });
     HGMessageCenterVM.savePreferences(preferences)
-      .then(() => {
+      .then(async () => {
+        const owner = hgCurrentIAMUser();
+        if (owner) await hgPreferencesRepository.saveServerPreference(owner, "notification", preferences).catch(() => {});
         message.success("通知偏好已保存，下次投递立即生效");
         this.setState({ preferencesOpen: false, preferencesSaving: false });
       })

@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-01-31 16:20:25
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-05-10 11:38:53
+ * @LastEditTime: 2026-11-20 15:32:21
  * @FilePath: /MLC_React/src/manager_antd/api/hg_api_constants.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 
@@ -45,8 +45,10 @@ export const HGMANAGER_API = {
   COMMERCE_CATEGORIES: "/api/v1/commerce/merchant/categories", // 生产 CNY 本店叶子类目
   COMMERCE_ADMIN_CATEGORIES: "/api/v1/commerce/admin/categories", // 平台审核员独立查询普通叶子类目
   COMMERCE_CATEGORY_IMAGE: "/api/v1/commerce/admin/categories/images", // 审核员上传平台类目图片
-  COMMERCE_CATEGORY_IMAGES_UNUSED: "/api/v1/commerce/admin/categories/images/unused", // 本人未绑定的类目图片
-  COMMERCE_CATEGORY_IMAGE_DELETE: "/api/v1/commerce/admin/categories/images/delete", // 删除本人未绑定的类目图片
+  COMMERCE_CATEGORY_IMAGES_UNUSED:
+    "/api/v1/commerce/admin/categories/images/unused", // 本人未绑定的类目图片
+  COMMERCE_CATEGORY_IMAGE_DELETE:
+    "/api/v1/commerce/admin/categories/images/delete", // 删除本人未绑定的类目图片
   COMMERCE_CATEGORY_CREATE: "/api/v1/commerce/admin/categories", // 平台维护类目
   COMMERCE_CATEGORY_EDIT: "/api/v1/commerce/admin/categories/edit", // 平台编辑叶子类目的 ID、名称、上级和图片
   COMMERCE_CATEGORY_DELETE: "/api/v1/commerce/admin/categories/delete", // 平台停用无子类目、无关联商品的类目
@@ -191,8 +193,10 @@ export const HGMANAGER_API = {
   CRAWLER_TASKS: "/api/v1/crawler/tasks", // 任务 cursor 列表和手动创建任务
   CRAWLER_RECOMMENDATIONS: "/api/v1/crawler/recommendations", // 最近一次成功推荐快照
   CRAWLER_SPIDER_SWITCH_STATUS: "/api/v1/ops/crawler/spider/status", // 已鉴权的数据库期望状态
-  CRAWLER_SPIDER_START: (id) => id === "bilibili" ? "/api/v1/ops/crawler/spider/start" : "", // 已鉴权的 B 站推荐爬虫启动
-  CRAWLER_SPIDER_STOP: (id) => id === "bilibili" ? "/api/v1/ops/crawler/spider/stop" : "", // 已鉴权的 B 站推荐爬虫停止
+  CRAWLER_SPIDER_START: (id) =>
+    id === "bilibili" ? "/api/v1/ops/crawler/spider/start" : "", // 已鉴权的 B 站推荐爬虫启动
+  CRAWLER_SPIDER_STOP: (id) =>
+    id === "bilibili" ? "/api/v1/ops/crawler/spider/stop" : "", // 已鉴权的 B 站推荐爬虫停止
   // 消息中心：站内通知与私信 IM 的读写入口，路径与通知服务 HTTP 契约一致。
   NOTIFICATION_LIST: "/api/v1/notifications", // 站内通知分页列表
   NOTIFICATION_UNREAD: "/api/v1/notifications/unread", // 各分类未读数

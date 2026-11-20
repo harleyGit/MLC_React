@@ -1,0 +1,21 @@
+.button {
+  min-height: 36px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border, #d6e7f9);
+  border-radius: 8px;
+  background: var(--color-primary, #438bfa);
+  color: var(--color-text-title, #0f2440);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-border-focus, #438bfa);
+  outline-offset: 2px;
+}
+
+.blocked {
+  background: var(--color-bg-disabled, #f1f5f9);
+  color: var(--color-text-muted, #71849b);
+  cursor: not-allowed;
+}

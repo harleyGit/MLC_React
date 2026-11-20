@@ -19,6 +19,8 @@ import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import HGTreeSelectPage from "../../../../components/hg_tree_select/hg_tree_select_page";
 import styles from "./hg_role_list.module.css";
 import HGRoleListVM, { ROLE_LIST_PAGE_SIZE } from "./hg_role_list_vm";
+import { HGAuthButton } from "../../../../modules/iam/hg_permission";
+import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 
 /**
  * 角色管理页面。
@@ -437,10 +439,10 @@ class HGRoleListPage extends Component {
           title="角色管理"
           description="维护平台角色定义，角色是权限的集合；用户通过绑定角色获得对应业务范围的操作能力。"
           extra={
-            <HGButtonPage type="primary" onClick={this.handleCreateRole}>
+            <HGAuthButton permission={HG_PERMISSIONS.IAM_GRANT} onClick={this.handleCreateRole}>
               <HGIconPage type="plus" className={styles.headerActionIcon} />
               创建角色
-            </HGButtonPage>
+            </HGAuthButton>
           }
         />
 

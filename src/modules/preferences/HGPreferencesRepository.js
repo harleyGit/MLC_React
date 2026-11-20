@@ -28,6 +28,16 @@ class HGPreferencesRepository extends HGBaseRepository {
     return record;
   }
 
+  /** 服务端偏好确认保存后写入本地；不标记为待上传修改。 */
+  async saveServerPreference(userId, key, value) {
+    if (!userId || !key) throw new Error("缺少偏好归属");
+    const record = await this.put({
+      user_id: userId, key, value, updated_at: Date.now(), sync_status: "synced"
+    });
+    hgLocalDataService.notifyChange(HG_STORES.PREFERENCES);
+    return record;
+  }
+
   // 读取单个偏好项的值；不存在时返回 undefined
   async getPreference(userId, key) {
     const record = await this.get([userId, key]);

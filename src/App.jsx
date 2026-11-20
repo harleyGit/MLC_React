@@ -10,6 +10,7 @@ import React, { Component } from "react";
 import { RouterProvider } from "react-router";
 import "./App.css";
 import HGRouter from "./manager_antd/router/hg_router";
+import { HGIAMAccessProvider } from "./modules/iam/hg_iam_provider";
 
 class App extends Component {
   constructor(props) {
@@ -26,7 +27,7 @@ class App extends Component {
         style={{ backgroundColor: "#f0f2f5", minHeight: "100vh" }}
       >
         {/* 直接用 RouterProvider，不需要包裹 div */}
-        <RouterProvider router={HGRouter} />
+        <HGIAMAccessProvider><RouterProvider router={HGRouter} /></HGIAMAccessProvider>
       </div>
     );
   }

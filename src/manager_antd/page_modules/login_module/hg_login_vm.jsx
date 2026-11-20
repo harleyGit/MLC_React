@@ -8,6 +8,7 @@
  */
 import { REFRESH_TOKEN_KEY, TOKEN_KEY } from "../../auth/hg_auth";
 import HGNet from "../../net_handle/hg_net_manager_vm";
+import { hgClearIAM } from "../../../modules/iam/hg_iam_session";
 
 // 📌 注册方式枚举（推荐用对象形式，避免魔法字符串）
 export const HGRegisterType = {
@@ -106,7 +107,9 @@ export default class HGLoginVM {
           response?.refreshToken ?? response?.refresh_token;
 
         if (accessToken) {
+          hgClearIAM();
           localStorage.setItem(TOKEN_KEY, accessToken);
+          window.dispatchEvent(new Event("hg:auth-changed"));
         }
         if (refreshToken) {
           localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);

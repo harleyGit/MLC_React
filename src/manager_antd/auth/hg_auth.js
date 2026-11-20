@@ -8,6 +8,7 @@
  */
 import HGUserProfileStorage from "../storage/hg_user_profile_storage";
 import { hgClearIMSession } from "../storage/hg_im_session";
+import { hgClearIAM } from "../../modules/iam/hg_iam_session";
 
 /* DEBUG环境默认值设置 */
 const env = import.meta.env;
@@ -52,6 +53,7 @@ export function isAuthenticated() {
 
 // 退出登录
 export function logout() {
+  hgClearIAM();
   hgClearIMSession();
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);

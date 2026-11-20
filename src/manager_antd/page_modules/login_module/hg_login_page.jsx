@@ -23,6 +23,10 @@ import HGInputPage, { HGInputPassword } from "../../../components/hg_input/hg_in
 import { hgMessage as message } from "../../../components/hg_message/hg_message_page";
 import HGIconPage from "../../../components/hg_icon/hg_icon_page";
 import HGLoginHistoryStorage from "../../storage/hg_login_history_storage";
+import { hgPreferencesRepository } from "../../../modules/preferences/HGPreferencesRepository";
+import { hgCurrentIAMUser } from "../../../modules/iam/hg_iam_session";
+import { HGMANAGER_API } from "../../api/hg_api_constants";
+import HGNet from "../../net_handle/hg_net_manager_vm";
 
 /**
  * 用户登录页面
@@ -68,6 +72,14 @@ class HGLoginPage extends Component {
         const recentAccounts = HGLoginHistoryStorage.recordSuccessfulLogin(values.username);
         this.setState({ recentAccounts });
         await HGEditUserPageVM.getUserProfile();
+        // HGLoginVM 已通知 Provider 向 IAM 获取最新快照，守卫核验前不展示受保护内容。
+        const owner = hgCurrentIAMUser();
+        if (owner) {
+          HGNet.get(HGMANAGER_API.NOTIFICATION_PREFERENCES)
+            .then((value) => owner === hgCurrentIAMUser()
+              ? hgPreferencesRepository.saveServerPreference(owner, "notification", value) : null)
+            .catch(() => {});
+        }
         // IM 当前仅在 debug 环境注册；服务端按设备归属选择替换路径，旧版设备无法撤销其登录会话。
         if (import.meta.env.MODE === "debug") {
           try {

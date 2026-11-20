@@ -19,8 +19,14 @@ class HGUserRepository extends HGBaseRepository {
       throw new Error("user_id 不能为空");
     }
 
+    // IndexedDB 仅持久化非敏感展示字段；手机号、邮箱、密码、Token 均不落库。
+    const safe = Object.fromEntries(
+      ["user_id", "id", "user_name", "username", "nickname", "signature", "gender",
+        "birth_month", "avatar_url"].filter((key) => profile[key] !== undefined && profile[key] !== null)
+        .map((key) => [key, profile[key]])
+    );
     const record = await this.put({
-      ...profile,
+      ...safe,
       cached_at: Date.now()
     });
 

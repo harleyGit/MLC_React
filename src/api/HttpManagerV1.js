@@ -28,7 +28,7 @@ export const ResultCodeMap = {
 
   400: { type: "warn", message: "参数错误" },
   401: { type: "auth", message: "登录已过期，请重新登录" },
-  403: { type: "auth", message: "无权限访问" },
+  403: { type: "warn", message: "无权限访问" },
 
   429: { type: "warn", message: "请求过于频繁" },
 
