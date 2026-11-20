@@ -23,6 +23,13 @@ export const TEST_MODULE_MENU_ITEMS = [
       { key: "theme_palette", label: "主题色彩预览" },
     ],
   },
+  {
+    key: "data",
+    label: "数据",
+    children: [
+      { key: "local_database_test", label: "本地数据库测试" },
+    ],
+  },
 ];
 
 /**

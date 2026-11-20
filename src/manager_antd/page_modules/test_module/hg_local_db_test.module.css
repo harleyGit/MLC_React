@@ -1,0 +1,437 @@
+/* 本地数据库测试页面样式：测试用例列表、状态徽标与汇总统计。 */
+
+.page {
+  max-width: 860px;
+}
+
+.header {
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2c4a;
+}
+
+.subtitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #7a859f;
+}
+
+.envBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #55617c;
+}
+
+.envOk {
+  color: #1a9d5c;
+  font-weight: 500;
+}
+
+.envBad {
+  color: #d43838;
+  font-weight: 500;
+}
+
+.envItem {
+  color: #55617c;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.buttonGroup {
+  display: flex;
+  gap: 10px;
+}
+
+.runButton,
+.clearButton {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.runButton {
+  background: var(--color-accent, #28b4f5);
+  color: var(--color-text-title, #0f2440);
+}
+
+.clearButton {
+  background: #f0f2f7;
+  color: #d43838;
+}
+
+.runButtonDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.summaryPlain {
+  color: #7a859f;
+}
+
+.summaryPassed {
+  color: #1a9d5c;
+}
+
+.summaryFailed {
+  color: #d43838;
+  font-weight: 600;
+}
+
+.clearMessage {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: #f0f2f7;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #55617c;
+}
+
+.group {
+  margin-bottom: 20px;
+}
+
+.groupTitle {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2c4a;
+}
+
+.caseList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.caseItem {
+  padding: 10px 14px;
+  border-bottom: 1px solid #eef1f6;
+  background: #fff;
+}
+
+.caseItem:last-child {
+  border-bottom: none;
+}
+
+.caseItemFailed {
+  background: #fdf3f3;
+}
+
+.caseRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statusChip {
+  flex-shrink: 0;
+  min-width: 52px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.chipPending {
+  background: #eef1f6;
+  color: #7a859f;
+}
+
+.chipRunning {
+  background: var(--color-accent, #28b4f5);
+  color: var(--color-text-title, #0f2440);
+}
+
+.chipPassed {
+  background: #e3f6ec;
+  color: #1a9d5c;
+}
+
+.chipFailed {
+  background: #fbe1e1;
+  color: #d43838;
+}
+
+.caseName {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: #1f2c4a;
+}
+
+.caseDuration {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #9aa4bd;
+  font-variant-numeric: tabular-nums;
+}
+
+.caseError {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: #fbe1e1;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #a42626;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ---- 数据管理面板 ---- */
+
+.userForm {
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  background: #fafbfd;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+@media (max-width: 640px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.formLabel {
+  font-size: 12px;
+  color: #55617c;
+}
+
+.formInput {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d5dbe7;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1f2c4a;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: var(--color-accent, #28b4f5);
+}
+
+.formInput:disabled {
+  background: #eef1f6;
+  color: #9aa4bd;
+  cursor: not-allowed;
+}
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.saveButton {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  background: var(--color-accent, #28b4f5);
+  color: var(--color-text-title, #0f2440);
+}
+
+.cancelButton {
+  padding: 8px 18px;
+  border: 1px solid #d5dbe7;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  background: #fff;
+  color: #55617c;
+}
+
+.listToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.queryButton {
+  padding: 6px 16px;
+  border: 1px solid var(--color-accent, #28b4f5);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #fff;
+  color: var(--color-accent, #28b4f5);
+}
+
+.listCount {
+  font-size: 12px;
+  color: #9aa4bd;
+}
+
+.actionMessage {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #e3f6ec;
+  color: #1a9d5c;
+}
+
+.actionMessageError {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fbe1e1;
+  color: #a42626;
+}
+
+.listEmpty {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #9aa4bd;
+}
+
+.userList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #e3e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #eef1f6;
+  background: #fff;
+}
+
+.userRow:last-child {
+  border-bottom: none;
+}
+
+.userRowEditing {
+  background: #f0f9ff;
+}
+
+.userCellMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.userNickname {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2c4a;
+}
+
+.userMeta {
+  font-size: 12px;
+  color: #7a859f;
+  word-break: break-all;
+}
+
+.userCellPassword {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #7a859f;
+}
+
+.userCellTime {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #9aa4bd;
+  font-variant-numeric: tabular-nums;
+}
+
+.userActions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.rowEditButton,
+.rowDeleteButton {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rowEditButton {
+  border: 1px solid var(--color-accent, #28b4f5);
+  background: #fff;
+  color: var(--color-accent, #28b4f5);
+}
+
+.rowDeleteButton {
+  border: 1px solid #f0b6b6;
+  background: #fff;
+  color: #d43838;
+}
+
+.rowEditButton:hover,
+.rowDeleteButton:hover {
+  opacity: 0.85;
+}
+
+.userHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #9aa4bd;
+  line-height: 1.6;
+}

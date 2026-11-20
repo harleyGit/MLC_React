@@ -6,7 +6,12 @@
  */
 
 import { hgOpenDatabase } from "./HGDatabase";
-import { HGDatabaseError, HG_DB_ERROR_CODES, hgIsQuotaError, hgWrapDatabaseError } from "./HGDatabaseError";
+import {
+  HGDatabaseError,
+  HG_DB_ERROR_CODES,
+  hgIsQuotaError,
+  hgWrapDatabaseError,
+} from "./HGDatabaseError";
 
 export class HGBaseRepository {
   constructor(storeName) {
@@ -36,7 +41,8 @@ export class HGBaseRepository {
 
         // 只在提交后返回结果；请求成功不代表整个事务已持久化
         tx.oncomplete = () => resolve(result);
-        tx.onabort = () => reject(this.wrapTxError(tx.error || new Error("事务中止")));
+        tx.onabort = () =>
+          reject(this.wrapTxError(tx.error || new Error("事务中止")));
 
         const request = operation(store, (value) => {
           result = value;
@@ -69,7 +75,11 @@ export class HGBaseRepository {
       );
     }
 
-    return hgWrapDatabaseError(error, HG_DB_ERROR_CODES.TRANSACTION_ABORTED, "本地数据库操作失败");
+    return hgWrapDatabaseError(
+      error,
+      HG_DB_ERROR_CODES.TRANSACTION_ABORTED,
+      "本地数据库操作失败"
+    );
   }
 
   // 覆盖式插入或更新（类似 INSERT ... ON DUPLICATE KEY UPDATE）
@@ -112,12 +122,18 @@ export class HGBaseRepository {
   // 基于索引游标的单页读取；调用方须用最后一条记录的索引键构造下一页范围
   // range 可传 IDBKeyRange；limit 限制为正整数且不超过 500 条，避免无限扫描
   getPageByIndex(indexName, range, { direction = "next", limit = 50 } = {}) {
-    if (!Number.isInteger(limit) || limit < 1 || limit > 500 ||
-        !["next", "prev", "nextunique", "prevunique"].includes(direction)) {
-      return Promise.reject(new HGDatabaseError(
-        HG_DB_ERROR_CODES.INVALID_ARGUMENT,
-        "分页参数无效：limit 应为 1～500 的整数，direction 应为有效的游标方向"
-      ));
+    if (
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > 500 ||
+      !["next", "prev", "nextunique", "prevunique"].includes(direction)
+    ) {
+      return Promise.reject(
+        new HGDatabaseError(
+          HG_DB_ERROR_CODES.INVALID_ARGUMENT,
+          "分页参数无效：limit 应为 1～500 的整数，direction 应为有效的游标方向"
+        )
+      );
     }
 
     return this.execute("readonly", (store, setResult) => {

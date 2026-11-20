@@ -4,9 +4,9 @@
  * 边界：不执行任何具体表读写，业务操作一律通过 HGBaseRepository 完成。
  */
 
-import { HG_DB_NAME, HG_DB_VERSION } from "./HGDatabaseSchema";
-import { hgRunMigrations } from "./HGDatabaseMigration";
 import { HGDatabaseError, HG_DB_ERROR_CODES } from "./HGDatabaseError";
+import { hgRunMigrations } from "./HGDatabaseMigration";
+import { HG_DB_NAME, HG_DB_VERSION } from "./HGDatabaseSchema";
 
 // 数据库连接单例：并发打开复用 Promise；代际标记阻止关闭后旧请求重新缓存连接
 let dbPromise = null;
@@ -37,7 +37,13 @@ export function hgOpenDatabase() {
     try {
       request = indexedDB.open(HG_DB_NAME, HG_DB_VERSION);
     } catch (error) {
-      reject(new HGDatabaseError(HG_DB_ERROR_CODES.OPEN_FAILED, "本地数据库打开失败", error));
+      reject(
+        new HGDatabaseError(
+          HG_DB_ERROR_CODES.OPEN_FAILED,
+          "本地数据库打开失败",
+          error
+        )
+      );
       return;
     }
     let blocked = false;
@@ -49,7 +55,9 @@ export function hgOpenDatabase() {
       // 已返回阻塞错误或已关闭的打开请求，不应在后台悄悄提交版本迁移
       if (blocked || generation !== connectionGeneration) {
         tx.abort();
-        reject(new HGDatabaseError(HG_DB_ERROR_CODES.OPEN_FAILED, "数据库连接已关闭"));
+        reject(
+          new HGDatabaseError(HG_DB_ERROR_CODES.OPEN_FAILED, "数据库连接已关闭")
+        );
         return;
       }
 
@@ -73,7 +81,9 @@ export function hgOpenDatabase() {
       // 被阻塞的请求可能在调用方收到失败后才成功；关闭请求并避免污染新一代连接
       if (blocked || generation !== connectionGeneration) {
         db.close();
-        reject(new HGDatabaseError(HG_DB_ERROR_CODES.OPEN_FAILED, "数据库连接已关闭"));
+        reject(
+          new HGDatabaseError(HG_DB_ERROR_CODES.OPEN_FAILED, "数据库连接已关闭")
+        );
         return;
       }
 
@@ -103,7 +113,12 @@ export function hgOpenDatabase() {
     request.onblocked = () => {
       // 让调用方明确展示升级阻塞并重试；请求无法取消，迟来的连接须在 onsuccess 关闭
       blocked = true;
-      reject(new HGDatabaseError(HG_DB_ERROR_CODES.OPEN_BLOCKED, "数据库升级被其他页面阻塞"));
+      reject(
+        new HGDatabaseError(
+          HG_DB_ERROR_CODES.OPEN_BLOCKED,
+          "数据库升级被其他页面阻塞"
+        )
+      );
     };
   }).catch((error) => {
     if (dbPromise === openingPromise) {
