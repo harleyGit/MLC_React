@@ -5,9 +5,9 @@
  *          已发布版本的 keyPath 不允许修改，索引变更需配合 HGDatabaseMigration 迁移步骤。
  */
 
-// 数据库名称与初始版本号，新增表或索引时必须递增 HG_DB_VERSION
+// 版本 2 修复旧版首次打开时跳过建表留下的空库；已发布版本的结构不可直接改写
 export const HG_DB_NAME = "MLC_CLIENT_DB";
-export const HG_DB_VERSION = 1;
+export const HG_DB_VERSION = 2;
 
 // Object Store 名称常量，业务模块统一从这里引用，避免散落魔法字符串
 export const HG_STORES = {

@@ -125,17 +125,37 @@ test("受控分页展示页码、每页条数及前后页；分页模式不触�
 test("默认列表使用填充虚拟视口；显式关闭填充时才由全部卡片自然撑高", () => {
   const items = Array.from({ length: 30 }, (_, index) => ({ id: String(index) }));
   const collection = hgCollection({ items, getKey: (item) => item.id, renderCell: (item) => item.id });
-  const viewport = collection.render().props.children[0];
+  const filled = collection.render();
+  const viewport = filled.props.children[0];
+  assert.equal(filled.props.style, undefined);
   assert.equal(viewport.props.style, undefined);
   assert.ok(viewport.props.children[0].props.children.length < items.length);
   collection.props = { ...collection.props, fillHeight: false };
   const natural = collection.render().props.children[0];
   assert.equal(natural.props.children[0].length, items.length);
   assert.equal(natural.props.children[0][29].props.children, "29");
-  collection.props = { ...collection.props, height: 320 };
-  const fixed = collection.render().props.children[0];
-  assert.equal(fixed.props.style.height, 320);
-  assert.ok(fixed.props.children[0].props.children.length < items.length);
+  collection.props = { ...collection.props, width: 640, height: 320 };
+  const fixed = collection.render();
+  assert.deepEqual({ ...fixed.props.style }, { width: 640, height: 320 });
+  assert.equal(fixed.props.children[0].props.style, undefined);
+  assert.ok(fixed.props.children[0].props.children[0].props.children.length < items.length);
+});
+
+test("宽高约束列表整体尺寸，横纵内容仅在溢出时由内部视口滚动", () => {
+  const collection = hgCollection({
+    items: [{ id: "a" }],
+    getKey: (item) => item.id,
+    renderCell: (item) => item.id,
+    width: "75%",
+    height: "20rem",
+  });
+  const rendered = collection.render();
+  assert.deepEqual({ ...rendered.props.style }, { width: "75%", height: "20rem" });
+  assert.equal(collection.hgUsesViewport(), true);
+  const css = readFileSync(new URL("./hg_collection_view.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.explicitHeightContainer\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /\.explicitHeightViewport\s*\{[^}]*flex:\s*1 1 auto;/s);
+  assert.match(css, /\.viewport\s*\{[^}]*overflow:\s*auto;/s);
 });
 
 test("自然高度列表只在页面底部标记进入可视区后请求下一页", () => {

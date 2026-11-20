@@ -27,34 +27,17 @@ export class HGBaseRepository {
     }
 
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(this.storeName, mode);
-      const store = tx.objectStore(this.storeName);
-
+      let tx;
       let result;
-      let settled = false;
-
-      tx.oncomplete = () => {
-        if (!settled) {
-          settled = true;
-          resolve(result);
-        }
-      };
-
-      tx.onerror = () => {
-        if (!settled) {
-          settled = true;
-          reject(this.wrapTxError(tx.error));
-        }
-      };
-
-      tx.onabort = () => {
-        if (!settled) {
-          settled = true;
-          reject(this.wrapTxError(tx.error || new Error("事务中止")));
-        }
-      };
 
       try {
+        tx = db.transaction(this.storeName, mode);
+        const store = tx.objectStore(this.storeName);
+
+        // 只在提交后返回结果；请求成功不代表整个事务已持久化
+        tx.oncomplete = () => resolve(result);
+        tx.onabort = () => reject(this.wrapTxError(tx.error || new Error("事务中止")));
+
         const request = operation(store, (value) => {
           result = value;
         });
@@ -66,9 +49,8 @@ export class HGBaseRepository {
           };
         }
       } catch (error) {
-        settled = true;
         try {
-          tx.abort();
+          tx?.abort();
         } catch {
           // 事务可能已结束
         }
@@ -127,9 +109,17 @@ export class HGBaseRepository {
     });
   }
 
-  // 基于索引游标的分页读取，避免一次性把大量记录加载进内存
-  // range 可传 IDBKeyRange；direction 支持 next/prev/nextunique/prevunique
+  // 基于索引游标的单页读取；调用方须用最后一条记录的索引键构造下一页范围
+  // range 可传 IDBKeyRange；limit 限制为正整数且不超过 500 条，避免无限扫描
   getPageByIndex(indexName, range, { direction = "next", limit = 50 } = {}) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500 ||
+        !["next", "prev", "nextunique", "prevunique"].includes(direction)) {
+      return Promise.reject(new HGDatabaseError(
+        HG_DB_ERROR_CODES.INVALID_ARGUMENT,
+        "分页参数无效：limit 应为 1～500 的整数，direction 应为有效的游标方向"
+      ));
+    }
+
     return this.execute("readonly", (store, setResult) => {
       const index = store.index(indexName);
       const items = [];
@@ -140,7 +130,11 @@ export class HGBaseRepository {
 
         if (cursor && items.length < limit) {
           items.push(cursor.value);
-          cursor.continue();
+          if (items.length < limit) {
+            cursor.continue();
+          } else {
+            setResult(items);
+          }
         } else {
           // 游标耗尽或达到单页上限，通过 setResult 回传本页数据
           setResult(items);

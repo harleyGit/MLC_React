@@ -7,10 +7,10 @@
  * 3. 新版本迁移步骤注册到 HG_MIGRATION_STEPS 后，同时递增 HGDatabaseSchema 中的 HG_DB_VERSION。
  */
 
-import { HG_DB_VERSION, HG_SCHEMA } from "./HGDatabaseSchema";
+import { HG_SCHEMA } from "./HGDatabaseSchema";
 import { HG_DB_ERROR_CODES, hgWrapDatabaseError } from "./HGDatabaseError";
 
-// 按当前 HG_SCHEMA 补齐缺失的表和索引（幂等，可在任意版本升级中安全调用）
+// 补齐缺失的表和索引；仅用于当前 v1/v2 的相同表结构，未来结构变更须按版本拆分迁移
 export function hgEnsureSchema(db, tx) {
   for (const schema of HG_SCHEMA) {
     let store;
@@ -32,9 +32,12 @@ export function hgEnsureSchema(db, tx) {
 }
 
 // 版本迁移步骤注册表：key 为目标版本号，value 为迁移函数（入参 { db, tx }）
-// v1 为初始版本，仅创建 Schema 中的全部表和索引；后续版本在此追加数据转换逻辑
+// v1 为初始结构；v2 修复旧版打开数据库时未建表却提交为 v1 的存量数据库
 const HG_MIGRATION_STEPS = {
   1: ({ db, tx }) => {
+    hgEnsureSchema(db, tx);
+  },
+  2: ({ db, tx }) => {
     hgEnsureSchema(db, tx);
   }
 };
@@ -42,6 +45,11 @@ const HG_MIGRATION_STEPS = {
 // 执行从 oldVersion 到 newVersion 的全部迁移步骤，任一步失败即抛出统一异常
 export function hgRunMigrations(db, tx, oldVersion, newVersion) {
   try {
+    if (!Number.isInteger(oldVersion) || oldVersion < 0 ||
+        !Number.isInteger(newVersion) || newVersion <= oldVersion) {
+      throw new Error("数据库升级版本号无效");
+    }
+
     // 全新环境 oldVersion 为 0，从版本 1 开始依次执行
     for (let version = Math.max(oldVersion, 0) + 1; version <= newVersion; version += 1) {
       const step = HG_MIGRATION_STEPS[version];

@@ -14,16 +14,24 @@
   overflow: hidden;
 }
 
+/* 显式 height 约束整个列表，状态栏和分页从该高度内分配空间，不再额外撑高组件。 */
+.explicitHeightContainer {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .viewport {
   width: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  min-width: 0;
+  overflow: auto;
   overscroll-behavior-y: auto; /* 触摸滑到列表边界后继续滚动外层页面。 */
   box-sizing: border-box;
 }
 
 /* 无父级高度约束时以 520px 建立视口；有约束时伸缩到扣除底栏后的剩余高度。 */
 .fillViewport { flex: 1 1 520px; min-height: 0; }
+.explicitHeightViewport { flex: 1 1 auto; min-height: 0; }
 .container > .status, .pagination { flex-shrink: 0; }
 
 /* 显式关闭填充后交由页面滚动，卡片直接参与文档流。 */

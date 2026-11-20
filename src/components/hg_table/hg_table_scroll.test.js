@@ -51,6 +51,27 @@ test("默认属性启用铺满模式，调用方可显式关闭恢复内容高�
   assert.equal(filled.renderAutoRowHeightBody().props.style, undefined);
 });
 
+test("显式宽高约束表格整体尺寸，表体只在内容溢出后滚动", () => {
+  const table = new HGTablePage({
+    ...HGTablePage.defaultProps,
+    width: 720,
+    height: "24rem",
+    dataSource: [{ id: 1 }],
+  });
+  const rendered = table.render();
+  assert.deepEqual(rendered.props.style, { width: 720, height: "24rem" });
+  assert.equal(rendered.props.className.includes("explicitHeightContainer"), true);
+  assert.equal(table.hgFillsParent(), false);
+  assert.equal(table.hgUsesContainerHeight(), true);
+  assert.deepEqual(table.renderAutoRowHeightBody().props.style, {
+    flex: "1 1 500px",
+    minHeight: 0,
+  });
+  const css = readFileSync(new URL("./hg_table.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.bodyWrap\s*\{[^}]*overflow:\s*auto;/s);
+  assert.match(css, /\.tableContainer\s*\{[^}]*overflow:\s*hidden;/s);
+});
+
 test("固定行及分组模式不指定滚动高度时完整渲染，空态不保留固定视口", () => {
   const table = new HGTablePage({ autoRowHeight: false, dataSource: Array.from({ length: 25 }, (_, id) => ({ id })) });
   assert.equal(table.getBodyHeight(), 25 * 48);

@@ -7,6 +7,7 @@
 // 错误码定义：上层依据 code 决定重试、降级或提示用户
 export const HG_DB_ERROR_CODES = {
   OPEN_FAILED: "OPEN_FAILED",                            // 数据库打开失败（含环境不支持 IndexedDB）
+  OPEN_BLOCKED: "OPEN_BLOCKED",                          // 其他页面阻止数据库升级
   VERSION_MIGRATION_FAILED: "VERSION_MIGRATION_FAILED",  // 版本升级迁移失败
   TRANSACTION_ABORTED: "TRANSACTION_ABORTED",            // 事务中止或提交失败
   QUOTA_EXCEEDED: "QUOTA_EXCEEDED",                      // 存储配额不足

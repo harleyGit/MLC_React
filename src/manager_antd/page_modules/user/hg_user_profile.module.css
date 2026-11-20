@@ -7,9 +7,31 @@
   background: #f3f5fb;
 }
 .container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: calc(100dvh - 64px - 69px - 48px);
+  min-height: 0;
   padding: 24px;
   background: linear-gradient(180deg, #f2f4fc 0%, #f6f4fb 100%);
-  min-height: 100vh;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* 卡片把页头之外的剩余区域继续传给 HGCollectionView，滚动只发生在列表内容溢出后。 */
+.listCard {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.listCard > div:last-child {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* 表格优化 */

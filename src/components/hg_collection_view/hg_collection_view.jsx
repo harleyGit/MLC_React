@@ -14,7 +14,8 @@ const HG_PULL_THRESHOLD = 70; // 触摸从顶部下拉超过此像素数才刷�
  * @typedef {object} HGCollectionViewProps
  * @property {Array<any>} [items=[]] 列表数据，按数组顺序展示；缺省显示空态，组件不会请求或修改数据。
  * @property {boolean} [fillHeight=true] 默认填满父级可用宽高；false 且未传 height 时由内容撑高。
- * @property {number|string} [height] 显式视口高度，数字单位为 px；优先于自适应填充。
+ * @property {number|string} [width] 列表整体宽度，数字单位为 px；缺省铺满父级宽度。
+ * @property {number|string} [height] 列表整体高度，数字单位为 px；优先于 fillHeight，分页与状态栏包含在该高度内。
  * @property {number} [columnMinWidth] 自然高度模式的网格最小列宽（px）；缺省保持单列，仅 fillHeight=false 且无 height 时生效。
  * @property {boolean} [loading=false] true 展示加载提示，并阻止重复触底或下拉请求。
  * @property {boolean} [hasMore=false] true 且提供 onLoadMore 时允许触底加载下一批数据。
@@ -33,7 +34,8 @@ const HG_PULL_THRESHOLD = 70; // 触摸从顶部下拉超过此像素数才刷�
 
 /**
  * 类似 UICollectionView 的单列变高复用列表。
- * 默认填满父级分配的区域；父级没有高度约束时使用 520px 视口，slot 按池索引复用 DOM。
+ * 默认填满父级分配的区域；父级没有高度约束时使用 520px 视口基准，slot 按池索引复用 DOM。
+ * 显式 width/height 约束列表整体尺寸；只有内容超出可视宽高时才由内部视口滚动。
  * 子组件以业务 key 隔离状态，不能跨订单复用业务状态。
  * 数据、游标及网络错误均由调用方管理；视口模式仅缓存当前挂载期间的高度。
  * 可选 pagination 使用受控页码和每页条数；分页时不再触底自动加载，避免重复翻页。
@@ -46,7 +48,9 @@ export default class HGCollectionView extends React.Component {
     items: [],
     /** 默认撑满父级可用宽高；false 且未传 height 时由内容撑高。 */
     fillHeight: true,
-    /** 显式视口高度（px 或 CSS 长度），优先于自适应填充；默认 undefined 使用父级区域。 @type {number|string|undefined} */
+    /** 列表整体宽度（px 或 CSS 长度）；默认 undefined 由样式铺满父级宽度。 @type {number|string|undefined} */
+    width: undefined,
+    /** 列表整体高度（px 或 CSS 长度），包含状态栏和分页；优先于 fillHeight，默认 undefined 使用父级区域。 @type {number|string|undefined} */
     height: undefined,
     /** 默认不加载；true 展示加载提示并阻止重复触底/下拉请求。 */
     loading: false,
@@ -387,17 +391,24 @@ export default class HGCollectionView extends React.Component {
   render() {
     const {
       items, getKey, loading, hasMore, pagination,
-      height, fillHeight, ariaLabel, emptyText, loadedText, // 默认值和用途统一见 defaultProps。
+      width, height, fillHeight, ariaLabel, emptyText, loadedText, // 默认值和用途统一见 defaultProps。
     } = this.props;
     const usesViewport = this.hgUsesViewport(); // 填充/固定视口需要复用池，自然高度时完整渲染。
     const fillsParent = fillHeight && height == null; // 显式 height 优先，避免被父级弹性拉伸。
+    const hasExplicitHeight = height != null; // 显式高度约束列表整体，分页与状态栏从中分配空间。
     const offsets = usesViewport ? hgCollectionOffsets(items, getKey, this.hgHeights) : null; // 仅虚拟视口需要累计偏移。
+    const containerStyle = width == null && height == null ? undefined : {
+      ...(width == null ? {} : { width }),
+      ...(height == null ? {} : { height }),
+    };
     return (
-      <div className={`${styles.container} ${fillsParent ? styles.fillContainer : ""}`}>
+      <div
+        className={`${styles.container} ${fillsParent ? styles.fillContainer : ""} ${hasExplicitHeight ? styles.explicitHeightContainer : ""}`}
+        style={containerStyle}
+      >
         <div
           ref={this.hgViewport}
-          className={`${styles.viewport} ${fillsParent ? styles.fillViewport : ""} ${usesViewport ? "" : styles.naturalViewport}`}
-          style={height == null ? undefined : { height }}
+          className={`${styles.viewport} ${fillsParent ? styles.fillViewport : ""} ${hasExplicitHeight ? styles.explicitHeightViewport : ""} ${usesViewport ? "" : styles.naturalViewport}`}
           tabIndex={0}
           role="list"
           aria-label={ariaLabel}

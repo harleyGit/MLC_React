@@ -571,7 +571,7 @@ class HGUserProfilePage extends React.Component {
     return (
       <div className={styles.container}>
         <HGLoading fullscreen text="正在加载用户列表..." visible={loading} />
-        <HGCardPage title="用户列表" extra={this.renderToolbar()}>
+        <HGCardPage className={styles.listCard} title="用户列表" extra={this.renderToolbar()}>
           {this.renderUserList()}
         </HGCardPage>
         {this.renderDeleteModal()}

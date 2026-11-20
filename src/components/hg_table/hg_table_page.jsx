@@ -257,7 +257,7 @@ class VirtualRow extends React.PureComponent {
  *   - sectionHeader 吸顶：滚动时当前 section 的 header 固定在顶部
  *   - sectionFooter 吸底：滚动时当前 section 的 footer 固定在底部
  *
- * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, scroll, fillHeight, rowSelection, renderRowAction, getRowStripeIndex, rowHover。
+ * 输入：columns, dataSource, sections, rowKey, loading, pagination, onChange, width, height, scroll, fillHeight, rowSelection, renderRowAction, getRowStripeIndex, rowHover。
  * rowHover：数据行是否在鼠标悬浮时改变背景，默认 true；false 时保留原有背景及选中态。
  * getRowStripeIndex(record, rowIndex)：可选斑马纹分组序号，同组行共用底色；缺省使用数据行号。
  * columns[].align：标题与内容的水平对齐，left/center/right，默认 center；titleAlign 可单独覆盖标题。
@@ -265,7 +265,8 @@ class VirtualRow extends React.PureComponent {
  * rowSelection：{type: "radio" | "checkbox", selectedRowKeys: [], onChange(keys, rows)}；由调用方持有选择状态。
  * fillHeight 说明：默认开启；表格作为父级弹性布局的子项占满剩余高度，
  *                  表体高度由 ResizeObserver 实测（容器高度扣除表头与分页器）或弹性布局决定，
- *                  随窗口/父级高度动态变化；显式 scroll.y 优先约束表体。
+ *                  随窗口/父级高度动态变化；显式 height 约束表格整体，scroll.y 优先约束表体。
+ * width/height 说明：数字单位为 px，也支持 CSS 长度；仅内容超过指定宽高后，表体才出现对应滚动。
  * @extends {React.Component<Partial<typeof HGTablePage.defaultProps>>}
  */
 class HGTablePage extends React.Component {
@@ -285,6 +286,10 @@ class HGTablePage extends React.Component {
     pagination: false,
     /** 分页变化通知 {current, pageSize, total}，默认 undefined 不通知；组件不自行请求或切片。 @type {((page: {current: number, pageSize: number, total: number}) => void)|undefined} */
     onChange: undefined,
+    /** 表格整体宽度（px 或 CSS 长度）；默认 undefined 由样式铺满父级宽度。 @type {number|string|undefined} */
+    width: undefined,
+    /** 表格整体高度（px 或 CSS 长度），包含表头、表体和分页；默认 undefined 使用 fillHeight。 @type {number|string|undefined} */
+    height: undefined,
     /** 默认 undefined 随父级填充；y 为显式表体高度（px），优先于填充；横向范围由列宽决定。 @type {{x?: number, y?: number}|undefined} */
     scroll: undefined,
     /** 默认填满父级可用宽高；无父级高度时保留 500px 表体；false 且无 scroll.y 时随内容展开。 */
@@ -349,15 +354,15 @@ class HGTablePage extends React.Component {
       if (body) this.hgResizeObserver?.observe(body);
       this.hgObservedBody = body;
     }
-    // 填充模式下按需监听容器节点；节点更换（如模式切换）时重建监听。
+    // 填充或显式整体高度下按需监听容器节点；节点更换（如模式切换）时重建监听。
     const container = this.containerRef.current;
-    const fillsParent = this.hgFillsParent(); // 显式 scroll.y 优先于默认填充。
-    if (container !== this.hgObservedContainer || fillsParent !== this.hgObservedFill) {
+    const usesContainerHeight = this.hgUsesContainerHeight(); // scroll.y 只约束表体，不测量整体剩余高度。
+    if (container !== this.hgObservedContainer || usesContainerHeight !== this.hgObservedFill) {
       this.hgContainerResizeObserver?.disconnect();
-      if (container && fillsParent)
+      if (container && usesContainerHeight)
         this.hgContainerResizeObserver?.observe(container);
       this.hgObservedContainer = container;
-      this.hgObservedFill = fillsParent;
+      this.hgObservedFill = usesContainerHeight;
     }
     this.hgRefreshScrollLayout();
     this.hgMeasureFillHeight();
@@ -369,7 +374,7 @@ class HGTablePage extends React.Component {
    *       避免 ResizeObserver 回调与 setState 形成死循环。
    */
   hgMeasureFillHeight = () => {
-    if (!this.hgFillsParent()) return;
+    if (!this.hgUsesContainerHeight()) return;
     // 直接测量 CSS 分配后的表体，避免分页换行、边框或小容器导致高度相加溢出。
     const nextHeight = this.scrollRef.current?.clientHeight;
     if (!nextHeight) return;
@@ -379,7 +384,10 @@ class HGTablePage extends React.Component {
   };
 
   /** 显式滚动高度优先；其余场景默认由父级区域决定表体大小。 */
-  hgFillsParent = () => Boolean(this.props.fillHeight && !this.props.scroll?.y);
+  hgFillsParent = () => Boolean(this.props.fillHeight && this.props.height == null && !this.props.scroll?.y);
+
+  /** 默认填充或显式整体高度都由容器向表体分配剩余空间；scroll.y 仍单独约束表体。 */
+  hgUsesContainerHeight = () => Boolean(this.props.height != null || this.hgFillsParent());
 
   /** 表头使用表体的可视宽度，使两端最大横滚范围相同且列保持像素对齐。 */
   hgRefreshScrollLayout = () => {
@@ -490,9 +498,9 @@ class HGTablePage extends React.Component {
     const { scroll, fillHeight } = this.props;
     const { fillBodyHeight } = this.state;
     if (scroll?.y) return scroll.y;
-    if (fillHeight && fillBodyHeight) return fillBodyHeight;
+    if (this.hgUsesContainerHeight() && fillBodyHeight) return fillBodyHeight;
     // 填充模式首次测量前保留适当的复用池估值，避免只渲染缓冲区内的行。
-    if (fillHeight) return FILL_BODY_ESTIMATE;
+    if (fillHeight || this.props.height != null) return FILL_BODY_ESTIMATE;
     return this.isSectionMode()
       ? flattenSections(this.props.sections).totalHeight
       : (this.props.dataSource?.length ?? 0) * ROW_HEIGHT;
@@ -824,13 +832,13 @@ class HGTablePage extends React.Component {
 
     if (items.length === 0) {
       return (
-        <div className={styles.bodyWrap} style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined} ref={this.scrollRef} onScroll={this.handleSectionScroll} {...this.hgBodyDragProps()}>
+        <div className={styles.bodyWrap} style={this.props.scroll?.y || this.hgUsesContainerHeight() ? { height: bodyHeight } : undefined} ref={this.scrollRef} onScroll={this.handleSectionScroll} {...this.hgBodyDragProps()}>
           <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
     }
 
-    const poolSize = this.props.scroll?.y || this.props.fillHeight
+    const poolSize = this.props.scroll?.y || this.hgUsesContainerHeight()
       ? Math.ceil(bodyHeight / ROW_HEIGHT) + BUFFER_ROWS * 2
       : items.length;
     const visibleItems = [];
@@ -873,7 +881,7 @@ class HGTablePage extends React.Component {
     return (
       <div
         className={styles.bodyWrap}
-        style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined}
+        style={this.props.scroll?.y || this.hgUsesContainerHeight() ? { height: bodyHeight } : undefined}
         ref={this.scrollRef}
         onScroll={this.handleSectionScroll}
         {...this.hgBodyDragProps()}
@@ -966,7 +974,7 @@ class HGTablePage extends React.Component {
 
     if (totalCount === 0) {
       return (
-        <div className={styles.bodyWrap} style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined} ref={this.scrollRef} onScroll={this.handleScroll} {...this.hgBodyDragProps()}>
+        <div className={styles.bodyWrap} style={this.props.scroll?.y || this.hgUsesContainerHeight() ? { height: bodyHeight } : undefined} ref={this.scrollRef} onScroll={this.handleScroll} {...this.hgBodyDragProps()}>
           <div className={styles.emptyCell} style={{ minWidth: totalWidth }}>暂无数据</div>
         </div>
       );
@@ -975,13 +983,13 @@ class HGTablePage extends React.Component {
     return (
       <div
         className={styles.bodyWrap}
-        style={this.props.scroll?.y || this.props.fillHeight ? { height: bodyHeight } : undefined}
+        style={this.props.scroll?.y || this.hgUsesContainerHeight() ? { height: bodyHeight } : undefined}
         ref={this.scrollRef}
         onScroll={this.handleScroll}
         {...this.hgBodyDragProps()}
       >
         <div className={styles.virtualSpacer} style={{ height: totalHeight, minWidth: totalWidth }}>
-          {Array.from({ length: this.props.scroll?.y || this.props.fillHeight ? poolSize : totalCount }, (_, poolIdx) => {
+          {Array.from({ length: this.props.scroll?.y || this.hgUsesContainerHeight() ? poolSize : totalCount }, (_, poolIdx) => {
             const dataIdx = offset + poolIdx;
             const inBounds = dataIdx >= 0 && dataIdx < totalCount;
             const record = inBounds ? dataSource[dataIdx] : null;
@@ -1022,7 +1030,9 @@ class HGTablePage extends React.Component {
   hgAutoBodyStyle = () => {
     const { fillHeight, scroll } = this.props;
     if (scroll?.y) return { maxHeight: scroll.y };
-    return fillHeight ? { flex: `1 1 ${FILL_BODY_ESTIMATE}px`, minHeight: 0 } : undefined;
+    return fillHeight || this.props.height != null
+      ? { flex: `1 1 ${FILL_BODY_ESTIMATE}px`, minHeight: 0 }
+      : undefined;
   };
 
   /**
@@ -1086,13 +1096,18 @@ class HGTablePage extends React.Component {
     // 默认开启自然行高：表格字段超出列宽时换行展示，避免固定行高虚拟列表裁切长内容。
     // fillHeight：填充模式开关，开启后容器作为父级弹性子项占满剩余高度，表体高度随容器动态变化。
     // rowHover：默认开启行悬浮背景；关闭时不覆盖斑马纹或分组底色。
-    const { className = "", autoRowHeight = true, rowHover = true } = this.props; // 默认值和用途见 defaultProps。
+    const { className = "", width, height, autoRowHeight = true, rowHover = true } = this.props; // 默认值和用途见 defaultProps。
     const fillHeight = this.hgFillsParent(); // 显式 scroll.y 时保持固定视口，不拉伸外层。
+    const usesContainerHeight = this.hgUsesContainerHeight(); // 显式整体高度也让表体占满扣除表头、分页后的剩余区域。
     const useSections = this.isSectionMode();
-    const tableClassName = `${styles.tableContainer} ${fillHeight ? styles.fillContainer : ""} ${autoRowHeight ? styles.autoHeightTableContainer : ""} ${rowHover ? styles.hoverRows : ""} ${className}`;
+    const tableClassName = `${styles.tableContainer} ${usesContainerHeight ? styles.boundedHeightContainer : ""} ${fillHeight ? styles.fillContainer : ""} ${height != null ? styles.explicitHeightContainer : ""} ${autoRowHeight ? styles.autoHeightTableContainer : ""} ${rowHover ? styles.hoverRows : ""} ${className}`;
+    const tableStyle = width == null && height == null ? undefined : {
+      ...(width == null ? {} : { width }),
+      ...(height == null ? {} : { height }),
+    };
 
     return (
-      <div className={tableClassName} ref={this.containerRef}>
+      <div className={tableClassName} style={tableStyle} ref={this.containerRef}>
         {this.renderLoading()}
         {!useSections && this.renderHeader()}
         {useSections

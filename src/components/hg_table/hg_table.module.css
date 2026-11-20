@@ -5,7 +5,7 @@
   box-sizing: border-box;
   font-size: 14px;
   color: rgba(0, 0, 0, 0.85);
-  overflow-x: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -15,18 +15,23 @@
 }
 
 /* ===== 填充模式 ===== */
-/* 填充父级分配的区域；无父级高度时由表体的 500px 基准建立视口。 */
-.fillContainer {
-  flex: 1 1 0%;
+/* 默认填充或显式 height 都在组件内部为表头、表体和分页分配空间。 */
+.boundedHeightContainer {
   height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
-.fillContainer > .bodyWrap {
+.boundedHeightContainer > .bodyWrap {
   flex: 1 1 500px;
   min-height: 0;
 }
+
+/* 填充父级分配的区域；无父级高度时由表体的 500px 基准建立视口。 */
+.fillContainer { flex: 1 1 0%; }
+
+/* 显式整体高度不参与父级剩余空间伸缩，严格采用调用方传入的尺寸。 */
+.explicitHeightContainer { flex: 0 0 auto; }
 
 /* ===== Loading 遮罩 ===== */
 .loadingOverlay {
