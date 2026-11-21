@@ -1,0 +1,109 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import { setImmediate } from "node:timers";
+import { transformSync } from "@swc/core";
+import React from "react";
+
+/** 测试 Provider 的重复刷新边界；所有请求和浏览器事件均使用替身。 */
+function hgFixture() {
+  const hgModule = { exports: {} };
+  const hgSource = readFileSync(new URL("./hg_iam_provider.jsx", import.meta.url), "utf8");
+  const hgCode = transformSync(hgSource, {
+    filename: "hg_iam_provider.jsx",
+    jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" },
+    module: { type: "commonjs" },
+  }).code;
+  const hgListeners = new Map(); // 仅记录当前 Provider 注册的事件；没有真实窗口。
+  const hgWindow = {
+    addEventListener: (name, callback) => { hgListeners.set(name, callback); },
+    removeEventListener: (name) => { hgListeners.delete(name); },
+  };
+  let hgFetchCount = 0; // 本轮向权威接口发起的请求次数。
+  const hgResolves = []; // 逐个控制异步响应，验证变更通知在首个请求后补拉。
+  let hgOwner = "operator-a"; // 模拟当前登录账号；切换后旧响应不得覆盖新账号。
+  runInNewContext(hgCode, {
+    module: hgModule, exports: hgModule.exports,
+    require: (id) => {
+      if (id === "react") return React;
+      if (id.endsWith("hg_iam_session")) return {
+        hgClearIAM: () => {}, hgGetIAMSnapshot: () => null,
+        hgLoadLocalIAM: async () => null,
+        hgCurrentIAMUser: () => hgOwner,
+        hgCurrentIAMExpiry: () => Date.now() + 3_600_000,
+        hgApplyPushedIAM: async () => false,
+        hgRefreshIAM: () => {
+          hgFetchCount += 1;
+          return new Promise((resolve) => { hgResolves.push(resolve); });
+        },
+        hgSubscribeIAM: () => () => {},
+      };
+      if (id.endsWith("hg_iam_realtime")) return { __esModule: true, default: class {
+        hgStart() { return Promise.resolve(); }
+        hgClose() {}
+      } };
+      throw new Error(`未预期的依赖: ${id}`);
+    },
+    window: hgWindow, clearTimeout, setTimeout,
+  });
+  const hgProvider = new hgModule.exports.HGIAMAccessProvider({});
+  hgProvider.setState = (next) => {
+    hgProvider.state = { ...hgProvider.state, ...next };
+  };
+  return {
+    provider: hgProvider, listeners: hgListeners,
+    fetchCount: () => hgFetchCount,
+    switchOwner: (owner) => { hgOwner = owner; },
+    resolve: (value) => hgResolves.shift()(value),
+  };
+}
+
+const hgFlush = () => new Promise((resolve) => setImmediate(resolve));
+
+test("窗口获焦不触发权限拉取，同一账号并发变更仅复核一次", async () => {
+  const hg = hgFixture();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  assert.equal(hg.fetchCount(), 1);
+  assert.equal(hg.listeners.has("focus"), false);
+  const hgFirst = hg.provider.hgRefresh();
+  const hgSecond = hg.provider.hgRefresh();
+  await hgFlush();
+  assert.equal(hg.fetchCount(), 1);
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await Promise.all([hgFirst, hgSecond]);
+  hg.provider.componentWillUnmount();
+});
+
+test("请求进行期间收到权限变更时，首个响应后必须再次请求", async () => {
+  const hg = hgFixture();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.listeners.get("hg:iam-access-changed")({ detail: { force: true } });
+  hg.listeners.get("hg:iam-access-changed")({ detail: { force: true } });
+  assert.equal(hg.fetchCount(), 1);
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
+  assert.equal(hg.fetchCount(), 2);
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
+  hg.provider.componentWillUnmount();
+});
+
+test("账号切换立即发起新请求，旧账号的延迟响应不可覆盖", async () => {
+  const hg = hgFixture();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.switchOwner("operator-b");
+  hg.listeners.get("hg:auth-changed")();
+  await hgFlush();
+  assert.equal(hg.fetchCount(), 2);
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
+  assert.equal(hg.provider.state.snapshot, null);
+  hg.resolve({ user_id: "operator-b", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
+  assert.equal(hg.provider.state.snapshot?.user_id, "operator-b", JSON.stringify(hg.provider.state));
+  hg.provider.componentWillUnmount();
+});

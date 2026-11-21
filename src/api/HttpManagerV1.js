@@ -200,7 +200,7 @@ class NetAPI {
         }
 
         const errorData = await response.json().catch(() => null);
-        if (response.status === 403 && !url.includes("/iam/me/access")) {
+        if (response.status === 403 && !url.includes("/iam/me/")) {
           // 服务端始终是最终授权方；权限撤销后尽快清理本地展示，不回写任何权限数据。
           hgNotifyIAMChanged({ broadcast: false });
         }

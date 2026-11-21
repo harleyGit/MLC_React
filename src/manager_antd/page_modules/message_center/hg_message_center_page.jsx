@@ -85,6 +85,7 @@ class HGMessageCenterPage extends Component {
 
   componentDidMount() {
     this.hgMounted = true;
+    window.addEventListener("hg:iam-notification", this.hgOnIAMNotification);
     if (HGMessageCenterVM.isRemote()) {
       this.loadRemoteData();
       return;
@@ -94,6 +95,7 @@ class HGMessageCenterPage extends Component {
 
   componentWillUnmount() {
     this.hgMounted = false;
+    window.removeEventListener("hg:iam-notification", this.hgOnIAMNotification);
     this.hgIMController.abort();
     this.hgIMRealtime?.hgClose();
     HGMessageCenterVM.hgRealtime = null;
@@ -125,6 +127,11 @@ class HGMessageCenterPage extends Component {
       loading: false,
       now: Date.now(),
     });
+  };
+
+  /** IAM 实时消息只触发当前登录用户的权威通知补拉，不信任消息体自称的通知 ID。 */
+  hgOnIAMNotification = () => {
+    if (this.hgMounted && HGMessageCenterVM.isRemote()) this.loadRemoteData();
   };
 
   /** remote 模式的一次性初始化：未读汇总、首个分类列表与会话列表。 */

@@ -44,6 +44,9 @@ export default class HGSystemNotifyTemplateVM {
       { version },
       { _hasRetried: true }
     );
+  /** 仅发布已保存的角色更新模板版本，不在客户端产生或推送权限数据。 */
+  static publish = (id, version) =>
+    HGNet.post(`${hgBase}/publish?id=${encodeURIComponent(id)}`, { version }, { _hasRetried: true });
   static errorMessage = (error) =>
     Number(error?.status) === 409 || Number(error?.code) === 409
       ? "模板编码重复或版本已变更。请核对列表并重新打开编辑，不会覆盖现有版本。"

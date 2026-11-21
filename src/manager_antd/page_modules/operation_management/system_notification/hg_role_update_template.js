@@ -1,4 +1,4 @@
-/** 角色更新通知的可编辑草稿；仅供管理员经模板创建接口提交，不绑定发送事件。 */
+/** 角色更新通知的可编辑草稿；发布后由服务端事件消费者填充并投递。 */
 export function hgRoleUpdateTemplateDraft(emptyTemplate) {
   return {
     ...emptyTemplate,
@@ -12,6 +12,6 @@ export function hgRoleUpdateTemplateDraft(emptyTemplate) {
     }, null, 2),
     action_type: "none",
     action_config: "{}",
-    channels: '["in_app"]',
+    channels: '["in_app","realtime"]',
   };
 }

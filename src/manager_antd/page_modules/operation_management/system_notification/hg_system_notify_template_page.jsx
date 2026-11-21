@@ -19,7 +19,7 @@ const HG_CATEGORIES = Object.freeze([
   ["marketing", "营销"],
 ]); // 模板分类枚举与服务端一致，列表仅展示服务端已有模板。
 
-/** 系统通知模板管理页：管理草稿，不负责通知发送及线上发布。 */
+/** 系统通知模板管理页：角色更新模板由管理员显式发布，实际通知发送由服务端完成。 */
 export default class HGSystemNotifyTemplatePage extends React.Component {
   static contextType = HGIAMContext;
   static defaultProps = {
@@ -220,6 +220,19 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
     }
   };
 
+  /** 发布前读取最新版本，避免把已变更的草稿误发布为另一版本。 */
+  hgPublish = async (item) => {
+    if (!window.confirm(`发布角色更新模板「${item.name}」的 v${item.version}？`)) return;
+    try {
+      await HGSystemNotifyTemplateVM.publish(item.id, item.version);
+      if (!this.hgMounted) return;
+      hgMessage.success("角色更新模板已发布");
+      this.hgLoad(true);
+    } catch (error) {
+      if (this.hgMounted) this.setState({ hgError: HGSystemNotifyTemplateVM.errorMessage(error) });
+    }
+  };
+
   /** 使用稳定模板 ID 渲染卡片；从未发布版本才可显示删除入口。 */
   hgRenderCard = (item) => (
     <article className={styles.card}>
@@ -232,7 +245,12 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
       <p className={styles.code}>{item.template_code}</p>
       <p>{item.title_template}</p>
       <p className={styles.body}>{item.body_template}</p>
-      <div className={styles.actions}>
+        <div className={styles.actions}>
+        {item.template_code === "iam.role.updated" &&
+          item.published_version !== item.version &&
+          this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE) && (
+            <button type="button" onClick={() => this.hgPublish(item)}>发布当前版本</button>
+          )}
         {!this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE) && (
           <button
             type="button"
@@ -272,7 +290,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
       <div className={styles.header}>
         <div>
           <h2>系统通知模板</h2>
-          <p>管理纯文本模板草稿；发送、审核和发布尚未开放。</p>
+          <p>角色更新通知可显式发布；发布后服务端按已发布版本生成系统消息。</p>
         </div>
         {this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_CREATE) && (
           <div className={styles.actions}>
@@ -381,7 +399,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
             返回列表
           </button>
         </div>
-        <p>仅保存草稿。编辑会创建新版本，模板编码不可更改；不发送通知，也不会自动关联角色变更事件。</p>
+        <p>保存仅生成草稿；角色更新模板需单独发布，发送时只使用已发布版本。</p>
         {this.state.hgError && (
           <p role="alert" className={styles.error}>
             {this.state.hgError}

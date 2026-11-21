@@ -90,7 +90,7 @@ test("预填角色更新模板，经创建接口提交后刷新列表、读取�
   assert.deepEqual(JSON.parse(JSON.stringify(create[1].variables_schema)), {
     role_name: { type: "string", required: true, max_length: 128 },
   });
-  assert.deepEqual(create[1].channels, ["in_app"]);
+  assert.deepEqual(create[1].channels, ["in_app", "realtime"]);
   assert.equal(page.state.hgItems[0].id, "9007199254740993");
   assert.equal(page.state.hgItems[0].template_code, "iam.role.updated");
   assert.equal(page.state.hgEditing, false);
