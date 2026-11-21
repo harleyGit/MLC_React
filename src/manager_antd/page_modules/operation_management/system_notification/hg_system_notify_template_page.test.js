@@ -197,3 +197,31 @@ test("变量行未填写名称时本地校验拦截，不调用创建接口", as
   assert.match(page.state.hgError, /未填写变量名/);
   assert.equal(page.state.hgEditing, true, "草稿保留在编辑器中");
 });
+
+test("新建支持大写编码；切换为无跳转清除旧 route_name 并禁用点击配置", () => {
+  const page = hgTestPage({ errorMessage: (error) => error.message }, []);
+  page.hgCreate();
+  page.hgChange("template_code", "SMS_001");
+  const field = page.hgRenderField("模板编码", "template_code", { maxLength: 100 });
+  const input = React.Children.toArray(field.props.children).find((child) => child?.type === "input");
+  assert.equal(input.props.pattern, "[A-Za-z][A-Za-z0-9_.]{1,99}");
+  assert.match(input.props.title, /区分大小写/);
+  assert.equal(page.state.hgForm.action_config.route_name, "order_detail");
+  page.hgChange("action_type", "none");
+  assert.deepEqual(JSON.parse(JSON.stringify(page.state.hgForm.action_config)), {
+    route_name: "", params: [], extra: {},
+  });
+  const body = hgTemplatePayload(page.state.hgForm, false);
+  assert.equal(body.template_code, "SMS_001");
+  assert.deepEqual(body.action_config, {});
+  const actionEditor = page.hgRenderActionConfigEditor(false);
+  const controls = [];
+  function collect(element) {
+    if (!React.isValidElement(element)) return;
+    if (["input", "button"].includes(element.type)) controls.push(element);
+    React.Children.forEach(element.props.children, collect);
+  }
+  collect(actionEditor);
+  assert.ok(controls.length > 0);
+  assert.ok(controls.every((control) => control.props.disabled === true));
+});

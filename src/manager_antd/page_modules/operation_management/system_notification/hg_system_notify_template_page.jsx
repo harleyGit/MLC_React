@@ -192,10 +192,16 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
     this.hgLoad(true);
   };
 
-  /** 受控输入始终保留尚未提交的用户编辑，不在异步返回时局部覆盖。 */
+  /** 受控输入保留用户编辑；选择无跳转时清空不可再提交的路由配置。 */
   hgChange = (field, value) =>
     this.setState((state) => ({
-      hgForm: { ...state.hgForm, [field]: value },
+      hgForm: {
+        ...state.hgForm,
+        [field]: value,
+        ...(field === "action_type" && value === "none"
+          ? { action_config: { route_name: "", params: [], extra: {} } }
+          : {}),
+      },
       hgError: "",
     }));
 
@@ -492,6 +498,13 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
             min={options.number ? 1 : undefined}
             max={options.number ? 3 : undefined}
             maxLength={options.maxLength}
+            pattern={field === "template_code" && !this.state.hgEditingID
+              ? "[A-Za-z][A-Za-z0-9_.]{1,99}"
+              : undefined}
+            title={field === "template_code"
+              ? "2-100 位，以英文字母开头，仅允许英文字母、数字、下划线和点；区分大小写"
+              : undefined}
+            required={field === "template_code" && !this.state.hgEditingID}
             readOnly={
               (!this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE) &&
                 Boolean(this.state.hgEditingID)) ||
@@ -505,6 +518,9 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
               )
             }
           />
+        )}
+        {field === "template_code" && !this.state.hgEditingID && (
+          <small>支持 SMS_001；编码区分大小写，创建后不可修改。</small>
         )}
       </div>
     );
@@ -616,6 +632,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
    */
   hgRenderActionConfigEditor = (locked) => {
     const { action_type, action_config } = this.state.hgForm;
+    const disabled = locked || action_type === "none"; // 无跳转时不允许填写 route_name 或参数。
     return (
       <div className={styles.configBlock}>
         <div className={styles.configHead}>
@@ -627,7 +644,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
                 : "route_name 为内部路由名；参数值可引用已声明的变量，投递时由服务端填充。"}
             </p>
           </div>
-          <button type="button" onClick={this.hgAddActionParam} disabled={locked}>
+          <button type="button" onClick={this.hgAddActionParam} disabled={disabled}>
             增加参数
           </button>
         </div>
@@ -639,7 +656,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
               maxLength={100}
               placeholder="如 order_detail"
               value={action_config.route_name}
-              disabled={locked}
+              disabled={disabled}
               onChange={(e) => this.hgChangeActionConfig({ route_name: e.target.value })}
             />
           </label>
@@ -656,7 +673,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
                   maxLength={64}
                   placeholder="如 order_no"
                   value={param.key}
-                  disabled={locked}
+                  disabled={disabled}
                   onChange={(e) => this.hgChangeActionParam(index, "key", e.target.value)}
                 />
               </label>
@@ -667,14 +684,14 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
                   maxLength={200}
                   placeholder="如 {{order_no}}"
                   value={param.value}
-                  disabled={locked}
+                  disabled={disabled}
                   onChange={(e) => this.hgChangeActionParam(index, "value", e.target.value)}
                 />
               </label>
               <button
                 type="button"
                 className={styles.danger}
-                disabled={locked}
+                disabled={disabled}
                 onClick={() => this.hgRemoveActionParam(index)}
               >
                 删除
