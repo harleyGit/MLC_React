@@ -13,7 +13,7 @@ export default class HGIAMRealtime {
     this.hgOnOffline = onOffline; // 失去实时能力时隐藏依赖授权展示的页面。
   }
 
-  /** 网关 JWT 仅由 Go 签发；频道和地址必须与同一请求返回值一致。 */
+  /** 仅首次获取本人会话票据；重连由网关 connect proxy 校验服务端会话，不进行分钟级 HTTP 续签。 */
   async hgStart() {
     const [{ Centrifuge }, grant] = await Promise.all([import("centrifuge"), hgIAMRealtimeGrant()]);
     if (this.hgClosed) return;
@@ -21,18 +21,10 @@ export default class HGIAMRealtime {
     if (!grant?.token || grant.channel !== channel) throw new Error("IAM 实时频道不匹配");
     const url = hgIMEndpoint(grant.url);
     this.hgClient = new Centrifuge(url, {
-      token: grant.token,
-      getToken: async () => {
-        try {
-          const next = await hgIAMRealtimeGrant();
-          if (this.hgClosed || next?.channel !== channel || hgIMEndpoint(next.url) !== url || !next.token) {
-            throw new Centrifuge.UnauthorizedError();
-          }
-          return next.token;
-        } catch (error) {
-          if (this.hgClosed || [401, 403].includes(error?.status)) throw new Centrifuge.UnauthorizedError();
-          throw error;
-        }
+      data: { token: grant.token }, // 仅发到受控网关；服务端不依赖浏览器声明的 user/channel。
+      getData: async () => {
+        if (this.hgClosed) throw new Centrifuge.UnauthorizedError();
+        return { token: grant.token }; // 每次重连只重验既有会话，不调用 /me/realtime。
       },
       minReconnectDelay: 1000, maxReconnectDelay: 15000,
     });

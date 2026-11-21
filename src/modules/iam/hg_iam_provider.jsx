@@ -20,6 +20,7 @@ export class HGIAMAccessProvider extends React.Component {
   hgQueuedRefresh = false; // 请求期间收到明确变更信号时，完成后再核验一次。
   hgRealtime = null; // 当前账号的唯一 IAM 实时连接；账号切换或卸载立即关闭。
   hgRealtimeOwner = ""; // 实时频道绑定的 JWT uid，空串表示没有连接。
+  hgRealtimeDisabledOwner = ""; // 当前登录账号收到 503 后不每分钟重试票据接口；账号切换时重置。
   hgAuthTimer = null; // JWT 自身到期时清理授权视图；无登录状态时不设定时器。
 
   componentDidMount() {
@@ -75,6 +76,7 @@ export class HGIAMAccessProvider extends React.Component {
   /** 只合并同账号的重复请求；跨账号切换仍立即开始新请求。 */
   hgRefresh = (options = {}) => {
     const owner = hgCurrentIAMUser();
+    if (this.hgRealtimeDisabledOwner && this.hgRealtimeDisabledOwner !== owner) this.hgRealtimeDisabledOwner = "";
     if (this.hgRealtimeOwner && this.hgRealtimeOwner !== owner) this.hgCloseRealtime();
     if (this.hgInFlight?.owner === owner) return this.hgInFlight.promise;
     if (this.hgInFlight && this.hgInFlight.owner !== owner) this.hgQueuedRefresh = false;
@@ -149,7 +151,7 @@ export class HGIAMAccessProvider extends React.Component {
 
   /** 页面级私有 IM 连接不依赖聊天页面；订阅成功与每次重连都同步一次弥补漏消息。 */
   hgEnsureRealtime = (owner) => {
-    if (!owner || this.hgRealtimeOwner === owner) return;
+    if (!owner || this.hgRealtimeOwner === owner || this.hgRealtimeDisabledOwner === owner) return;
     this.hgCloseRealtime();
     this.hgRealtimeOwner = owner;
     const realtime = new HGIAMRealtime(owner, async (snapshot, eventId) => {
@@ -175,6 +177,7 @@ export class HGIAMAccessProvider extends React.Component {
       if (this.hgMounted && this.hgRealtime === realtime) {
         if (error?.status === 503) {
           // IM 尚未启用的旧环境继续使用服务端一分钟快照复核，绝不将它误判为长期授权。
+          this.hgRealtimeDisabledOwner = owner;
           this.hgCloseRealtime();
         } else {
           this.setState({ status: "error", snapshot: null });

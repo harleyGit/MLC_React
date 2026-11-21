@@ -107,3 +107,222 @@ button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* ================= 结构化配置编辑器 ================= */
+.gridFull {
+  grid-column: 1 / -1; /* 结构化配置块横跨整行，避免被表单栅格拆分。 */
+}
+.configBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-subtle, #f6faff);
+}
+.configHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.configHead p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.configHead button {
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.configEmpty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.configRouteRow {
+  display: flex;
+}
+.configRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.1fr) minmax(110px, 0.8fr) auto minmax(96px, 0.7fr) minmax(140px, 1.4fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+@media (max-width: 860px) {
+  .configRow {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+.configCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.configCell span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.configCell input,
+.configCell select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-bg-surface);
+  font: inherit;
+}
+.configCell input:focus-visible,
+.configCell select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.configCellCheck {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 9px; /* 与文本输入框基线对齐。 */
+  font-size: 13px;
+  cursor: pointer;
+}
+.configRow > button {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-bg-surface);
+  cursor: pointer;
+}
+.configRow > button.danger {
+  color: var(--color-danger);
+}
+.channelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.channelOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  cursor: pointer;
+}
+.channelOption:has(input:checked) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft, #eaf4ff);
+}
+.channelOption input {
+  accent-color: var(--color-primary);
+}
+.channelExtra {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 14px;
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.channelExtra button {
+  padding: 3px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* ================= 真实消息预览 ================= */
+.preview {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-subtle, #f6faff);
+}
+.previewHead h3 {
+  margin: 0 0 4px;
+}
+.previewHead p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.previewCard {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+.previewAvatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary-soft, #eaf4ff);
+  color: var(--color-primary);
+}
+.previewMain {
+  flex: 1;
+  min-width: 0;
+}
+.previewTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.previewUnread {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+.previewBody {
+  margin: 6px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.previewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.previewTag {
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+}
+.previewAction {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--color-link, #1677ff);
+}
+.previewWarn {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--color-warning, #c53225);
+}

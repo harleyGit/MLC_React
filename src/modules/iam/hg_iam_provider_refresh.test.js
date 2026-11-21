@@ -23,6 +23,8 @@ function hgFixture() {
   let hgFetchCount = 0; // 本轮向权威接口发起的请求次数。
   const hgResolves = []; // 逐个控制异步响应，验证变更通知在首个请求后补拉。
   let hgOwner = "operator-a"; // 模拟当前登录账号；切换后旧响应不得覆盖新账号。
+  let hgRealtimeStarts = 0; // 同一账号 503 后不应在下一次权限复核时再次申请频道票据。
+  let hgRealtimeFailure = false; // true 模拟未启用 IM 的旧环境。
   runInNewContext(hgCode, {
     module: hgModule, exports: hgModule.exports,
     require: (id) => {
@@ -40,7 +42,10 @@ function hgFixture() {
         hgSubscribeIAM: () => () => {},
       };
       if (id.endsWith("hg_iam_realtime")) return { __esModule: true, default: class {
-        hgStart() { return Promise.resolve(); }
+        hgStart() {
+          hgRealtimeStarts += 1;
+          return hgRealtimeFailure ? Promise.reject({ status: 503 }) : Promise.resolve();
+        }
         hgClose() {}
       } };
       throw new Error(`未预期的依赖: ${id}`);
@@ -54,6 +59,8 @@ function hgFixture() {
   return {
     provider: hgProvider, listeners: hgListeners,
     fetchCount: () => hgFetchCount,
+    realtimeStarts: () => hgRealtimeStarts,
+    realtimeUnavailable: () => { hgRealtimeFailure = true; },
     switchOwner: (owner) => { hgOwner = owner; },
     resolve: (value) => hgResolves.shift()(value),
   };
@@ -73,6 +80,22 @@ test("窗口获焦不触发权限拉取，同一账号并发变更仅复核一�
   assert.equal(hg.fetchCount(), 1);
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await Promise.all([hgFirst, hgSecond]);
+  hg.provider.componentWillUnmount();
+});
+
+test("IM 返回 503 后不随旧环境一分钟复核反复请求实时凭据", async () => {
+  const hg = hgFixture();
+  hg.realtimeUnavailable();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
+  assert.equal(hg.realtimeStarts(), 1);
+  const refresh = hg.provider.hgRefresh();
+  await hgFlush();
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await refresh;
+  assert.equal(hg.realtimeStarts(), 1);
   hg.provider.componentWillUnmount();
 });
 

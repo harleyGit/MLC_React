@@ -21,6 +21,7 @@ import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { HG_STORES } from "../../../infrastructure/database/HGDatabaseSchema";
 import { hgLocalDataService } from "../../../infrastructure/storage/HGLocalDataService";
 import { hgEvaluateAccess } from "../../../modules/iam/hg_access_evaluator";
+import { hgRevokeIAMLogin } from "../../../modules/iam/hg_iam_api";
 import { HGIAMContext } from "../../../modules/iam/hg_iam_provider";
 import { hgCurrentIAMUser } from "../../../modules/iam/hg_iam_session";
 import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
@@ -301,6 +302,12 @@ class HGTopNavLayout extends Component {
         }
       }
       if (hgIMOwner() !== hgOwner) return;
+      try {
+        await hgRevokeIAMLogin();
+      } catch {
+        message.warning("服务端会话或实时连接撤销未确认。", 8000);
+        if (!window.confirm("服务端撤销未确认，是否仅退出本地登录？旧连接可能仍存活。")) return;
+      }
       logout();
       this.props.pageNavigator.open({ page: PAGE.LOGIN });
     } finally {

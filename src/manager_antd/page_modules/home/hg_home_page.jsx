@@ -5,6 +5,7 @@ import HGIMCallPanel from "../../../components/hg_im_call/hg_im_call_panel";
 import HGIMMessageList from "../../../components/hg_im_messages/hg_im_message_list";
 import { hgFormatConversationTime } from "../../../components/hg_im_messages/hg_im_message_time.js";
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
+import { hgRevokeIAMLogin } from "../../../modules/iam/hg_iam_api";
 import { logout } from "../../auth/hg_auth";
 import styles from "./hg_home.module.css";
 import HGHomeVM from "./hg_home_vm";
@@ -252,6 +253,12 @@ export default class HGHomePage extends React.Component {
         this.setState({
           hgNotice: "设备撤销未确认；可重试撤销或直接退出本地登录。",
         });
+      return;
+    }
+    try {
+      await hgRevokeIAMLogin();
+    } catch {
+      if (this.hgMounted) this.setState({ hgNotice: "服务端会话撤销未确认；可重试或仅退出本地登录，旧连接可能仍存活。" });
       return;
     }
     logout();

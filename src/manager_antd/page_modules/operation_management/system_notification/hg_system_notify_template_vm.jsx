@@ -13,17 +13,21 @@ export { hgTemplateToForm, hgTemplatePayload } from "./hg_template_form.js";
 
 const hgBase = HGMANAGER_API.NOTIFICATION_TEMPLATES; // 模板管理专用前缀，所有写入复用现有鉴权和签名请求层。
 
-/** 表单初始值不含业务通知正文；创建、编辑均由服务端权威数据驱动。 */
+/**
+ * 表单初始值不含业务通知正文；创建、编辑均由服务端权威数据驱动。
+ * variables_schema 为变量条目数组、action_config 为 route_name + 参数键值对，
+ * 全部通过编辑器按钮增删配置，不再以 JSON 文本编辑；契约见 hg_template_form.js。
+ */
 export const HG_EMPTY_TEMPLATE = Object.freeze({
   template_code: "",
   name: "",
   category: "system",
   title_template: "",
   body_template: "",
-  variables_schema: "{}",
+  variables_schema: [],
   action_type: "none",
-  action_config: "{}",
-  channels: '["in_app"]',
+  action_config: { route_name: "", params: [] },
+  channels: ["in_app"],
   priority: 2,
   locale: "zh-CN",
   version: 0,

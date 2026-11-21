@@ -10,10 +10,13 @@ export const hgSyncAccess = () => HGNet.get("/api/v1/iam/me/sync", {}, {
   headers: { "Cache-Control": "no-store" },
 });
 
-/** 当前 JWT 本人专属的短期自动订阅凭据；不向客户端开放频道选择。 */
+/** 首次连接获取当前登录会话票据；网关每次重连都向后端验证 sid，不在浏览器定期续签。 */
 export const hgIAMRealtimeGrant = () => HGNet.get("/api/v1/iam/me/realtime", {}, {
   headers: { "Cache-Control": "no-store" },
 });
+
+/** 用户主动退出时先撤销服务端会话并断开本人 Socket；失败由页面决定是否仅本地退出。 */
+export const hgRevokeIAMLogin = () => HGNet.post("/api/v1/iam/me/logout", {});
 
 /** 无资源时预判全局授权；具体资源目前仅支持已上架商品编辑，业务 API 仍须二次鉴权。 */
 export const hgAuthorize = (permission, resource) =>
