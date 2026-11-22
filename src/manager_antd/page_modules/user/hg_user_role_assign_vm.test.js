@@ -14,7 +14,7 @@ function hgRoleVM(hgGet, hgPost = async () => ({ granted: true })) {
   runInNewContext(hgCode, {
     module: hgModule, exports: hgModule.exports,
     require: (hgDependency) => hgDependency.endsWith("hg_api_constants")
-       ? { HGMANAGER_API: { IAM_ROLE_LIST: "/roles/list", IAM_BINDING_LIST: "/bindings/list", IAM_PERMISSION_LIST: "/permissions/list", IAM_SCOPE_TYPE_LIST: "/scope-types/list", IAM_BINDING_GRANT_DIRECT: "/bindings/grant-direct", IAM_BINDING_GRANT_DIRECT_BATCH: "/bindings/grant-direct-batch" } }
+       ? { HGMANAGER_API: { IAM_ROLE_LIST: "/roles/list", IAM_BINDING_LIST: "/bindings/list", IAM_PERMISSION_LIST: "/permissions/list", IAM_SCOPE_TYPE_LIST: "/scope-types/list", IAM_SCOPE_RESOURCE_LIST: "/scope-resources/list", IAM_BINDING_GRANT_DIRECT: "/bindings/grant-direct", IAM_BINDING_GRANT_DIRECT_BATCH: "/bindings/grant-direct-batch" } }
       : { default: { get: hgGet, post: hgPost }, __esModule: true },
   });
   return hgModule.exports.default;
@@ -43,6 +43,16 @@ test("作用域目录来自服务端且批量授权透传每个绑定的显式�
   assert.equal((await hgVM.fetchScopeTypes()).list[0].code, "shop");
   await hgVM.grantDirectBatch({ userId: "target-1", bindings: [{ roleId: "7", scopeType: "shop", scopeId: "shop-1", permissions: ["mall:product:create"] }, { roleId: "8", scopeType: "shop", scopeId: "shop-1", permissions: [] }], mfaCode: "123456" });
   assert.deepEqual(hgCalls, [["/scope-types/list", 50], ["/bindings/grant-direct-batch", "target-1", [["mall:product:create"], []], 6]]);
+});
+
+test("作用域资源候选按类型和游标查询，不在前端构造资源 ID", async () => {
+  const hgCalls = []; // 只记录查询参数，不访问真实组织或商家目录。
+  const hgVM = hgRoleVM(async (url, params) => {
+    hgCalls.push([url, params.scopeType, params.cursor, params.pageSize]);
+    return { list: [{ id: "shop-1", name: "店铺" }], hasMore: false };
+  });
+  assert.equal((await hgVM.fetchScopeResources("shop", "42")).list[0].id, "shop-1");
+  assert.deepEqual(hgCalls, [["/scope-resources/list", "shop", "42", 50]]);
 });
 
 test("即时授权仅提交既有角色及绑定作用域；不提交客户端查看的权限编码", async () => {

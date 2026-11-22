@@ -32,7 +32,7 @@ function hgScopeTypePage(hgProps = {}, hgVM = {}, hgMessage = { success() {}, er
       if (hgDependency.endsWith("hg_table_page")) return { default: HGTestTable, __esModule: true };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
       if (hgDependency.endsWith("hg_permission")) return { HGAuthButton: HGTestButton };
-      if (hgDependency.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant" } };
+       if (hgDependency.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant", IAM_GRANT_DIRECT: "iam:role:grant_direct" } };
       if (hgDependency.endsWith("hg_switch_page")) return { default: HGTestSwitch, __esModule: true };
       if (hgDependency.endsWith("hg_message_page")) return { hgMessage };
       if (hgDependency.endsWith("hg_scope_type.module.css")) return { scopeTypePage: "scopeTypePage" };
@@ -52,6 +52,26 @@ test("列表页由单个容器包裹页头与卡片，避免页头被 flex 拉�
   assert.equal(hgChildren[0].props.title, "作用域类型");
   assert.equal(hgChildren[1].type, HGTestCard); // 次个子元素为列表卡片，与页头同处普通文档流。
   assert.equal(hgChildren[1].props.title, "作用域类型列表");
+});
+
+test("仅对已启用的新作用域登记资源，ID 只来自服务端", async () => {
+  const hgCalls = []; // 只核对类型和名称，不访问真实 IAM 接口。
+  const hgMessages = []; // 接口结果文案，不保存个人资料。
+  const hgPage = hgScopeTypePage({}, {
+    registerResource: async (...args) => { hgCalls.push(args); return { id: "server-id", name: args[1] }; },
+  }, { success: (text) => hgMessages.push(text), error: (text) => hgMessages.push(text) });
+  hgPage.hgMounted = true;
+  hgPage.setState = (patch) => { hgPage.state = { ...hgPage.state, ...(typeof patch === "function" ? patch(hgPage.state) : patch) }; };
+  hgPage.setState({ items: [{ code: "creator", name: "创作者", status: 1 }, { code: "region", name: "区域", status: 0 }],
+    hgResourceType: "region", hgResourceName: "测试区域" });
+  await hgPage.hgRegisterResource();
+  assert.equal(hgCalls.length, 0);
+  hgPage.setState({ hgResourceType: "creator", hgResourceName: " 创作者空间 " });
+  await hgPage.hgRegisterResource();
+  assert.deepEqual(hgCalls, [["creator", "创作者空间"]]);
+  assert.equal(hgPage.state.hgLastResource.id, "server-id");
+  assert.equal(hgPage.state.hgResourceName, "");
+  assert.ok(hgMessages.some((text) => text.includes("业务接口仍需单独接入")));
 });
 
 test("表单页与列表页两处根节点都使用单容器，防止留白问题在编辑页复现", () => {

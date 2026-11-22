@@ -10,6 +10,10 @@ import HGScopeTypeVM from "./hg_scope_type_vm";
 import { HGAuthButton } from "../../../../modules/iam/hg_permission";
 import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 
+const HG_RESOURCE_SCOPE_TYPES = new Set([
+  "creator", "organization", "environment", "crawler_project", "content_channel", "region",
+]); // 六类由 IAM 登记新资源的作用域；现有 shop/org 仍读取其业务权威来源。
+
 /** 创建与编辑共用表单页面；编辑由详情接口回填，不依赖列表中可能过期的字段。 */
 class HGScopeTypeFormPage extends Component {
   state = {
@@ -198,6 +202,12 @@ class HGScopeTypeFormPage extends Component {
 
 /** 作用域字典列表：有界游标翻页、进入共用创建/编辑页，并以停用替代删除。 */
 export default class HGScopeTypePage extends Component {
+  static defaultProps = {
+    selectedKey: undefined, // 由运维导航注入；缺省为类型列表，非编辑态。
+    location: undefined, // 路由注入的查询参数；缺省时编辑态无法定位具体编码。
+    onBack: undefined, // 运维导航返回回调；只在编辑/创建页调用，无缺省动作。
+    pushPage: undefined, // 运维导航跳页回调；无默认路由动作。
+  };
   state = {
     items: [], // 当前已加载的字典项，空数组表示尚未加载或无记录。
     cursor: "", // 下一页服务端游标，空字符串表示没有游标。
@@ -205,6 +215,10 @@ export default class HGScopeTypePage extends Component {
     loading: false, // 当前页请求中。
     error: "", // 列表失败文案；不显示伪空态。
     deleting: "", // 当前正在停用的类型编码，空值表示没有请求。
+    hgResourceType: "", // 新资源所属的六类编码；空串表示尚未选择，不自动猜测用途。
+    hgResourceName: "", // 待登记资源名称；空串表示未填写，最多 128 字符。
+    hgResourceSaving: false, // 登记请求进行中；避免双击提交多个不同资源 ID。
+    hgLastResource: null, // 最近成功登记的资源；null 表示本页尚未成功登记。
   };
   hgMounted = false; // 卸载后不再处理异步结果。
   hgRequest = 0; // 重试/刷新时废弃旧列表结果。
@@ -272,6 +286,59 @@ export default class HGScopeTypePage extends Component {
       if (this.hgMounted) this.setState({ deleting: "" });
     }
   };
+
+  /** 仅登记 IAM 候选资源，真实业务实体/归属规则不由本页创建或推断。 */
+  hgRegisterResource = async () => {
+    if (this.state.hgResourceSaving) return;
+    const hgType = this.state.hgResourceType; // 管理员显式选择的作用域编码。
+    const hgName = this.state.hgResourceName.trim(); // 只提交名称，不传或编造资源 ID。
+    if (!HG_RESOURCE_SCOPE_TYPES.has(hgType) ||
+        !this.state.items.some((item) => item.code === hgType && item.status === 1) ||
+        !hgName || [...hgName].length > 128) {
+      message.error("请选择已启用的作用域并填写有效的资源名称");
+      return;
+    }
+    this.setState({ hgResourceSaving: true });
+    try {
+      const hgResource = await HGScopeTypeVM.registerResource(hgType, hgName);
+      if (!hgResource?.id) throw new Error("资源登记结果无效");
+      if (this.hgMounted) {
+        this.setState({ hgResourceName: "", hgLastResource: { ...hgResource, scopeType: hgType } });
+        message.success("IAM 资源已登记；业务接口仍需单独接入作用域鉴权");
+      }
+    } catch (error) {
+      if (this.hgMounted) message.error(error?.message || "资源登记失败");
+    } finally {
+      if (this.hgMounted) this.setState({ hgResourceSaving: false });
+    }
+  };
+
+  /** 新资源登记独立于作用域字典维护；仅授权管理员可写，不以登记代替业务实体创建。 */
+  renderResourceRegistration = () => (
+    <HGCardPage title="登记 IAM 作用域资源">
+      <p>为六类新作用域登记候选资源；此操作不会创建视频、爬虫或运维业务实体，也不会自动赋予业务 API 权限。</p>
+      <label>作用域类型{" "}
+        <select aria-label="登记资源作用域类型" value={this.state.hgResourceType}
+          disabled={this.state.hgResourceSaving}
+          onChange={(event) => this.setState({ hgResourceType: event.target.value, hgLastResource: null })}>
+          <option value="">请选择已启用类型</option>
+          {this.state.items.filter((item) => item.status === 1 && HG_RESOURCE_SCOPE_TYPES.has(item.code)).map((item) =>
+            <option key={item.code} value={item.code}>{item.name}</option>
+          )}
+        </select>
+      </label>{" "}
+      <label>资源名称{" "}
+        <input aria-label="登记资源名称" maxLength={128} value={this.state.hgResourceName}
+          disabled={this.state.hgResourceSaving}
+          onChange={(event) => this.setState({ hgResourceName: event.target.value })} />
+      </label>{" "}
+      <HGAuthButton allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
+        disabled={this.state.hgResourceSaving} onClick={this.hgRegisterResource}>登记资源</HGAuthButton>
+      {this.state.hgLastResource && (
+        <p role="status">已登记 {this.state.hgLastResource.name}（{this.state.hgLastResource.scopeType}），资源 ID：{this.state.hgLastResource.id}</p>
+      )}
+    </HGCardPage>
+  );
 
   render() {
     const editing = this.hgEditingCode(); // 当前编辑对象从网址恢复，不保留本地的另一份导航状态。
@@ -374,6 +441,7 @@ export default class HGScopeTypePage extends Component {
             </HGButtonPage>
           )}
         </HGCardPage>
+        {this.renderResourceRegistration()}
       </div>
     );
   }

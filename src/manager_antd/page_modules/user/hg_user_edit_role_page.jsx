@@ -29,6 +29,10 @@ const HG_GENDER_OPTIONS = [
 ];
 
 const HG_SIGNATURE_MAX_LENGTH = 200; // 签名输入上限；后端仍会做最终校验。
+const HG_ASSIGNABLE_SCOPE_TYPES = new Set([
+  "global", "shop", "org", "creator", "organization", "environment",
+  "crawler_project", "content_channel", "region",
+]); // 仅限服务端已接入权威 ID 校验的类型；字典中的其他编码不能因启用就直接授权。
 
 /** 从当前路由用户资料构建表单；缺省字段不继承上一个编辑目标。 */
 const hgProfileFormFromUser = (user) => ({
@@ -61,6 +65,7 @@ class HGUserEditRolePage extends Component {
     this.hgBindingRequest = 0; // 绑定查询序号；刷新或卸载后拒绝旧结果覆盖。
     this.hgBindingPermissionEpoch = 0; // 绑定权限批次序号；刷新/切换用户后丢弃旧角色权限。
     this.hgPermissionRequest = 0; // 每条草稿的权限查询序号；切换角色或卸载后丢弃旧响应。
+    this.hgScopeResourceEpoch = 0; // 资源候选批次；切换用户后拒绝旧用户页面的候选响应。
     this.hgDraftSequence = 0; // 草稿稳定主键序号；删除或追加时不复用旧行标识。
     this.hgRoleSubmitting = false; // 授权提交同步锁；请求完成前阻止双击重复消费 MFA。
     this.state = {
@@ -80,7 +85,8 @@ class HGUserEditRolePage extends Component {
       hgBindingsError: "", // 绑定查询失败文案；空值表示正常。
       hgBindingPermissions: {}, // 按角色 ID 保存已有绑定的权限查询状态；空对象表示尚未读取。
       hgDrafts: [], // 待提交分配行；每行单选角色、可多选作用域，最多十二个绑定。
-      hgScopeCatalog: [], // 服务端作用域字典；全部目录项（含 status=0）均可选用于授权。
+      hgScopeCatalog: [], // 服务端完整作用域字典；授权时仅显示 status=1 且已接入校验的九类作用域。
+      hgScopeResources: {}, // 按作用域类型缓存授权候选页；缺少键表示尚未请求，不将失败误判为空资源。
       hgMFAVisible: false, // 仅当存在待分配行且点击底部保存时显示验证弹窗。
       hgMFACode: "", // 当前操作者六位 MFA 动态码；关闭或提交时清空。
       hgProfileSaved: false, // 本轮待授权资料已保存且未再次编辑；重试授权不重复保存资料。
@@ -111,6 +117,7 @@ class HGUserEditRolePage extends Component {
     this.hgBindingRequest += 1;
     this.hgBindingPermissionEpoch += 1;
     this.hgPermissionRequest += 1;
+    this.hgScopeResourceEpoch += 1;
     const user = this.props.location?.state?.user || {}; // 新目标资料，缺省时不沿用旧资料。
     this.setState(
       {
@@ -130,6 +137,7 @@ class HGUserEditRolePage extends Component {
         hgBindingPermissions: {},
         hgDrafts: [],
         hgScopeCatalog: [],
+        hgScopeResources: {},
         hgMFAVisible: false,
         hgMFACode: "",
         hgProfileSaved: false,
@@ -145,6 +153,7 @@ class HGUserEditRolePage extends Component {
     this.hgBindingRequest += 1;
     this.hgBindingPermissionEpoch += 1;
     this.hgPermissionRequest += 1;
+    this.hgScopeResourceEpoch += 1;
   }
 
   /** 绑定查询与角色/作用域目录独立；目录故障不能阻止已有角色的只读回填。 */
@@ -172,7 +181,7 @@ class HGUserEditRolePage extends Component {
         return;
       this.setState({
         hgRoles: result.list,
-        hgScopeCatalog: scopeResult.list, // 全部作用域类型均可选；不再按 status 过滤。
+        hgScopeCatalog: scopeResult.list, // 保留完整字典供展示；可授权性由后端实际支持范围限定。
         hgRolesTruncated: result.truncated,
         hgRolesLoading: false,
       });
@@ -363,7 +372,7 @@ class HGUserEditRolePage extends Component {
       .then((result) => {
         if (!Array.isArray(result?.list) || !Array.isArray(result?.selected))
           throw new Error("角色权限响应格式无效");
-        const selected = new Set(result.selected); // 仅展示服务端已生效权限，不作为授权入参。
+        const selected = new Set(result.selected); // 仅允许缩减当前角色已生效权限，不能扩张角色权限。
         if (!this.hgMounted) return;
         this.setState((previous) => ({
           hgDrafts: previous.hgDrafts.map((draft) =>
@@ -390,18 +399,72 @@ class HGUserEditRolePage extends Component {
       });
   };
 
-  /** 作用域类型多选时只保留当前草稿仍在选择中的资源 ID。 */
-  hgSelectScopeTypes = (key, types) =>
+  /** 只允许服务端已启用且当前授权链已实现的类型；选中后加载对应真实资源。 */
+  hgSelectScopeTypes = (key, types) => {
+    const available = types.filter((type) =>
+      this.state.hgScopeCatalog.some((item) => item.code === type && item.status === 1 && HG_ASSIGNABLE_SCOPE_TYPES.has(type))
+    ); // 不允许停用或尚未实现资源校验的字典项进入授权请求。
     this.hgUpdateDraft(key, (draft) => ({
-      scopeTypes: types,
+      scopeTypes: available,
       scopeIDs: Object.fromEntries(
-        Object.entries(draft.scopeIDs).filter(([type]) => types.includes(type))
+        Object.entries(draft.scopeIDs).filter(([type]) => available.includes(type))
       ),
     }));
+    available.filter((type) => type !== "global" && !this.state.hgScopeResources[type])
+      .forEach((type) => this.hgLoadScopeResources(type));
+  };
+
+  /** 按游标读取选定类型的候选资源；失败可重试，旧路由和旧请求不可覆盖新结果。 */
+  hgLoadScopeResources = (type, cursor = "") => {
+    const epoch = this.hgScopeResourceEpoch; // 当前页面用户的资源加载批次。
+    const userId = this.userId; // 候选请求的页面身份，仅用于防止切换目标后的过期回填。
+    if (type === "global" || !HG_ASSIGNABLE_SCOPE_TYPES.has(type) || this.state.hgScopeResources[type]?.loading) return;
+    this.setState((previous) => ({
+      hgScopeResources: {
+        ...previous.hgScopeResources,
+        [type]: { ...previous.hgScopeResources[type], list: cursor ? previous.hgScopeResources[type]?.list || [] : [],
+          loading: true, error: "", nextCursor: cursor, hasMore: false },
+      },
+    }));
+    HGUserRoleAssignVM.fetchScopeResources(type, cursor)
+      .then((result) => {
+        if (!Array.isArray(result?.list) || (result.hasMore && !result.nextCursor))
+          throw new Error("作用域资源响应格式无效");
+        if (!this.hgMounted || this.userId !== userId || epoch !== this.hgScopeResourceEpoch) return;
+        this.setState((previous) => {
+          const loaded = cursor ? previous.hgScopeResources[type]?.list || [] : []; // 同类型已加载候选项，登记 shop 优先于商家。
+          const seen = new Set(loaded.map((item) => item.id)); // 商家与已登记 shop 共用 ID 时只显示一次。
+          const list = [...loaded, ...result.list.filter((item) => {
+            if (seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          })]; // 合并稳定游标页，不将重复候选展示给管理员。
+          const singleID = !result.hasMore && list.length === 1 ? list[0].id : ""; // 只有确定唯一资源时才自动填充，不猜测用户目标。
+          return {
+            hgScopeResources: {
+              ...previous.hgScopeResources,
+              [type]: { list, loading: false, error: "", nextCursor: result.nextCursor || "", hasMore: Boolean(result.hasMore) },
+            },
+            hgDrafts: singleID ? previous.hgDrafts.map((draft) =>
+              draft.scopeTypes.includes(type) && !draft.scopeIDs[type]
+                ? { ...draft, scopeIDs: { ...draft.scopeIDs, [type]: singleID } }
+                : draft
+            ) : previous.hgDrafts,
+          };
+        });
+      })
+      .catch((error) => {
+        if (!this.hgMounted || this.userId !== userId || epoch !== this.hgScopeResourceEpoch) return;
+        this.setState((previous) => ({
+          hgScopeResources: { ...previous.hgScopeResources,
+            [type]: { ...previous.hgScopeResources[type], loading: false, error: error?.message || "作用域资源加载失败" } },
+        }));
+      });
+  };
 
   /** 聚合并检查全部草稿；角色单选，重复绑定和已生效绑定均不得提交。 */
   hgGetPendingBindings = () => {
-    const { hgDrafts, hgBindings, hgRoles, hgScopeCatalog } = this.state;
+    const { hgDrafts, hgBindings, hgRoles, hgScopeCatalog, hgScopeResources } = this.state;
     if (
       this.state.hgBindingsLoading || this.state.hgBindingsError ||
       this.state.hgHasMoreBindings || this.state.hgRolesLoading ||
@@ -428,10 +491,13 @@ class HGUserEditRolePage extends Component {
       }
       for (const scopeType of draft.scopeTypes) {
         if (
-          !hgScopeCatalog.some((item) => item.code === scopeType) ||
-          (scopeType !== "global" && !draft.scopeIDs[scopeType]?.trim())
+          !hgScopeCatalog.some((item) => item.code === scopeType && item.status === 1) ||
+          !HG_ASSIGNABLE_SCOPE_TYPES.has(scopeType) ||
+          (scopeType !== "global" &&
+            (hgScopeResources[scopeType]?.loading || hgScopeResources[scopeType]?.error ||
+             !hgScopeResources[scopeType]?.list?.some((item) => item.id === draft.scopeIDs[scopeType])))
         ) {
-          message.error("请输入有效的作用域 ID（shop 可填写已审核商家的 merchant_id）");
+          message.error("请从已加载的有效作用域资源中选择 ID");
           return null;
         }
         bindings.push({
@@ -739,7 +805,6 @@ class HGUserEditRolePage extends Component {
 
   /** 单条草稿默认全选该角色权限；可多选限制本次用户绑定，不修改共享角色权限。 */
   renderRolePermissions = (draft) => {
-    if (!draft.roleId) return <span>选择角色查看权限</span>;
     if (draft.permissionError)
       return (
         <span role="alert" className={styles.errorText}>
@@ -752,20 +817,29 @@ class HGUserEditRolePage extends Component {
           </HGButtonPage>
         </span>
       );
+    const hgHasPermissions = Boolean(draft.roleId && draft.permissions.length); // 只有角色已有生效权限时才开放多选，不把目录中未授权的权限作为候选。
+    const hgPlaceholder = !draft.roleId ? "请先选择角色"
+      : draft.permissionLoading ? "权限加载中"
+      : hgHasPermissions ? "选择业务权限" : "该角色暂无业务权限"; // 空角色和加载态都保持禁用控件，不误导用户点击。
     return (
       <div role="group" aria-label="本次绑定业务权限（可多选）">
         <HGTreeSelectPage
           treeCheckable
           showCheckedStrategy="SHOW_ALL"
-          disabled={draft.permissionLoading || this.state.hgRoleSaving}
+          disabled={!hgHasPermissions || draft.permissionLoading || this.state.hgRoleSaving}
           value={draft.selectedPermissions}
           onChange={(codes) => this.hgUpdateDraft(draft.key, () => ({ selectedPermissions: codes }))}
           treeData={draft.permissions.map((item) => ({
             value: item.code,
             title: item.description || item.code,
           }))}
-          placeholder={draft.permissionLoading ? "权限加载中" : "暂无业务权限"}
+          placeholder={hgPlaceholder}
         />
+        {draft.roleId && !draft.permissionLoading && !hgHasPermissions && (
+          <span role="status" className={styles.extraText}>
+            该角色尚未配置业务权限，请先在角色权限管理中配置并生效后再分配
+          </span>
+        )}
       </div>
     );
   };
@@ -840,7 +914,7 @@ class HGUserEditRolePage extends Component {
    * @returns {React.ReactNode} 行卡片 JSX。
    */
   renderRoleRow = (record, roleNames) => {
-    const { hgRoles, hgScopeCatalog, hgRoleSaving } = this.state;
+    const { hgRoles, hgScopeCatalog, hgScopeResources, hgRoleSaving } = this.state;
     if (record.hgIsNew) {
       const draft = record.hgDraft; // 草稿字段只属于该行，不复用其他待分配行的输入。
       return (
@@ -884,7 +958,7 @@ class HGUserEditRolePage extends Component {
                   value={draft.scopeTypes}
                   disabled={hgRoleSaving}
                   onChange={(types) => this.hgSelectScopeTypes(draft.key, types)}
-                  treeData={hgScopeCatalog.map((item) => ({
+                  treeData={hgScopeCatalog.filter((item) => item.status === 1 && HG_ASSIGNABLE_SCOPE_TYPES.has(item.code)).map((item) => ({
                     value: item.code,
                     title: item.name,
                   }))}
@@ -894,27 +968,35 @@ class HGUserEditRolePage extends Component {
             )}
             {draft.scopeTypes
               .filter((type) => type !== "global")
-              .map((type) =>
-                this.renderRoleField(
-                  `${type} 作用域 ID`,
-                  <input
-                    key={type}
-                    aria-label={`${type} 作用域 ID`}
-                    className={styles.control}
-                    value={draft.scopeIDs[type] || ""}
-                    maxLength={64}
-                    disabled={hgRoleSaving}
-                    onChange={(event) =>
-                      this.hgUpdateDraft(draft.key, (previous) => ({
-                        scopeIDs: { ...previous.scopeIDs, [type]: event.target.value },
-                      }))
-                    }
-                  />,
-                  type === "shop"
-                    ? "填写已审核通过商家的 merchant_id；也支持已登记的 shop ID"
-                    : "填写服务端已登记的组织 ID"
-                )
-              )}
+              .map((type) => {
+                const resources = hgScopeResources[type]; // 已审核商家或已启用组织的游标页；缺省表示等待请求。
+                return (
+                  <React.Fragment key={type}>
+                    {this.renderRoleField(
+                      `${type} 作用域 ID`,
+                      <select
+                        aria-label={`${type} 作用域 ID`}
+                        className={styles.control}
+                        value={draft.scopeIDs[type] || ""}
+                        disabled={hgRoleSaving || !resources || resources.loading}
+                        onChange={(event) =>
+                          this.hgUpdateDraft(draft.key, (previous) => ({
+                            scopeIDs: { ...previous.scopeIDs, [type]: event.target.value },
+                          }))
+                        }
+                      >
+                        <option value="">{resources?.loading ? "候选资源加载中" : "请选择对应资源"}</option>
+                        {(resources?.list || []).map((item) => (
+                          <option key={item.id} value={item.id}>{item.name || item.id} · {item.id}</option>
+                        ))}
+                      </select>,
+                      resources?.error || (!resources?.loading && resources?.list?.length === 0 ? "暂无可授权资源" : "")
+                    )}
+                    {resources?.error && <HGButtonPage type="link" onClick={() => this.hgLoadScopeResources(type, resources.nextCursor)}>重试加载 {type}</HGButtonPage>}
+                    {resources?.hasMore && !resources.loading && <HGButtonPage type="link" onClick={() => this.hgLoadScopeResources(type, resources.nextCursor)}>加载更多 {type}</HGButtonPage>}
+                  </React.Fragment>
+                );
+              })}
           </div>
           <footer className={styles.roleCardActions}>
             <HGButtonPage onClick={() => this.hgRemoveDraft(draft.key)} disabled={hgRoleSaving}>

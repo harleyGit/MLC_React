@@ -28,9 +28,11 @@ function hgUserEditPage(hgUpdate, hgRoleVM = {}) {
       if (hgDependency.endsWith("HttpManagerV1")) return { handleError: (error) => { throw error; } };
       if (hgDependency.endsWith("hg_naviagion_hook")) return { WithNavigation: (hgPage) => hgPage };
       if (hgDependency.endsWith("hg_user_vm")) return { default: { updateUserByUserId: hgUpdate }, __esModule: true };
-      if (hgDependency.endsWith("hg_user_role_assign_vm")) return { default: { fetchScopeTypes: async () => ({ list: [
-        { code: "global", name: "平台全局", status: 1 }, { code: "shop", name: "店铺", status: 1 }, { code: "org", name: "组织", status: 1 },
-      ], hasMore: false }), ...hgRoleVM }, __esModule: true };
+       if (hgDependency.endsWith("hg_user_role_assign_vm")) return { default: {
+         fetchScopeResources: async (type) => ({ list: [{ id: `${type}-1`, name: `${type} 测试资源` }], hasMore: false }),
+         fetchScopeTypes: async () => ({ list: [
+         { code: "global", name: "平台全局", status: 1 }, { code: "shop", name: "店铺", status: 1 }, { code: "org", name: "组织", status: 1 },
+       ], hasMore: false }), ...hgRoleVM }, __esModule: true };
       if (hgDependency.endsWith("hg_message_page")) return { hgMessage: { success: (text) => hgMessages.push(text), error: (text) => hgMessages.push(text) } };
       if (hgDependency.endsWith("hg_collection_view")) return { default: HGTestCollectionView, __esModule: true };
       if (hgDependency.endsWith("hg_button_page")) return { default: HGTestButton, __esModule: true };
@@ -160,7 +162,12 @@ test("单选角色默认选中该角色权限，底部保存弹一次 MFA 并刷
   await hgFlush();
   assert.equal(hgPage.state.hgDrafts[0].permissions.map((item) => item.code).join(","), "mall:product:create");
   hgPage.hgSelectScopeTypes("draft-1", ["shop"]);
-  hgPage.hgUpdateDraft("draft-1", () => ({ scopeIDs: { shop: "shop-1" } }));
+  await hgFlush();
+  assert.equal(hgPage.state.hgDrafts[0].scopeIDs.shop, "shop-1"); // 唯一候选自动填写，无需管理员复制 ID。
+  const hgScopeCard = hgFindCollectionView(hgPage.renderRoleAssignment()).props;
+  const hgScopeSelect = hgFindByAriaLabel(hgScopeCard.renderCell(hgScopeCard.items[0]), "shop 作用域 ID");
+  assert.deepEqual(hgScopeSelect.props.children[1][0].props.value, "shop-1");
+  hgScopeSelect.props.onChange({ target: { value: "shop-1" } });
   await hgPage.handleSubmit();
   assert.equal(hgPage.state.hgMFAVisible, true);
   assert.equal(hgProfileWrites, 0);
@@ -174,7 +181,7 @@ test("单选角色默认选中该角色权限，底部保存弹一次 MFA 并刷
   assert.equal(hgFindCollectionView(hgPage.renderRoleAssignment()).props.items[0].hgRowKey, "binding-18");
 });
 
-test("作用域类型显示全部目录项（含 status=0）且可提交，下拉项只显示名称", async () => {
+test("目录保留停用类型，但只有服务端已支持的启用作用域可以选择", async () => {
   const hgAllScopes = ["global", "shop", "org", "team", "dept"]; // 超过旧的三种上限，且含 status=0。
   const { hgPage } = hgUserEditPage(async () => {}, {
     fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
@@ -192,12 +199,35 @@ test("作用域类型显示全部目录项（含 status=0）且可提交，下�
   const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
   const hgDraftCard = hgCollection.props.renderCell(hgCollection.props.items[0], 0);
   const hgScopeTree = hgFindByAriaLabel(hgDraftCard, "作用域类型（可多选）").props.children;
-  assert.deepEqual(hgScopeTree.props.treeData.map((item) => item.title), ["平台全局", "店铺", "组织", "团队", "部门"]);
+  assert.deepEqual(hgScopeTree.props.treeData.map((item) => item.title), ["平台全局", "店铺", "组织"]);
   hgScopeTree.props.onChange(hgAllScopes);
-  assert.deepEqual(hgPage.state.hgDrafts[0].scopeTypes, hgAllScopes);
+  assert.deepEqual(hgPage.state.hgDrafts[0].scopeTypes, ["global", "shop", "org"]);
 });
 
-test("status=0 的作用域类型选中后可完成授权提交", async () => {
+test("六类新作用域仅在字典启用后展示，候选 ID 从服务端资源登记读取", async () => {
+  const hgTypes = ["creator", "organization", "environment", "crawler_project", "content_channel", "region"];
+  const hgRequests = []; // 只记录查询类型，不生成或猜测资源 ID。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchScopeTypes: async () => ({ list: [
+      { code: "global", name: "平台全局", status: 1 }, ...hgTypes.map((code) => ({ code, name: code, status: 1 })),
+    ], hasMore: false }),
+    fetchScopeResources: async (type) => { hgRequests.push(type); return { list: [{ id: `${type}-registered`, name: type }], hasMore: false }; },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgAddDraft();
+  const hgCollection = hgFindCollectionView(hgPage.renderRoleAssignment());
+  const hgScopeTree = hgFindByAriaLabel(hgCollection.props.renderCell(hgCollection.props.items[0]), "作用域类型（可多选）").props.children;
+  assert.deepEqual(Array.from(hgScopeTree.props.treeData, (item) => item.value), ["global", ...hgTypes]);
+  hgPage.hgSelectScopeTypes("draft-1", hgTypes);
+  await hgFlush();
+  assert.deepEqual(hgRequests, hgTypes);
+  assert.equal(hgPage.state.hgDrafts[0].scopeIDs.creator, "creator-registered");
+});
+
+test("停用或未接入授权的作用域不得通过构造草稿提交", async () => {
   const hgRequests = []; // 记录实际提交的作用域类型，不保留 MFA 明文。
   const { hgPage } = hgUserEditPage(async () => {}, {
     fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
@@ -216,9 +246,8 @@ test("status=0 的作用域类型选中后可完成授权提交", async () => {
   hgPage.hgSelectScopeTypes("draft-1", ["region"]);
   hgPage.hgUpdateDraft("draft-1", () => ({ scopeIDs: { region: "region-1" } }));
   await hgPage.handleSubmit();
-  hgPage.setState({ hgMFACode: "123456" });
-  await hgPage.hgSubmitRole();
-  assert.equal(JSON.stringify(hgRequests), JSON.stringify([[{ roleId: "7", scopeType: "region", scopeId: "region-1", permissions: [] }]]));
+  assert.equal(hgPage.state.hgMFAVisible, false);
+  assert.equal(hgRequests.length, 0);
 });
 
 test("切换角色时拒绝过期权限响应，重复授权或无效 MFA 不发送写请求", async () => {
@@ -424,8 +453,10 @@ test("两个单选草稿与多个作用域仅提交一次 MFA，且重复点击�
   assert.equal(hgPage.state.hgDrafts[0].permissions[0].code, "test:permission:7");
   assert.equal(hgPage.state.hgDrafts[1].permissions[0].code, "test:permission:8");
   hgPage.hgSelectScopeTypes("draft-1", ["global", "shop"]);
+  await hgFlush();
   hgPage.hgUpdateDraft("draft-1", () => ({ scopeIDs: { shop: "shop-1" } }));
   hgPage.hgSelectScopeTypes("draft-2", ["global", "shop"]);
+  await hgFlush();
   hgPage.hgUpdateDraft("draft-2", () => ({ scopeIDs: { shop: "shop-1" } }));
   const hgList = hgFindCollectionView(hgPage.renderRoleAssignment());
   assert.deepEqual(hgList.props.items.map((item) => item.hgRowKey), ["draft-1", "draft-2"]);
@@ -459,6 +490,86 @@ test("选择其他角色不新增草稿；追加和移除只通过分配新角�
   assert.equal(hgPage.state.hgDrafts[0].key, "draft-2");
 });
 
+test("权限为空时说明角色尚未配置；作用域候选分页、失败重试且不允许手输 ID", async () => {
+  const hgCursors = []; // 只记录游标和类型，验证失败后的重试读取同一页。
+  const { hgPage, hgMessages } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", code: "tester" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchRolePermissions: async () => ({ list: [{ code: "test:permission:read" }], selected: [] }),
+    fetchScopeResources: async (type, cursor) => {
+      hgCursors.push([type, cursor]);
+      if (cursor && hgCursors.length === 2) throw new Error("暂时不可用");
+      return cursor ? { list: [{ id: "org-2", name: "二号组织" }], hasMore: false }
+        : { list: [{ id: "org-1", name: "一号组织" }], nextCursor: "org-1", hasMore: true };
+    },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgAddDraft();
+  let hgPermissionTree = hgFindByAriaLabel(hgPage.renderRolePermissions(hgPage.state.hgDrafts[0]), "本次绑定业务权限（可多选）").props.children[0];
+  assert.equal(hgPermissionTree.props.disabled, true);
+  assert.equal(hgPermissionTree.props.placeholder, "请先选择角色");
+  hgPage.hgSelectRole("draft-1", "7");
+  hgPermissionTree = hgFindByAriaLabel(hgPage.renderRolePermissions(hgPage.state.hgDrafts[0]), "本次绑定业务权限（可多选）").props.children[0];
+  assert.equal(hgPermissionTree.props.disabled, true);
+  assert.equal(hgPermissionTree.props.placeholder, "权限加载中");
+  await hgFlush();
+  assert.ok(hgFindText(hgPage.renderRolePermissions(hgPage.state.hgDrafts[0]), "该角色尚未配置业务权限，请先在角色权限管理中配置并生效后再分配"));
+  hgPermissionTree = hgFindByAriaLabel(hgPage.renderRolePermissions(hgPage.state.hgDrafts[0]), "本次绑定业务权限（可多选）").props.children[0];
+  assert.equal(hgPermissionTree.props.disabled, true);
+  assert.equal(hgPermissionTree.props.placeholder, "该角色暂无业务权限");
+  assert.equal(hgPermissionTree.props.treeData.length, 0);
+  hgPage.hgSelectScopeTypes("draft-1", ["org"]);
+  await hgFlush();
+  let hgCard = hgFindCollectionView(hgPage.renderRoleAssignment()).props;
+  let hgScopeSelect = hgFindByAriaLabel(hgCard.renderCell(hgCard.items[0]), "org 作用域 ID");
+  assert.equal(hgScopeSelect.type, "select");
+  assert.equal(hgScopeSelect.props.children[1][0].props.value, "org-1");
+  hgPage.hgUpdateDraft("draft-1", () => ({ scopeIDs: { org: "forged" } }));
+  assert.equal(hgPage.hgGetPendingBindings(), null);
+  assert.ok(hgMessages.includes("请从已加载的有效作用域资源中选择 ID"));
+  hgPage.hgLoadScopeResources("org", "org-1");
+  await hgFlush();
+  assert.equal(hgPage.state.hgScopeResources.org.error, "暂时不可用");
+  hgPage.hgLoadScopeResources("org", hgPage.state.hgScopeResources.org.nextCursor);
+  await hgFlush();
+  hgCard = hgFindCollectionView(hgPage.renderRoleAssignment()).props;
+  hgScopeSelect = hgFindByAriaLabel(hgCard.renderCell(hgCard.items[0]), "org 作用域 ID");
+  assert.equal(hgScopeSelect.props.children[1][1].props.value, "org-2");
+  hgScopeSelect.props.onChange({ target: { value: "org-2" } });
+  assert.equal(hgPage.hgGetPendingBindings()[0].scopeId, "org-2");
+  assert.deepEqual(hgCursors, [["org", ""], ["org", "org-1"], ["org", "org-1"]]);
+});
+
+test("作用域候选跨登记店铺与商家分页去重，切换用户后丢弃旧请求", async () => {
+  let hgResolveOld; // 旧用户的候选请求延迟完成，以验证切换编辑目标后的隔离。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchScopeResources: (_type, cursor) => cursor === "m:0"
+      ? Promise.resolve({ list: [{ id: "shop-1", name: "同一店铺" }, { id: "shop-2", name: "新商家" }], hasMore: false })
+      : cursor === "m:1" ? new Promise((resolve) => { hgResolveOld = resolve; })
+      : cursor === "" ? Promise.resolve({ list: [{ id: "shop-1", name: "已登记店铺" }], hasMore: true, nextCursor: "m:0" })
+      : new Promise((resolve) => { hgResolveOld = resolve; }),
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgAddDraft();
+  hgPage.hgSelectScopeTypes("draft-1", ["shop"]);
+  await hgFlush();
+  hgPage.hgLoadScopeResources("shop", "m:0");
+  await hgFlush();
+  assert.deepEqual(Array.from(hgPage.state.hgScopeResources.shop.list, (item) => item.id), ["shop-1", "shop-2"]);
+  hgPage.hgLoadScopeResources("shop", "m:1");
+  const hgOldProps = hgPage.props; // 更新路由后旧目标不应继承候选或自动填写。
+  hgPage.props = { params: { userId: "route-8" }, location: { state: { user: { user_id: "route-8", nickname: "新用户" } } } };
+  hgPage.componentDidUpdate(hgOldProps);
+  hgResolveOld({ list: [{ id: "shop-old", name: "旧商家" }], hasMore: false });
+  await hgFlush();
+  assert.equal(Object.keys(hgPage.state.hgScopeResources).length, 0);
+  assert.equal(hgPage.state.hgDrafts.length, 0);
+});
+
 test("新增角色默认全选当前权限，取消其中一项后仅给该用户绑定提交剩余权限", async () => {
   const hgRequests = []; // 仅记录授权的权限编码，不保留 MFA 验证码。
   const { hgPage } = hgUserEditPage(async () => {}, {
@@ -477,7 +588,7 @@ test("新增角色默认全选当前权限，取消其中一项后仅给该用�
   await hgFlush();
   const hgList = hgFindCollectionView(hgPage.renderRoleAssignment());
   const hgDraftCard = hgList.props.renderCell(hgList.props.items[0]);
-  const hgPermissionTree = hgFindByAriaLabel(hgDraftCard, "本次绑定业务权限（可多选）").props.children;
+  const hgPermissionTree = hgFindByAriaLabel(hgDraftCard, "本次绑定业务权限（可多选）").props.children[0];
   assert.equal(hgPermissionTree.props.treeCheckable, true);
   assert.equal(hgPermissionTree.props.disabled, false);
   assert.deepEqual(Array.from(hgPermissionTree.props.value), ["mall:product:create", "mall:product:update"]);

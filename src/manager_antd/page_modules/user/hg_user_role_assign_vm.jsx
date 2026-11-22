@@ -1,7 +1,7 @@
 import { HGMANAGER_API } from "../../api/hg_api_constants";
 import HGNet from "../../net_handle/hg_net_manager_vm";
 
-/** 编辑用户页的 IAM 即时授权请求；仅传目标 user_id 与角色绑定参数，不提交业务权限列表。 */
+/** 编辑用户页的 IAM 即时授权请求；批量绑定只提交目标 user_id、角色/作用域与角色现有权限的显式子集。 */
 export default class HGUserRoleAssignVM {
   /** 角色目录使用服务端游标，最多读取 500 个；超限明确告知而非无限循环请求。 */
   static fetchAllRoles = async () => {
@@ -25,8 +25,12 @@ export default class HGUserRoleAssignVM {
   /** 返回服务端角色权限目录和 selected；用于本绑定的权限子集，不能越过服务端委派校验。 */
   static fetchRolePermissions = (roleId) => HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
 
-  /** 字典包含停用类型；授权页只能从活动类型中选择，并由服务端再次验证。 */
+  /** 字典包含停用及未接入资源校验的类型；授权页仅显示已启用且已接入服务端校验的类型。 */
   static fetchScopeTypes = () => HGNet.get(HGMANAGER_API.IAM_SCOPE_TYPE_LIST, { pageSize: 50, cursor: 0 });
+
+  /** 查询已审核商家、已登记组织或新作用域 IAM 登记资源的有界候选页；ID 不按类型推断。 */
+  static fetchScopeResources = (scopeType, cursor = "") =>
+    HGNet.get(HGMANAGER_API.IAM_SCOPE_RESOURCE_LIST, { scopeType, cursor, pageSize: 50 });
 
   /** 所有绑定在同一事务和一次 MFA 中提交；每条绑定的 permissions 是角色当前权限的显式子集。 */
   static grantDirectBatch = ({ userId, bindings, mfaCode }) => HGNet.post(HGMANAGER_API.IAM_BINDING_GRANT_DIRECT_BATCH, {

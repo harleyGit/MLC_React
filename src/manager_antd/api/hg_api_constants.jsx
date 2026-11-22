@@ -148,6 +148,8 @@ export const HGMANAGER_API = {
   IAM_ROLE_UPDATE: "/api/v1/iam/roles/update", // 更新 IAM 角色
   IAM_ROLE_DISABLE: "/api/v1/iam/roles/disable", // 停用 IAM 角色
   IAM_SCOPE_TYPE_LIST: "/api/v1/iam/scope-types/list", // 含未启用项的作用域类型字典
+  IAM_SCOPE_RESOURCE_LIST: "/api/v1/iam/scope-resources/list", // 即时授权可用的 shop/org 候选资源游标页
+  IAM_SCOPE_RESOURCE_CREATE: "/api/v1/iam/scope-resources", // 新作用域登记（由服务端生成资源 ID）
   IAM_SCOPE_TYPE_DETAIL: "/api/v1/iam/scope-types/detail", // 按编码读取编辑回填
   IAM_SCOPE_TYPE_CREATE: "/api/v1/iam/scope-types", // 创建默认停用的类型
   IAM_SCOPE_TYPE_UPDATE: "/api/v1/iam/scope-types/update", // 更新类型显示信息
