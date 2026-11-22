@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import { setImmediate } from "node:timers";
 import { transformSync } from "@swc/core";
 import React from "react";
+import { hgBuildSubMenuUrl } from "../../../components/hg_navigation/hg_sub_nav.js";
 
 const HGTestCollectionView = () => null; // 只保留真实 HGCollectionView 的数据与 renderCell 以测试用户交互，不操作 DOM。
 const HGTestButton = () => null; // 捕获点击回调，不发送真实授权请求。
@@ -27,6 +28,8 @@ function hgUserEditPage(hgUpdate, hgRoleVM = {}) {
       if (hgDependency === "react") return React;
       if (hgDependency.endsWith("HttpManagerV1")) return { handleError: (error) => { throw error; } };
       if (hgDependency.endsWith("hg_naviagion_hook")) return { WithNavigation: (hgPage) => hgPage };
+      if (hgDependency.endsWith("hg_route_path")) return { ROUTE_PATH: { OPERATION_MANAGEMENT: "/operation" } };
+      if (hgDependency.endsWith("hg_sub_nav")) return { hgBuildSubMenuUrl };
       if (hgDependency.endsWith("hg_user_vm")) return { default: { updateUserByUserId: hgUpdate }, __esModule: true };
        if (hgDependency.endsWith("hg_user_role_assign_vm")) return { default: {
          fetchScopeResources: async (type) => ({ list: [{ id: `${type}-1`, name: `${type} 测试资源` }], hasMore: false }),
@@ -86,6 +89,14 @@ function hgFindText(hgNode, hgText) {
   if (!React.isValidElement(hgNode)) return null;
   if (hgNode.props.children === hgText) return hgNode;
   return hgFindText(hgNode.props.children, hgText);
+}
+
+/** 连接 JSX 文本节点以验证说明文案，避免空白排版或子元素影响精确匹配。 */
+function hgCardText(hgNode) {
+  if (Array.isArray(hgNode)) return hgNode.map(hgCardText).join("");
+  if (typeof hgNode === "string") return hgNode;
+  if (!React.isValidElement(hgNode)) return "";
+  return hgCardText(hgNode.props.children);
 }
 
 /** 查找错误提示容器，验证权限失败与绑定空态不会混淆。 */
@@ -225,6 +236,80 @@ test("六类新作用域仅在字典启用后展示，候选 ID 从服务端资�
   await hgFlush();
   assert.deepEqual(hgRequests, hgTypes);
   assert.equal(hgPage.state.hgDrafts[0].scopeIDs.creator, "creator-registered");
+});
+
+test("organization 无权威候选时不允许空 ID 授权，并提供创建及重新查询入口", async () => {
+  const hgRequests = []; // 只记录候选查询类型与游标，不访问真实服务或修改组织。
+  let hgCreated = false; // 模拟另一标签页通过业务资源接口创建组织后的候选变化。
+  const { hgPage, hgMessages } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchRolePermissions: async () => ({ list: [], selected: [] }),
+    fetchScopeTypes: async () => ({ list: [{ code: "organization", name: "组织", status: 1 }], hasMore: false }),
+    fetchScopeResources: async (type, cursor) => {
+      hgRequests.push([type, cursor]);
+      return { list: hgCreated ? [{ id: "verified-organization", name: "业务组织" }] : [], hasMore: false };
+    },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgAddDraft();
+  hgPage.hgSelectRole("draft-1", "7");
+  await hgFlush();
+  hgPage.hgSelectScopeTypes("draft-1", ["organization"]);
+  await hgFlush();
+  const hgCard = hgFindCollectionView(hgPage.renderRoleAssignment()).props;
+  const hgEmptyCard = hgCard.renderCell(hgCard.items[0]);
+  assert.match(hgCardText(hgEmptyCard), /尚无可授权的业务组织.*旧 org 的组织 ID 不适用于 organization/);
+  const hgCreateLink = hgFindText(hgEmptyCard, "新标签页创建组织");
+  assert.equal(hgCreateLink.props.href, "/operation?menu=role_scope_type");
+  assert.equal(hgCreateLink.props.target, "_blank");
+  assert.equal(hgCreateLink.props.rel, "noopener noreferrer");
+  assert.equal(hgPage.state.hgDrafts[0].scopeIDs.organization, undefined);
+  assert.equal(hgPage.hgCollectChanges(), null);
+  assert.ok(hgMessages.includes("请从已加载的有效作用域资源中选择 ID"));
+  hgCreated = true;
+  hgFindText(hgEmptyCard, "刷新 organization 候选").props.onClick();
+  await hgFlush();
+  assert.deepEqual(hgRequests, [["organization", ""], ["organization", ""]]);
+  assert.equal(hgPage.state.hgDrafts[0].scopeIDs.organization, "verified-organization");
+  assert.equal(hgPage.hgCollectChanges().grants[0].scopeId, "verified-organization");
+});
+
+test("回填绑定及新增行按各自类型加载候选：唯一自动选中，多项必须手选", async () => {
+  const hgRequests = []; // 类型与游标是唯一候选来源，不能从旧组织 ID 推断其他类型。
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", name: "审核员", code: "reviewer" }], truncated: false }),
+    fetchBindings: async () => ({ list: [{ id: "18", roleId: "7", roleCode: "reviewer", scopeType: "organization", scopeId: "original-org" }] }),
+    fetchRolePermissions: async () => ({ list: [], selected: [] }),
+    fetchScopeTypes: async () => ({ list: [
+      { code: "organization", name: "业务组织", status: 1 }, { code: "shop", name: "店铺", status: 1 },
+    ], hasMore: false }),
+    fetchScopeResources: async (type, cursor) => {
+      hgRequests.push([type, cursor]);
+      return type === "organization"
+        ? { list: [{ id: "original-org", name: "原组织" }, { id: "another-org", name: "另一组织" }], hasMore: false }
+        : { list: [{ id: "shop-1", name: "唯一店铺" }], hasMore: false };
+    },
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  assert.deepEqual(hgRequests, [["organization", ""]]);
+  assert.equal(hgPage.state.hgDrafts[0].scopeIDs.organization, "original-org");
+  hgPage.hgAddDraft();
+  hgPage.hgSelectScopeTypes("draft-2", ["organization", "shop"]);
+  await hgFlush();
+  assert.deepEqual(hgRequests, [["organization", ""], ["shop", ""]]);
+  assert.equal(hgPage.state.hgDrafts[1].scopeIDs.organization, undefined); // 多个组织不可按顺序猜选。
+  assert.equal(hgPage.state.hgDrafts[1].scopeIDs.shop, "shop-1");
+  const hgCard = hgFindCollectionView(hgPage.renderRoleAssignment()).props;
+  const hgDraft = hgCard.renderCell(hgCard.items[1]);
+  const hgOrganization = hgFindByAriaLabel(hgDraft, "organization 作用域 ID");
+  assert.deepEqual(React.Children.toArray(hgOrganization.props.children).filter((item) => item.type === "option").map((item) => item.props.value),
+    ["", "original-org", "another-org"]);
+  hgOrganization.props.onChange({ target: { value: "another-org" } });
+  assert.equal(hgPage.state.hgDrafts[1].scopeIDs.organization, "another-org");
+  assert.equal(hgPage.state.hgDrafts[1].scopeIDs.shop, "shop-1");
 });
 
 test("停用或未接入授权的作用域不得通过构造草稿提交", async () => {

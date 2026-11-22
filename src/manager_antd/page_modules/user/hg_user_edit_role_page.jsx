@@ -15,6 +15,8 @@ import { hgMessage as message } from "../../../components/hg_message/hg_message_
 import HGModalPage from "../../../components/hg_modal/hg_modal_page";
 import HGPageHeaderPage from "../../../components/hg_page_header/hg_page_header_page";
 import HGTreeSelectPage from "../../../components/hg_tree_select/hg_tree_select_page";
+import { ROUTE_PATH } from "../../../components/hg_navigation/hg_route_path";
+import { hgBuildSubMenuUrl } from "../../../components/hg_navigation/hg_sub_nav";
 import { HGAuthButton } from "../../../modules/iam/hg_permission";
 import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
 import { WithNavigation } from "../../router/hg_naviagion_hook";
@@ -34,6 +36,7 @@ const HG_ASSIGNABLE_SCOPE_TYPES = new Set([
   "global", "shop", "org", "creator", "organization", "environment",
   "crawler_project", "content_channel", "region",
 ]); // 仅限服务端已接入权威 ID 校验的类型；字典中的其他编码不能因启用就直接授权。
+const HG_ORGANIZATION_MANAGE_URL = hgBuildSubMenuUrl(ROUTE_PATH.OPERATION_MANAGEMENT, "role_scope_type"); // 在新标签页创建权威业务组织，不丢弃当前编辑草稿。
 
 /** 从当前路由用户资料构建表单；缺省字段不继承上一个编辑目标。 */
 const hgProfileFormFromUser = (user) => ({
@@ -67,6 +70,7 @@ class HGUserEditRolePage extends Component {
     this.hgBindingPermissionEpoch = 0; // 绑定权限批次序号；刷新/切换用户后丢弃旧角色权限。
     this.hgPermissionRequest = 0; // 每条草稿的权限查询序号；切换角色或卸载后丢弃旧响应。
     this.hgScopeResourceEpoch = 0; // 资源候选批次；切换用户后拒绝旧用户页面的候选响应。
+    this.hgScopeResourceInFlight = new Set(); // 同类型候选一次只加载一页；路由切换时清空以隔离新目标。
     this.hgDraftSequence = 0; // 草稿稳定主键序号；删除或追加时不复用旧行标识。
     this.hgBackfilledBindingIds = new Set(); // 已回填为编辑行的绑定主键集合；防止绑定刷新时重复回填，保存成功或切换用户后清空重建。
     this.hgRoleSubmitting = false; // 授权提交同步锁；请求完成前阻止双击重复消费 MFA。
@@ -122,6 +126,7 @@ class HGUserEditRolePage extends Component {
     this.hgBindingPermissionEpoch += 1;
     this.hgPermissionRequest += 1;
     this.hgScopeResourceEpoch += 1;
+    this.hgScopeResourceInFlight.clear();
     this.hgBackfilledBindingIds = new Set(); // 新目标从零回填，旧用户的回填记录全部作废。
     const user = this.props.location?.state?.user || {}; // 新目标资料，缺省时不沿用旧资料。
     this.setState(
@@ -161,6 +166,7 @@ class HGUserEditRolePage extends Component {
     this.hgBindingPermissionEpoch += 1;
     this.hgPermissionRequest += 1;
     this.hgScopeResourceEpoch += 1;
+    this.hgScopeResourceInFlight.clear();
   }
 
   /** 绑定查询与角色/作用域目录独立；目录故障不能阻止已有角色的只读回填。 */
@@ -191,7 +197,7 @@ class HGUserEditRolePage extends Component {
         hgScopeCatalog: scopeResult.list, // 保留完整字典供展示；可授权性由后端实际支持范围限定。
         hgRolesTruncated: result.truncated,
         hgRolesLoading: false,
-      });
+      }, this.hgEnsureDraftScopeResources);
     } catch (error) {
       if (
         this.hgMounted &&
@@ -422,11 +428,23 @@ class HGUserEditRolePage extends Component {
       .forEach((type) => this.hgLoadScopeResources(type));
   };
 
+  /** 回填行与类型目录无固定返回顺序；两者就绪后逐类型补齐权威候选，不猜测原绑定之外的 ID。 */
+  hgEnsureDraftScopeResources = () => {
+    const { hgDrafts, hgScopeCatalog, hgScopeResources } = this.state; // 只查当前编辑目标已经出现的作用域。
+    const types = new Set(hgDrafts.flatMap((draft) => draft.scopeTypes)); // 多条绑定共用同一候选页。
+    types.forEach((type) => {
+      if (type !== "global" && HG_ASSIGNABLE_SCOPE_TYPES.has(type) &&
+          hgScopeCatalog.some((item) => item.code === type && item.status === 1) &&
+          !hgScopeResources[type]) this.hgLoadScopeResources(type);
+    });
+  };
+
   /** 按游标读取选定类型的候选资源；失败可重试，旧路由和旧请求不可覆盖新结果。 */
   hgLoadScopeResources = (type, cursor = "") => {
     const epoch = this.hgScopeResourceEpoch; // 当前页面用户的资源加载批次。
     const userId = this.userId; // 候选请求的页面身份，仅用于防止切换目标后的过期回填。
-    if (type === "global" || !HG_ASSIGNABLE_SCOPE_TYPES.has(type) || this.state.hgScopeResources[type]?.loading) return;
+    if (type === "global" || !HG_ASSIGNABLE_SCOPE_TYPES.has(type) || this.hgScopeResourceInFlight.has(type)) return;
+    this.hgScopeResourceInFlight.add(type); // setState 尚未提交时也要避免同类型回填行重复发请求。
     this.setState((previous) => ({
       hgScopeResources: {
         ...previous.hgScopeResources,
@@ -470,6 +488,9 @@ class HGUserEditRolePage extends Component {
           hgScopeResources: { ...previous.hgScopeResources,
             [type]: { ...previous.hgScopeResources[type], loading: false, error: error?.message || "作用域资源加载失败" } },
         }));
+      }).finally(() => {
+        if (this.userId === userId && epoch === this.hgScopeResourceEpoch)
+          this.hgScopeResourceInFlight.delete(type);
       });
   };
 
@@ -513,7 +534,7 @@ class HGUserEditRolePage extends Component {
         originLimited: Boolean(binding.permissionsLimited), // 原绑定权限被单独限制，页面无法读取实际子集。
       };
     });
-    this.setState((previous) => ({ hgDrafts: [...previous.hgDrafts, ...drafts] }));
+    this.setState((previous) => ({ hgDrafts: [...previous.hgDrafts, ...drafts] }), this.hgEnsureDraftScopeResources);
     drafts.forEach((draft) => this.hgSelectRole(draft.key, draft.roleId)); // 回填该角色当前生效权限作为比对基线。
   };
 
@@ -1140,7 +1161,7 @@ class HGUserEditRolePage extends Component {
             {draft.scopeTypes
               .filter((type) => type !== "global")
               .map((type) => {
-                const resources = hgScopeResources[type]; // 已审核商家或已启用组织的游标页；缺省表示等待请求。
+                const resources = hgScopeResources[type]; // 按类型读取权威且已启用的候选页；缺省表示等待请求。
                 return (
                   <React.Fragment key={type}>
                     {this.renderRoleField(
@@ -1164,9 +1185,19 @@ class HGUserEditRolePage extends Component {
                           <option key={item.id} value={item.id}>{item.name || item.id} · {item.id}</option>
                         ))}
                       </select>,
-                      resources?.error || (!resources?.loading && resources?.list?.length === 0 ? "暂无可授权资源" : "")
+                      resources?.error || (type !== "organization" && !resources?.loading && resources?.list?.length === 0 ? "暂无可授权资源" : "")
                     )}
                     {resources?.error && <HGButtonPage type="link" onClick={() => this.hgLoadScopeResources(type, resources.nextCursor)}>重试加载 {type}</HGButtonPage>}
+                    {type === "organization" && resources?.list?.length === 0 && !resources.loading && !resources.error && (
+                      <p role="status" className={styles.extraText}>
+                        尚无可授权的业务组织；请先创建并启用组织，再刷新候选。旧 org 的组织 ID 不适用于 organization。
+                        {" "}
+                        <a href={HG_ORGANIZATION_MANAGE_URL} target="_blank" rel="noopener noreferrer">新标签页创建组织</a>
+                      </p>
+                    )}
+                    {resources && !resources.loading && !resources.error && (
+                      <HGButtonPage type="link" onClick={() => this.hgLoadScopeResources(type)}>{`刷新 ${type} 候选`}</HGButtonPage>
+                    )}
                     {resources?.hasMore && !resources.loading && <HGButtonPage type="link" onClick={() => this.hgLoadScopeResources(type, resources.nextCursor)}>加载更多 {type}</HGButtonPage>}
                   </React.Fragment>
                 );
