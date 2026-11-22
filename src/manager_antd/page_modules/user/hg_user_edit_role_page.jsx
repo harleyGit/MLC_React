@@ -442,7 +442,10 @@ class HGUserEditRolePage extends Component {
         this.setState((previous) => {
           const loaded = cursor ? previous.hgScopeResources[type]?.list || [] : []; // 同类型已加载候选项，登记 shop 优先于商家。
           const seen = new Set(loaded.map((item) => item.id)); // 商家与已登记 shop 共用 ID 时只显示一次。
-          const list = [...loaded, ...result.list.filter((item) => {
+          const candidates = result.list
+            .map((item) => ({ ...item, id: String(item?.id ?? "").trim() }))
+            .filter((item) => item.id); // select 回传值恒为字符串，统一资源 ID 类型后再用于展示与保存校验。
+          const list = [...loaded, ...candidates.filter((item) => {
             if (seen.has(item.id)) return false;
             seen.add(item.id);
             return true;

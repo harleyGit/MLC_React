@@ -541,6 +541,25 @@ test("权限为空时说明角色尚未配置；作用域候选分页、失败�
   assert.deepEqual(hgCursors, [["org", ""], ["org", "org-1"], ["org", "org-1"]]);
 });
 
+test("店铺候选返回数值 ID 时按下拉框字符串值校验并允许保存", async () => {
+  const { hgPage } = hgUserEditPage(async () => {}, {
+    fetchAllRoles: async () => ({ list: [{ id: "7", code: "merchant_employee" }], truncated: false }),
+    fetchBindings: async () => ({ list: [] }),
+    fetchRolePermissions: async () => ({ list: [], selected: [] }),
+    fetchScopeResources: async () => ({ list: [{ id: 42, name: "测试店铺" }], hasMore: false }),
+  });
+  await hgPage.hgLoadRolesAndBindings();
+  await hgFlush();
+  hgPage.hgAddDraft();
+  hgPage.hgSelectRole("draft-1", "7");
+  await hgFlush();
+  hgPage.hgSelectScopeTypes("draft-1", ["shop"]);
+  await hgFlush();
+  assert.equal(hgPage.state.hgScopeResources.shop.list[0].id, "42");
+  assert.equal(hgPage.state.hgDrafts[0].scopeIDs.shop, "42");
+  assert.equal(hgPage.hgCollectChanges().grants[0].scopeId, "42");
+});
+
 test("作用域候选跨登记店铺与商家分页去重，切换用户后丢弃旧请求", async () => {
   let hgResolveOld; // 旧用户的候选请求延迟完成，以验证切换编辑目标后的隔离。
   const { hgPage } = hgUserEditPage(async () => {}, {

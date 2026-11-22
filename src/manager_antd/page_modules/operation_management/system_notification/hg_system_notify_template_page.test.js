@@ -225,3 +225,62 @@ test("新建支持大写编码；切换为无跳转清除旧 route_name 并禁�
   assert.ok(controls.length > 0);
   assert.ok(controls.every((control) => control.props.disabled === true));
 });
+
+test("切换点击行为自动填写匹配路由并清除旧路由参数", async () => {
+  const calls = [];
+  const page = hgTestPage({
+    list: async () => ({ list: [], nextCursor: "" }),
+    create: async (body) => {
+      calls.push(body);
+      return { id: "1", version: 1 };
+    },
+    errorMessage: (error) => error.message,
+  }, []);
+  page.hgCreate();
+  page.hgChange("action_type", "security_center");
+  assert.deepEqual(JSON.parse(JSON.stringify(page.state.hgForm.action_config)), {
+    route_name: "security_center", params: [], extra: {},
+  });
+  await page.hgSave({ preventDefault() {} });
+  assert.equal(calls[0].action_type, "security_center");
+  assert.deepEqual(calls[0].action_config, { route_name: "security_center" });
+  const editor = page.hgRenderActionConfigEditor(false);
+  const controls = [];
+  function collect(element) {
+    if (!React.isValidElement(element)) return;
+    if (element.type === "input") controls.push(element);
+    React.Children.forEach(element.props.children, collect);
+  }
+  collect(editor);
+  assert.equal(controls[0].props.value, "security_center");
+  assert.equal(controls[0].props.readOnly, true, "路由名必须与点击行为保持一致");
+  page.hgCreate(true);
+  page.hgChange("action_type", "security_center");
+  assert.deepEqual(hgTemplatePayload(page.state.hgForm, false).action_config, {
+    route_name: "security_center",
+  }, "角色通知从无跳转切换到安全中心时也应自动填充路由名");
+});
+
+test("打开旧版空路由配置时补齐路由名，保留版本与其他字段", async () => {
+  const calls = [];
+  const detail = {
+    ...hgEmpty, id: "1", version: 2, template_code: "iam.role.updated",
+    name: "角色更新通知", title_template: "角色信息已更新",
+    body_template: "您的角色 {{role_name}} 已更新，请查看最新权限。",
+    variables_schema: { role_name: { type: "string", required: true, max_length: 128 } },
+    action_type: "security_center", action_config: {}, channels: ["in_app", "realtime"],
+  };
+  const page = hgTestPage({
+    detail: async () => detail,
+    update: async (id, body) => calls.push([id, body]),
+    list: async () => ({ list: [], nextCursor: "" }),
+    errorMessage: (error) => error.message,
+  }, []);
+  await page.hgOpen({ id: "1" });
+  assert.equal(page.state.hgForm.action_config.route_name, "security_center");
+  assert.equal(page.state.hgForm.version, 2);
+  await page.hgSave({ preventDefault() {} });
+  assert.equal(calls[0][0], "1");
+  assert.equal(calls[0][1].version, 2);
+  assert.deepEqual(calls[0][1].action_config, { route_name: "security_center" });
+});

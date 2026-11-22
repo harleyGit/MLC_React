@@ -161,7 +161,11 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
     try {
       const detail = await HGSystemNotifyTemplateVM.detail(item.id);
       if (!this.hgMounted || sequence !== this.hgSequence) return;
-      const form = hgTemplateToForm(detail); // 与服务端当前版本一一对应的受控数据。
+      const form = hgTemplateToForm(detail); // 服务端当前版本的受控数据；保留已有路由参数。
+      if (form.action_type !== "none" && form.action_config.route_name !== form.action_type) {
+        // 旧草稿缺失或不匹配路由名时只补齐必填字段，不丢失已有参数和版本。
+        form.action_config = { ...form.action_config, route_name: form.action_type };
+      }
       this.setState({
         hgOpening: false,
         hgEditing: true,
@@ -192,14 +196,18 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
     this.hgLoad(true);
   };
 
-  /** 受控输入保留用户编辑；选择无跳转时清空不可再提交的路由配置。 */
+  /** 点击行为决定唯一合法路由名；切换目标时移除旧目标的参数，避免提交过期配置。 */
   hgChange = (field, value) =>
     this.setState((state) => ({
       hgForm: {
         ...state.hgForm,
         [field]: value,
-        ...(field === "action_type" && value === "none"
-          ? { action_config: { route_name: "", params: [], extra: {} } }
+        ...(field === "action_type"
+          ? {
+              action_config: value === state.hgForm.action_type
+                ? { ...state.hgForm.action_config, route_name: value === "none" ? "" : value }
+                : { route_name: value === "none" ? "" : value, params: [], extra: {} },
+            }
           : {}),
       },
       hgError: "",
@@ -233,16 +241,6 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
       hgForm: {
         ...state.hgForm,
         variables_schema: state.hgForm.variables_schema.filter((_, i) => i !== index),
-      },
-      hgError: "",
-    }));
-
-  /** 修改点击配置的顶层字段（当前为 route_name）；params 单独按行维护。 */
-  hgChangeActionConfig = (patch) =>
-    this.setState((state) => ({
-      hgForm: {
-        ...state.hgForm,
-        action_config: { ...state.hgForm.action_config, ...patch },
       },
       hgError: "",
     }));
@@ -626,8 +624,8 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
   };
 
   /**
-   * 点击配置编辑器：route_name 输入框 + 路由参数键值对逐行增删，
-   * 不再以 JSON 文本编辑；action_type 为「无跳转」时可不配置。
+   * 点击配置编辑器：路由名由点击行为自动锁定，路由参数键值对仍可逐行增删；
+   * action_type 为「无跳转」时不配置参数。
    * @param {boolean} locked 无更新权限查看既有模板时禁用全部控件。
    */
   hgRenderActionConfigEditor = (locked) => {
@@ -641,7 +639,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
             <p>
               {action_type === "none"
                 ? "点击行为为「无跳转」时无需配置。"
-                : "route_name 为内部路由名；参数值可引用已声明的变量，投递时由服务端填充。"}
+                : "route_name 随点击行为自动填写；目标页需要参数时可引用已声明的变量。切换点击行为会清空原路由参数。"}
             </p>
           </div>
           <button type="button" onClick={this.hgAddActionParam} disabled={disabled}>
@@ -657,7 +655,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
               placeholder="如 order_detail"
               value={action_config.route_name}
               disabled={disabled}
-              onChange={(e) => this.hgChangeActionConfig({ route_name: e.target.value })}
+              readOnly
             />
           </label>
         </div>

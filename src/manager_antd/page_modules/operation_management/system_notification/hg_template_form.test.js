@@ -12,6 +12,7 @@ test("编辑详情回填结构化表单并按原版本更新，未知字段无�
   const detail = {
     id: "9007199254740993", template_code: "order.paid", version: 7, name: "支付成功",
     category: "transaction", title_template: "已支付", body_template: "订单 {{order_no}} 已支付",
+    action_type: "order_detail",
     variables_schema: { order_no: { type: "string", required: true, enum: ["A", "B"] } },
     action_config: { route_name: "order_detail", params: { order_id: "{{order_no}}" }, fallback: "home" },
     channels: ["in_app", "realtime"], priority: 2, locale: "zh-CN",
@@ -19,6 +20,7 @@ test("编辑详情回填结构化表单并按原版本更新，未知字段无�
   const form = hgTemplateToForm(detail);
   assert.equal(form.body_template, detail.body_template);
   assert.equal(form.version, 7);
+  assert.equal(form.action_type, "order_detail");
   assert.deepEqual(form.variables_schema, [
     { name: "order_no", type: "string", required: true, max_length: "", description: "", extra: { enum: ["A", "B"] } },
   ]);
@@ -26,6 +28,7 @@ test("编辑详情回填结构化表单并按原版本更新，未知字段无�
   const update = hgTemplatePayload({ ...form, name: "支付完成" }, true);
   assert.equal(update.version, 7);
   assert.equal(update.name, "支付完成");
+  assert.equal(update.action_type, "order_detail");
   assert.equal(Object.hasOwn(update, "template_code"), false);
   assert.deepEqual(update.variables_schema, detail.variables_schema);
   assert.deepEqual(update.action_config, detail.action_config);

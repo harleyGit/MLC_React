@@ -58,6 +58,7 @@ export function hgTemplateToForm(item) {
     title_template: item.title_template,
     body_template: item.body_template,
     variables_schema,
+    action_type: typeof item.action_type === "string" ? item.action_type : "none", // 点击行为由服务端详情回填；缺失时按无跳转处理。
     action_config: {
       route_name: typeof route_name === "string" ? route_name : "", // 内部路由名；空字符串表示未配置。
       params: params && typeof params === "object" && !Array.isArray(params)
