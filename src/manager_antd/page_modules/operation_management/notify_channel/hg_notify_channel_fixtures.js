@@ -261,6 +261,63 @@ export const HG_DEMO_DELIVERIES = [
 /** 重试策略阶梯：指数退避 + 随机抖动，防止供应商恢复瞬间被重试洪峰打垮。 */
 export const RETRY_LADDER = ["1 分钟", "5 分钟", "15 分钟", "1 小时"];
 
+/**
+ * 通知模板示例（仅 dataSource 为 local 时使用）。
+ * 字段对齐 notification_templates + notification_template_versions：模板负责内容结构与变量声明，
+ * 发送任务负责选择接收人并填入变量；仅已发布（published）版本可被发送任务引用。
+ */
+export const HG_DEMO_TEMPLATES = [
+  {
+    templateId: "tpl_10001",
+    templateCode: "system_maintenance_notice",
+    templateName: "系统维护通知",
+    category: "system",
+    status: "published",
+    version: 1,
+    channels: ["in_app", "realtime"],
+    titleTemplate: "系统维护公告",
+    bodyTemplate:
+      "尊敬的{{nickname}}，平台将于{{maintenance_time}}进行系统维护，预计持续{{duration}}分钟。维护期间部分功能可能无法使用。",
+    variablesSchema: {
+      nickname: { type: "string", required: true, maxLength: 64 },
+      maintenance_time: { type: "string", required: true, maxLength: 64 },
+      duration: { type: "integer", required: true, minimum: 1 },
+    },
+  },
+  {
+    templateId: "tpl_10002",
+    templateCode: "order_paid_notice",
+    templateName: "支付成功通知",
+    category: "transaction",
+    status: "published",
+    version: 3,
+    channels: ["in_app", "realtime"],
+    titleTemplate: "支付成功",
+    bodyTemplate: "您的订单{{order_no}}已支付成功，实付{{amount}}元，商家将在{{ship_days}}天内发货。",
+    variablesSchema: {
+      order_no: { type: "string", required: true, maxLength: 64 },
+      amount: { type: "string", required: true, maxLength: 32 },
+      ship_days: { type: "integer", required: true, minimum: 1 },
+    },
+  },
+  {
+    templateId: "tpl_10003",
+    templateCode: "operation_coupon_grant",
+    templateName: "活动优惠券发放",
+    category: "operation",
+    status: "published",
+    version: 2,
+    channels: ["in_app"],
+    titleTemplate: "优惠券到账",
+    bodyTemplate: "{{nickname}}，恭喜获得“{{coupon_name}}”优惠券{{quota}}张，登录后在“我的-优惠券”查看。",
+    variablesSchema: {
+      nickname: { type: "string", required: true, maxLength: 64 },
+      coupon_name: { type: "string", required: true, maxLength: 64 },
+      quota: { type: "integer", required: true, minimum: 1 },
+    },
+  },
+];
+
 /** 渠道优先级选项。 */
 export const CHANNEL_PRIORITY_OPTIONS = [
   { value: "high", label: "高（与安全类同队列）" },

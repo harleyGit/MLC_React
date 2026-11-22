@@ -8,6 +8,6 @@ export default class HGScopeTypeVM {
   static create = (form) => HGNet.post(HGMANAGER_API.IAM_SCOPE_TYPE_CREATE, form);
   static update = (form) => HGNet.post(HGMANAGER_API.IAM_SCOPE_TYPE_UPDATE, form);
   static disable = (code) => HGNet.post(HGMANAGER_API.IAM_SCOPE_TYPE_DISABLE, { code });
-  /** 六类新作用域登记 IAM 候选资源；ID 由服务端生成，前端不传自选 ID。 */
-  static registerResource = (scopeType, name) => HGNet.post(HGMANAGER_API.IAM_SCOPE_RESOURCE_CREATE, { scopeType, name });
+  /** 建立权威业务资源及同 ID 的 IAM 登记；仅提交所有者/编码等业务参数，不接受客户端选定 ID。 */
+  static registerResource = (resource) => HGNet.post(HGMANAGER_API.IAM_BUSINESS_SCOPE_CREATE, resource);
 }

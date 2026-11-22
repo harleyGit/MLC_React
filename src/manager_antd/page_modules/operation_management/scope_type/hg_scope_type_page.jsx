@@ -12,7 +12,7 @@ import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 
 const HG_RESOURCE_SCOPE_TYPES = new Set([
   "creator", "organization", "environment", "crawler_project", "content_channel", "region",
-]); // 六类由 IAM 登记新资源的作用域；现有 shop/org 仍读取其业务权威来源。
+]); // 六类需从权威业务实体创建并同步 IAM 资源；现有 shop/org 仍读取原有权威来源。
 
 /** 创建与编辑共用表单页面；编辑由详情接口回填，不依赖列表中可能过期的字段。 */
 class HGScopeTypeFormPage extends Component {
@@ -217,6 +217,9 @@ export default class HGScopeTypePage extends Component {
     deleting: "", // 当前正在停用的类型编码，空值表示没有请求。
     hgResourceType: "", // 新资源所属的六类编码；空串表示尚未选择，不自动猜测用途。
     hgResourceName: "", // 待登记资源名称；空串表示未填写，最多 128 字符。
+    hgOwnerUserID: "", // 创作者空间的已有用户业务 ID；其他类型须为空。
+    hgResourceCode: "", // 环境/区域的稳定小写编码；其他类型须为空。
+    hgOrganizationID: "", // 项目/频道可选已启用组织 ID；不用于其他类型。
     hgResourceSaving: false, // 登记请求进行中；避免双击提交多个不同资源 ID。
     hgLastResource: null, // 最近成功登记的资源；null 表示本页尚未成功登记。
   };
@@ -287,24 +290,38 @@ export default class HGScopeTypePage extends Component {
     }
   };
 
-  /** 仅登记 IAM 候选资源，真实业务实体/归属规则不由本页创建或推断。 */
+  /** 按类型提交必要的可信索引；服务端验证用户/组织并原子创建业务实体和 IAM 资源。 */
   hgRegisterResource = async () => {
     if (this.state.hgResourceSaving) return;
     const hgType = this.state.hgResourceType; // 管理员显式选择的作用域编码。
     const hgName = this.state.hgResourceName.trim(); // 只提交名称，不传或编造资源 ID。
+    const hgOwnerUserID = this.state.hgOwnerUserID.trim(); // 创作者已有用户 ID，由服务端点查真实性。
+    const hgCode = this.state.hgResourceCode.trim(); // 环境/区域代码，仅服务端唯一键认定。
+    const hgOrganizationID = this.state.hgOrganizationID.trim(); // 项目/频道组织归属，仅服务端点查生效状态。
     if (!HG_RESOURCE_SCOPE_TYPES.has(hgType) ||
         !this.state.items.some((item) => item.code === hgType && item.status === 1) ||
         !hgName || [...hgName].length > 128) {
       message.error("请选择已启用的作用域并填写有效的资源名称");
       return;
     }
+    if ((hgType === "creator" && !hgOwnerUserID) ||
+        (["environment", "region"].includes(hgType) && !/^[a-z][a-z0-9_-]{0,31}$/.test(hgCode))) {
+      message.error("请填写创作者用户 ID 或有效的环境/区域编码");
+      return;
+    }
     this.setState({ hgResourceSaving: true });
     try {
-      const hgResource = await HGScopeTypeVM.registerResource(hgType, hgName);
+      const hgResource = await HGScopeTypeVM.registerResource({
+        scopeType: hgType, name: hgName,
+        ownerUserId: hgType === "creator" ? hgOwnerUserID : "",
+        code: ["environment", "region"].includes(hgType) ? hgCode : "",
+        organizationId: ["crawler_project", "content_channel"].includes(hgType) ? hgOrganizationID : "",
+      }); // 不传资源 ID 或业务状态；作用域归属仍由后端复核。
       if (!hgResource?.id) throw new Error("资源登记结果无效");
       if (this.hgMounted) {
-        this.setState({ hgResourceName: "", hgLastResource: { ...hgResource, scopeType: hgType } });
-        message.success("IAM 资源已登记；业务接口仍需单独接入作用域鉴权");
+        this.setState({ hgResourceName: "", hgOwnerUserID: "", hgResourceCode: "", hgOrganizationID: "",
+          hgLastResource: { ...hgResource, scopeType: hgType } });
+        message.success("业务实体与 IAM 资源已建立；现有业务接口仍按原有鉴权规则运行");
       }
     } catch (error) {
       if (this.hgMounted) message.error(error?.message || "资源登记失败");
@@ -313,14 +330,15 @@ export default class HGScopeTypePage extends Component {
     }
   };
 
-  /** 新资源登记独立于作用域字典维护；仅授权管理员可写，不以登记代替业务实体创建。 */
+  /** 新实体创建独立于作用域字典维护；输入 owner/code/组织关系由后端逐项复核。 */
   renderResourceRegistration = () => (
-    <HGCardPage title="登记 IAM 作用域资源">
-      <p>为六类新作用域登记候选资源；此操作不会创建视频、爬虫或运维业务实体，也不会自动赋予业务 API 权限。</p>
+    <HGCardPage title="创建作用域业务实体">
+      <p>为六类作用域创建独立的权威业务实体，并同步 IAM 候选资源；稿件、任务、商家的实际归属仍须在相应业务流程显式建立。</p>
       <label>作用域类型{" "}
         <select aria-label="登记资源作用域类型" value={this.state.hgResourceType}
           disabled={this.state.hgResourceSaving}
-          onChange={(event) => this.setState({ hgResourceType: event.target.value, hgLastResource: null })}>
+          onChange={(event) => this.setState({ hgResourceType: event.target.value, hgOwnerUserID: "", hgResourceCode: "",
+            hgOrganizationID: "", hgLastResource: null })}>
           <option value="">请选择已启用类型</option>
           {this.state.items.filter((item) => item.status === 1 && HG_RESOURCE_SCOPE_TYPES.has(item.code)).map((item) =>
             <option key={item.code} value={item.code}>{item.name}</option>
@@ -332,8 +350,26 @@ export default class HGScopeTypePage extends Component {
           disabled={this.state.hgResourceSaving}
           onChange={(event) => this.setState({ hgResourceName: event.target.value })} />
       </label>{" "}
+      {this.state.hgResourceType === "creator" && (
+        <label>创作者用户 ID{" "}
+          <input aria-label="创作者用户 ID" maxLength={64} value={this.state.hgOwnerUserID}
+            disabled={this.state.hgResourceSaving} onChange={(event) => this.setState({ hgOwnerUserID: event.target.value })} />
+        </label>
+      )}{" "}
+      {["environment", "region"].includes(this.state.hgResourceType) && (
+        <label>稳定编码{" "}
+          <input aria-label="环境或区域编码" maxLength={32} value={this.state.hgResourceCode}
+            disabled={this.state.hgResourceSaving} onChange={(event) => this.setState({ hgResourceCode: event.target.value })} />
+        </label>
+      )}{" "}
+      {["crawler_project", "content_channel"].includes(this.state.hgResourceType) && (
+        <label>所属组织 ID（可选）{" "}
+          <input aria-label="所属组织 ID" maxLength={64} value={this.state.hgOrganizationID}
+            disabled={this.state.hgResourceSaving} onChange={(event) => this.setState({ hgOrganizationID: event.target.value })} />
+        </label>
+      )}{" "}
       <HGAuthButton allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
-        disabled={this.state.hgResourceSaving} onClick={this.hgRegisterResource}>登记资源</HGAuthButton>
+        disabled={this.state.hgResourceSaving} onClick={this.hgRegisterResource}>创建业务资源</HGAuthButton>
       {this.state.hgLastResource && (
         <p role="status">已登记 {this.state.hgLastResource.name}（{this.state.hgLastResource.scopeType}），资源 ID：{this.state.hgLastResource.id}</p>
       )}

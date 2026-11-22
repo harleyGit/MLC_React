@@ -13,7 +13,7 @@ test("作用域字典列表、编辑回填、创建与停用各调用对应接�
   runInNewContext(code, {
     module, exports: module.exports,
     require: (dependency) => dependency.endsWith("hg_api_constants") ? { HGMANAGER_API: {
-      IAM_SCOPE_TYPE_LIST: "/list", IAM_SCOPE_TYPE_DETAIL: "/detail", IAM_SCOPE_TYPE_CREATE: "/create", IAM_SCOPE_TYPE_UPDATE: "/update", IAM_SCOPE_TYPE_DISABLE: "/disable", IAM_SCOPE_RESOURCE_CREATE: "/resources",
+      IAM_SCOPE_TYPE_LIST: "/list", IAM_SCOPE_TYPE_DETAIL: "/detail", IAM_SCOPE_TYPE_CREATE: "/create", IAM_SCOPE_TYPE_UPDATE: "/update", IAM_SCOPE_TYPE_DISABLE: "/disable", IAM_BUSINESS_SCOPE_CREATE: "/business-scopes",
     } } : { default: {
       get: async (path, params) => { calls.push(["GET", path, JSON.stringify(params)]); return {}; },
       post: async (path, payload) => { calls.push(["POST", path, JSON.stringify(payload)]); return {}; },
@@ -25,11 +25,11 @@ test("作用域字典列表、编辑回填、创建与停用各调用对应接�
   await vm.create({ code: "new_scope", name: "测试类型", description: "类型登记", status: 1 });
   await vm.update({ code: "region", name: "区域", description: "现有类型", status: 0 });
   await vm.disable("shop");
-  await vm.registerResource("region", "华北");
-  assert.deepEqual(calls.map((item) => item.slice(0, 2)), [["GET", "/list"], ["GET", "/detail"], ["POST", "/create"], ["POST", "/update"], ["POST", "/disable"], ["POST", "/resources"]]);
+  await vm.registerResource({ scopeType: "region", name: "华北", code: "north" });
+  assert.deepEqual(calls.map((item) => item.slice(0, 2)), [["GET", "/list"], ["GET", "/detail"], ["POST", "/create"], ["POST", "/update"], ["POST", "/disable"], ["POST", "/business-scopes"]]);
   assert.equal(calls[0][2], JSON.stringify({ cursor: "21", pageSize: 50 }));
   assert.equal(calls[1][2], JSON.stringify({ code: "shop" }));
   assert.deepEqual(JSON.parse(calls[2][2]), { code: "new_scope", name: "测试类型", description: "类型登记", status: 1 });
   assert.deepEqual(JSON.parse(calls[3][2]), { code: "region", name: "区域", description: "现有类型", status: 0 });
-  assert.deepEqual(JSON.parse(calls[5][2]), { scopeType: "region", name: "华北" });
+  assert.deepEqual(JSON.parse(calls[5][2]), { scopeType: "region", name: "华北", code: "north" });
 });

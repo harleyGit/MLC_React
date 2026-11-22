@@ -227,6 +227,129 @@
 
 .formFooter { margin: 14px 0 0; color: #8a94a7; font-size: 12px; }
 
+/* ============ 发送通知任务 ============ */
+.sendToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.sendToolbar > * { flex-shrink: 0; }
+.sendToolbar .cardExtraText { flex-shrink: 1; }
+
+.sendGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.sendGrid label { display: grid; gap: 7px; color: #344056; font-size: 13px; font-weight: 600; }
+
+.datetimeInput {
+  padding: 8px 10px;
+  border: 1px solid #d5dde9;
+  border-radius: 8px;
+  background: #fff;
+  color: #182033;
+  font-size: 13px;
+}
+
+.fieldHint { color: #8a94a7; font-size: 12px; font-weight: 400; line-height: 1.6; }
+.fieldGroupTitle { color: #344056; font-size: 13px; font-weight: 600; }
+
+.variableGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.warningBar {
+  padding: 10px 13px;
+  border: 1px solid #ffd591;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #874d00;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.dangerBar {
+  margin-bottom: 16px;
+  padding: 10px 13px;
+  border: 1px solid #ffa39e;
+  border-radius: 8px;
+  background: #fff1f0;
+  color: #cf1322;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.sendActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.taskResult {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #e7f8ef;
+  border: 1px solid #b7e4c7;
+  color: #137a4b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ============ 发送预览弹窗 ============ */
+.previewCard {
+  padding: 16px 18px;
+  border: 1px solid #e4eaf2;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fdfdff, #f7fafd);
+}
+
+.previewHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.previewCategory {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #e7f2ff;
+  color: #2b6de0;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.previewTime { color: #8a94a7; font-size: 12px; }
+
+.previewTitle { margin: 10px 0 6px; color: #16233c; font-size: 16px; }
+
+.previewBody { margin: 0; color: #4c5866; font-size: 13px; line-height: 1.8; }
+
+.previewVar {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #fff1f0;
+  color: #cf1322;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.previewFoot {
+  display: block;
+  margin-top: 10px;
+  color: #8a94a7;
+  font-size: 11.5px;
+}
+
+.previewMeta {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: #4c5866;
+  font-size: 12.5px;
+  line-height: 2;
+}
+
 /* ============ 响应式 ============ */
 @media (max-width: 1200px) {
   .channelGrid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
@@ -236,9 +359,10 @@
 @media (max-width: 820px) {
   .hero { padding: 22px; }
   .heroDesc { font-size: 12.5px; }
-  .retryGrid, .formGrid { grid-template-columns: 1fr; }
+  .retryGrid, .formGrid, .sendGrid { grid-template-columns: 1fr; }
   .fullField { grid-column: auto; }
   .channelMetrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .variableGrid { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

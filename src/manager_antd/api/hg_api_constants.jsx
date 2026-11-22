@@ -150,6 +150,7 @@ export const HGMANAGER_API = {
   IAM_SCOPE_TYPE_LIST: "/api/v1/iam/scope-types/list", // 含未启用项的作用域类型字典
   IAM_SCOPE_RESOURCE_LIST: "/api/v1/iam/scope-resources/list", // 即时授权可用的 shop/org 候选资源游标页
   IAM_SCOPE_RESOURCE_CREATE: "/api/v1/iam/scope-resources", // 新作用域登记（由服务端生成资源 ID）
+  IAM_BUSINESS_SCOPE_CREATE: "/api/v1/iam/business-scopes", // 原子创建六类权威业务实体和同 ID 的 IAM 资源
   IAM_SCOPE_TYPE_DETAIL: "/api/v1/iam/scope-types/detail", // 按编码读取编辑回填
   IAM_SCOPE_TYPE_CREATE: "/api/v1/iam/scope-types", // 创建默认停用的类型
   IAM_SCOPE_TYPE_UPDATE: "/api/v1/iam/scope-types/update", // 更新类型显示信息
@@ -233,4 +234,6 @@ export const HGMANAGER_API = {
   ADMIN_NOTIFY_CHANNEL_UPDATE: "/admin/v1/notification/channels/update", // 更新渠道配置
   ADMIN_NOTIFY_DELIVERIES: "/admin/v1/notification/deliveries", // 投递任务与失败重试
   ADMIN_NOTIFY_TEST_SEND: "/admin/v1/notification/test-send", // 管理员本人站内试通知
+  ADMIN_NOTIFY_TEMPLATE_LIST: "/api/v1/notifications/admin/templates", // 通知模板列表（技术文档 5.1，返回已发布模板）
+  ADMIN_NOTIFY_SEND_TASK: "/api/v1/notifications/admin/send-tasks", // 创建通知发送任务（技术文档 5.4，Idempotency-Key 幂等）
 };

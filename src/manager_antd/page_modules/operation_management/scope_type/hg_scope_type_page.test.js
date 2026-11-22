@@ -54,11 +54,11 @@ test("列表页由单个容器包裹页头与卡片，避免页头被 flex 拉�
   assert.equal(hgChildren[1].props.title, "作用域类型列表");
 });
 
-test("仅对已启用的新作用域登记资源，ID 只来自服务端", async () => {
-  const hgCalls = []; // 只核对类型和名称，不访问真实 IAM 接口。
+test("仅对已启用的新作用域创建实体，所有者经服务端验证，ID 只来自服务端", async () => {
+  const hgCalls = []; // 只核对业务创建载荷，不访问真实 IAM 接口。
   const hgMessages = []; // 接口结果文案，不保存个人资料。
   const hgPage = hgScopeTypePage({}, {
-    registerResource: async (...args) => { hgCalls.push(args); return { id: "server-id", name: args[1] }; },
+    registerResource: async (payload) => { hgCalls.push(payload); return { id: "server-id", name: payload.name }; },
   }, { success: (text) => hgMessages.push(text), error: (text) => hgMessages.push(text) });
   hgPage.hgMounted = true;
   hgPage.setState = (patch) => { hgPage.state = { ...hgPage.state, ...(typeof patch === "function" ? patch(hgPage.state) : patch) }; };
@@ -68,10 +68,15 @@ test("仅对已启用的新作用域登记资源，ID 只来自服务端", async
   assert.equal(hgCalls.length, 0);
   hgPage.setState({ hgResourceType: "creator", hgResourceName: " 创作者空间 " });
   await hgPage.hgRegisterResource();
-  assert.deepEqual(hgCalls, [["creator", "创作者空间"]]);
+  assert.equal(hgCalls.length, 0); // 缺少所有者不能制造无归属空间。
+  hgPage.setState({ hgOwnerUserID: "CREATOR" });
+  await hgPage.hgRegisterResource();
+  assert.deepEqual(JSON.parse(JSON.stringify(hgCalls)), [{
+    scopeType: "creator", name: "创作者空间", ownerUserId: "CREATOR", code: "", organizationId: "",
+  }]);
   assert.equal(hgPage.state.hgLastResource.id, "server-id");
   assert.equal(hgPage.state.hgResourceName, "");
-  assert.ok(hgMessages.some((text) => text.includes("业务接口仍需单独接入")));
+  assert.ok(hgMessages.some((text) => text.includes("现有业务接口仍按原有鉴权")));
 });
 
 test("表单页与列表页两处根节点都使用单容器，防止留白问题在编辑页复现", () => {
