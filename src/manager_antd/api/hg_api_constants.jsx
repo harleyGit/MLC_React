@@ -241,4 +241,7 @@ export const HGMANAGER_API = {
   ADMIN_NOTIFY_SEND_TASK: "/api/v1/admin/notification/send-tasks", // 最多 100 人的即时站内任务
   ADMIN_NOTIFY_SEND_TASK_DETAIL: "/api/v1/admin/notification/send-tasks/detail", // 仅创建人可读
   ADMIN_NOTIFY_SEND_TASK_CANCEL: "/api/v1/admin/notification/send-tasks/cancel", // 仅创建人可取消
+  ADMIN_NOTIFY_SEND_REVIEW: "/api/v1/admin/notification/send-tasks/review", // 他人的待审批任务
+  ADMIN_NOTIFY_SEND_REVIEW_DETAIL: "/api/v1/admin/notification/send-tasks/review/detail", // 已渲染文案
+  ADMIN_NOTIFY_SEND_APPROVE: "/api/v1/admin/notification/send-tasks/approve", // 双人复核并调度
 };

@@ -108,6 +108,14 @@ export default class HGNotifyChannelVM {
   static cancelTask = (id) =>
     HGNet.post(`${HGMANAGER_API.ADMIN_NOTIFY_SEND_TASK_CANCEL}?id=${encodeURIComponent(id)}`, {}, { _hasRetried: true });
 
+  static reviewPage = (cursor = "") =>
+    HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_SEND_REVIEW, cursor ? { cursor } : {});
+
+  static reviewDetail = (id) => HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_SEND_REVIEW_DETAIL, { id });
+
+  static approveTask = (id) =>
+    HGNet.post(`${HGMANAGER_API.ADMIN_NOTIFY_SEND_APPROVE}?id=${encodeURIComponent(id)}`, {}, { _hasRetried: true });
+
   static isSendable = hgSendableTemplate;
 
   /* ===== 格式化 ===== */

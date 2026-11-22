@@ -24,6 +24,7 @@ export const HG_PERMISSIONS = Object.freeze({
   NOTIFICATION_SEND_CREATE: "notification:send:create",
   NOTIFICATION_SEND_READ: "notification:send:read",
   NOTIFICATION_SEND_CANCEL: "notification:send:cancel",
+  NOTIFICATION_SEND_APPROVE: "notification:send:approve",
   MALL_REVIEW: "mall:merchant:review",
   PRODUCT_CREATE: "mall:product:create",
   PRODUCT_UPDATE: "mall:product:update",

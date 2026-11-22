@@ -48,11 +48,23 @@ export function hgValidateSendInput(template, userIds, variables) {
   return "";
 }
 
-/** 将页面输入收敛为后端 HGCommand，禁止额外发送范围、时间或渠道字段。 */
-export function hgBuildSendCommand(template, userIds, variables) {
+/** 定时仅允许未来 30 天 UTC 毫秒精度；合法本地时间由浏览器序列化为 Z 时区。 */
+export function hgValidateSendSchedule(type, localTime, now = Date.now()) {
+  if (type === "immediate") return "";
+  if (type !== "scheduled" || !localTime) return "请选择定时发送时间";
+  const at = new Date(localTime).getTime();
+  if (!Number.isFinite(at) || at <= now || at > now + 30 * 24 * 60 * 60 * 1000)
+    return "定时发送须在未来 30 天内";
+  return "";
+}
+
+/** 将页面输入收敛为后端 HGCommand，不发送未接入的分群、全站或渠道字段。 */
+export function hgBuildSendCommand(template, userIds, variables, scheduleType = "immediate", scheduledAt = "") {
   const values = {};
   for (const name of Object.keys(template.variablesSchema || {})) {
     if (variables[name] !== undefined && variables[name] !== "") values[name] = String(variables[name]);
   }
-  return { templateId: template.templateId, templateVersion: template.version, userIds, variables: values };
+  const command = { templateId: template.templateId, templateVersion: template.version, userIds, variables: values };
+  if (scheduleType === "scheduled") command.scheduledAt = new Date(scheduledAt).toISOString();
+  return command;
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hgBuildSendCommand, hgNormalizeSendTemplate, hgSendableTemplate, hgValidateSendInput } from "./hg_notify_send_contract.js";
+import { hgBuildSendCommand, hgNormalizeSendTemplate, hgSendableTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
 
 const hgRaw = {
   id: "9007199254740993", template_code: "system.maintenance", name: "维护通知",
@@ -21,6 +21,17 @@ test("仅允许当前已发布且纯站内的版本，模板 ID 保留字符串�
   assert.equal(hgSendableTemplate({ ...template, channels: ["in_app", "realtime"] }), false);
   assert.equal(hgSendableTemplate({ ...template, category: "security" }), false);
   assert.equal(hgSendableTemplate({ ...template, actionType: "order_detail" }), false);
+});
+
+test("定时仅接受未来 30 天，并传输 UTC 时间；立即发送保持原协议", () => {
+  const template = hgNormalizeSendTemplate(hgRaw);
+  const now = Date.parse("2026-11-22T00:00:00.000Z");
+  assert.equal(hgValidateSendSchedule("immediate", "", now), "");
+  assert.match(hgValidateSendSchedule("scheduled", "", now), /请选择/);
+  assert.match(hgValidateSendSchedule("scheduled", "2026-11-21T23:59:00.000Z", now), /未来 30 天/);
+  assert.equal(hgValidateSendSchedule("scheduled", "2026-11-23T00:00:00.000Z", now), "");
+  assert.equal(hgBuildSendCommand(template, ["u1"], { name: "用户" }).scheduledAt, undefined);
+  assert.equal(hgBuildSendCommand(template, ["u1"], { name: "用户" }, "scheduled", "2026-11-23T00:00:00.000Z").scheduledAt, "2026-11-23T00:00:00.000Z");
 });
 
 test("显式用户数量、格式和受控变量与发送协议一致", () => {
