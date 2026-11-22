@@ -25,6 +25,7 @@ function hgScopeTypePage(hgProps = {}, hgVM = {}, hgMessage = { success() {}, er
     exports: hgModule.exports,
     React,
     URLSearchParams,
+    window: { confirm: () => true }, // 停用交互仅模拟管理员确认，不访问浏览器或数据库。
     require: (hgDependency) => {
       if (hgDependency === "react") return React;
       if (hgDependency.endsWith("hg_page_header_page")) return { default: HGTestHeader, __esModule: true };
@@ -77,6 +78,19 @@ test("仅对已启用的新作用域创建实体，所有者经服务端验证�
   assert.equal(hgPage.state.hgLastResource.id, "server-id");
   assert.equal(hgPage.state.hgResourceName, "");
   assert.ok(hgMessages.some((text) => text.includes("现有业务接口仍按原有鉴权")));
+});
+
+test("停用最近创建的业务实体仅提交服务端 ID，并清除本页旧候选", async () => {
+  const hgCalls = []; // 不请求真实 IAM，只记录类型与 ID。
+  const hgPage = hgScopeTypePage({}, {
+    disableResource: async (scopeType, scopeId) => { hgCalls.push([scopeType, scopeId]); },
+  });
+  hgPage.hgMounted = true;
+  hgPage.setState = (patch) => { hgPage.state = { ...hgPage.state, ...(typeof patch === "function" ? patch(hgPage.state) : patch) }; };
+  hgPage.setState({ hgLastResource: { id: "server-id", name: "北方", scopeType: "region" } });
+  await hgPage.hgDisableResource();
+  assert.deepEqual(JSON.parse(JSON.stringify(hgCalls)), [["region", "server-id"]]);
+  assert.equal(hgPage.state.hgLastResource, null);
 });
 
 test("表单页与列表页两处根节点都使用单容器，防止留白问题在编辑页复现", () => {

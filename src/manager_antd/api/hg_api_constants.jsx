@@ -151,6 +151,7 @@ export const HGMANAGER_API = {
   IAM_SCOPE_RESOURCE_LIST: "/api/v1/iam/scope-resources/list", // 即时授权可用的 shop/org 候选资源游标页
   IAM_SCOPE_RESOURCE_CREATE: "/api/v1/iam/scope-resources", // 新作用域登记（由服务端生成资源 ID）
   IAM_BUSINESS_SCOPE_CREATE: "/api/v1/iam/business-scopes", // 原子创建六类权威业务实体和同 ID 的 IAM 资源
+  IAM_BUSINESS_SCOPE_DISABLE: "/api/v1/iam/business-scopes/disable", // 同事务停用实体和授权候选，保留历史绑定审计
   IAM_SCOPE_TYPE_DETAIL: "/api/v1/iam/scope-types/detail", // 按编码读取编辑回填
   IAM_SCOPE_TYPE_CREATE: "/api/v1/iam/scope-types", // 创建默认停用的类型
   IAM_SCOPE_TYPE_UPDATE: "/api/v1/iam/scope-types/update", // 更新类型显示信息

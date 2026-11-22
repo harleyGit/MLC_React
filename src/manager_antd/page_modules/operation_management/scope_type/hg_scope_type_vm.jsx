@@ -10,4 +10,6 @@ export default class HGScopeTypeVM {
   static disable = (code) => HGNet.post(HGMANAGER_API.IAM_SCOPE_TYPE_DISABLE, { code });
   /** 建立权威业务资源及同 ID 的 IAM 登记；仅提交所有者/编码等业务参数，不接受客户端选定 ID。 */
   static registerResource = (resource) => HGNet.post(HGMANAGER_API.IAM_BUSINESS_SCOPE_CREATE, resource);
+  /** 停用指定 ID 的业务实体及 IAM 资源，原有绑定留存审计但不再生效。 */
+  static disableResource = (scopeType, scopeId) => HGNet.post(HGMANAGER_API.IAM_BUSINESS_SCOPE_DISABLE, { scopeType, scopeId });
 }

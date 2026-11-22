@@ -221,6 +221,7 @@ export default class HGScopeTypePage extends Component {
     hgResourceCode: "", // 环境/区域的稳定小写编码；其他类型须为空。
     hgOrganizationID: "", // 项目/频道可选已启用组织 ID；不用于其他类型。
     hgResourceSaving: false, // 登记请求进行中；避免双击提交多个不同资源 ID。
+    hgResourceDisabling: false, // 最近创建资源的停用请求状态；禁止并发创建/停用。
     hgLastResource: null, // 最近成功登记的资源；null 表示本页尚未成功登记。
   };
   hgMounted = false; // 卸载后不再处理异步结果。
@@ -292,7 +293,7 @@ export default class HGScopeTypePage extends Component {
 
   /** 按类型提交必要的可信索引；服务端验证用户/组织并原子创建业务实体和 IAM 资源。 */
   hgRegisterResource = async () => {
-    if (this.state.hgResourceSaving) return;
+    if (this.state.hgResourceSaving || this.state.hgResourceDisabling) return;
     const hgType = this.state.hgResourceType; // 管理员显式选择的作用域编码。
     const hgName = this.state.hgResourceName.trim(); // 只提交名称，不传或编造资源 ID。
     const hgOwnerUserID = this.state.hgOwnerUserID.trim(); // 创作者已有用户 ID，由服务端点查真实性。
@@ -330,13 +331,32 @@ export default class HGScopeTypePage extends Component {
     }
   };
 
+  /** 停用最近创建的资源；服务端仍复核业务实体、IAM 状态和组织下的活动子资源。 */
+  hgDisableResource = async () => {
+    const hgResource = this.state.hgLastResource; // 仅操作当前页最近一次成功创建的权威 ID。
+    if (!hgResource || this.state.hgResourceDisabling || this.state.hgResourceSaving ||
+        !window.confirm(`确认停用业务资源 ${hgResource.name}？已有授权将不再生效。`)) return;
+    this.setState({ hgResourceDisabling: true });
+    try {
+      await HGScopeTypeVM.disableResource(hgResource.scopeType, hgResource.id);
+      if (this.hgMounted) {
+        this.setState({ hgLastResource: null });
+        message.success("已停用业务资源，历史授权保留供审计");
+      }
+    } catch (error) {
+      if (this.hgMounted) message.error(error?.message || "停用失败，请核对关联对象与权限");
+    } finally {
+      if (this.hgMounted) this.setState({ hgResourceDisabling: false });
+    }
+  };
+
   /** 新实体创建独立于作用域字典维护；输入 owner/code/组织关系由后端逐项复核。 */
   renderResourceRegistration = () => (
     <HGCardPage title="创建作用域业务实体">
       <p>为六类作用域创建独立的权威业务实体，并同步 IAM 候选资源；稿件、任务、商家的实际归属仍须在相应业务流程显式建立。</p>
       <label>作用域类型{" "}
         <select aria-label="登记资源作用域类型" value={this.state.hgResourceType}
-          disabled={this.state.hgResourceSaving}
+          disabled={this.state.hgResourceSaving || this.state.hgResourceDisabling}
           onChange={(event) => this.setState({ hgResourceType: event.target.value, hgOwnerUserID: "", hgResourceCode: "",
             hgOrganizationID: "", hgLastResource: null })}>
           <option value="">请选择已启用类型</option>
@@ -347,31 +367,35 @@ export default class HGScopeTypePage extends Component {
       </label>{" "}
       <label>资源名称{" "}
         <input aria-label="登记资源名称" maxLength={128} value={this.state.hgResourceName}
-          disabled={this.state.hgResourceSaving}
+          disabled={this.state.hgResourceSaving || this.state.hgResourceDisabling}
           onChange={(event) => this.setState({ hgResourceName: event.target.value })} />
       </label>{" "}
       {this.state.hgResourceType === "creator" && (
-        <label>创作者用户 ID{" "}
+        <label>本人用户 ID（不可代建）{" "}
           <input aria-label="创作者用户 ID" maxLength={64} value={this.state.hgOwnerUserID}
-            disabled={this.state.hgResourceSaving} onChange={(event) => this.setState({ hgOwnerUserID: event.target.value })} />
+            disabled={this.state.hgResourceSaving || this.state.hgResourceDisabling} onChange={(event) => this.setState({ hgOwnerUserID: event.target.value })} />
         </label>
       )}{" "}
       {["environment", "region"].includes(this.state.hgResourceType) && (
         <label>稳定编码{" "}
           <input aria-label="环境或区域编码" maxLength={32} value={this.state.hgResourceCode}
-            disabled={this.state.hgResourceSaving} onChange={(event) => this.setState({ hgResourceCode: event.target.value })} />
+            disabled={this.state.hgResourceSaving || this.state.hgResourceDisabling} onChange={(event) => this.setState({ hgResourceCode: event.target.value })} />
         </label>
       )}{" "}
       {["crawler_project", "content_channel"].includes(this.state.hgResourceType) && (
         <label>所属组织 ID（可选）{" "}
           <input aria-label="所属组织 ID" maxLength={64} value={this.state.hgOrganizationID}
-            disabled={this.state.hgResourceSaving} onChange={(event) => this.setState({ hgOrganizationID: event.target.value })} />
+            disabled={this.state.hgResourceSaving || this.state.hgResourceDisabling} onChange={(event) => this.setState({ hgOrganizationID: event.target.value })} />
         </label>
       )}{" "}
       <HGAuthButton allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
-        disabled={this.state.hgResourceSaving} onClick={this.hgRegisterResource}>创建业务资源</HGAuthButton>
+        disabled={this.state.hgResourceSaving || this.state.hgResourceDisabling} onClick={this.hgRegisterResource}>创建业务资源</HGAuthButton>
       {this.state.hgLastResource && (
-        <p role="status">已登记 {this.state.hgLastResource.name}（{this.state.hgLastResource.scopeType}），资源 ID：{this.state.hgLastResource.id}</p>
+        <p role="status">已创建 {this.state.hgLastResource.name}（{this.state.hgLastResource.scopeType}），资源 ID：{this.state.hgLastResource.id}{" "}
+          <HGAuthButton allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_GRANT_DIRECT]}
+            danger disabled={this.state.hgResourceSaving || this.state.hgResourceDisabling}
+            onClick={this.hgDisableResource}>停用此资源</HGAuthButton>
+        </p>
       )}
     </HGCardPage>
   );
