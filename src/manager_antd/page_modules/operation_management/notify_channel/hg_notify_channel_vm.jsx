@@ -24,7 +24,7 @@ export { RETRY_LADDER, CHANNEL_PRIORITY_OPTIONS };
 
 /** 当前仅支持显式用户；其它范围不可通过本页面请求。 */
 export const AUDIENCE_TYPE_OPTIONS = [
-  { value: "user_ids", label: "指定用户（逗号分隔 ID）" },
+  { value: "user_ids", label: "指定用户（目录多选）" },
 ];
 
 /** 立即/定时均由后端持久化；定时任务须经另一管理员审批。 */
@@ -82,6 +82,21 @@ export default class HGNotifyChannelVM {
 
   static fetchPublishedTemplates = (cursor = "") =>
     HGNotifyChannelVM.fetchTemplates(HGMANAGER_API.ADMIN_NOTIFY_TEMPLATE_PUBLISHED, cursor);
+
+  /** 只取用户目录公开标识与展示名；每页 20 条，下一页沿用后端游标，不缓存联系方式。 */
+  static fetchRecipientUsers = async (cursor = "") => {
+    const response = await HGNet.get(HGMANAGER_API.UserList, { pageSize: 20, ...(cursor ? { cursor } : {}) });
+    if (!Array.isArray(response?.result) || response.result.length > 20) throw new Error("用户列表响应格式错误");
+    const nextCursor = response.hasMore ? String(response.nextCursor || "") : ""; // 0 表示没有合法后续页。
+    if (response.hasMore && (!/^[1-9]\d*$/.test(nextCursor) || nextCursor === cursor))
+      throw new Error("用户目录下一页游标无效");
+    return {
+      list: response.result
+        .filter((user) => typeof user?.user_id === "string" && /^[A-Za-z0-9_.-]{1,128}$/.test(user.user_id))
+        .map((user) => ({ id: user.user_id, name: String(user.user_name || user.nickname || user.user_id) })),
+      nextCursor,
+    };
+  };
 
   /** 复核必须由非创建者执行；发布状态以服务端版本锁和权限校验为准。 */
   static publishTemplate = (id, version) =>

@@ -35,6 +35,7 @@ export const HG_OPERATION_PERMISSIONS = Object.freeze({
     HG_PERMISSIONS.NOTIFICATION_SEND_APPROVE,
     HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH,
   ],
+  system_notify_send_records: HG_PERMISSIONS.NOTIFICATION_SEND_READ,
 });
 
 /** 发送页允许创建、查询、审批或发布角色分别进入；各按钮仍受服务端独立权限保护。 */

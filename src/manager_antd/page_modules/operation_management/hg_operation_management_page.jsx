@@ -56,6 +56,9 @@ const HGNotifyChannelPage = lazy(() =>
 const HGNotifySendPage = lazy(() =>
   import("./notify_channel/hg_notify_send_page")
 );
+const HGNotifySendRecordsPage = lazy(() =>
+  import("./notify_channel/hg_notify_send_records_page")
+);
 const HGSystemNotifyTemplatePage = lazy(() =>
   import("./system_notification/hg_system_notify_template_page")
 );
@@ -247,6 +250,7 @@ const PAGE_MAP = {
   system_notify_template: HGSystemNotifyTemplatePage,
   // 发送通知与渠道总览分别进入独立菜单页，共用现有任务校验和渠道组件能力。
   system_notify_send: HGNotifySendPage,
+  system_notify_send_records: HGNotifySendRecordsPage,
   system_notify_channel: HGNotifyChannelPage,
   system_notify_sms: HGSmsTemplatePage,
   // 资源管理：文件管理入口和文件列表页面。
@@ -269,6 +273,15 @@ const PAGE_MAP = {
  * - breadcrumb：面包屑兜底路径，结构与 HGSideMenuVM.findPathToKey 返回一致。
  */
 const HIDDEN_BREADCRUMB_PATHS = {
+  system_notify_send_records: {
+    parentKey: "system_notify_send",
+    breadcrumb: [
+      { key: "system", label: "系统设置" },
+      { key: "system_notify", label: "通知管理" },
+      { key: "system_notify_send", label: "发送通知" },
+      { key: "system_notify_send_records", label: "本人发送记录" },
+    ],
+  },
   role_scope_type_create: {
     parentKey: "role_scope_type",
     breadcrumb: [

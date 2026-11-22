@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hgAcceptedSendStatus, hgBuildSendCommand, hgNormalizeSendTemplate, hgSendableTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
+import { hgAcceptedSendStatus, hgBuildSendCommand, hgDefaultSendVariables, hgNormalizeSendTemplate, hgSendableTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
 
 const hgRaw = {
   id: "9007199254740993", template_code: "system.maintenance", name: "维护通知",
@@ -45,6 +45,18 @@ test("显式用户数量、格式和受控变量与发送协议一致", () => {
   assert.deepEqual(hgBuildSendCommand(template, ["u1"], { name: "小明", extra: "丢弃" }), {
     templateId: hgRaw.id, templateVersion: 2, userIds: ["u1"], variables: { name: "小明" },
   });
+});
+
+test("只填充模板声明的合法默认变量，未填写占位符不能发送", () => {
+  const template = hgNormalizeSendTemplate(hgRaw);
+  assert.deepEqual(hgDefaultSendVariables(template), { name: "" });
+  assert.match(hgValidateSendInput(template, ["u1"], { name: " " }), /必填/);
+  const defaults = hgDefaultSendVariables({ variablesSchema: {
+    name: { type: "string", default: "小明", max_length: 16 },
+    note: { type: "string", default_value: "提醒" },
+    secret: { type: "string", default: "<script>" },
+  } });
+  assert.deepEqual(defaults, { name: "小明", note: "提醒", secret: "" });
 });
 
 test("新任务的审批中和 Kafka 排队中状态都属于成功受理，而不是已送达", () => {

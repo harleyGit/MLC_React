@@ -136,6 +136,21 @@ test("通知管理的发送与渠道菜单分别打开独立内容页，支持�
   assert.equal(page.getSelectedKey(), "system_notify_channel");
 });
 
+test("本人发送记录使用独立历史页，返回后仍高亮发送通知", async (t) => {
+  const h = harness("/operation?menu=system_notify_send", t);
+  const Operation = load("src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx").default;
+  const page = instance(Operation, h.props());
+  page.context = { status: "ready", snapshot: {} };
+  await page.pushPage("system_notify_send_records");
+  page.props = h.props();
+  assert.equal(page.getSelectedKey(), "system_notify_send_records");
+  assert.equal(Operation.HIDDEN_PARENT_KEY.system_notify_send_records, "system_notify_send");
+  assert.ok(page.renderContent("system_notify_send_records").props.children.props.children);
+  await page.back();
+  page.props = h.props();
+  assert.equal(page.getSelectedKey(), "system_notify_send");
+});
+
 test("共享详情页的 Tab 按历史项恢复，不被最近访问的栏目或头像浮层污染", async (t) => {
   const h = harness("/account/center?menu=review", t);
   const Layout = load("src/manager_antd/page_modules/home/hg_top_nav_layout.jsx").default;

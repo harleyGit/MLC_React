@@ -39,6 +39,8 @@ test("通知菜单递归过滤无权子项，发送页允许创建者或审批�
     }]);
   }
   assert.equal(hgCanOpenOperation(snapshot(HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ), "system_notify_send"), false);
+  assert.equal(hgCanOpenOperation(snapshot(HG_PERMISSIONS.NOTIFICATION_SEND_READ), "system_notify_send_records"), true);
+  assert.equal(hgCanOpenOperation(snapshot(HG_PERMISSIONS.NOTIFICATION_SEND_CREATE), "system_notify_send_records"), false);
   assert.deepEqual(JSON.parse(JSON.stringify(hgFilterOperationMenu(items, snapshot(HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ)))), [{
     key: "system", children: [{ key: "system_notify", children: [{ key: "system_notify_channel" }] }],
   }]);

@@ -28,6 +28,15 @@ export function hgNormalizeSendTemplate(item) {
   };
 }
 
+/** 只采用模板明确声明的合法字符串默认值；不得编造可能被真实发送的变量内容。 */
+export function hgDefaultSendVariables(template) {
+  return Object.fromEntries(Object.entries(template?.variablesSchema || {}).map(([name, rule]) => {
+    const value = rule?.default_value ?? rule?.default;
+    const limit = rule?.max_length || 256;
+    return [name, typeof value === "string" && [...value].length <= limit && !/[<>]/.test(value) ? value : ""];
+  }));
+}
+
 /** 校验单任务显式接收人与纯文本变量；服务端仍须独立校验存在性、权限与字节长度。 */
 export function hgValidateSendInput(template, userIds, variables) {
   if (!template) return "请先选择当前已发布的站内模板";
@@ -43,7 +52,7 @@ export function hgValidateSendInput(template, userIds, variables) {
   }
   // Go 用 RE2 检查 pattern；客户端不执行来自模板的 JavaScript 正则。
   const used = `${template.titleTemplate}${template.bodyTemplate}`.match(/\{\{([a-z][a-z0-9_]*)\}\}/g) || [];
-  if (used.some((token) => variables[token.slice(2, -2)] === undefined))
+  if (used.some((token) => !String(variables[token.slice(2, -2)] ?? "").trim()))
     return "请填写标题和正文中引用的全部变量";
   return "";
 }
