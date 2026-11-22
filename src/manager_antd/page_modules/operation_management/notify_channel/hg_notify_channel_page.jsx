@@ -744,7 +744,7 @@ class HGNotifyChannelPage extends React.Component {
               {task.scheduledAt ? ` · 计划时间 ${new Date(task.scheduledAt).toLocaleString("zh-CN")}` : ""}
             </span>
             <span className={styles.fieldHint}>已处理包含营销偏好拒收，不代表已送达或已读；failed 须人工排查，暂不支持自动重试。</span>
-            {["pending", "leased"].includes(task.status) && (
+            {["pending", "queued", "leased", "pending_approval"].includes(task.status) && (
               <HGButtonPage danger loading={taskCancelling}
                 onClick={this.hgCancelTask}>取消剩余投递</HGButtonPage>
             )}
