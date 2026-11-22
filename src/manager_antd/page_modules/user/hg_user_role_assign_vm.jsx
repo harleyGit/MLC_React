@@ -42,4 +42,9 @@ export default class HGUserRoleAssignVM {
     HGNet.post(HGMANAGER_API.IAM_BINDING_GRANT_DIRECT, {
       userId, roleId, scopeType, scopeId: scopeType === "global" ? "" : scopeId.trim(), mfaCode: mfaCode.trim(), expiresAt: null,
     });
+
+  /** 按绑定主键精确撤销一条已生效绑定；操作者权限与目标归属由服务端复核。 */
+  static revokeBinding = (userId, bindingId) => HGNet.post(HGMANAGER_API.IAM_BINDING_REVOKE, {
+    userId: String(userId || "").trim(), bindingId: String(bindingId),
+  });
 }
