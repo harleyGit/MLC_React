@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hgBuildSendCommand, hgNormalizeSendTemplate, hgSendableTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
+import { hgAcceptedSendStatus, hgBuildSendCommand, hgNormalizeSendTemplate, hgSendableTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
 
 const hgRaw = {
   id: "9007199254740993", template_code: "system.maintenance", name: "维护通知",
@@ -45,4 +45,12 @@ test("显式用户数量、格式和受控变量与发送协议一致", () => {
   assert.deepEqual(hgBuildSendCommand(template, ["u1"], { name: "小明", extra: "丢弃" }), {
     templateId: hgRaw.id, templateVersion: 2, userIds: ["u1"], variables: { name: "小明" },
   });
+});
+
+test("新任务的审批中和 Kafka 排队中状态都属于成功受理，而不是已送达", () => {
+  assert.equal(hgAcceptedSendStatus("pending_approval"), true);
+  assert.equal(hgAcceptedSendStatus("queued"), true);
+  assert.equal(hgAcceptedSendStatus("done"), true);
+  assert.equal(hgAcceptedSendStatus("sent"), false);
+  assert.equal(hgAcceptedSendStatus(undefined), false);
 });

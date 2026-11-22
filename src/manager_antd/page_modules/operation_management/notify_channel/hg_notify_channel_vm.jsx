@@ -3,7 +3,7 @@
  */
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
-import { hgNormalizeSendTemplate, hgSendableTemplate } from "./hg_notify_send_contract.js";
+import { hgAcceptedSendStatus, hgNormalizeSendTemplate, hgSendableTemplate } from "./hg_notify_send_contract.js";
 import {
   CHANNEL_PRIORITY_OPTIONS,
   HG_DEMO_CHANNELS,
@@ -27,9 +27,10 @@ export const AUDIENCE_TYPE_OPTIONS = [
   { value: "user_ids", label: "指定用户（逗号分隔 ID）" },
 ];
 
-/** 当前后端仅支持即时任务。 */
+/** 立即/定时均由后端持久化；定时任务须经另一管理员审批。 */
 export const SCHEDULE_TYPE_OPTIONS = [
   { value: "immediate", label: "立即发送" },
+  { value: "scheduled", label: "定时发送（需审批）" },
 ];
 
 /** 模板分类中文标签（技术文档 3.1 模板类型）。 */
@@ -95,7 +96,7 @@ export default class HGNotifyChannelVM {
     HGNet.post(HGMANAGER_API.ADMIN_NOTIFY_SEND_TASK, payload, {
       headers: { "Idempotency-Key": requestId }, _hasRetried: true,
     }).then((result) => {
-      if (!/^[1-9]\d*$/.test(result?.taskId) || !["pending", "leased", "done", "failed", "cancelled"].includes(result?.status))
+      if (!/^[1-9]\d*$/.test(result?.taskId) || !hgAcceptedSendStatus(result?.status))
         throw new Error("发送任务响应格式错误，请保持原请求并查询或重试");
       return result;
     });

@@ -85,7 +85,7 @@ class HGMessageCenterPage extends Component {
 
   componentDidMount() {
     this.hgMounted = true;
-    window.addEventListener("hg:iam-notification", this.hgOnIAMNotification);
+    window.addEventListener("hg:notification-changed", this.hgOnNotification);
     if (HGMessageCenterVM.isRemote()) {
       this.loadRemoteData();
       return;
@@ -95,7 +95,7 @@ class HGMessageCenterPage extends Component {
 
   componentWillUnmount() {
     this.hgMounted = false;
-    window.removeEventListener("hg:iam-notification", this.hgOnIAMNotification);
+    window.removeEventListener("hg:notification-changed", this.hgOnNotification);
     this.hgIMController.abort();
     this.hgIMRealtime?.hgClose();
     HGMessageCenterVM.hgRealtime = null;
@@ -129,21 +129,36 @@ class HGMessageCenterPage extends Component {
     });
   };
 
-  /** IAM 实时消息只触发当前登录用户的权威通知补拉，不信任消息体自称的通知 ID。 */
-  hgOnIAMNotification = () => {
-    if (this.hgMounted && HGMessageCenterVM.isRemote()) this.loadRemoteData();
+  /** 本人实时提示或重连后补拉权威通知；分类不匹配时只更新未读数，私信视图不查通知列表。 */
+  hgOnNotification = (event) => {
+    if (!this.hgMounted || !HGMessageCenterVM.isRemote()) return;
+    const category = event?.detail?.category || "";
+    if (this.state.activeKey !== IM_VIEW_KEY && (!category || category === this.state.activeKey)) {
+      this.loadRemoteData();
+      return;
+    }
+    const owner = hgCurrentIAMUser(); // 响应返回前换号时，旧账号未读数不得覆盖新视图。
+    HGMessageCenterVM.fetchUnreadSummary().then((summary) => {
+      if (this.hgMounted && owner === hgCurrentIAMUser()) {
+        this.setState({ unreadByCategory: summary?.unreadByCategory || {} });
+      }
+    }).catch((error) => {
+      if (this.hgMounted && owner === hgCurrentIAMUser()) message.error(error?.message || "未读数刷新失败");
+    });
   };
 
   /** remote 模式的一次性初始化：未读汇总、首个分类列表与会话列表。 */
   loadRemoteData = () => {
     const hgRequest = ++this.hgListRequest; // 初始化请求也遵守分类切换后的过期响应隔离。
+    const owner = hgCurrentIAMUser(); // 只接受同一登录账号的列表响应。
+    if (this.state.activeKey === IM_VIEW_KEY) return;
     this.setState({ loading: true });
     Promise.all([
       HGMessageCenterVM.fetchUnreadSummary(),
-      HGMessageCenterVM.fetchNotifications({ category: this.state.activeKey, pageSize: MESSAGE_PAGE_SIZE }),
+      HGMessageCenterVM.fetchNotifications({ category: this.state.activeKey, pageSize: MESSAGE_PAGE_SIZE, unreadOnly: this.state.unreadOnly }),
     ])
       .then(([summary, list]) => {
-        if (!this.hgMounted || hgRequest !== this.hgListRequest) return;
+        if (!this.hgMounted || hgRequest !== this.hgListRequest || owner !== hgCurrentIAMUser()) return;
         const notifications = (list?.list || []).map(HGMessageCenterVM.normalizeNotification);
         this.setState({
           unreadByCategory: summary?.unreadByCategory || {},
@@ -155,7 +170,7 @@ class HGMessageCenterPage extends Component {
         });
       })
       .catch((error) => {
-        if (!this.hgMounted || hgRequest !== this.hgListRequest) return;
+        if (!this.hgMounted || hgRequest !== this.hgListRequest || owner !== hgCurrentIAMUser()) return;
         this.setState({ loading: false });
         message.error(error?.message || "消息中心数据加载失败");
       });
@@ -165,12 +180,13 @@ class HGMessageCenterPage extends Component {
   loadCategoryFromRemote = (category, { append = false } = {}) => {
     if (!HGMessageCenterVM.isRemote()) return;
     const hgRequest = ++this.hgListRequest; // 仅最新分类请求有权写列表，避免乱序响应覆盖。
+    const owner = hgCurrentIAMUser(); // 切换登录账号后旧分类页不可回写。
     const cursor = append ? this.state.nextCursor : ""; // 追加页只使用服务端游标，不计算 OFFSET。
     if (append && !cursor) return;
     this.setState({ refreshing: true });
     HGMessageCenterVM.fetchNotifications({ category, cursor, pageSize: MESSAGE_PAGE_SIZE, unreadOnly: this.state.unreadOnly })
       .then((result) => {
-        if (!this.hgMounted || hgRequest !== this.hgListRequest || category !== this.state.activeKey) return;
+        if (!this.hgMounted || hgRequest !== this.hgListRequest || category !== this.state.activeKey || owner !== hgCurrentIAMUser()) return;
         const notifications = (result?.list || []).map(HGMessageCenterVM.normalizeNotification);
         this.setState({
           notifications: append ? [...this.state.notifications, ...notifications] : notifications,
@@ -182,7 +198,7 @@ class HGMessageCenterPage extends Component {
         });
       })
       .catch((error) => {
-        if (!this.hgMounted || hgRequest !== this.hgListRequest) return;
+        if (!this.hgMounted || hgRequest !== this.hgListRequest || owner !== hgCurrentIAMUser()) return;
         this.setState({ refreshing: false });
         message.error(error?.message || "通知列表加载失败");
       });

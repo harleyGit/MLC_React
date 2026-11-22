@@ -764,7 +764,7 @@ class HGNotifyChannelPage extends React.Component {
         <h2 className={styles.heroTitle}>通知渠道中心</h2>
         <p className={styles.heroDesc}>
           指定用户站内通知支持立即或 30 天内定时发送；营销和定时任务须由另一名授权管理员审批。
-          短信、邮件、Push、实时推送、分群和全站广播尚未接入，请勿将模拟渠道指标当作实际投递结果。
+          本人在线时可收到站内信 Socket 提示，断线后以收件箱补拉为准；短信、邮件、Push、实时必达、分群和全站广播尚未接入。请勿将模拟渠道指标当作实际投递结果。
         </p>
       </div>
       <div className={styles.heroSide}>

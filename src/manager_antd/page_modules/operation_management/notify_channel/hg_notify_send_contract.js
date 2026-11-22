@@ -58,6 +58,11 @@ export function hgValidateSendSchedule(type, localTime, now = Date.now()) {
   return "";
 }
 
+/** 创建任务返回的状态兼容审批队列与 Kafka 排队，不将异步受理误判为发送失败。 */
+export function hgAcceptedSendStatus(status) {
+  return ["pending_approval", "pending", "queued", "leased", "done", "failed", "cancelled"].includes(status);
+}
+
 /** 将页面输入收敛为后端 HGCommand，不发送未接入的分群、全站或渠道字段。 */
 export function hgBuildSendCommand(template, userIds, variables, scheduleType = "immediate", scheduledAt = "") {
   const values = {};

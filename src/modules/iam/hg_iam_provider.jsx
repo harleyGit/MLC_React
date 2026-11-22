@@ -165,12 +165,23 @@ export class HGIAMAccessProvider extends React.Component {
       if (this.hgMounted && owner === hgCurrentIAMUser() &&
           typeof eventId === "string" && /^iam-\d+-[0-9a-f]{16}$/.test(eventId)) {
         // 消息中心按已认证用户身份补拉权威通知，推送不伪造 notificationId。
-        window.dispatchEvent(new CustomEvent("hg:iam-notification"));
+        window.dispatchEvent(new CustomEvent("hg:notification-changed", { detail: { category: "system" } }));
       }
     }, () => {
-      if (this.hgMounted && this.hgRealtime === realtime) this.hgQueueRefresh();
+      if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
+        this.hgQueueRefresh();
+        // 订阅首次成功或重连后补齐断线期间漏掉的通知，不能只靠 Socket 历史。
+        window.dispatchEvent(new CustomEvent("hg:notification-changed"));
+      }
     }, () => {
       if (this.hgMounted && this.hgRealtime === realtime) this.setState({ status: "error", snapshot: null });
+    }, (category) => {
+      if (!this.hgMounted || this.hgRealtime !== realtime || owner !== hgCurrentIAMUser()) return;
+      // 推送分类只用于跳过无关列表；非法内容退化为完整补拉，不信任推送正文。
+      const allowed = ["system", "comment", "like", "mention", "follow", "trade", "wallet", "marketing"];
+      window.dispatchEvent(new CustomEvent("hg:notification-changed", {
+        detail: { category: allowed.includes(category) ? category : "" },
+      }));
     });
     this.hgRealtime = realtime;
     void realtime.hgStart().catch((error) => {

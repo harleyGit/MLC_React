@@ -39,6 +39,7 @@ export const MESSAGE_CATEGORIES = [
   { key: "follow", label: "新增粉丝", icon: "follow", tone: "orange", desc: "关注你的新粉丝" },
   { key: "trade", label: "交易通知", icon: "trade", tone: "cyan", desc: "订单、支付与物流进度" },
   { key: "wallet", label: "钱包", icon: "wallet", tone: "gold", desc: "充值、消费与 M币变动" },
+  { key: "marketing", label: "运营通知", icon: "bell", tone: "purple", desc: "已同意接收的运营与营销通知" },
 ];
 
 /** 通知偏好中的渠道定义，标签与通知渠道中心使用同一套 channel code。 */
@@ -47,7 +48,7 @@ export const NOTIFY_CHANNEL_OPTIONS = [
   { key: "sms", label: "短信", desc: "安全与交易类必达" },
   { key: "email", label: "邮件", desc: "汇总与对账单" },
   { key: "push", label: "移动推送", desc: "APNs / FCM" },
-  { key: "realtime", label: "实时提醒", desc: "WebSocket 在线提醒" },
+  { key: "realtime", label: "独立实时渠道", desc: "尚未开放；站内通知的在线 Socket 提示随站内信自动启用" },
 ];
 
 /** 偏好中的可选分类（系统与安全通知不允许关闭，故不在此列表内）。 */

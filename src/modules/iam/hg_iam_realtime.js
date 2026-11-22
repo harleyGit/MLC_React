@@ -6,11 +6,12 @@ export default class HGIAMRealtime {
   hgClient = null; // 单个 Centrifugo 连接，关闭后为 null。
   hgClosed = false; // 账号切换及卸载后禁止应用旧消息或续签凭据。
 
-  constructor(owner, onSnapshot, onRecover, onOffline) {
+  constructor(owner, onSnapshot, onRecover, onOffline, onNotification) {
     this.hgOwner = owner; // JWT 用户 ID，只用于验证私有频道与快照归属。
     this.hgOnSnapshot = onSnapshot; // 已认证用户频道投影接收器，不经通用 window 事件注入。
     this.hgOnRecover = onRecover; // 每次订阅（含重连）补齐断线期间遗漏的快照。
     this.hgOnOffline = onOffline; // 失去实时能力时隐藏依赖授权展示的页面。
+    this.hgOnNotification = onNotification; // 收件箱变更只通知权威补拉，不使用推送正文。
   }
 
   /** 仅首次获取本人会话票据；重连由网关 connect proxy 校验服务端会话，不进行分钟级 HTTP 续签。 */
@@ -29,8 +30,12 @@ export default class HGIAMRealtime {
       minReconnectDelay: 1000, maxReconnectDelay: 15000,
     });
     this.hgClient.on("publication", (context) => {
-      if (this.hgClosed || context.channel !== channel ||
-          context.data?.event_type !== "iam.access.updated.v1") return;
+      if (this.hgClosed || context.channel !== channel) return;
+      if (context.data?.event_type === "notification.inbox.updated.v1") {
+        this.hgOnNotification?.(context.data.category);
+        return;
+      }
+      if (context.data?.event_type !== "iam.access.updated.v1") return;
       void Promise.resolve(this.hgOnSnapshot(context.data.snapshot, context.data.event_id))
         .catch(() => !this.hgClosed && this.hgOnOffline());
     });
