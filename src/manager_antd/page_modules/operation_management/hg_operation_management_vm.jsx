@@ -218,6 +218,11 @@ export const OPERATION_MENU_ITEMS = [
             icon: <HGIconPage type="config" />,
           },
           {
+            key: "system_notify_send",
+            label: "发送通知",
+            icon: <HGIconPage type="file" />,
+          },
+          {
             key: "system_notify_channel",
             label: "通知渠道",
             icon: <HGIconPage type="config" />,

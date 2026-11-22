@@ -47,7 +47,10 @@ function load(path) {
       const real = realFiles.find((file) => file === target || file === `${target}.jsx` || file === `${target}.js`);
       if (real) return load(real);
       if (dependency.endsWith(".css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
-      return { __esModule: true, default: HGStub, hgMessage: {}, HGLayoutPage: "div", HGLayoutHeader: "header", HGLayoutContent: "main", HGLayoutFooter: "footer" };
+      if (dependency.endsWith("hg_user_profile_storage")) return { __esModule: true, default: { getUserProfile: () => null } };
+      if (dependency.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant", IAM_GRANT_DIRECT: "iam:role:grant_direct" } };
+      return { __esModule: true, default: HGStub, hgMessage: {}, hgCanOpenOperation: () => true, hgFilterOperationMenu: (items) => items,
+        HGLayoutPage: "div", HGLayoutHeader: "header", HGLayoutContent: "main", HGLayoutFooter: "footer" };
     },
   }, { filename });
   return module.exports;
@@ -110,6 +113,27 @@ test("作用域列表 → 编辑 → 按钮返回/浏览器前进后退保持同
   assert.equal(operation.getSelectedKey(), "role_scope_type_create");
   assert.equal(instance(Scope, { selectedKey: "role_scope_type_create" }).render().props.code, "");
   assert.match(JSON.stringify(instance(Scope, { selectedKey: "role_scope_type_edit", location: { search: "?code=" } }).render()), /缺少有效/);
+});
+
+test("通知管理的发送与渠道菜单分别打开独立内容页，支持浏览器后退", async (t) => {
+  const h = harness("/operation?menu=system_notify_channel", t);
+  const { OPERATION_MENU_ITEMS } = load("src/manager_antd/page_modules/operation_management/hg_operation_management_vm.jsx");
+  const Operation = load("src/manager_antd/page_modules/operation_management/hg_operation_management_page.jsx").default;
+  const children = OPERATION_MENU_ITEMS.find((item) => item.key === "system")
+    .children.find((item) => item.key === "system_notify").children;
+  assert.equal(children.find((item) => item.key === "system_notify_send")?.label, "发送通知");
+  const page = instance(Operation, h.props());
+  page.context = { status: "ready", snapshot: {} };
+  const channel = page.renderContent("system_notify_channel").props.children.props.children.type;
+  const send = page.renderContent("system_notify_send").props.children.props.children.type;
+  assert.notEqual(channel, send);
+  page.handleMenuSelect("system_notify_send");
+  assert.equal(h.router.state.location.search, "?menu=system_notify_send");
+  page.props = h.props();
+  assert.equal(page.getSelectedKey(), "system_notify_send");
+  await h.router.navigate(-1);
+  page.props = h.props();
+  assert.equal(page.getSelectedKey(), "system_notify_channel");
 });
 
 test("共享详情页的 Tab 按历史项恢复，不被最近访问的栏目或头像浮层污染", async (t) => {

@@ -53,8 +53,8 @@ const DELIVERY_STATUS_CLASS_MAP = {
 };
 
 /**
- * 通知渠道中心页面组件。
- * 职责：展示渠道健康与投递链路，提供渠道启用/停用、配置编辑与试发送入口。
+ * 通知管理共用页面组件。
+ * 职责：渠道页展示渠道与投递链路；发送页复用任务校验和审批入口。
  * 约束：
  * - 密钥只展示环境变量名，页面不允许读取或回填密钥值；
  * - 渠道开关与配置仅做前端可见性控制，最终权限由后端 RBAC 判定；
@@ -68,12 +68,15 @@ class HGNotifyChannelPage extends React.Component {
     pushPage: undefined, // 父布局导航入口；本页无子路由。
     onBack: undefined, // 父布局返回动作；本页不调用。
     selectedKey: undefined, // 当前菜单键；本页不用于请求。
+    hgView: "channel", // 默认只显示渠道总览；send 由独立发送菜单页传入，不加载渠道数据。
   };
 
   constructor(props) {
     super(props);
     this.state = {
       loading: true,
+      deliveriesLoading: false, // 投递记录单独加载；失败或慢请求不阻塞渠道卡片。
+      channelError: "", // 渠道请求失败提示；空字符串表示当前无错误。
       refreshing: false,
       channels: [],
       providers: [],
@@ -120,6 +123,7 @@ class HGNotifyChannelPage extends React.Component {
     this.hgTaskSequence = 0; // 任务详情请求代数，避免旧 ID 的响应覆盖新任务。
     this.hgTasksSequence = 0; // 任务列表请求代数，刷新与翻页不互相覆盖。
     this.hgReviewSequence = 0; // 审批列表与详情请求代数，账号切换清理。
+    this.hgChannelSequence = 0; // 渠道与投递记录的请求代数；刷新或换账号后丢弃旧响应。
     this.hgRequest = null; // 待确认提交的幂等键与请求内容；失败时保留以安全重试。
     this.hgSending = false; // 同步提交锁，阻止 setState 生效前的双击。
     this.hgOwner = ""; // 当前 JWT 账号；切换时清除任务进度与发送表单。
@@ -130,6 +134,10 @@ class HGNotifyChannelPage extends React.Component {
     this.hgOwner = hgCurrentIAMUser();
     window.addEventListener("hg:auth-changed", this.hgOnAuthChanged);
     window.addEventListener("storage", this.hgOnAuthChanged);
+    if (this.props.hgView === "send") {
+      if (!HGNotifyChannelVM.isRemote()) this.setState({ ...HGNotifyChannelVM.buildDemoState(), loading: false });
+      return;
+    }
     if (HGNotifyChannelVM.isRemote()) {
       this.loadRemoteData();
       return;
@@ -145,6 +153,7 @@ class HGNotifyChannelPage extends React.Component {
     this.hgTaskSequence += 1;
     this.hgTasksSequence += 1;
     this.hgReviewSequence += 1;
+    this.hgChannelSequence += 1;
   }
 
   hgOnAuthChanged = () => {
@@ -155,15 +164,20 @@ class HGNotifyChannelPage extends React.Component {
     this.hgTaskSequence += 1;
     this.hgTasksSequence += 1;
     this.hgReviewSequence += 1;
+    this.hgChannelSequence += 1;
     this.hgRequest = null;
     this.setState((state) => ({
+      channels: [], providers: [], deliveries: [], channelError: "", loading: false,
+      deliveriesLoading: false, refreshing: false,
       templates: [], reviewTemplates: [], templateCursor: "", reviewTemplateCursor: "",
       templatesLoading: false, task: null, taskIdInput: "", lastTaskResult: "",
       tasks: [], taskCursor: "", tasksLoaded: false, tasksLoading: false,
       reviews: [], reviewCursor: "", reviewsLoading: false, reviewDetail: null, reviewDetailLoading: false, approving: false,
       previewOpen: false, sending: false, taskLoading: false, publishingId: "", taskCancelling: false,
       sendForm: { ...state.sendForm, templateId: "", userIdsText: "", variables: {}, scheduleType: "immediate", scheduledAt: "" },
-    }));
+    }), () => {
+      if (this.hgMounted && this.props.hgView === "channel" && HGNotifyChannelVM.isRemote()) this.loadRemoteData();
+    });
   };
 
   /** 本地 IAM 快照仅用于显示和按钮状态，真正授权由 Go 服务端再核验。 */
@@ -177,57 +191,53 @@ class HGNotifyChannelPage extends React.Component {
     return false;
   };
 
-  /** remote 模式并行加载渠道与异常投递列表。 */
+  /** 渠道与投递记录独立结算；投递接口失败不能隐藏已成功获取的渠道。 */
   loadRemoteData = () => {
-    this.setState({ loading: true });
-    Promise.all([HGNotifyChannelVM.fetchChannels(), HGNotifyChannelVM.fetchDeliveries()])
-      .then(([channelResult, deliveryResult]) => {
+    const owner = this.hgOwner; // 当前登录管理员；账号切换后忽略旧请求结果。
+    const sequence = ++this.hgChannelSequence; // 连续刷新只接纳最新一次结果。
+    this.setState({ loading: true, deliveriesLoading: true, channelError: "" });
+    const channelRequest = HGNotifyChannelVM.fetchChannels()
+      .then((channelResult) => {
+        if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgChannelSequence) return;
         const channels = (channelResult?.channels || channelResult?.list || []).map((item) => ({
           ...item,
           config: item.config || {},
         }));
         const providers = channelResult?.providers || [];
-        const deliveries = deliveryResult?.list || deliveryResult?.deliveries || [];
         this.setState({
           channels,
           providers,
-          deliveries,
-          summary: HGNotifyChannelVM.summarize(channels, deliveries),
           loading: false,
         });
       })
       .catch((error) => {
-        this.setState({ loading: false });
+        if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgChannelSequence) return;
+        this.setState({ loading: false, channelError: error?.message || "通知渠道数据加载失败" });
         message.error(error?.message || "通知渠道数据加载失败");
       });
+    const deliveryRequest = HGNotifyChannelVM.fetchDeliveries()
+      .then((deliveryResult) => {
+        if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgChannelSequence) return;
+        this.setState({ deliveries: deliveryResult?.list || deliveryResult?.deliveries || [], deliveriesLoading: false });
+      })
+      .catch((error) => {
+        if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgChannelSequence) return;
+        this.setState({ deliveriesLoading: false });
+        message.error(error?.message || "投递记录加载失败");
+      });
+    return Promise.allSettled([channelRequest, deliveryRequest]).then(() => {
+      if (this.hgMounted && owner === this.hgOwner && sequence === this.hgChannelSequence) this.setState({ refreshing: false });
+    });
   };
 
-  /** 刷新：local 模式提示数据来源，remote 模式重新拉取。 */
+  /** 刷新：local 模式提示数据来源，remote 模式分别重新拉取渠道与投递记录。 */
   handleRefresh = () => {
     if (!HGNotifyChannelVM.isRemote()) {
       message.info("当前展示本地示例数据，接入 /admin/v1/notification 接口后刷新会读取真实链路");
       return;
     }
     this.setState({ refreshing: true });
-    Promise.all([HGNotifyChannelVM.fetchChannels(), HGNotifyChannelVM.fetchDeliveries()])
-      .then(([channelResult, deliveryResult]) => {
-        const channels = (channelResult?.channels || channelResult?.list || []).map((item) => ({
-          ...item,
-          config: item.config || {},
-        }));
-        const deliveries = deliveryResult?.list || deliveryResult?.deliveries || [];
-        this.setState({
-          channels,
-          providers: channelResult?.providers || [],
-          deliveries,
-          summary: HGNotifyChannelVM.summarize(channels, deliveries),
-          refreshing: false,
-        });
-      })
-      .catch((error) => {
-        this.setState({ refreshing: false });
-        message.error(error?.message || "刷新失败");
-      });
+    this.loadRemoteData();
   };
 
   /** 渠道启用/停用：安全类通知禁止整体关闭，后端会再次拦截。 */
@@ -763,12 +773,12 @@ class HGNotifyChannelPage extends React.Component {
         <span className={styles.heroTag}>NOTIFICATION / CHANNEL CENTER</span>
         <h2 className={styles.heroTitle}>通知渠道中心</h2>
         <p className={styles.heroDesc}>
-          指定用户站内通知支持立即或 30 天内定时发送；营销和定时任务须由另一名授权管理员审批。
-          本人在线时可收到站内信 Socket 提示，断线后以收件箱补拉为准；短信、邮件、Push、实时必达、分群和全站广播尚未接入。请勿将模拟渠道指标当作实际投递结果。
+          查看站内信、短信、邮件、移动推送和实时提醒渠道的当前可用状态；未接入渠道不能启用。
+          投递量、成功率与延迟监控尚未接入；发送通知请使用独立的「发送通知」页面。
         </p>
       </div>
       <div className={styles.heroSide}>
-        <span className={styles.heroSource}>{HGNotifyChannelVM.isRemote() ? "实时数据" : "示例数据"}</span>
+        <span className={styles.heroSource}>{HGNotifyChannelVM.isRemote() ? "服务端渠道状态" : "示例数据"}</span>
         <HGButtonPage onClick={this.handleRefresh} loading={this.state.refreshing}>
           刷新链路
         </HGButtonPage>
@@ -892,6 +902,10 @@ class HGNotifyChannelPage extends React.Component {
     <HGCardPage title="渠道总览" extra={<span className={styles.cardExtraText}>同一事件可落到多个渠道，由通知规则决定组合方式</span>}>
       {this.state.loading ? (
         <p className={styles.loadingText}>正在加载渠道数据...</p>
+      ) : this.state.channelError ? (
+        <p role="alert">{this.state.channelError}</p>
+      ) : !this.state.channels.length ? (
+        <p>暂无渠道数据</p>
       ) : (
         <div className={styles.channelGrid}>{this.state.channels.map((channel) => this.renderChannelCard(channel))}</div>
       )}
@@ -949,7 +963,7 @@ class HGNotifyChannelPage extends React.Component {
     ];
     return (
     <HGCardPage title={HGNotifyChannelVM.isRemote() ? "最近站内通知记录" : "失败重试与死信"} extra={<span className={styles.cardExtraText}>{HGNotifyChannelVM.isRemote() ? "仅展示最近 20 条已落库记录；外部渠道和重试队列尚未接入" : "超过退避上限的任务进入死信，需要人工确认后重放"}</span>}>
-        <HGTablePage rowKey="deliveryId" columns={columns} dataSource={this.state.deliveries} loading={this.state.loading} pagination={false} />
+        <HGTablePage rowKey="deliveryId" columns={columns} dataSource={this.state.deliveries} loading={this.state.deliveriesLoading} pagination={false} />
       </HGCardPage>
     );
   };
@@ -1231,21 +1245,34 @@ class HGNotifyChannelPage extends React.Component {
   };
 
   render() {
+    if (this.props.hgView === "send") {
+      return (
+        <div className={styles.container}>
+          <div className={styles.hero}>
+            <div className={styles.heroMain}>
+              <span className={styles.heroTag}>NOTIFICATION / SEND TASKS</span>
+              <h2 className={styles.heroTitle}>发送通知</h2>
+              <p className={styles.heroDesc}>选择已发布的站内模板，预览后向明确指定的用户创建发送任务；营销和定时任务须由另一名管理员审批。</p>
+            </div>
+          </div>
+          {this.renderSendSection()}
+          {this.renderPublishSection()}
+          {this.renderTaskSection()}
+          {this.renderTaskList()}
+          {this.renderApprovalSection()}
+          {this.renderSendPreviewModal()}
+        </div>
+      );
+    }
     return (
       <div className={styles.container}>
         {this.renderHero()}
         {this.renderSummary()}
-        {this.renderSendSection()}
-        {this.renderPublishSection()}
-        {this.renderTaskSection()}
-        {this.renderTaskList()}
-        {this.renderApprovalSection()}
         {this.renderChannelSection()}
         {this.renderProviderSection()}
         {this.renderDeliverySection()}
         {this.renderRetrySection()}
         {this.renderConfigModal()}
-        {this.renderSendPreviewModal()}
       </div>
     );
   }

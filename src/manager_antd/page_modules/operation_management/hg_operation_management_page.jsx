@@ -53,6 +53,9 @@ const HGSmsTemplatePage = lazy(() =>
 const HGNotifyChannelPage = lazy(() =>
   import("./notify_channel/hg_notify_channel_page")
 );
+const HGNotifySendPage = lazy(() =>
+  import("./notify_channel/hg_notify_send_page")
+);
 const HGSystemNotifyTemplatePage = lazy(() =>
   import("./system_notification/hg_system_notify_template_page")
 );
@@ -242,7 +245,8 @@ const PAGE_MAP = {
   system_security_login: SystemSecurityLoginPage,
   system_security_password: SystemSecurityPasswordPage,
   system_notify_template: HGSystemNotifyTemplatePage,
-  // 通知渠道：模板批次的投递出口，由 notify_channel 目录下的真实类组件承载。
+  // 发送通知与渠道总览分别进入独立菜单页，共用现有任务校验和渠道组件能力。
+  system_notify_send: HGNotifySendPage,
   system_notify_channel: HGNotifyChannelPage,
   system_notify_sms: HGSmsTemplatePage,
   // 资源管理：文件管理入口和文件列表页面。

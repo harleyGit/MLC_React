@@ -29,17 +29,24 @@ export const HG_OPERATION_PERMISSIONS = Object.freeze({
   mall_pending_edits: HG_PERMISSIONS.MALL_REVIEW,
   system_notify_channel: HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ,
   system_notify_template: HG_PERMISSIONS.NOTIFICATION_TEMPLATE_READ,
+  system_notify_send: [
+    HG_PERMISSIONS.NOTIFICATION_SEND_CREATE,
+    HG_PERMISSIONS.NOTIFICATION_SEND_READ,
+    HG_PERMISSIONS.NOTIFICATION_SEND_APPROVE,
+    HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH,
+  ],
 });
 
-/** 对菜单及内容复用同一份门槛；无映射的原有管理员页面沿用已有服务端限制。 */
+/** 发送页允许创建、查询、审批或发布角色分别进入；各按钮仍受服务端独立权限保护。 */
 export function hgCanOpenOperation(snapshot, key) {
   const permission = HG_OPERATION_PERMISSIONS[key];
-  return !permission || hgEvaluateAccess(snapshot, { permission }).allowed;
+  return !permission || (Array.isArray(permission) ? permission : [permission])
+    .some((code) => hgEvaluateAccess(snapshot, { permission: code }).allowed);
 }
 
-/** 先过滤子项再过滤空分类，避免透过菜单暴露不可访问的入口。 */
+/** 逐层过滤叶子和空分类，避免嵌套通知菜单泄露无权访问的入口。 */
 export function hgFilterOperationMenu(items, snapshot) {
   return items.map((item) => item.children
-    ? { ...item, children: item.children.filter((child) => hgCanOpenOperation(snapshot, child.key)) }
+    ? { ...item, children: hgFilterOperationMenu(item.children, snapshot) }
     : item).filter((item) => item.children ? item.children.length > 0 : hgCanOpenOperation(snapshot, item.key));
 }
