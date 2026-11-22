@@ -13,12 +13,15 @@ import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGSelectPage from "../../../../components/hg_select/hg_select_page";
 import HGStatCardPage from "../../../../components/hg_stat_card/hg_stat_card_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
+import { hgEvaluateAccess } from "../../../../modules/iam/hg_access_evaluator";
+import { HGIAMContext } from "../../../../modules/iam/hg_iam_provider";
+import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
+import { hgCurrentIAMUser } from "../../../../modules/iam/hg_iam_session";
+import { hgBuildSendCommand, hgValidateSendInput } from "./hg_notify_send_contract.js";
 import HGNotifyChannelVM, {
-  AUDIENCE_TYPE_OPTIONS,
   CHANNEL_DATA_SOURCE,
   CHANNEL_PRIORITY_OPTIONS,
   RETRY_LADDER,
-  SCHEDULE_TYPE_OPTIONS,
   TEMPLATE_CATEGORY_LABELS,
 } from "./hg_notify_channel_vm";
 import styles from "./hg_notify_channel.module.css";
@@ -58,6 +61,15 @@ const DELIVERY_STATUS_CLASS_MAP = {
  * - dataSource 为 local 时不发起请求，所有变更只更新本地 state。
  */
 class HGNotifyChannelPage extends React.Component {
+  static contextType = HGIAMContext;
+  static defaultProps = {
+    location: undefined, // 父布局传入的路由位置；本页不依赖路由状态。
+    onMenuSelect: undefined, // 父布局菜单回调；本页不主动切换菜单。
+    pushPage: undefined, // 父布局导航入口；本页无子路由。
+    onBack: undefined, // 父布局返回动作；本页不调用。
+    selectedKey: undefined, // 当前菜单键；本页不用于请求。
+  };
+
   constructor(props) {
     super(props);
     this.state = {
@@ -73,29 +85,85 @@ class HGNotifyChannelPage extends React.Component {
       saving: false,
       // ===== 发送通知任务（模板渲染 + 异步投递） =====
       templates: [], // 模板列表快照；空数组表示尚未点击“查询模板”，不自动加载（查询须按钮触发）。
+      reviewTemplates: [], // 最新草稿快照，单独于已发布版，防止混淆审核和发送内容。
+      templateCursor: "", // 下一页发布版游标；空字符串表示无更多记录。
+      reviewCursor: "", // 下一页最新草稿游标；空字符串表示无更多记录。
       templatesLoading: false, // 模板查询请求进行中标记；true 时按钮显示 loading，防止重复请求。
       sendForm: {
         templateId: "", // 已选模板 ID；空字符串表示未选择，变量输入区不渲染。
-        audienceType: "user_ids", // 发送范围类型：user_ids / role / all，与后端 audience.type 枚举对齐。
-        userIdsText: "", // 指定用户模式的原始输入；兼容逗号/空白分隔，提交时解析去重。
-        roleCode: "", // 角色用户模式的 IAM 角色编码；仅 audienceType 为 role 时使用。
+        userIdsText: "", // 指定用户 ID 原始输入；后端仅接受 1–100 个明确用户。
         variables: {}, // 模板变量名到填写值的映射；切换模板时整体重置，避免跨模板串值。
-        scheduleType: "immediate", // 发送时间类型：immediate 立即 / scheduled 定时。
-        scheduledAt: "", // 定时发送的本地 datetime-local 字符串；空字符串表示未选择时间。
       },
       sending: false, // 发送任务提交中标记；true 时预览弹窗按钮 loading 且禁止关闭。
       previewOpen: false, // 发送预览弹窗开关；预览即二次确认入口，全站广播在此再次警示。
       lastTaskResult: "", // 最近一次任务创建结果文案；空字符串表示尚未提交过任务。
+      taskIdInput: "", // 手动查询任务 ID；空字符串表示未输入。
+      task: null, // 本人任务的服务端进度；null 表示未查询成功。
+      taskLoading: false, // 任务详情查询中。
+      taskCancelling: false, // 取消请求中，禁止重复操作。
+      tasks: [], // 本人最近发送任务页；空数组表示尚未查询或没有记录。
+      taskCursor: "", // 下一页主键游标；空字符串表示没有下一页。
+      tasksLoaded: false, // 已完成过一次任务列表查询；区分未加载与空列表。
+      tasksLoading: false, // 本人任务列表查询中。
+      publishingId: "", // 正在复核发布的模板 ID；空字符串表示无发布请求。
     };
+    this.hgMounted = false; // 卸载后丢弃异步请求结果。
+    this.hgTemplateSequence = 0; // 模板请求代数，旧列表不得覆盖新选择。
+    this.hgTaskSequence = 0; // 任务详情请求代数，避免旧 ID 的响应覆盖新任务。
+    this.hgTasksSequence = 0; // 任务列表请求代数，刷新与翻页不互相覆盖。
+    this.hgRequest = null; // 待确认提交的幂等键与请求内容；失败时保留以安全重试。
+    this.hgSending = false; // 同步提交锁，阻止 setState 生效前的双击。
+    this.hgOwner = ""; // 当前 JWT 账号；切换时清除任务进度与发送表单。
   }
 
   componentDidMount() {
+    this.hgMounted = true;
+    this.hgOwner = hgCurrentIAMUser();
+    window.addEventListener("hg:auth-changed", this.hgOnAuthChanged);
+    window.addEventListener("storage", this.hgOnAuthChanged);
     if (HGNotifyChannelVM.isRemote()) {
       this.loadRemoteData();
       return;
     }
     this.setState({ ...HGNotifyChannelVM.buildDemoState(), loading: false });
   }
+
+  componentWillUnmount() {
+    this.hgMounted = false;
+    window.removeEventListener("hg:auth-changed", this.hgOnAuthChanged);
+    window.removeEventListener("storage", this.hgOnAuthChanged);
+    this.hgTemplateSequence += 1;
+    this.hgTaskSequence += 1;
+    this.hgTasksSequence += 1;
+  }
+
+  hgOnAuthChanged = () => {
+    const owner = hgCurrentIAMUser(); // 登录用户变化时不得展示上一个管理员的任务数据。
+    if (owner === this.hgOwner) return;
+    this.hgOwner = owner;
+    this.hgTemplateSequence += 1;
+    this.hgTaskSequence += 1;
+    this.hgTasksSequence += 1;
+    this.hgRequest = null;
+    this.setState((state) => ({
+      templates: [], reviewTemplates: [], templateCursor: "", reviewCursor: "",
+      templatesLoading: false, task: null, taskIdInput: "", lastTaskResult: "",
+      tasks: [], taskCursor: "", tasksLoaded: false, tasksLoading: false,
+      previewOpen: false, sending: false, taskLoading: false, publishingId: "", taskCancelling: false,
+      sendForm: { ...state.sendForm, templateId: "", userIdsText: "", variables: {} },
+    }));
+  };
+
+  /** 本地 IAM 快照仅用于显示和按钮状态，真正授权由 Go 服务端再核验。 */
+  hgCan = (permission) =>
+    this.context?.status === "ready" &&
+    hgEvaluateAccess(this.context?.snapshot, { permission }).allowed;
+
+  hgRequire = (permission) => {
+    if (this.hgCan(permission)) return true;
+    message.warning(`当前账号没有 ${permission} 权限`);
+    return false;
+  };
 
   /** remote 模式并行加载渠道与异常投递列表。 */
   loadRemoteData = () => {
@@ -262,34 +330,71 @@ class HGNotifyChannelPage extends React.Component {
 
   /** 查询模板列表：local 返回示例模板，remote 请求 /admin/templates；仅在按钮点击时执行。 */
   handleQueryTemplates = () => {
-    if (this.state.templatesLoading) return;
+    if (this.state.templatesLoading || this.state.sending || this.state.previewOpen ||
+        !this.hgRequire(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_READ)) return;
     if (!HGNotifyChannelVM.isRemote()) {
       const templates = HGNotifyChannelVM.buildDemoTemplates();
       this.setState({ templates });
       message.success(`已加载 ${templates.length} 个示例模板（本地数据）`);
       return;
     }
+    const sequence = ++this.hgTemplateSequence;
+    const owner = this.hgOwner;
     this.setState({ templatesLoading: true });
-    HGNotifyChannelVM.fetchTemplates()
-      .then((response) => {
-        const rawList =
-          response?.result?.list || response?.list || response?.result || (Array.isArray(response) ? response : []);
-        const templates = (Array.isArray(rawList) ? rawList : []).map((item) => ({
-          ...item,
-          channels: Array.isArray(item.channels) ? item.channels : [],
-          variablesSchema: item.variablesSchema || {},
+    Promise.all([HGNotifyChannelVM.fetchPublishedTemplates(), HGNotifyChannelVM.fetchTemplates()])
+      .then(([response, reviewResponse]) => {
+        if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgTemplateSequence) return;
+        const templates = response.list;
+        const selected = this.state.sendForm.templateId; // 同一发布版刷新不能丢失结果未知请求的幂等键。
+        const previous = this.state.templates.find((item) => item.templateId === selected);
+        const current = templates.find((item) => item.templateId === selected);
+        if (!previous || !current || previous.version !== current.version ||
+            JSON.stringify(previous) !== JSON.stringify(current)) this.hgRequest = null;
+        this.setState((state) => ({
+          templates,
+          reviewTemplates: reviewResponse.list,
+          templateCursor: response.nextCursor || "",
+          reviewCursor: reviewResponse.nextCursor || "",
+          templatesLoading: false,
+          sendForm: HGNotifyChannelVM.isSendable(templates.find((item) =>
+            item.templateId === state.sendForm.templateId &&
+            item.version === state.templates.find((old) => old.templateId === state.sendForm.templateId)?.version))
+            ? state.sendForm : { ...state.sendForm, templateId: "", variables: {} },
         }));
-        this.setState({ templates, templatesLoading: false });
-        message.success(`已加载 ${templates.length} 个模板`);
+        message.success(`已读取 ${templates.length} 个发布版${response.nextCursor || reviewResponse.nextCursor ? "；可按需加载更多" : ""}`);
       })
       .catch((error) => {
+        if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgTemplateSequence) return;
         this.setState({ templatesLoading: false });
-        message.error(error?.message || "模板列表加载失败，请确认通知服务已部署模板接口");
+        message.error(error?.message || "模板列表加载失败");
       });
+  };
+
+  /** 两个列表各自按游标加载，不会将最新草稿混入发布版选择器。 */
+  hgLoadMoreTemplates = (published) => {
+    if (this.state.templatesLoading || !this.hgRequire(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_READ)) return;
+    const cursor = published ? this.state.templateCursor : this.state.reviewCursor;
+    if (!cursor) return;
+    const owner = this.hgOwner;
+    const sequence = ++this.hgTemplateSequence;
+    this.setState({ templatesLoading: true });
+    const request = published ? HGNotifyChannelVM.fetchPublishedTemplates(cursor) : HGNotifyChannelVM.fetchTemplates(undefined, cursor);
+    request.then((page) => {
+      if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgTemplateSequence) return;
+      this.setState((state) => published
+        ? { templates: [...state.templates, ...page.list], templateCursor: page.nextCursor, templatesLoading: false }
+        : { reviewTemplates: [...state.reviewTemplates, ...page.list], reviewCursor: page.nextCursor, templatesLoading: false });
+    }).catch((error) => {
+      if (this.hgMounted && owner === this.hgOwner && sequence === this.hgTemplateSequence) {
+        this.setState({ templatesLoading: false });
+        message.error(error?.message || "加载更多模板失败");
+      }
+    });
   };
 
   /** 选择模板：同时清空变量表并重置变量字段挂载，避免旧变量值残留到新模板。 */
   handleSelectTemplate = (templateId) => {
+    this.hgRequest = null;
     this.setState((state) => ({
       sendForm: { ...state.sendForm, templateId, variables: {} },
     }));
@@ -297,11 +402,13 @@ class HGNotifyChannelPage extends React.Component {
 
   /** 发送表单基础字段变更。 */
   changeSendForm = (field, value) => {
+    this.hgRequest = null;
     this.setState((state) => ({ sendForm: { ...state.sendForm, [field]: value } }));
   };
 
   /** 模板变量字段变更：仅更新对应变量名，不影响其他已填变量。 */
   changeVariable = (name, value) => {
+    this.hgRequest = null;
     this.setState((state) => ({
       sendForm: { ...state.sendForm, variables: { ...state.sendForm.variables, [name]: value } },
     }));
@@ -310,7 +417,7 @@ class HGNotifyChannelPage extends React.Component {
   /** 当前选中的模板对象；未选择或列表中不存在时返回 null。 */
   getSelectedTemplate = () => {
     const { templates, sendForm } = this.state;
-    return templates.find((item) => item.templateId === sendForm.templateId) || null;
+    return templates.find((item) => item.templateId === sendForm.templateId && HGNotifyChannelVM.isSendable(item)) || null;
   };
 
   /**
@@ -320,38 +427,12 @@ class HGNotifyChannelPage extends React.Component {
   validateSendForm = () => {
     const { sendForm } = this.state;
     const template = this.getSelectedTemplate();
-    if (!template) return "请先选择通知模板";
-    if (sendForm.audienceType === "user_ids") {
-      const userIds = HGNotifyChannelVM.parseUserIds(sendForm.userIdsText);
-      if (userIds.length === 0) return "请填写至少一个接收用户 ID";
-      if (userIds.length > 500) return "单次任务最多 500 个用户 ID，更大范围请使用角色用户或全站公告";
-    }
-    if (sendForm.audienceType === "role" && !String(sendForm.roleCode).trim()) {
-      return "请填写接收角色编码";
-    }
-    const schemaEntries = Object.entries(template.variablesSchema || {});
-    for (const [name, rule] of schemaEntries) {
-      const raw = sendForm.variables[name];
-      const text = raw === undefined || raw === null ? "" : String(raw).trim();
-      if (rule.required && !text) return `变量 ${name} 为必填项`;
-      if (!text) continue;
-      if (rule.type === "integer" && !/^\d+$/.test(text)) return `变量 ${name} 必须是整数`;
-      if (rule.type === "integer" && Number(text) < Number(rule.minimum || 0)) {
-        return `变量 ${name} 不能小于 ${rule.minimum}`;
-      }
-      if (rule.maxLength && text.length > rule.maxLength) {
-        return `变量 ${name} 长度不能超过 ${rule.maxLength} 个字符`;
-      }
-    }
-    if (sendForm.scheduleType === "scheduled") {
-      if (!sendForm.scheduledAt) return "请选择定时发送时间";
-      if (new Date(sendForm.scheduledAt).getTime() <= Date.now()) return "定时发送时间必须晚于当前时间";
-    }
-    return "";
+    return hgValidateSendInput(template, HGNotifyChannelVM.parseUserIds(sendForm.userIdsText), sendForm.variables);
   };
 
   /** 打开预览弹窗；校验失败仅提示，不产生任何请求。 */
   handlePreviewSend = () => {
+    if (!this.hgRequire(HG_PERMISSIONS.NOTIFICATION_SEND_CREATE)) return;
     const error = this.validateSendForm();
     if (error) {
       message.warning(error);
@@ -365,39 +446,19 @@ class HGNotifyChannelPage extends React.Component {
     if (!this.state.sending) this.setState({ previewOpen: false });
   };
 
-  /**
-   * 组装发送任务请求体（技术文档 5.4）。
-   * variables 按 schema 类型转换；audience 仅携带当前范围类型的字段，避免提交无关数据。
-   */
+  /** 按当前服务端 HGCommand 协议构造请求；不发送原型中的 audience/schedule 字段。 */
   buildSendPayload = () => {
     const { sendForm } = this.state;
     const template = this.getSelectedTemplate();
-    const variables = {};
-    Object.entries(template.variablesSchema || {}).forEach(([name, rule]) => {
-      const raw = sendForm.variables[name];
-      const text = raw === undefined || raw === null ? "" : String(raw).trim();
-      if (!text) return;
-      variables[name] = rule.type === "integer" ? Number(text) : text;
-    });
-    const audience = { type: sendForm.audienceType };
-    if (sendForm.audienceType === "user_ids") {
-      audience.userIds = HGNotifyChannelVM.parseUserIds(sendForm.userIdsText);
-    }
-    if (sendForm.audienceType === "role") {
-      audience.roleCode = String(sendForm.roleCode).trim();
-    }
-    const schedule = { type: sendForm.scheduleType };
-    if (sendForm.scheduleType === "scheduled") {
-      schedule.scheduledAt = new Date(sendForm.scheduledAt).toISOString();
-    }
-    return { templateId: template.templateId, templateVersion: template.version, audience, variables, schedule };
+    return hgBuildSendCommand(template, HGNotifyChannelVM.parseUserIds(sendForm.userIdsText), sendForm.variables);
   };
 
   /** 确认发送：local 模式生成模拟任务，remote 模式调用发送任务接口并展示任务 ID。 */
   submitSendTask = () => {
-    if (this.state.sending) return;
+    if (this.hgSending || !this.hgRequire(HG_PERMISSIONS.NOTIFICATION_SEND_CREATE)) return;
+    const validation = this.validateSendForm();
+    if (validation) { message.warning(validation); return; }
     const payload = this.buildSendPayload();
-    const template = this.getSelectedTemplate();
     if (!HGNotifyChannelVM.isRemote()) {
       const result = HGNotifyChannelVM.buildSendDemoResult(payload);
       this.setState({
@@ -407,24 +468,181 @@ class HGNotifyChannelPage extends React.Component {
       message.success("发送任务已提交（示例数据），Worker 将在后台异步投递");
       return;
     }
+    this.hgSending = true;
     this.setState({ sending: true });
-    const requestId = `send-${template.templateCode}-${Date.now()}`;
-    HGNotifyChannelVM.createSendTask({ ...payload, requestId })
+    const owner = this.hgOwner;
+    const fingerprint = JSON.stringify(payload);
+    if (!this.hgRequest || this.hgRequest.fingerprint !== fingerprint) {
+      this.hgRequest = { fingerprint, requestId: `send-${crypto.randomUUID()}` };
+    }
+    HGNotifyChannelVM.createSendTask({ ...payload, requestId: this.hgRequest.requestId })
       .then((response) => {
-        const result = response?.result || response || {};
-        const estimated =
-          result.estimatedRecipients ?? (payload.audience.type === "user_ids" ? payload.audience.userIds.length : "服务端估算");
+        if (!this.hgMounted || owner !== this.hgOwner) return;
+        const result = response || {};
         this.setState({
           sending: false,
           previewOpen: false,
-          lastTaskResult: `任务 ${result.taskId || "--"} 已创建：状态 ${result.status || "pending"}，预计接收 ${estimated} 人`,
+          taskIdInput: result.taskId || "",
+          lastTaskResult: `任务 ${result.taskId || "--"} 已受理：${result.status || "pending"}，共 ${result.estimatedRecipients ?? payload.userIds.length} 人`,
         });
-        message.success("发送任务已创建，pending 表示已受理，投递结果请在发送记录中查看");
+        this.hgRequest = null;
+        if (result.taskId) this.hgLoadTask(result.taskId);
+        if (this.hgCan(HG_PERMISSIONS.NOTIFICATION_SEND_READ)) this.hgLoadTasks(true);
+        message.success("任务已持久化；pending 不代表通知已送达");
       })
       .catch((error) => {
+        if (!this.hgMounted || owner !== this.hgOwner) return;
         this.setState({ sending: false });
-        message.error(error?.message || "发送任务创建失败");
-      });
+        message.error(error?.message || "请求结果未知，请保持当前内容重试（复用同一幂等键）");
+      })
+      .finally(() => { this.hgSending = false; });
+  };
+
+  /** 仅按本人已知任务 ID 查询；不枚举其他管理员任务。 */
+  hgLoadTask = (id = this.state.taskIdInput) => {
+    if (!this.hgRequire(HG_PERMISSIONS.NOTIFICATION_SEND_READ)) return;
+    if (!/^[1-9]\d*$/.test(id)) { message.warning("请输入有效的任务 ID"); return; }
+    const sequence = ++this.hgTaskSequence;
+    const owner = this.hgOwner;
+    this.setState({ taskLoading: true, task: null, taskIdInput: id });
+    HGNotifyChannelVM.taskDetail(id).then((task) => {
+      if (this.hgMounted && owner === this.hgOwner && sequence === this.hgTaskSequence) this.setState({ task, taskLoading: false });
+    }).catch((error) => {
+      if (this.hgMounted && owner === this.hgOwner && sequence === this.hgTaskSequence) {
+        this.setState({ taskLoading: false });
+        message.error(error?.message || "查询任务失败");
+      }
+    });
+  };
+
+  /** 取消只阻止剩余用户的投递，成功后重新读取权威任务状态。 */
+  hgCancelTask = () => {
+    const { task, taskCancelling } = this.state;
+    if (!task || taskCancelling || !this.hgRequire(HG_PERMISSIONS.NOTIFICATION_SEND_CANCEL)) return;
+    if (!window.confirm(`确认取消任务 ${task.taskId}？已投递的通知无法撤回。`)) return;
+    const owner = this.hgOwner;
+    this.setState({ taskCancelling: true });
+    HGNotifyChannelVM.cancelTask(task.taskId).then(() => {
+      if (this.hgMounted && owner === this.hgOwner) {
+        this.hgLoadTask(task.taskId);
+        this.hgLoadTasks(true);
+      }
+    }).catch((error) => {
+      if (this.hgMounted && owner === this.hgOwner) message.error(error?.message || "取消失败，请刷新任务状态");
+    }).finally(() => { if (this.hgMounted && owner === this.hgOwner) this.setState({ taskCancelling: false }); });
+  };
+
+  /** 主键游标分页读取本人任务；刷新时递增代数，防止上一页过期响应混入。 */
+  hgLoadTasks = (refresh = false) => {
+    if (!this.hgRequire(HG_PERMISSIONS.NOTIFICATION_SEND_READ)) return;
+    if (!refresh && (this.state.tasksLoading || !this.state.taskCursor)) return;
+    const sequence = refresh ? ++this.hgTasksSequence : this.hgTasksSequence;
+    const owner = this.hgOwner;
+    const cursor = refresh ? "" : this.state.taskCursor;
+    this.setState({ tasksLoading: true });
+    HGNotifyChannelVM.taskPage(cursor).then((page) => {
+      if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgTasksSequence) return;
+      if (!Array.isArray(page?.list)) throw new Error("发送记录响应格式错误");
+      this.setState((state) => ({
+        tasksLoading: false, tasksLoaded: true,
+        tasks: refresh ? page.list : [...state.tasks, ...page.list],
+        taskCursor: page.nextCursor || "",
+      }));
+    }).catch((error) => {
+      if (this.hgMounted && owner === this.hgOwner && sequence === this.hgTasksSequence) {
+        this.setState({ tasksLoading: false });
+        message.error(error?.message || "查询发送记录失败");
+      }
+    });
+  };
+
+  /** 双人复核以最新版本号发布；失败后保留列表让审核者自行刷新核对。 */
+  hgPublishTemplate = (template) => {
+    if (!this.hgRequire(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) || this.state.publishingId) return;
+    if (!window.confirm(`确认复核并发布模板 ${template.templateName} v${template.version}？创建人不可自行发布。`)) return;
+    const owner = this.hgOwner;
+    this.setState({ publishingId: template.templateId });
+    HGNotifyChannelVM.publishTemplate(template.templateId, template.version)
+      .then(() => { if (this.hgMounted && owner === this.hgOwner) { message.success("模板已发布，请重新查询模板列表"); this.handleQueryTemplates(); } })
+      .catch((error) => { if (this.hgMounted && owner === this.hgOwner) message.error(error?.message || "发布失败，请核对模板版本和创建人"); })
+      .finally(() => { if (this.hgMounted && owner === this.hgOwner) this.setState({ publishingId: "" }); });
+  };
+
+  /** 模板创建/编辑仍在现有模板页面完成；此处只复核可发送的站内草稿。 */
+  renderPublishSection = () => {
+    const drafts = this.state.reviewTemplates.filter((item) =>
+      item.status !== "deleted" && item.publishedVersion !== item.version &&
+      item.templateCode !== "iam.role.updated" && ["system", "marketing"].includes(item.category) &&
+      item.actionType === "none" && Object.keys(item.actionConfig || {}).length === 0 &&
+      item.channels?.length === 1 && item.channels[0] === "in_app" &&
+      Object.values(item.variablesSchema || {}).every((rule) => rule?.type === "string"));
+    return (
+      <HGCardPage title="模板复核发布" extra={<span className={styles.cardExtraText}>创建人不可自行发布；仅可复核最新站内纯文本版本</span>}>
+        {drafts.length ? drafts.map((item) => (
+          <div className={styles.reviewRow} key={item.templateId}>
+            <span>{item.templateName} · {item.templateCode} · v{item.version}</span>
+            <div className={styles.reviewCopy}>
+              <strong>{item.titleTemplate}</strong>
+              <span>{item.bodyTemplate}</span>
+              <span className={styles.fieldHint}>变量声明：{Object.keys(item.variablesSchema || {}).join("、") || "无"}</span>
+            </div>
+            <HGButtonPage disabled={!!this.state.publishingId}
+              loading={this.state.publishingId === item.templateId} onClick={() => this.hgPublishTemplate(item)}>
+              复核并发布
+            </HGButtonPage>
+          </div>
+        )) : <p className={styles.fieldHint}>当前列表中没有待发布的站内模板；可查询或加载更多。</p>}
+        {this.state.reviewCursor ? <HGButtonPage loading={this.state.templatesLoading}
+          onClick={() => this.hgLoadMoreTemplates(false)}>加载更多草稿</HGButtonPage> : null}
+      </HGCardPage>
+    );
+  };
+
+  /** 本人最近任务不显示用户 ID/变量；点击任务 ID 查询有界进度。 */
+  renderTaskList = () => (
+    <HGCardPage title="本人发送记录" extra={<HGButtonPage loading={this.state.tasksLoading}
+      onClick={() => this.hgLoadTasks(true)}>查询/刷新记录</HGButtonPage>}>
+      {this.state.tasksLoaded && !this.state.tasks.length ? <p className={styles.fieldHint}>暂无本人发送记录</p> : null}
+      <HGTablePage rowKey="taskId" pagination={false} loading={this.state.tasksLoading}
+        columns={[
+          { title: "任务 ID", dataIndex: "taskId", render: (id) =>
+            <HGButtonPage size="small" onClick={() => this.hgLoadTask(id)}>{id}</HGButtonPage> },
+          { title: "模板版本", dataIndex: "templateVersion", render: (version, row) => `${row.templateId} v${version}` },
+          { title: "状态", dataIndex: "status" },
+          { title: "已处理 / 总数", dataIndex: "processed", render: (processed, row) => `${processed} / ${row.total}` },
+          { title: "创建时间", dataIndex: "createdAt", render: (value) => value ? new Date(value).toLocaleString("zh-CN") : "--" },
+        ]}
+        dataSource={this.state.tasks} />
+      {this.state.taskCursor ? <HGButtonPage loading={this.state.tasksLoading}
+        onClick={() => this.hgLoadTasks()}>加载更多</HGButtonPage> : null}
+      <p className={styles.fieldHint}>processed 包含营销偏好拒收，不代表实际送达；失败任务需人工排查。</p>
+    </HGCardPage>
+  );
+
+  /** 仅回显本人任务的计数；processed 包含偏好拒收，不等于实际送达人数。 */
+  renderTaskSection = () => {
+    const { task, taskIdInput, taskLoading, taskCancelling } = this.state;
+    return (
+      <HGCardPage title="发送任务进度" extra={<span className={styles.cardExtraText}>仅可按本人任务 ID 查询；请保存任务 ID</span>}>
+        <div className={styles.sendToolbar}>
+          <HGInputPage value={taskIdInput} maxLength={20} placeholder="输入本人任务 ID"
+            onChange={(event) => { this.hgTaskSequence += 1; this.setState({ taskIdInput: event.target.value, task: null }); }} />
+          <HGButtonPage loading={taskLoading}
+            onClick={() => this.hgLoadTask()}>查询进度</HGButtonPage>
+        </div>
+        {task ? (
+          <div className={styles.taskDetail}>
+            <span>任务 {task.taskId} · 模板 {task.templateId} v{task.templateVersion}</span>
+            <span>状态：{task.status} · 已处理 {task.processed}/{task.total} · 当前连续失败 {task.attempts} 次</span>
+            <span className={styles.fieldHint}>已处理包含营销偏好拒收，不代表已送达或已读；failed 须人工排查，暂不支持自动重试。</span>
+            {["pending", "leased"].includes(task.status) && (
+              <HGButtonPage danger loading={taskCancelling}
+                onClick={this.hgCancelTask}>取消剩余投递</HGButtonPage>
+            )}
+          </div>
+        ) : null}
+      </HGCardPage>
+    );
   };
 
   /* ================= 渲染 ================= */
@@ -436,9 +654,8 @@ class HGNotifyChannelPage extends React.Component {
         <span className={styles.heroTag}>NOTIFICATION / CHANNEL CENTER</span>
         <h2 className={styles.heroTitle}>通知渠道中心</h2>
         <p className={styles.heroDesc}>
-          事件与模板解耦后，由渠道中心决定“发给谁、走哪个渠道、失败如何退避”。渠道 Provider 采用策略模式，
-          当前仅站内信已接入 MySQL；短信、邮件、Push 和实时网关尚未接入。可基于已发布模板创建发送任务，
-          填写白名单变量后由 Worker 异步渲染并投递。
+          当前可用的是指定用户的即时站内模板发送：另一位管理员复核发布、任务持久化、后台逐人投递。
+          短信、邮件、Push、实时推送、分群、全站广播和定时任务尚未接入，请勿将模拟渠道指标当作实际投递结果。
         </p>
       </div>
       <div className={styles.heroSide}>
@@ -630,46 +847,18 @@ class HGNotifyChannelPage extends React.Component {
 
   /* ================= 发送通知任务渲染 ================= */
 
-  /** 发送范围字段：按 audienceType 切换用户 ID 输入、角色编码或全站广播警示。 */
+  /** 当前仅支持显式用户；不展示服务端未接入的分群与全站广播入口。 */
   renderAudienceFields = () => {
     const { sendForm } = this.state;
-    if (sendForm.audienceType === "user_ids") {
-      return (
-        <label className={styles.fullField}>
-          接收用户 ID（逗号分隔，最多 500 个）
-          <HGInputTextArea
-            value={sendForm.userIdsText}
-            rows={3}
-            maxLength={6000}
-            placeholder="user_1001, user_1002, user_1003"
-            onChange={(event) => this.changeSendForm("userIdsText", event.target.value)}
-          />
-          <span className={styles.fieldHint}>
-            已识别 {HGNotifyChannelVM.parseUserIds(sendForm.userIdsText).length} 个用户 ID；同名任务对每个接收人只投递一条。
-          </span>
-        </label>
-      );
-    }
-    if (sendForm.audienceType === "role") {
-      return (
-        <label className={styles.fullField}>
-          接收角色编码（IAM 角色）
-          <HGInputPage
-            value={sendForm.roleCode}
-            maxLength={64}
-            placeholder="例如 reviewer，服务端按角色作用域展开接收人"
-            onChange={(event) => this.changeSendForm("roleCode", event.target.value)}
-          />
-          <span className={styles.fieldHint}>角色展开在投递阶段执行，并再次校验 IAM Scope。</span>
-        </label>
-      );
-    }
     return (
-      <div className={styles.fullField}>
-        <div className={styles.warningBar}>
-          全站广播面向全体用户，需更高权限与审批策略；采用公告主体单条存储 + 用户已读状态，不逐用户复制通知。
-        </div>
-      </div>
+      <label className={styles.fullField}>
+        接收用户 ID（逗号分隔，最多 100 个）
+        <HGInputTextArea value={sendForm.userIdsText} rows={3} maxLength={13000}
+          placeholder="user_1001, user_1002" onChange={(event) => this.changeSendForm("userIdsText", event.target.value)} />
+        <span className={styles.fieldHint}>
+          已识别 {HGNotifyChannelVM.parseUserIds(sendForm.userIdsText).length} 个用户；仅明确指定的现有用户可发送，不能按角色或全站发送。
+        </span>
+      </label>
     );
   };
 
@@ -686,30 +875,16 @@ class HGNotifyChannelPage extends React.Component {
             <label key={name}>
               {name}
               {rule.required ? "（必填）" : "（可选）"}
-              {rule.type === "integer" ? (
-                <HGInputNumberPage
-                  value={sendForm.variables[name]}
-                  min={rule.minimum ?? 1}
-                  step={1}
-                  onChange={(value) => this.changeVariable(name, value)}
-                />
-              ) : (
-                <HGInputPage
-                  value={sendForm.variables[name]}
-                  maxLength={rule.maxLength}
-                  onChange={(event) => this.changeVariable(name, event.target.value)}
-                />
-              )}
+              <HGInputPage value={sendForm.variables[name] ?? ""} maxLength={rule.max_length || 256}
+                onChange={(event) => this.changeVariable(name, event.target.value)} />
               <span className={styles.fieldHint}>
-                {rule.type === "integer" ? "整数" : "文本"}
-                {rule.minimum !== undefined ? ` · 最小 ${rule.minimum}` : ""}
-                {rule.maxLength !== undefined ? ` · 最长 ${rule.maxLength}` : ""}
+                纯文本 · 最长 {rule.max_length || 256} 字符
               </span>
             </label>
           ))}
         </div>
         <span className={styles.fieldHint}>
-          变量值对所有接收人生效；昵称、语言等用户级变量由服务端 Worker 渲染时合并，不需要在前端逐用户填写。
+          变量值对所有接收人相同；目前不读取或合并用户昵称等个人资料。请勿填写密码、验证码或令牌。
         </span>
       </div>
     );
@@ -719,7 +894,7 @@ class HGNotifyChannelPage extends React.Component {
   renderSendSection = () => {
     const { templates, templatesLoading, sendForm, lastTaskResult } = this.state;
     const template = this.getSelectedTemplate();
-    const templateOptions = templates.map((item) => ({
+    const templateOptions = templates.filter(HGNotifyChannelVM.isSendable).map((item) => ({
       value: item.templateId,
       label: `${item.templateName}（${TEMPLATE_CATEGORY_LABELS[item.category] || item.category} · v${item.version}）`,
     }));
@@ -728,63 +903,36 @@ class HGNotifyChannelPage extends React.Component {
         title="发送通知任务"
         extra={
           <span className={styles.cardExtraText}>
-            选择已发布模板并填写变量，任务提交后由 Worker 异步投递；页面不直接调用短信或推送接口
+             仅选择当前已发布的纯站内模板，即时投递 1–100 位明确用户；每位管理员最多 20 个未完成任务
           </span>
         }
       >
         <div className={styles.sendToolbar}>
-          <HGButtonPage loading={templatesLoading} onClick={this.handleQueryTemplates}>
+          <HGButtonPage loading={templatesLoading} disabled={this.state.sending || this.state.previewOpen} onClick={this.handleQueryTemplates}>
             查询模板
           </HGButtonPage>
           <HGSelectPage
             value={sendForm.templateId || undefined}
             options={templateOptions}
-            placeholder={templates.length ? "选择已发布模板" : "尚未查询模板，请先点击“查询模板”"}
+            placeholder={templateOptions.length ? "选择已发布站内模板" : "无可发送模板，请先查询或由另一位管理员发布"}
             onChange={(value) => this.handleSelectTemplate(value)}
           />
           <span className={styles.cardExtraText}>
-            {templates.length ? `列表快照：${templates.length} 个模板` : "模板列表为空：点击“查询模板”后展示点击时刻的数据"}
+            {templates.length ? `已读取 ${templates.length} 个模板，符合发送要求 ${templateOptions.length} 个` : "点击“查询模板”读取服务端数据"}
           </span>
+          {this.state.templateCursor ? <HGButtonPage loading={templatesLoading}
+            onClick={() => this.hgLoadMoreTemplates(true)}>加载更多发布版</HGButtonPage> : null}
         </div>
 
         <div className={styles.sendGrid}>
-          <label>
-            发送范围
-            <HGSelectPage
-              value={sendForm.audienceType}
-              options={AUDIENCE_TYPE_OPTIONS}
-              onChange={(value) => this.changeSendForm("audienceType", value)}
-            />
-          </label>
-          <label>
-            发送时间
-            <HGSelectPage
-              value={sendForm.scheduleType}
-              options={SCHEDULE_TYPE_OPTIONS}
-              onChange={(value) => this.changeSendForm("scheduleType", value)}
-            />
-          </label>
-          {sendForm.scheduleType === "scheduled" ? (
-            <label>
-              定时发送时刻
-              <input
-                type="datetime-local"
-                className={styles.datetimeInput}
-                value={sendForm.scheduledAt}
-                onChange={(event) => this.changeSendForm("scheduledAt", event.target.value)}
-              />
-            </label>
-          ) : null}
           {this.renderAudienceFields()}
           {template ? this.renderVariableFields(template) : null}
         </div>
 
         <div className={styles.sendActions}>
-          <HGButtonPage disabled={!template} onClick={this.handlePreviewSend}>
-            预览通知
-          </HGButtonPage>
-          <HGButtonPage type="primary" disabled={!template} onClick={this.handlePreviewSend}>
-            提交发送
+          <HGButtonPage type="primary" disabled={!template}
+            onClick={this.handlePreviewSend}>
+            预览并确认发送
           </HGButtonPage>
           {lastTaskResult ? <span className={styles.taskResult}>{lastTaskResult}</span> : null}
         </div>
@@ -814,13 +962,6 @@ class HGNotifyChannelPage extends React.Component {
     if (!template) return null;
     const payload = this.buildSendPayload();
     const rendered = HGNotifyChannelVM.renderTemplate(template, sendForm.variables);
-    const audienceLabels = {
-      user_ids: `指定用户（${payload.audience.userIds.length} 人）`,
-      role: `角色用户（${payload.audience.roleCode}，服务端展开）`,
-      all: "全站广播（公告共享存储）",
-    };
-    const scheduleText =
-      payload.schedule.type === "immediate" ? "立即发送" : `定时发送 ${sendForm.scheduledAt.replace("T", " ")}`;
     return (
       <HGModalPage
         visible
@@ -839,18 +980,14 @@ class HGNotifyChannelPage extends React.Component {
           </>
         }
       >
-        {sendForm.audienceType === "all" ? (
-          <div className={styles.dangerBar}>
-            二次确认：该任务将面向全站用户广播，提交后进入审批与调度队列；已投递的通知无法撤回。
-          </div>
-        ) : null}
+        <div className={styles.warningBar}>发送后无法撤回已入箱的通知；请确认接收人和文案均已审核。</div>
         <div className={styles.previewCard}>
           <div className={styles.previewHead}>
             <span className={styles.previewCategory}>
               {TEMPLATE_CATEGORY_LABELS[template.category] || template.category}
             </span>
             <span className={styles.previewTime}>
-              {payload.schedule.type === "immediate" ? "现在" : sendForm.scheduledAt.replace("T", " ")}
+              立即发送
             </span>
           </div>
           <h4 className={styles.previewTitle}>{this.renderPreviewText(rendered.title)}</h4>
@@ -860,11 +997,11 @@ class HGNotifyChannelPage extends React.Component {
         <ul className={styles.previewMeta}>
           <li>模板：{template.templateName}（{template.templateCode} · v{template.version}）</li>
           <li>投递渠道：{template.channels.join(" + ") || "未声明"}</li>
-          <li>接收范围：{audienceLabels[sendForm.audienceType]}</li>
-          <li>发送方式：{scheduleText}</li>
+          <li>接收范围：指定用户（{payload.userIds.length} 人）</li>
+          <li>发送方式：即时后台投递；仅站内信</li>
         </ul>
         <p className={styles.formFooter}>
-          预览由浏览器本地渲染，正式内容以服务端模板渲染为准；相同 requestId 的请求只会创建一个任务（幂等）。
+          预览由浏览器本地渲染，正式内容以服务端为准；网络结果不明时保留本次幂等键重试。
         </p>
       </HGModalPage>
     );
@@ -974,6 +1111,9 @@ class HGNotifyChannelPage extends React.Component {
         {this.renderHero()}
         {this.renderSummary()}
         {this.renderSendSection()}
+        {this.renderPublishSection()}
+        {this.renderTaskSection()}
+        {this.renderTaskList()}
         {this.renderChannelSection()}
         {this.renderProviderSection()}
         {this.renderDeliverySection()}

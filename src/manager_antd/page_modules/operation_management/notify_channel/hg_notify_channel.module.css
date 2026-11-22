@@ -301,6 +301,10 @@
   font-weight: 600;
 }
 
+.reviewRow { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.reviewCopy { display: grid; gap: 4px; flex: 1 1 280px; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.taskDetail { display: grid; justify-items: start; gap: 8px; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-surface); }
+
 /* ============ 发送预览弹窗 ============ */
 .previewCard {
   padding: 16px 18px;

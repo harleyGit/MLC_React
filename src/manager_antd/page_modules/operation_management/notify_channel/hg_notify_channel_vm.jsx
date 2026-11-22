@@ -3,6 +3,7 @@
  */
 import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
+import { hgNormalizeSendTemplate, hgSendableTemplate } from "./hg_notify_send_contract.js";
 import {
   CHANNEL_PRIORITY_OPTIONS,
   HG_DEMO_CHANNELS,
@@ -21,22 +22,20 @@ export const CHANNEL_DATA_SOURCE = "remote";
 
 export { RETRY_LADDER, CHANNEL_PRIORITY_OPTIONS };
 
-/** 发送范围选项：value 与后端 audience.type 枚举对齐（技术文档 3.2 发送方式）。 */
+/** 当前仅支持显式用户；其它范围不可通过本页面请求。 */
 export const AUDIENCE_TYPE_OPTIONS = [
   { value: "user_ids", label: "指定用户（逗号分隔 ID）" },
-  { value: "role", label: "指定角色用户（IAM 角色）" },
-  { value: "all", label: "全站用户（公告广播）" },
 ];
 
-/** 发送时间选项：定时任务由后端 Scheduler 按租约抢占调度。 */
+/** 当前后端仅支持即时任务。 */
 export const SCHEDULE_TYPE_OPTIONS = [
   { value: "immediate", label: "立即发送" },
-  { value: "scheduled", label: "定时发送" },
 ];
 
 /** 模板分类中文标签（技术文档 3.1 模板类型）。 */
 export const TEMPLATE_CATEGORY_LABELS = {
   system: "系统通知",
+  marketing: "营销通知",
   security: "安全通知",
   transaction: "交易通知",
   interaction: "互动消息",
@@ -72,8 +71,20 @@ export default class HGNotifyChannelVM {
   static updateChannel = ({ code, enabled, config }) =>
     HGNet.post(HGMANAGER_API.ADMIN_NOTIFY_CHANNEL_UPDATE, { code, enabled, config });
 
-  /** 查询模板列表（技术文档 5.1 GET /admin/templates）：返回已发布模板供发送任务选择。 */
-  static fetchTemplates = () => HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_TEMPLATE_LIST);
+  /** 一次只读 20 条，保持服务端倒序主键游标以便按需加载更多。 */
+  static fetchTemplates = async (path = HGMANAGER_API.ADMIN_NOTIFY_TEMPLATE_LIST, cursor = "") => {
+    const page = await HGNet.get(path, cursor ? { cursor } : {});
+    if (!Array.isArray(page?.list) || page.list.length > 20 || (page.nextCursor && (
+      page.nextCursor === cursor || page.list.length === 0))) throw new Error("模板列表响应格式错误");
+    return { list: page.list.map(hgNormalizeSendTemplate), nextCursor: page.nextCursor || "" };
+  };
+
+  static fetchPublishedTemplates = (cursor = "") =>
+    HGNotifyChannelVM.fetchTemplates(HGMANAGER_API.ADMIN_NOTIFY_TEMPLATE_PUBLISHED, cursor);
+
+  /** 复核必须由非创建者执行；发布状态以服务端版本锁和权限校验为准。 */
+  static publishTemplate = (id, version) =>
+    HGNet.post(`${HGMANAGER_API.ADMIN_NOTIFY_TEMPLATE_PUBLISH_SEND}?id=${encodeURIComponent(id)}`, { version }, { _hasRetried: true });
 
   /**
    * 创建发送任务（技术文档 5.4 POST /admin/send-tasks）。
@@ -82,8 +93,22 @@ export default class HGNotifyChannelVM {
    */
   static createSendTask = ({ requestId, ...payload }) =>
     HGNet.post(HGMANAGER_API.ADMIN_NOTIFY_SEND_TASK, payload, {
-      headers: { "Idempotency-Key": requestId },
+      headers: { "Idempotency-Key": requestId }, _hasRetried: true,
+    }).then((result) => {
+      if (!/^[1-9]\d*$/.test(result?.taskId) || !["pending", "leased", "done", "failed", "cancelled"].includes(result?.status))
+        throw new Error("发送任务响应格式错误，请保持原请求并查询或重试");
+      return result;
     });
+
+  static taskDetail = (id) => HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_SEND_TASK_DETAIL, { id });
+
+  static taskPage = (cursor = "") =>
+    HGNet.get(HGMANAGER_API.ADMIN_NOTIFY_SEND_TASK, cursor ? { cursor } : {});
+
+  static cancelTask = (id) =>
+    HGNet.post(`${HGMANAGER_API.ADMIN_NOTIFY_SEND_TASK_CANCEL}?id=${encodeURIComponent(id)}`, {}, { _hasRetried: true });
+
+  static isSendable = hgSendableTemplate;
 
   /* ===== 格式化 ===== */
 
@@ -155,11 +180,7 @@ export default class HGNotifyChannelVM {
 
   /** local 模式模拟创建任务返回：taskId 即时生成，接收人数按 audience 类型推导，仅用于评审 UI。 */
   static buildSendDemoResult = (payload) => {
-    const audience = payload?.audience || {};
-    let estimated = "按角色展开";
-    if (audience.type === "user_ids") estimated = (audience.userIds || []).length;
-    if (audience.type === "all") estimated = "全站";
-    return { taskId: `task_demo_${Date.now()}`, status: "pending", estimatedRecipients: estimated };
+    return { taskId: `task_demo_${Date.now()}`, status: "pending", estimatedRecipients: (payload?.userIds || []).length };
   };
 
 
