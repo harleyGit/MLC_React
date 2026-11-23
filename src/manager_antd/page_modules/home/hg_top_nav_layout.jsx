@@ -26,7 +26,6 @@ import { HGIAMContext } from "../../../modules/iam/hg_iam_provider";
 import { hgCurrentIAMUser } from "../../../modules/iam/hg_iam_session";
 import { HG_PERMISSIONS } from "../../../modules/iam/hg_permission_codes";
 import { hgUserRepository } from "../../../modules/user/HGUserRepository";
-import { hgGetAdminStatus } from "../../auth/hg_admin_status";
 import { logout } from "../../auth/hg_auth";
 import { hgRevokeIMDevice } from "../../auth/hg_im_device";
 import { ROUTE_PATH } from "../../router/hg_router_path";
@@ -53,7 +52,6 @@ class HGTopNavLayout extends Component {
     this.state = {
       current: this.getCurrentPage(), // 当前高亮 Tab；直达无明确归属的路径时为空，不默认高亮 Chat。
       showUserDropdown: false, // 头像浮层显示状态，不再修改页面的 Tab 归属。
-      hgIsAdmin: false, // 后端确认有效管理员前一律隐藏运维和采集入口。
       hgChatFailed: false, // 仅当前账号实时连接最终失败时标红；消息操作在断线时失败关闭。
       hgProfile: HGUserProfileStorage.getUserProfile(), // 当前标签页展示资料；null 时才读取 IndexedDB。
     };
@@ -75,11 +73,6 @@ class HGTopNavLayout extends Component {
     this.hgLoadProfile();
     window.addEventListener(HG_IM_CONNECTION_EVENT, this.hgOnChatConnection);
     window.addEventListener("hg:auth-changed", this.hgResetChatConnection);
-    hgGetAdminStatus()
-      .then((hgIsAdmin) => {
-        if (this.hgMounted) this.setState({ hgIsAdmin });
-      })
-      .catch(() => {});
   }
 
   /**
@@ -361,8 +354,7 @@ class HGTopNavLayout extends Component {
               </Link>
             ),
           },
-          ...(this.state.hgIsAdmin &&
-          this.context?.status === "ready" &&
+          ...(this.context?.status === "ready" &&
           [
             HG_PERMISSIONS.IAM_READ,
             HG_PERMISSIONS.USER_READ,
@@ -394,8 +386,7 @@ class HGTopNavLayout extends Component {
                 },
               ]
             : []),
-          ...(this.state.hgIsAdmin &&
-          this.context?.status === "ready" &&
+          ...(this.context?.status === "ready" &&
           hgEvaluateAccess(this.context.snapshot, {
             permission: HG_PERMISSIONS.CRAWLER_READ,
           }).allowed

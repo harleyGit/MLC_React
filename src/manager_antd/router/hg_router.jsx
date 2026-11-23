@@ -10,7 +10,6 @@ import React, { Suspense } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import HGLoading from "../../components/hg_loading/hg_loading";
 import HGAuthGuard from "../auth/hg_auth_guard";
-import HGAdminGuard from "../auth/hg_admin_guard";
 import HGHomePage from "../page_modules/home/hg_home_page";
 import HGTopNavLayout from "../page_modules/home/hg_top_nav_layout";
 import { WithNavigation } from "./hg_naviagion_hook";
@@ -220,18 +219,18 @@ const HGRouter = createBrowserRouter([
       {
         path: ROUTE_PATH.OPERATION_MANAGEMENT,
         element: hgLazyElement(
-          <HGAdminGuard><HGRouteGuard anyOf={[
+          <HGRouteGuard anyOf={[
             HG_PERMISSIONS.IAM_READ, HG_PERMISSIONS.USER_READ, HG_PERMISSIONS.OPS_METRICS_READ,
             HG_PERMISSIONS.CRAWLER_READ, HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.OPS_FILE_READ,
             HG_PERMISSIONS.OPS_MENU_READ, HG_PERMISSIONS.OPS_TAG_READ, HG_PERMISSIONS.ASSET_BALANCE_READ,
             HG_PERMISSIONS.RECHARGE_READ, HG_PERMISSIONS.MALL_REVIEW, HG_PERMISSIONS.NOTIFICATION_CHANNEL_READ,
-          ]}><WrappedHGOperationManagementPage /></HGRouteGuard></HGAdminGuard>,
+          ]}><WrappedHGOperationManagementPage /></HGRouteGuard>,
           "正在加载运维管理..."
         ),
       },
       {
         path: ROUTE_PATH.CRAWLER_PLATFORM,
-        element: hgLazyElement(<HGAdminGuard><HGRouteGuard permission={HG_PERMISSIONS.CRAWLER_READ}><WrappedHGCrawlerPlatformPage /></HGRouteGuard></HGAdminGuard>, "正在加载采集平台..."),
+        element: hgLazyElement(<HGRouteGuard permission={HG_PERMISSIONS.CRAWLER_READ}><WrappedHGCrawlerPlatformPage /></HGRouteGuard>, "正在加载采集平台..."),
       },
       {
         path: ROUTE_PATH.TEST_MODULE,

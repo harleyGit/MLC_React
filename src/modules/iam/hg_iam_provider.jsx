@@ -20,8 +20,9 @@ export class HGIAMAccessProvider extends React.Component {
   hgQueuedRefresh = false; // 请求期间收到明确变更信号时，完成后再核验一次。
   hgRealtime = null; // 当前账号的唯一 IAM 实时连接；账号切换或卸载立即关闭。
   hgRealtimeOwner = ""; // 实时频道绑定的 JWT uid，空串表示没有连接。
-  hgRealtimeDisabledOwner = ""; // 当前登录账号收到 503 后不每分钟重试票据接口；账号切换时重置。
+  hgRealtimeDisabledOwner = ""; // 当前账号票据不可用时不重复申请；HTTP 复核期间保留，账号切换时重置。
   hgAuthTimer = null; // JWT 自身到期时清理授权视图；无登录状态时不设定时器。
+  hgFallbackTimer = null; // IAM 实时频道不可用时约每分钟向服务端复核；恢复订阅后立即停止。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -40,6 +41,7 @@ export class HGIAMAccessProvider extends React.Component {
     this.hgQueuedRefresh = false;
     clearTimeout(this.hgExpiryTimer);
     clearTimeout(this.hgAuthTimer);
+    clearTimeout(this.hgFallbackTimer);
     this.hgCloseRealtime();
     this.hgUnsubscribe?.();
     window.removeEventListener("hg:auth-changed", this.hgQueueRefresh);
@@ -169,12 +171,17 @@ export class HGIAMAccessProvider extends React.Component {
       }
     }, () => {
       if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
+        clearTimeout(this.hgFallbackTimer);
+        this.hgFallbackTimer = null;
         this.hgQueueRefresh();
         // 订阅首次成功或重连后补齐断线期间漏掉的通知，不能只靠 Socket 历史。
         window.dispatchEvent(new CustomEvent("hg:notification-changed"));
       }
     }, () => {
-      if (this.hgMounted && this.hgRealtime === realtime) this.setState({ status: "error", snapshot: null });
+      if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
+        this.setState({ status: "error", snapshot: null });
+        this.hgScheduleFallback(owner, true);
+      }
     }, (category) => {
       if (!this.hgMounted || this.hgRealtime !== realtime || owner !== hgCurrentIAMUser()) return;
       // 推送分类只用于跳过无关列表；非法内容退化为完整补拉，不信任推送正文。
@@ -187,18 +194,35 @@ export class HGIAMAccessProvider extends React.Component {
     void realtime.hgStart().catch((error) => {
       if (this.hgMounted && this.hgRealtime === realtime) {
         if (error?.status === 503) {
-          // IM 尚未启用的旧环境继续使用服务端一分钟快照复核，绝不将它误判为长期授权。
+          // IM 尚未启用时每分钟向服务端复核授权，绝不将旧快照误判为长期授权。
           this.hgRealtimeDisabledOwner = owner;
           this.hgCloseRealtime();
+          this.hgScheduleFallback(owner);
         } else {
+          if (![401, 403].includes(error?.status)) this.hgRealtimeDisabledOwner = owner;
+          this.hgCloseRealtime();
           this.setState({ status: "error", snapshot: null });
+          if (![401, 403].includes(error?.status)) this.hgScheduleFallback(owner, true);
         }
       }
     });
   };
 
+  /** 断线时先隐藏权限并复核，后续约每分钟从服务端更新；抖动防止大量标签页同时补拉。 */
+  hgScheduleFallback = (owner, hgImmediate = false) => {
+    clearTimeout(this.hgFallbackTimer);
+    if (!this.hgMounted || !owner || owner !== hgCurrentIAMUser()) return;
+    if (hgImmediate) void this.hgQueueRefresh();
+    this.hgFallbackTimer = setTimeout(() => {
+      this.hgFallbackTimer = null;
+      this.hgScheduleFallback(owner, true);
+    }, 45_000 + Math.floor(Math.random() * 30_000));
+  };
+
   /** 更换用户时关闭旧频道；旧连接里的消息与同步回调一律不能写新账号。 */
   hgCloseRealtime = () => {
+    clearTimeout(this.hgFallbackTimer);
+    this.hgFallbackTimer = null;
     this.hgRealtime?.hgClose();
     this.hgRealtime = null;
     this.hgRealtimeOwner = "";

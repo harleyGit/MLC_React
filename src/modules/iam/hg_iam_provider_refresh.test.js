@@ -115,6 +115,28 @@ test("通知提示只由当前账号传播，重连补拉通知与 IAM 快照", 
   hg.provider.componentWillUnmount();
 });
 
+test("实时频道断线后仅凭服务端 IAM 复核恢复菜单授权，失败时继续隐藏", async () => {
+  const hg = hgFixture();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
+  await hgFlush();
+  hg.realtime().offline();
+  assert.equal(hg.provider.state.status, "loading", "断线时先撤销页面展示并启动权威复核");
+  await hgFlush();
+  assert.equal(hg.fetchCount(), 2);
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
+  await hgFlush();
+  assert.equal(hg.provider.state.status, "ready");
+  hg.realtime().offline();
+  await hgFlush();
+  hg.resolve(Promise.reject(new Error("服务端不可用")));
+  await hgFlush();
+  assert.equal(hg.provider.state.status, "error");
+  assert.equal(hg.provider.state.snapshot, null);
+  hg.provider.componentWillUnmount();
+});
+
 test("IM 返回 503 后不随旧环境一分钟复核反复请求实时凭据", async () => {
   const hg = hgFixture();
   hg.realtimeUnavailable();

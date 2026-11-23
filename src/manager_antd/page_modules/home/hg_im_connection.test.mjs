@@ -3,13 +3,14 @@ import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
 
-/** 用内存账号/事件总线验证页面协作，不请求 Go 或 Centrifugo。 */
+/** 用内存账号/事件总线验证页面协作，不请求 Go 或真实网关。 */
 test("Chat 重连入口、失败标红和恢复", async (hgTest) => {
   const hgOriginal = { window: globalThis.window, localStorage: globalThis.localStorage, sessionStorage: globalThis.sessionStorage };
   const hgWindow = new EventTarget(); // 模拟当前标签页的自定义事件总线。
   globalThis.window = hgWindow;
   globalThis.localStorage = { getItem: () => `h.${Buffer.from(JSON.stringify({ uid: "user-1" })).toString("base64url")}.s` };
-  globalThis.sessionStorage = { getItem: () => null };
+  globalThis.sessionStorage = { getItem: () => null, removeItem: () => {} };
+  hgWindow.localStorage = { getItem: () => null, removeItem: () => {} };
   const hgVite = await createServer({ configFile: false, optimizeDeps: { noDiscovery: true, include: [] }, server: { middlewareMode: true, preTransformRequests: false }, appType: "custom", mode: "debug" });
   hgTest.after(async () => {
     await hgVite.close();
@@ -31,6 +32,16 @@ test("Chat 重连入口、失败标红和恢复", async (hgTest) => {
   hgLayout.setState = (hgPatch) => Object.assign(hgLayout.state, hgPatch);
   hgWindow.addEventListener(HG_IM_CONNECTION_EVENT, hgLayout.hgOnChatConnection);
   hgTest.after(() => hgWindow.removeEventListener(HG_IM_CONNECTION_EVENT, hgLayout.hgOnChatConnection));
+
+  await hgTest.test("服务端 IAM 授权即显示运维入口，无授权或未就绪均隐藏", () => {
+    const hgGrant = { permission: "iam:role:read", scope_type: "global", scope_id: "" };
+    hgLayout.context = { status: "ready", snapshot: { expires_at: "2099-01-01T00:00:00Z", grants: [hgGrant] } };
+    assert.ok(hgLayout.renderTopMenu("").props.items.some((hgItem) => hgItem.key === "operation"));
+    hgLayout.context = { status: "ready", snapshot: { expires_at: "2099-01-01T00:00:00Z", grants: [] } };
+    assert.ok(!hgLayout.renderTopMenu("").props.items.some((hgItem) => hgItem.key === "operation"));
+    hgLayout.context = { status: "error", snapshot: { expires_at: "2099-01-01T00:00:00Z", grants: [hgGrant] } };
+    assert.ok(!hgLayout.renderTopMenu("").props.items.some((hgItem) => hgItem.key === "operation"));
+  });
 
   await hgTest.test("同页点击 Chat 发出重连命令，页面无手动按钮", () => {
     const hgPage = new HGHomePage({});
@@ -61,34 +72,34 @@ test("Chat 重连入口、失败标红和恢复", async (hgTest) => {
     hgVM.hgClose();
   });
 
-  await hgTest.test("断线只在有界等待后告警，恢复可清理计时器", () => {
+  await hgTest.test("短暂断线不提前提示，订阅恢复后清除失败标记", () => {
     const hgVM = new HGHomeVM(async () => {}, () => {});
-    const hgOriginalTimeout = globalThis.setTimeout;
-    let hgDeadline; // 捕获观察窗口到期回调，避免测试真实等待 20 秒。
-    globalThis.setTimeout = (hgCallback, hgDelay) => { assert.equal(hgDelay, 20000); hgDeadline = hgCallback; return 1; };
     try {
-      hgVM.hgOnRealtimeStatus("实时重连中 · HTTP 补拉可用");
+      const hgBefore = hgToasts.length;
+      hgVM.hgOnRealtimeStatus("实时重连中 · 等待 WebSocket 补拉");
       assert.equal(hgLayout.state.hgChatFailed, false);
-      hgDeadline();
+      assert.equal(hgToasts.length, hgBefore);
+      hgVM.hgOnRealtimeFailed(null, "连续三次失败");
+      assert.equal(hgLayout.state.hgChatFailed, false, "旧连接不得影响当前 VM");
+      hgVM.hgRealtime = { hgClose: () => {} };
+      hgVM.hgOnRealtimeFailed(hgVM.hgRealtime, "连续三次失败");
       assert.equal(hgLayout.state.hgChatFailed, true);
-      assert.match(hgToasts.at(-1), /连接超时|网络已断开/);
+      assert.match(hgToasts.at(-1), /连续三次失败/);
       hgVM.hgOnRealtimeStatus("实时已连接");
-      assert.equal(hgVM.hgConnectionTimer, null);
       assert.equal(hgLayout.state.hgChatFailed, false);
     } finally {
-      globalThis.setTimeout = hgOriginalTimeout;
       hgVM.hgClose();
     }
   });
 
-  await hgTest.test("获取实时 token 瞬态失败只尝试两次，最终反馈安全原因", async () => {
+  await hgTest.test("获取实时 token 瞬态失败最多尝试三次，最终反馈安全原因", async () => {
     const hgVM = new HGHomeVM(async () => {}, () => {});
     hgVM.hgCredential = { deviceId: "a".repeat(32), secret: "b".repeat(64) };
     let hgAttempts = 0;
     hgVM.hgAPI.hgRealtimeToken = async () => { hgAttempts++; throw new Error("不应出现在 UI 的原始响应"); };
     try {
       await hgVM.hgReconnect();
-      assert.equal(hgAttempts, 2);
+      assert.equal(hgAttempts, 3);
       assert.equal(hgLayout.state.hgChatFailed, true);
       assert.doesNotMatch(hgToasts.at(-1), /原始响应/);
     } finally {
