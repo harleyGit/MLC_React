@@ -23,6 +23,7 @@ function hgFixture() {
     dispatchEvent: (event) => { hgEvents.push(event); },
   };
   let hgFetchCount = 0; // 本轮向权威接口发起的请求次数。
+  const hgRequestModes = []; // false 为 /me/access，true 为 /me/sync。
   const hgResolves = []; // 逐个控制异步响应，验证变更通知在首个请求后补拉。
   let hgOwner = "operator-a"; // 模拟当前登录账号；切换后旧响应不得覆盖新账号。
   let hgRealtimeStarts = 0; // 同一账号 503 后不应在下一次权限复核时再次申请频道票据。
@@ -38,8 +39,9 @@ function hgFixture() {
         hgCurrentIAMUser: () => hgOwner,
         hgCurrentIAMExpiry: () => Date.now() + 3_600_000,
         hgApplyPushedIAM: async () => false,
-        hgRefreshIAM: () => {
+        hgRefreshIAM: ({ sync } = {}) => {
           hgFetchCount += 1;
+          hgRequestModes.push(sync);
           return new Promise((resolve) => { hgResolves.push(resolve); });
         },
         hgSubscribeIAM: () => () => {},
@@ -72,6 +74,7 @@ function hgFixture() {
   return {
     provider: hgProvider, listeners: hgListeners,
     fetchCount: () => hgFetchCount,
+    requestModes: () => hgRequestModes,
     realtimeStarts: () => hgRealtimeStarts,
     realtimeUnavailable: () => { hgRealtimeFailure = true; },
     realtime: () => hgRealtimeInstance,
@@ -111,6 +114,7 @@ test("通知提示只由当前账号传播，重连补拉通知与 IAM 快照", 
   original.recover();
   await hgFlush();
   assert.equal(hg.fetchCount(), 2);
+  assert.deepEqual(hg.requestModes(), [false, true]);
   assert.equal(hg.events().at(-1)?.detail, undefined);
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await hgFlush();
@@ -131,11 +135,18 @@ test("实时频道断线后仅凭服务端 IAM 复核恢复菜单授权，失败
   assert.equal(hg.provider.state.status, "loading", "断线时先撤销页面展示并启动权威复核");
   await hgFlush();
   assert.equal(hg.fetchCount(), 2);
+  assert.deepEqual(hg.requestModes(), [false, false], "频道断开时不调用 /me/sync");
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
   await hgFlush();
   assert.equal(hg.provider.state.status, "ready");
+  hg.realtime().recover();
+  await hgFlush();
+  assert.deepEqual(hg.requestModes(), [false, false, true], "重新订阅后再走同步入口");
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
+  await hgFlush();
   hg.realtime().offline();
   await hgFlush();
+  assert.deepEqual(hg.requestModes(), [false, false, true, false]);
   hg.resolve(Promise.reject(new Error("服务端不可用")));
   await hgFlush();
   assert.equal(hg.provider.state.status, "error");
@@ -176,11 +187,28 @@ test("IM 返回 503 后不随旧环境一分钟复核反复请求实时凭据", 
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await hgFlush();
   assert.equal(hg.realtimeStarts(), 1);
+  assert.deepEqual(hg.requestModes(), [false]);
   const refresh = hg.provider.hgRefresh();
   await hgFlush();
+  assert.deepEqual(hg.requestModes(), [false, false], "频道不可用时主动复核仍使用 /me/access");
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await refresh;
   assert.equal(hg.realtimeStarts(), 1);
+  hg.provider.componentWillUnmount();
+});
+
+test("IM 不可用且权限快照到期时仅调用 /me/access", async () => {
+  const hg = hgFixture();
+  hg.realtimeUnavailable();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
+  hg.provider.hgScheduleExpiry({ expires_at: new Date(Date.now() - 1).toISOString() });
+  await hgFlush();
+  assert.deepEqual(hg.requestModes(), [false, false]);
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
   hg.provider.componentWillUnmount();
 });
 

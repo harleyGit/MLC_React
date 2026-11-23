@@ -20,6 +20,7 @@ export class HGIAMAccessProvider extends React.Component {
   hgQueuedRefresh = false; // 请求期间收到明确变更信号时，完成后再核验一次。
   hgRealtime = null; // 当前账号的唯一用户业务 Socket；Chat 设备 Socket 独立。
   hgRealtimeOwner = ""; // 实时频道绑定的 JWT uid，空串表示没有连接。
+  hgRealtimeConnectedOwner = ""; // 已完成订阅的账号；空串表示频道不可用，复核改走 /me/access。
   hgBusinessListeners = new Set(); // 页面级业务提示监听；按注册时账号隔离，注销/卸载时清空。
   hgRealtimeDisabledOwner = ""; // 当前账号票据不可用时不重复申请；HTTP 复核期间保留，账号切换时重置。
   hgAuthTimer = null; // JWT 自身到期时清理授权视图；无登录状态时不设定时器。
@@ -97,7 +98,8 @@ export class HGIAMAccessProvider extends React.Component {
       await hgLoadLocalIAM().catch(() => null);
       if (!this.hgMounted || sequence !== this.hgSequence) return;
       try {
-        const snapshot = await hgRefreshIAM({ sync: options.sync !== false });
+        // 仅已订阅的频道使用 /me/sync；断线和 503 时仍通过 /me/access 复核权威授权。
+        const snapshot = await hgRefreshIAM({ sync: options.sync !== false && this.hgRealtimeConnectedOwner === owner });
         if (this.hgMounted && sequence === this.hgSequence) {
           this.setState({ snapshot, status: snapshot ? "ready" : "unauthenticated" });
           if (snapshot) {
@@ -192,12 +194,14 @@ export class HGIAMAccessProvider extends React.Component {
     this.hgRealtimeOwner = owner;
     const hgOnOffline = () => {
       if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
+        this.hgRealtimeConnectedOwner = "";
         this.setState({ status: "error", snapshot: null });
         this.hgScheduleFallback(owner, true);
       }
     };
     const realtime = new HGBusinessRealtime(owner, () => {
       if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
+        this.hgRealtimeConnectedOwner = owner;
         clearTimeout(this.hgFallbackTimer);
         this.hgFallbackTimer = null;
         this.hgQueueRefresh();
@@ -265,6 +269,7 @@ export class HGIAMAccessProvider extends React.Component {
   hgCloseRealtime = () => {
     clearTimeout(this.hgFallbackTimer);
     this.hgFallbackTimer = null;
+    this.hgRealtimeConnectedOwner = "";
     this.hgRealtime?.hgClose();
     this.hgRealtime = null;
     this.hgRealtimeOwner = "";
