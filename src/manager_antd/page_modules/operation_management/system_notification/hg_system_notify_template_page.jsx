@@ -52,6 +52,13 @@ const HG_CHANNEL_OPTIONS = Object.freeze([
 const HG_PREVIEW_BELL_PATH =
   "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z";
 
+/** 新服务端以版本状态为准；旧服务端未返回该字段时，只从最新版本与发布指针推断草稿供界面显示。 */
+function hgIsCurrentDraft(item) {
+  if (!item || item.status === "deleted" || item.version === item.published_version) return false;
+  return item.publication_status === "draft" ||
+    (item.publication_status == null && ["draft", "published"].includes(item.status));
+}
+
 /** 系统通知模板管理页：通用发布与站内发送发布分离，实际通知发送由服务端完成。 */
 export default class HGSystemNotifyTemplatePage extends React.Component {
   static contextType = HGIAMContext;
@@ -368,7 +375,12 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
         : hgTarget === "send" ? "站内发送版已发布" : "通用版本已发布；尚不可用于运营发送");
       this.hgLoad(true);
     } catch (error) {
-      if (this.hgMounted) this.setState({ hgError: HGSystemNotifyTemplateVM.errorMessage(error) });
+      if (this.hgMounted) this.setState({
+        hgError: !hgRoleTemplate && hgTarget === "general" &&
+          (Number(error?.status) === 404 || Number(error?.code) === 404)
+          ? "通用发布接口不可用，或模板已失效。请确认服务端已部署通用发布功能并刷新列表。"
+          : HGSystemNotifyTemplateVM.errorMessage(error),
+      });
     }
   };
 
@@ -380,8 +392,8 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
         <span>
           {item.category} · {item.publication_status === "published_general" ? "通用发布"
             : item.publication_status === "published" ? "已发布"
-            : item.publication_status === "draft" ? "草稿" : item.status} · v{item.version}
-          {item.publication_status === "draft" && item.published_version != null
+            : hgIsCurrentDraft(item) ? "草稿" : item.status} · v{item.version}
+          {hgIsCurrentDraft(item) && item.published_version != null
             ? `（已发布 v${item.published_version}）` : ""}
         </span>
       </div>
@@ -395,9 +407,19 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
             <button type="button" onClick={() => this.hgPublish(item)}>发布当前版本</button>
           )}
         {item.template_code !== "iam.role.updated" &&
-          item.publication_status === "draft" &&
-          this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) && (
-            <button type="button" onClick={() => this.hgPublish(item)}>发布通用版本</button>
+          hgIsCurrentDraft(item) && (
+            <>
+              <button
+                type="button"
+                disabled={!this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH)}
+                onClick={() => this.hgPublish(item)}
+              >
+                发布通用版本
+              </button>
+              {!this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) && (
+                <small>当前会话未获得 notification:template:publish，或授权快照尚未就绪。</small>
+              )}
+            </>
           )}
         {item.template_code !== "iam.role.updated" &&
           item.publication_status !== "published" &&

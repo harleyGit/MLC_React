@@ -91,14 +91,14 @@ test("通用发布与站内发送显式分离；角色更新模板仍走专用�
     channels: ["in_app"],
   };
   const security = { ...send, id: "3", template_code: "security.code", category: "security", channels: ["in_app", "realtime"] };
-  const buttons = (item) => {
+  const buttons = (item, targetPage = page) => {
     const found = [];
     function collect(element) {
       if (!React.isValidElement(element)) return;
       if (element.type === "button") found.push(element);
       React.Children.forEach(element.props.children, collect);
     }
-    collect(page.hgRenderCard(item));
+    collect(targetPage.hgRenderCard(item));
     return found;
   };
   assert.equal(buttons(role).some((button) => button.props.children === "发布当前版本"), false);
@@ -109,6 +109,16 @@ test("通用发布与站内发送显式分离；角色更新模板仍走专用�
     .some((button) => button.props.children === "发布供站内发送"), false, "不符合站内发送条件不能发布发送版");
   assert.ok(buttons(security).some((button) => button.props.children === "发布通用版本"));
   assert.equal(buttons(security).some((button) => button.props.children === "发布供站内发送"), false);
+  assert.ok(buttons({ ...security, status: "draft", publication_status: undefined, published_version: null })
+    .some((button) => button.props.children === "发布通用版本"), "旧服务端缺少 publication_status 时仍显示未发布草稿");
+  assert.ok(buttons({ ...send, status: "published", publication_status: undefined })
+    .some((button) => button.props.children === "发布通用版本"), "已发布模板的新草稿不能被主表 published 状态遮住");
+  assert.equal(buttons({ ...send, status: "published", publication_status: undefined, published_version: 2 })
+    .some((button) => button.props.children === "发布通用版本"), false, "旧服务端已发布的当前版本不能误作草稿");
+  const noPublishPage = hgTestPage({}, [], ["notification:template:update"]);
+  const disabledPublish = buttons(security, noPublishPage).find((button) => button.props.children === "发布通用版本");
+  assert.equal(disabledPublish.props.disabled, true, "缺少发布授权时显示入口和原因，但不允许触发写请求");
+  assert.match(JSON.stringify(noPublishPage.hgRenderCard(security)), /notification:template:publish/);
   await buttons(security).find((button) => button.props.children === "发布通用版本").props.onClick();
   assert.deepEqual(calls, [["general", "3", 2]]);
   assert.deepEqual(messages, ["通用版本已发布；尚不可用于运营发送"]);
@@ -132,6 +142,48 @@ test("通用发布与站内发送显式分离；角色更新模板仍走专用�
   collectRole(rolePage.hgRenderCard(role));
   await roleButtons.find((button) => button.props.children === "发布当前版本").props.onClick();
   assert.deepEqual(calls, [["general", "3", 2], ["send", "2", 2], ["role", "1", 2]]);
+});
+
+test("旧服务端不提供通用发布接口时显示可操作的错误，不伪装为成功", async () => {
+  const page = hgTestPage({
+    publishGeneral: async () => { throw { status: 404 }; },
+    errorMessage: () => "请求失败",
+  }, [], ["notification:template:publish"]);
+  await page.hgPublish({
+    id: "3", name: "安全通知", version: 1, template_code: "security.code", published_version: null,
+  });
+  assert.match(page.state.hgError, /服务端已部署通用发布功能/);
+});
+
+test("保存草稿并刷新旧格式列表后出现通用发布入口", async () => {
+  const calls = [];
+  const page = hgTestPage({
+    create: async (body) => {
+      calls.push(["create"]);
+      return { ...body, id: "13", version: 1, status: "draft", published_version: null };
+    },
+    list: async () => ({
+      list: [{ id: "13", name: "平台验证码", template_code: "security.code",
+        status: "draft", version: 1, published_version: null }],
+      nextCursor: "",
+    }),
+    publishGeneral: async (id, version) => calls.push(["publishGeneral", id, version]),
+    errorMessage: (error) => error.message,
+  }, [], ["notification:template:create", "notification:template:publish"]);
+  page.hgCreate();
+  await page.hgSave({ preventDefault() {} });
+  assert.equal(page.state.hgEditing, false);
+  const actions = [];
+  function collect(element) {
+    if (!React.isValidElement(element)) return;
+    if (element.type === "button") actions.push(element);
+    React.Children.forEach(element.props.children, collect);
+  }
+  collect(page.hgRenderCard(page.state.hgItems[0]));
+  const publish = actions.find((button) => button.props.children === "发布通用版本");
+  assert.equal(publish?.props.disabled, false);
+  await publish.props.onClick();
+  assert.deepEqual(calls, [["create"], ["publishGeneral", "13", 1]]);
 });
 
 test("预填角色更新模板，经创建接口提交后刷新列表、读取详情回填并按版本编辑", async () => {
