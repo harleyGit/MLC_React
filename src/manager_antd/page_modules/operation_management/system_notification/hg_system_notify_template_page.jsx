@@ -16,6 +16,7 @@ import {
 } from "./hg_template_form.js";
 import { hgFullTemplateDraft } from "./hg_full_template_draft.js";
 import { hgRoleUpdateTemplateDraft } from "./hg_role_update_template.js";
+import { hgNormalizeSendTemplate, hgPublishableSendTemplate } from "../notify_channel/hg_notify_send_contract.js";
 
 const HG_CATEGORIES = Object.freeze([
   ["system", "系统"],
@@ -51,7 +52,7 @@ const HG_CHANNEL_OPTIONS = Object.freeze([
 const HG_PREVIEW_BELL_PATH =
   "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z";
 
-/** 系统通知模板管理页：角色更新模板由管理员显式发布，实际通知发送由服务端完成。 */
+/** 系统通知模板管理页：角色与站内模板均显式发布，实际通知发送由服务端完成。 */
 export default class HGSystemNotifyTemplatePage extends React.Component {
   static contextType = HGIAMContext;
   static defaultProps = {
@@ -349,20 +350,24 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
     }
   };
 
-  /** 发布前读取最新版本，避免把已变更的草稿误发布为另一版本。 */
+  /** 列表所见版本供服务端锁定核对；普通站内模板的自审资格由服务端校验。 */
   hgPublish = async (item) => {
-    if (!window.confirm(`发布角色更新模板「${item.name}」的 v${item.version}？`)) return;
+    const hgRoleTemplate = item.template_code === "iam.role.updated"; // 角色模板走既有专用接口，其他模板走站内发布接口。
+    if (!window.confirm(hgRoleTemplate
+      ? `发布角色更新模板「${item.name}」的 v${item.version}？`
+      : `发布站内模板「${item.name}」的 v${item.version}？仅超级管理员可发布本人创建的版本，其他账号需另一人复核。`)) return;
     try {
-      await HGSystemNotifyTemplateVM.publish(item.id, item.version);
+      if (hgRoleTemplate) await HGSystemNotifyTemplateVM.publish(item.id, item.version);
+      else await HGSystemNotifyTemplateVM.publishSend(item.id, item.version);
       if (!this.hgMounted) return;
-      hgMessage.success("角色更新模板已发布");
+      hgMessage.success(hgRoleTemplate ? "角色更新模板已发布" : "站内模板已发布");
       this.hgLoad(true);
     } catch (error) {
       if (this.hgMounted) this.setState({ hgError: HGSystemNotifyTemplateVM.errorMessage(error) });
     }
   };
 
-  /** 使用稳定模板 ID 渲染卡片；从未发布版本才可显示删除入口。 */
+  /** 使用稳定模板 ID 渲染卡片；按模板类型选择发布权限，从未发布版本才可删除。 */
   hgRenderCard = (item) => (
     <article className={styles.card}>
       <div className={styles.cardTop}>
@@ -374,10 +379,13 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
       <p className={styles.code}>{item.template_code}</p>
       <p>{item.title_template}</p>
       <p className={styles.body}>{item.body_template}</p>
-        <div className={styles.actions}>
-        {item.template_code === "iam.role.updated" &&
-          item.published_version !== item.version &&
-          this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE) && (
+      <div className={styles.actions}>
+        {item.published_version !== item.version &&
+          (item.template_code === "iam.role.updated" ||
+            hgPublishableSendTemplate(hgNormalizeSendTemplate(item))) &&
+          this.hgCan(item.template_code === "iam.role.updated"
+            ? HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE
+            : HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) && (
             <button type="button" onClick={() => this.hgPublish(item)}>发布当前版本</button>
           )}
         {!this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE) && (
@@ -419,7 +427,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
       <div className={styles.header}>
         <div>
           <h2>系统通知模板</h2>
-          <p>角色更新通知可显式发布；发布后服务端按已发布版本生成系统消息。</p>
+          <p>保存仅生成草稿；角色更新与符合站内发送要求的模板需分别显式发布，发送只使用已发布版本。</p>
         </div>
         {this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_CREATE) && (
           <div className={styles.actions}>
@@ -827,7 +835,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
           </button>
         </div>
         <p>
-          保存仅生成草稿；角色更新模板需单独发布，发送时只使用已发布版本。
+          保存仅生成草稿；角色更新模板和符合站内发送要求的模板需单独发布，发送时只使用已发布版本。
           {!editing && " 新建已预填最全示例模板，请按业务修改编码、变量与正文。"}
         </p>
         {this.state.hgError && (

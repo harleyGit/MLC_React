@@ -18,7 +18,7 @@ import { hgEvaluateAccess } from "../../../../modules/iam/hg_access_evaluator";
 import { HGIAMContext } from "../../../../modules/iam/hg_iam_provider";
 import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 import { hgCurrentIAMUser } from "../../../../modules/iam/hg_iam_session";
-import { hgBuildSendCommand, hgDefaultSendVariables, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
+import { hgBuildSendCommand, hgDefaultSendVariables, hgPublishableSendTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
 import HGNotifyChannelVM, {
   CHANNEL_DATA_SOURCE,
   CHANNEL_PRIORITY_OPTIONS,
@@ -775,10 +775,10 @@ class HGNotifyChannelPage extends React.Component {
     });
   };
 
-  /** 双人复核以最新版本号发布；失败后保留列表让审核者自行刷新核对。 */
+  /** 按最新版本发布；仅活动全局超级管理员可自审，失败后保留列表供刷新核对。 */
   hgPublishTemplate = (template) => {
     if (!this.hgRequire(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) || this.state.publishingId) return;
-    if (!window.confirm(`确认复核并发布模板 ${template.templateName} v${template.version}？创建人不可自行发布。`)) return;
+    if (!window.confirm(`确认发布模板 ${template.templateName} v${template.version}？仅超级管理员可自审，其他账号须另一人复核。`)) return;
     const owner = this.hgOwner;
     this.setState({ publishingId: template.templateId });
     HGNotifyChannelVM.publishTemplate(template.templateId, template.version)
@@ -791,12 +791,9 @@ class HGNotifyChannelPage extends React.Component {
   renderPublishSection = () => {
     const drafts = this.state.reviewTemplates.filter((item) =>
       item.status !== "deleted" && item.publishedVersion !== item.version &&
-      item.templateCode !== "iam.role.updated" && ["system", "marketing"].includes(item.category) &&
-      item.actionType === "none" && Object.keys(item.actionConfig || {}).length === 0 &&
-      item.channels?.length === 1 && item.channels[0] === "in_app" &&
-      Object.values(item.variablesSchema || {}).every((rule) => rule?.type === "string"));
+      hgPublishableSendTemplate(item));
     return (
-      <HGCardPage title="模板复核发布" extra={<span className={styles.cardExtraText}>创建人不可自行发布；仅可复核最新站内纯文本版本</span>}>
+      <HGCardPage title="模板复核发布" extra={<span className={styles.cardExtraText}>仅超级管理员可自审；只可发布符合要求的最新站内纯文本版本</span>}>
         {drafts.length ? drafts.map((item) => (
           <div className={styles.reviewRow} key={item.templateId}>
             <span>{item.templateName} · {item.templateCode} · v{item.version}</span>
@@ -1189,7 +1186,7 @@ class HGNotifyChannelPage extends React.Component {
       ? "正在读取模板…"
       : templateOptions.length
         ? "选择已发布站内模板"
-        : "暂无可发送模板，可刷新重试或由另一位管理员发布";
+        : "暂无可发送模板，可刷新重试或由有权限的管理员发布";
     return (
       <HGCardPage
         title="发送通知任务"
@@ -1316,7 +1313,7 @@ class HGNotifyChannelPage extends React.Component {
           <li>发送方式：{sendForm.scheduleType === "scheduled"
             ? `定时 ${sendForm.scheduledAt.replace("T", " ")}（本地时间）` : "立即投递"}；仅站内信</li>
           <li>审批：{template.category === "marketing" || sendForm.scheduleType === "scheduled"
-            ? "需另一名管理员批准后才会调度" : "模板已双人发布，系统类任务创建后直接调度"}</li>
+            ? "需另一名管理员批准后才会调度" : "模板已发布，系统类任务创建后直接调度"}</li>
         </ul>
         <p className={styles.formFooter}>
           预览由浏览器本地渲染，正式内容以服务端为准；网络结果不明时保留本次幂等键重试。

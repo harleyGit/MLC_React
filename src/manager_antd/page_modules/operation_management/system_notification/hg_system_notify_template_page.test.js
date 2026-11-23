@@ -13,6 +13,7 @@ import {
 } from "./hg_template_form.js";
 import { hgFullTemplateDraft } from "./hg_full_template_draft.js";
 import { hgRoleUpdateTemplateDraft } from "./hg_role_update_template.js";
+import { hgNormalizeSendTemplate, hgPublishableSendTemplate } from "../notify_channel/hg_notify_send_contract.js";
 
 const hgSource = new URL("./hg_system_notify_template_page.jsx", import.meta.url); // 测试真实页面逻辑，隔离网络与浏览器。
 const hgEmpty = {
@@ -23,7 +24,7 @@ const hgEmpty = {
 };
 
 /** 模拟受控 React 状态和模板 API，不访问浏览器凭据或真实数据库。 */
-function hgTestPage(api, messages) {
+function hgTestPage(api, messages, permissions = null) {
   const module = { exports: {} };
   const code = transformSync(readFileSync(hgSource, "utf8"), {
     filename: "hg_system_notify_template_page.jsx",
@@ -48,13 +49,17 @@ function hgTestPage(api, messages) {
       };
       if (path.endsWith("hg_full_template_draft.js")) return { hgFullTemplateDraft };
       if (path.endsWith("hg_role_update_template.js")) return { hgRoleUpdateTemplateDraft };
+      if (path.endsWith("hg_notify_send_contract.js")) return { hgNormalizeSendTemplate, hgPublishableSendTemplate };
       if (path.endsWith("hg_message_page")) return { hgMessage: { success: (text) => messages.push(text) } };
-      if (path.endsWith("hg_access_evaluator")) return { hgEvaluateAccess: () => ({ allowed: true }) };
+      if (path.endsWith("hg_access_evaluator")) return {
+        hgEvaluateAccess: (_, { permission }) => ({ allowed: !permissions || permissions.includes(permission) }),
+      };
       if (path.endsWith("hg_iam_provider")) return { HGIAMContext: React.createContext(null) };
       if (path.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: {
         NOTIFICATION_TEMPLATE_CREATE: "notification:template:create",
         NOTIFICATION_TEMPLATE_UPDATE: "notification:template:update",
         NOTIFICATION_TEMPLATE_DELETE: "notification:template:delete",
+        NOTIFICATION_TEMPLATE_PUBLISH: "notification:template:publish",
       } };
       if (path.endsWith(".module.css")) return { default: {} };
       return { default: () => null, __esModule: true };
@@ -68,6 +73,57 @@ function hgTestPage(api, messages) {
   page.hgMounted = true;
   return page;
 }
+
+test("按发布权限与模板类型展示按钮，角色模板与普通站内模板分别调用原有发布接口", async () => {
+  const calls = [];
+  const messages = [];
+  const page = hgTestPage({
+    publish: async (id, version) => calls.push(["role", id, version]),
+    publishSend: async (id, version) => calls.push(["send", id, version]),
+    list: async () => ({ list: [], nextCursor: "" }),
+    errorMessage: (error) => error.message,
+  }, messages, ["notification:template:publish"]);
+  const role = { id: "1", template_code: "iam.role.updated", version: 2, published_version: null };
+  const send = {
+    id: "2", template_code: "system.notice", version: 2, published_version: 1,
+    category: "system", action_type: "none", action_config: {}, variables_schema: {},
+    channels: ["in_app"],
+  };
+  const buttons = (item) => {
+    const found = [];
+    function collect(element) {
+      if (!React.isValidElement(element)) return;
+      if (element.type === "button") found.push(element);
+      React.Children.forEach(element.props.children, collect);
+    }
+    collect(page.hgRenderCard(item));
+    return found;
+  };
+  assert.equal(buttons(role).some((button) => button.props.children === "发布当前版本"), false);
+  const sendButton = buttons(send).find((button) => button.props.children === "发布当前版本");
+  assert.ok(sendButton, "站内模板的发布权限不依赖编辑权限");
+  assert.equal(buttons({ ...send, channels: ["in_app", "realtime"] })
+    .some((button) => button.props.children === "发布当前版本"), false, "不符合站内发送条件的版本不显示发布");
+  await sendButton.props.onClick();
+  assert.deepEqual(calls, [["send", "2", 2]]);
+  assert.deepEqual(messages, ["站内模板已发布"]);
+  assert.equal(buttons({ ...send, published_version: 2 })
+    .some((button) => button.props.children === "发布当前版本"), false);
+  const rolePage = hgTestPage({
+    publish: async (id, version) => calls.push(["role", id, version]),
+    list: async () => ({ list: [], nextCursor: "" }),
+    errorMessage: (error) => error.message,
+  }, messages, ["notification:template:update"]);
+  const roleButtons = [];
+  function collectRole(element) {
+    if (!React.isValidElement(element)) return;
+    if (element.type === "button") roleButtons.push(element);
+    React.Children.forEach(element.props.children, collectRole);
+  }
+  collectRole(rolePage.hgRenderCard(role));
+  await roleButtons.find((button) => button.props.children === "发布当前版本").props.onClick();
+  assert.deepEqual(calls, [["send", "2", 2], ["role", "1", 2]]);
+});
 
 test("预填角色更新模板，经创建接口提交后刷新列表、读取详情回填并按版本编辑", async () => {
   const calls = [];

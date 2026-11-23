@@ -149,6 +149,7 @@ test("系统通知模板列表、详情及写入按模块内路径验签", async
     ["POST", "/api/v1/admin/notification/templates", "/templates", { template_code: "fixture-only" }],
     ["PUT", "/api/v1/admin/notification/templates/update?id=10", "/templates/update", { version: 1 }],
     ["POST", "/api/v1/admin/notification/templates/delete?id=10", "/templates/delete", { version: 1 }],
+    ["POST", "/api/v1/admin/notification/templates/publish-send?id=10", "/templates/publish-send", { version: 1 }],
   ]) {
     const hgPayload = [hgMethod, hgPath, "1700000000", "fixture-request", "fixture-device", "web", "1", "v1", "zh-CN",
       createHash("sha256").update(hgBody ? JSON.stringify(hgBody) : "").digest("hex"), hgHeaders.Authorization].join("\n");

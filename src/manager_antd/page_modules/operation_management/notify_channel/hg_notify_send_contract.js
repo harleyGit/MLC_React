@@ -1,12 +1,17 @@
 /** 当前仅有界站内通知；不把模板接口允许的 realtime 或其它类型当作发送已接入。 */
 export function hgSendableTemplate(item) {
   return item?.status === "published" &&
-    item.publishedVersion === item.version &&
+    item.publishedVersion === item.version && hgPublishableSendTemplate(item);
+}
+
+/** 最新草稿仅在满足站内发送契约时才展示发布入口；服务端仍独立校验全文与授权。 */
+export function hgPublishableSendTemplate(item) {
+  return Boolean(item && item.templateCode !== "iam.role.updated" &&
     ["system", "marketing"].includes(item.category) &&
     item.actionType === "none" &&
     Array.isArray(item.channels) && item.channels.length === 1 && item.channels[0] === "in_app" &&
     Object.keys(item.actionConfig || {}).length === 0 &&
-    Object.values(item.variablesSchema || {}).every((rule) => rule?.type === "string");
+    Object.values(item.variablesSchema || {}).every((rule) => rule?.type === "string"));
 }
 
 /** 将后端 snake_case 的最新版本快照映射为页面只读发送选项。 */

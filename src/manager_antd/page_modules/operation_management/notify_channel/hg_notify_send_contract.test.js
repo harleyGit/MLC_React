@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hgAcceptedSendStatus, hgBuildSendCommand, hgDefaultSendVariables, hgNormalizeSendTemplate, hgSendableTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
+import { hgAcceptedSendStatus, hgBuildSendCommand, hgDefaultSendVariables, hgNormalizeSendTemplate, hgPublishableSendTemplate, hgSendableTemplate, hgValidateSendInput, hgValidateSendSchedule } from "./hg_notify_send_contract.js";
 
 const hgRaw = {
   id: "9007199254740993", template_code: "system.maintenance", name: "维护通知",
@@ -21,6 +21,14 @@ test("仅允许当前已发布且纯站内的版本，模板 ID 保留字符串�
   assert.equal(hgSendableTemplate({ ...template, channels: ["in_app", "realtime"] }), false);
   assert.equal(hgSendableTemplate({ ...template, category: "security" }), false);
   assert.equal(hgSendableTemplate({ ...template, actionType: "order_detail" }), false);
+});
+
+test("最新草稿发布入口只面向符合站内发送契约的普通模板", () => {
+  const draft = hgNormalizeSendTemplate({ ...hgRaw, status: "draft", version: 3 });
+  assert.equal(hgPublishableSendTemplate(draft), true);
+  assert.equal(hgPublishableSendTemplate({ ...draft, templateCode: "iam.role.updated" }), false);
+  assert.equal(hgPublishableSendTemplate({ ...draft, channels: ["in_app", "realtime"] }), false);
+  assert.equal(hgPublishableSendTemplate({ ...draft, category: "security" }), false);
 });
 
 test("定时仅接受未来 30 天，并传输 UTC 时间；立即发送保持原协议", () => {
