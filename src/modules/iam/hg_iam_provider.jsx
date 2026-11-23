@@ -1,6 +1,6 @@
 import React from "react";
 import { hgApplyPushedIAM, hgClearIAM, hgCurrentIAMExpiry, hgCurrentIAMUser, hgGetIAMSnapshot, hgLoadLocalIAM, hgRefreshIAM, hgSubscribeIAM } from "./hg_iam_session";
-import HGIAMRealtime from "./hg_iam_realtime";
+import HGBusinessRealtime, { hgValidBusinessEventType } from "./hg_business_realtime";
 
 export const HGIAMContext = React.createContext(null);
 
@@ -18,8 +18,9 @@ export class HGIAMAccessProvider extends React.Component {
   hgExpiryTimer = null; // 有限期绑定到期时主动同步，2099 无期限快照不设定时器。
   hgInFlight = null; // 当前账号进行中的刷新；同账号的普通重复触发共用该请求。
   hgQueuedRefresh = false; // 请求期间收到明确变更信号时，完成后再核验一次。
-  hgRealtime = null; // 当前账号的唯一 IAM 实时连接；账号切换或卸载立即关闭。
+  hgRealtime = null; // 当前账号的唯一用户业务 Socket；Chat 设备 Socket 独立。
   hgRealtimeOwner = ""; // 实时频道绑定的 JWT uid，空串表示没有连接。
+  hgBusinessListeners = new Set(); // 页面级业务提示监听；按注册时账号隔离，注销/卸载时清空。
   hgRealtimeDisabledOwner = ""; // 当前账号票据不可用时不重复申请；HTTP 复核期间保留，账号切换时重置。
   hgAuthTimer = null; // JWT 自身到期时清理授权视图；无登录状态时不设定时器。
   hgFallbackTimer = null; // IAM 实时频道不可用时约每分钟向服务端复核；恢复订阅后立即停止。
@@ -43,6 +44,7 @@ export class HGIAMAccessProvider extends React.Component {
     clearTimeout(this.hgAuthTimer);
     clearTimeout(this.hgFallbackTimer);
     this.hgCloseRealtime();
+    this.hgBusinessListeners.clear();
     this.hgUnsubscribe?.();
     window.removeEventListener("hg:auth-changed", this.hgQueueRefresh);
     window.removeEventListener("storage", this.hgOnStorage);
@@ -80,6 +82,12 @@ export class HGIAMAccessProvider extends React.Component {
     const owner = hgCurrentIAMUser();
     if (this.hgRealtimeDisabledOwner && this.hgRealtimeDisabledOwner !== owner) this.hgRealtimeDisabledOwner = "";
     if (this.hgRealtimeOwner && this.hgRealtimeOwner !== owner) this.hgCloseRealtime();
+    for (const entry of this.hgBusinessListeners) {
+      if (entry.owner !== owner) {
+        entry.unsubscribe?.();
+        this.hgBusinessListeners.delete(entry);
+      }
+    }
     if (this.hgInFlight?.owner === owner) return this.hgInFlight.promise;
     if (this.hgInFlight && this.hgInFlight.owner !== owner) this.hgQueuedRefresh = false;
     const sequence = ++this.hgSequence;
@@ -151,12 +159,56 @@ export class HGIAMAccessProvider extends React.Component {
     }, Math.min(delay, 2_147_483_647));
   };
 
-  /** 页面级私有 IM 连接不依赖聊天页面；订阅成功与每次重连都同步一次弥补漏消息。 */
+  /** 后续业务只登记版本化提示，不开新 Socket；回调必须补拉本人权威数据。 */
+  hgSubscribeBusinessEvent = (eventType, handler) => {
+    const owner = hgCurrentIAMUser(); // 注册时绑定账号；旧页面回调不能收到新账号的事件。
+    if (!this.hgMounted || !owner || !hgValidBusinessEventType(eventType) ||
+      typeof handler !== "function" || this.hgBusinessListeners.size >= 32)
+      throw new Error("业务事件订阅不可用");
+    const entries = [...this.hgBusinessListeners].filter((item) => item.owner === owner); // 仅当前账号计入限额。
+    if (entries.filter((item) => item.eventType === eventType).length >=
+        (["iam.access.updated.v1", "notification.inbox.updated.v1"].includes(eventType) ? 7 : 8) ||
+      !entries.some((item) => item.eventType === eventType) &&
+      new Set(entries.map((item) => item.eventType)).size >= 14) throw new Error("业务事件订阅已达上限");
+    const entry = {
+      owner, eventType, unsubscribe: null, // Socket 重建后重新绑定；注销时移除。
+      dispatch: (data) => {
+        if (this.hgMounted && owner === hgCurrentIAMUser() && this.hgRealtimeOwner === owner) return handler(data);
+      },
+    };
+    if (this.hgRealtime && this.hgRealtimeOwner === owner)
+      entry.unsubscribe = this.hgRealtime.hgListen(eventType, entry.dispatch);
+    this.hgBusinessListeners.add(entry);
+    return () => {
+      entry.unsubscribe?.();
+      this.hgBusinessListeners.delete(entry);
+    };
+  };
+
+  /** 用户业务频道不依赖聊天页；重连后按权威 HTTP 补齐 IAM 与收件箱提示。 */
   hgEnsureRealtime = (owner) => {
     if (!owner || this.hgRealtimeOwner === owner || this.hgRealtimeDisabledOwner === owner) return;
     this.hgCloseRealtime();
     this.hgRealtimeOwner = owner;
-    const realtime = new HGIAMRealtime(owner, async (snapshot, eventId) => {
+    const hgOnOffline = () => {
+      if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
+        this.setState({ status: "error", snapshot: null });
+        this.hgScheduleFallback(owner, true);
+      }
+    };
+    const realtime = new HGBusinessRealtime(owner, () => {
+      if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
+        clearTimeout(this.hgFallbackTimer);
+        this.hgFallbackTimer = null;
+        this.hgQueueRefresh();
+        // 订阅首次成功或重连后补齐断线期间漏掉的通知，不能只靠 Socket 历史。
+        window.dispatchEvent(new CustomEvent("hg:notification-changed"));
+      }
+    }, hgOnOffline, (eventType) => {
+      if (eventType === "iam.access.updated.v1") hgOnOffline();
+    });
+    this.hgRealtime = realtime;
+    realtime.hgListen("iam.access.updated.v1", async ({ snapshot, event_id: eventId }) => {
       if (!this.hgMounted || this.hgRealtime !== realtime || owner !== hgCurrentIAMUser()) return;
       if (await hgApplyPushedIAM(snapshot) && this.hgMounted && owner === hgCurrentIAMUser()) {
         const current = hgGetIAMSnapshot();
@@ -169,20 +221,8 @@ export class HGIAMAccessProvider extends React.Component {
         // 消息中心按已认证用户身份补拉权威通知，推送不伪造 notificationId。
         window.dispatchEvent(new CustomEvent("hg:notification-changed", { detail: { category: "system" } }));
       }
-    }, () => {
-      if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
-        clearTimeout(this.hgFallbackTimer);
-        this.hgFallbackTimer = null;
-        this.hgQueueRefresh();
-        // 订阅首次成功或重连后补齐断线期间漏掉的通知，不能只靠 Socket 历史。
-        window.dispatchEvent(new CustomEvent("hg:notification-changed"));
-      }
-    }, () => {
-      if (this.hgMounted && this.hgRealtime === realtime && owner === hgCurrentIAMUser()) {
-        this.setState({ status: "error", snapshot: null });
-        this.hgScheduleFallback(owner, true);
-      }
-    }, (category) => {
+    });
+    realtime.hgListen("notification.inbox.updated.v1", ({ category }) => {
       if (!this.hgMounted || this.hgRealtime !== realtime || owner !== hgCurrentIAMUser()) return;
       // 推送分类只用于跳过无关列表；非法内容退化为完整补拉，不信任推送正文。
       const allowed = ["system", "comment", "like", "mention", "follow", "trade", "wallet", "marketing"];
@@ -190,7 +230,9 @@ export class HGIAMAccessProvider extends React.Component {
         detail: { category: allowed.includes(category) ? category : "" },
       }));
     });
-    this.hgRealtime = realtime;
+    for (const entry of this.hgBusinessListeners) {
+      if (entry.owner === owner) entry.unsubscribe = realtime.hgListen(entry.eventType, entry.dispatch);
+    }
     void realtime.hgStart().catch((error) => {
       if (this.hgMounted && this.hgRealtime === realtime) {
         if (error?.status === 503) {
@@ -226,11 +268,12 @@ export class HGIAMAccessProvider extends React.Component {
     this.hgRealtime?.hgClose();
     this.hgRealtime = null;
     this.hgRealtimeOwner = "";
+    for (const entry of this.hgBusinessListeners) entry.unsubscribe = null;
   };
 
   render() {
     return (
-      <HGIAMContext.Provider value={{ ...this.state, refresh: this.hgRefresh }}>
+      <HGIAMContext.Provider value={{ ...this.state, refresh: this.hgRefresh, subscribeBusinessEvent: this.hgSubscribeBusinessEvent }}>
         {this.props.children}
       </HGIAMContext.Provider>
     );

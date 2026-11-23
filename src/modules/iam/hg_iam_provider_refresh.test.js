@@ -44,9 +44,15 @@ function hgFixture() {
         },
         hgSubscribeIAM: () => () => {},
       };
-      if (id.endsWith("hg_iam_realtime")) return { __esModule: true, default: class {
-        constructor(owner, snapshot, recover, offline, notification) {
-          hgRealtimeInstance = { owner, snapshot, recover, offline, notification };
+      if (id.endsWith("hg_business_realtime")) return { __esModule: true,
+        hgValidBusinessEventType: (eventType) => typeof eventType === "string" && eventType.endsWith(".v1"),
+        default: class {
+        constructor(owner, recover, offline) {
+          hgRealtimeInstance = { owner, recover, offline, handlers: new Map() };
+        }
+        hgListen(eventType, callback) {
+          hgRealtimeInstance.handlers.set(eventType, callback);
+          return () => hgRealtimeInstance.handlers.delete(eventType);
         }
         hgStart() {
           hgRealtimeStarts += 1;
@@ -99,7 +105,7 @@ test("通知提示只由当前账号传播，重连补拉通知与 IAM 快照", 
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await hgFlush();
   const original = hg.realtime();
-  original.notification("marketing");
+  original.handlers.get("notification.inbox.updated.v1")({ category: "marketing" });
   assert.equal(hg.events().at(-1)?.type, "hg:notification-changed");
   assert.equal(hg.events().at(-1)?.detail?.category, "marketing");
   original.recover();
@@ -110,7 +116,7 @@ test("通知提示只由当前账号传播，重连补拉通知与 IAM 快照", 
   await hgFlush();
   const beforeSwitch = hg.events().length;
   hg.switchOwner("operator-b");
-  original.notification("system");
+  original.handlers.get("notification.inbox.updated.v1")({ category: "system" });
   assert.equal(hg.events().length, beforeSwitch);
   hg.provider.componentWillUnmount();
 });
@@ -134,6 +140,31 @@ test("实时频道断线后仅凭服务端 IAM 复核恢复菜单授权，失败
   await hgFlush();
   assert.equal(hg.provider.state.status, "error");
   assert.equal(hg.provider.state.snapshot, null);
+  hg.provider.componentWillUnmount();
+});
+
+test("后续业务复用当前用户 Socket，旧账号提示不可投递到新账号", async () => {
+  const hg = hgFixture();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
+  await hgFlush();
+  let delivered = 0; // 收到的本账号业务提示数量，不使用推送内容更新权威状态。
+  const stop = hg.provider.hgSubscribeBusinessEvent("wallet.balance.changed.v1", () => { delivered++; });
+  const previous = hg.realtime();
+  assert.equal(hg.realtimeStarts(), 1, "登记新业务不得新开连接");
+  previous.handlers.get("wallet.balance.changed.v1")({});
+  assert.equal(delivered, 1);
+  hg.switchOwner("operator-b");
+  previous.handlers.get("wallet.balance.changed.v1")({});
+  assert.equal(delivered, 1, "账号变化后旧业务事件必须失效");
+  hg.listeners.get("hg:auth-changed")();
+  await hgFlush();
+  hg.resolve({ user_id: "operator-b", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
+  await hgFlush();
+  assert.equal(hg.realtimeStarts(), 2);
+  assert.equal(hg.realtime().handlers.has("wallet.balance.changed.v1"), false);
+  stop();
   hg.provider.componentWillUnmount();
 });
 
