@@ -88,11 +88,11 @@ class HGNotifyChannelPage extends React.Component {
       form: null,
       saving: false,
       // ===== 发送通知任务（模板渲染 + 异步投递） =====
-      templates: [], // 模板列表快照；空数组表示尚未点击“查询模板”，不自动加载（查询须按钮触发）。
+      templates: [], // 模板列表快照；进入发送页自动读取一次，之后可点“刷新模板”重读。
       reviewTemplates: [], // 最新草稿快照，单独于已发布版，防止混淆审核和发送内容。
       templateCursor: "", // 下一页发布版游标；空字符串表示无更多记录。
       reviewTemplateCursor: "", // 下一页最新草稿游标；空字符串表示无更多记录。
-      templatesLoading: false, // 模板查询请求进行中标记；true 时按钮显示 loading，防止重复请求。
+      templatesLoading: false, // 模板查询请求进行中标记；true 时禁用下拉与刷新，防止重复请求。
       sendForm: {
         templateId: "", // 已选模板 ID；空字符串表示未选择，变量输入区不渲染。
         recipients: [], // 用户目录确认的接收人 {id,name}；仅提交 ID，最多 100 人。
@@ -135,6 +135,7 @@ class HGNotifyChannelPage extends React.Component {
     this.hgRequest = null; // 待确认提交的幂等键与请求内容；失败时保留以安全重试。
     this.hgSending = false; // 同步提交锁，阻止 setState 生效前的双击。
     this.hgOwner = ""; // 当前 JWT 账号；切换时清除任务进度与发送表单。
+    this.hgTemplateAutoLoaded = false; // 发送页已自动读取过模板的标记；账号切换后重置以便重读。
   }
 
   componentDidMount() {
@@ -144,6 +145,7 @@ class HGNotifyChannelPage extends React.Component {
     window.addEventListener("storage", this.hgOnAuthChanged);
     if (this.props.hgView !== "channel") {
       if (!HGNotifyChannelVM.isRemote()) this.setState({ ...HGNotifyChannelVM.buildDemoState(), loading: false });
+      this.hgTryAutoLoadTemplates();
       return;
     }
     if (HGNotifyChannelVM.isRemote()) {
@@ -151,6 +153,11 @@ class HGNotifyChannelPage extends React.Component {
       return;
     }
     this.setState({ ...HGNotifyChannelVM.buildDemoState(), loading: false });
+  }
+
+  /** IAM 快照就绪后自动读取发送页模板；每次挂载或账号切换最多自动尝试一次。 */
+  componentDidUpdate() {
+    this.hgTryAutoLoadTemplates();
   }
 
   componentWillUnmount() {
@@ -169,6 +176,7 @@ class HGNotifyChannelPage extends React.Component {
     const owner = hgCurrentIAMUser(); // 登录用户变化时不得展示上一个管理员的任务数据。
     if (owner === this.hgOwner) return;
     this.hgOwner = owner;
+    this.hgTemplateAutoLoaded = false;
     this.hgTemplateSequence += 1;
     this.hgTaskSequence += 1;
     this.hgTasksSequence += 1;
@@ -189,7 +197,16 @@ class HGNotifyChannelPage extends React.Component {
       sendForm: { ...state.sendForm, templateId: "", recipients: [], variables: {}, scheduleType: "immediate", scheduledAt: "" },
     }), () => {
       if (this.hgMounted && this.props.hgView === "channel" && HGNotifyChannelVM.isRemote()) this.loadRemoteData();
+      if (this.hgMounted && this.props.hgView === "send") this.hgTryAutoLoadTemplates();
     });
+  };
+
+  /** 发送页进入或账号切换后自动读取一次模板；IAM 未就绪时等就绪后由 componentDidUpdate 触发。 */
+  hgTryAutoLoadTemplates = () => {
+    if (this.hgTemplateAutoLoaded || this.props.hgView !== "send" || this.context?.status !== "ready") return;
+    // 无论有无读取权限都只自动尝试一次；无权限时静默跳过，由“刷新模板”给出明确提示。
+    this.hgTemplateAutoLoaded = true;
+    this.handleQueryTemplates({ silent: true });
   };
 
   /** 本地 IAM 快照仅用于显示和按钮状态，真正授权由 Go 服务端再核验。 */
@@ -362,14 +379,19 @@ class HGNotifyChannelPage extends React.Component {
 
   /* ================= 发送通知任务 ================= */
 
-  /** 查询模板列表：local 返回示例模板，remote 请求 /admin/templates；仅在按钮点击时执行。 */
-  handleQueryTemplates = () => {
-    if (this.state.templatesLoading || this.state.sending || this.state.previewOpen ||
-        !this.hgRequire(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_READ)) return;
+  /**
+   * 查询模板列表：local 返回示例模板，remote 请求 /admin/templates。
+   * options.silent 为 true 时（页面进入自动读取）不弹权限警告与成功提示，加载失败仍如实提示。
+   */
+  handleQueryTemplates = (options = {}) => {
+    const silent = options.silent === true;
+    if (this.state.templatesLoading || this.state.sending || this.state.previewOpen) return;
+    if (silent ? !this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_READ)
+      : !this.hgRequire(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_READ)) return;
     if (!HGNotifyChannelVM.isRemote()) {
       const templates = HGNotifyChannelVM.buildDemoTemplates();
       this.setState({ templates });
-      message.success(`已加载 ${templates.length} 个示例模板（本地数据）`);
+      if (!silent) message.success(`已加载 ${templates.length} 个示例模板（本地数据）`);
       return;
     }
     const sequence = ++this.hgTemplateSequence;
@@ -395,7 +417,7 @@ class HGNotifyChannelPage extends React.Component {
             item.version === state.templates.find((old) => old.templateId === state.sendForm.templateId)?.version))
             ? state.sendForm : { ...state.sendForm, templateId: "", variables: {} },
         }));
-        message.success(`已读取 ${templates.length} 个发布版${response.nextCursor || reviewResponse.nextCursor ? "；可按需加载更多" : ""}`);
+        if (!silent) message.success(`已读取 ${templates.length} 个发布版${response.nextCursor || reviewResponse.nextCursor ? "；可按需加载更多" : ""}`);
       })
       .catch((error) => {
         if (!this.hgMounted || owner !== this.hgOwner || sequence !== this.hgTemplateSequence) return;
@@ -760,7 +782,7 @@ class HGNotifyChannelPage extends React.Component {
     const owner = this.hgOwner;
     this.setState({ publishingId: template.templateId });
     HGNotifyChannelVM.publishTemplate(template.templateId, template.version)
-      .then(() => { if (this.hgMounted && owner === this.hgOwner) { message.success("模板已发布，请重新查询模板列表"); this.handleQueryTemplates(); } })
+      .then(() => { if (this.hgMounted && owner === this.hgOwner) { message.success("模板已发布，请刷新模板列表"); this.handleQueryTemplates(); } })
       .catch((error) => { if (this.hgMounted && owner === this.hgOwner) message.error(error?.message || "发布失败，请核对模板版本和创建人"); })
       .finally(() => { if (this.hgMounted && owner === this.hgOwner) this.setState({ publishingId: "" }); });
   };
@@ -788,7 +810,7 @@ class HGNotifyChannelPage extends React.Component {
               复核并发布
             </HGButtonPage>
           </div>
-        )) : <p className={styles.fieldHint}>当前列表中没有待发布的站内模板；可查询或加载更多。</p>}
+        )) : <p className={styles.fieldHint}>当前列表中没有待发布的站内模板；可刷新或加载更多。</p>}
         {this.state.reviewTemplateCursor ? <HGButtonPage loading={this.state.templatesLoading}
           onClick={() => this.hgLoadMoreTemplates(false)}>加载更多草稿</HGButtonPage> : null}
       </HGCardPage>
@@ -1052,25 +1074,34 @@ class HGNotifyChannelPage extends React.Component {
 
   /* ================= 发送通知任务渲染 ================= */
 
-  /** 已确认的接收人以 HGTable 展示用户名及 ID；必须通过目录弹窗多选。 */
+  /** 已确认的接收人按所选用户逐行展示；未选择时只保留一行入口，不渲染空表格留白。 */
   renderAudienceFields = () => {
-    const { sendForm } = this.state;
+    const { sendForm, sending, previewOpen } = this.state;
+    const hasRecipients = sendForm.recipients.length > 0;
     return (
       <div className={styles.fullField}>
         <div className={styles.sendToolbar}>
-          <strong>接收用户（{sendForm.recipients.length}/100）</strong>
-          <HGButtonPage disabled={this.state.sending || this.state.previewOpen}
-            onClick={this.hgOpenRecipientPicker}>选择接收用户</HGButtonPage>
+          <strong>{hasRecipients ? `接收用户（${sendForm.recipients.length}/100）` : "接收用户"}</strong>
+          <HGButtonPage disabled={sending || previewOpen} onClick={this.hgOpenRecipientPicker}>
+            {hasRecipients ? "追加接收用户" : "选择接收用户"}
+          </HGButtonPage>
+          {!hasRecipients ? (
+            <span className={styles.fieldHint}>尚未选择接收用户；仅可选择目录中 1–100 位明确用户。</span>
+          ) : null}
         </div>
-        <HGTablePage rowKey="id" pagination={false} dataSource={sendForm.recipients}
-          columns={[
-            { title: "接收用户（用户名 + 用户 ID）", dataIndex: "name",
-              render: (name, row) => `${name}（${row.id}）` },
-            { title: "操作", dataIndex: "id", render: (id) =>
-              <HGButtonPage size="small" disabled={this.state.sending || this.state.previewOpen}
-                onClick={() => this.hgRemoveRecipient(id)}>移除</HGButtonPage> },
-          ]} />
-        <span className={styles.fieldHint}>仅选择用户目录中的现有用户；不会按角色、分群或全站发送。</span>
+        {hasRecipients ? (
+          <>
+            <HGTablePage rowKey="id" pagination={false} dataSource={sendForm.recipients}
+              columns={[
+                { title: "接收用户（用户名 + 用户 ID）", dataIndex: "name",
+                  render: (name, row) => `${name}（${row.id}）` },
+                { title: "操作", dataIndex: "id", render: (id) =>
+                  <HGButtonPage size="small" disabled={sending || previewOpen}
+                    onClick={() => this.hgRemoveRecipient(id)}>移除</HGButtonPage> },
+              ]} />
+            <span className={styles.fieldHint}>仅选择用户目录中的现有用户；不会按角色、分群或全站发送。</span>
+          </>
+        ) : null}
       </div>
     );
   };
@@ -1146,14 +1177,19 @@ class HGNotifyChannelPage extends React.Component {
     );
   };
 
-  /** 发送通知任务卡片：模板选择、接收范围、变量填写与发送时间，全部操作由按钮触发。 */
+  /** 发送通知任务卡片：模板下拉单选、接收范围、变量填写与发送时间；模板进入页面时自动读取。 */
   renderSendSection = () => {
-    const { templates, templatesLoading, sendForm, lastTaskResult } = this.state;
+    const { templates, templatesLoading, sendForm, lastTaskResult, sending, previewOpen, templateCursor } = this.state;
     const template = this.getSelectedTemplate();
     const templateOptions = templates.filter(HGNotifyChannelVM.isSendable).map((item) => ({
       value: item.templateId,
       label: `${item.titleTemplate}（${item.templateCode} · v${item.version}）`,
     }));
+    const templatePlaceholder = templatesLoading
+      ? "正在读取模板…"
+      : templateOptions.length
+        ? "选择已发布站内模板"
+        : "暂无可发送模板，可刷新重试或由另一位管理员发布";
     return (
       <HGCardPage
         title="发送通知任务"
@@ -1163,25 +1199,34 @@ class HGNotifyChannelPage extends React.Component {
           </span>
         }
       >
-        <div className={styles.sendToolbar}>
-          <HGButtonPage loading={templatesLoading} disabled={this.state.sending || this.state.previewOpen} onClick={this.handleQueryTemplates}>
-            查询模板
-          </HGButtonPage>
-          <HGSelectPage
-            value={sendForm.templateId || undefined}
-            options={templateOptions}
-            placeholder={templateOptions.length ? "选择已发布站内模板" : "无可发送模板，请先查询或由另一位管理员发布"}
-            onChange={(value) => this.handleSelectTemplate(value)}
-          />
-          <span className={styles.cardExtraText}>
-            {templates.length ? `已读取 ${templates.length} 个模板，符合发送要求 ${templateOptions.length} 个` : "点击“查询模板”读取服务端数据"}
-          </span>
-          {this.state.templateCursor ? <HGButtonPage loading={templatesLoading}
-            onClick={() => this.hgLoadMoreTemplates(true)}>加载更多发布版</HGButtonPage> : null}
-        </div>
-
         {template ? this.renderSelectedTemplate(template) : null}
         <div className={styles.sendGrid}>
+          <label className={styles.fullField}>
+            通知模板（单选）
+            <div className={styles.templatePickerRow}>
+              <HGSelectPage
+                className={styles.templateSelect}
+                value={sendForm.templateId || undefined}
+                options={templateOptions}
+                disabled={templatesLoading || sending || previewOpen}
+                placeholder={templatePlaceholder}
+                onChange={(value) => this.handleSelectTemplate(value)}
+              />
+              <HGButtonPage size="small" loading={templatesLoading} disabled={sending || previewOpen}
+                onClick={() => this.handleQueryTemplates()}>
+                刷新模板
+              </HGButtonPage>
+              {templateCursor ? <HGButtonPage size="small" loading={templatesLoading}
+                onClick={() => this.hgLoadMoreTemplates(true)}>加载更多</HGButtonPage> : null}
+            </div>
+            <span className={styles.fieldHint}>
+              {templatesLoading
+                ? "正在读取服务端模板…"
+                : templates.length
+                  ? `已读取 ${templates.length} 个模板，符合发送要求 ${templateOptions.length} 个；仅已发布纯站内模板可选。`
+                  : "尚未读取到模板，可点击“刷新模板”重试。"}
+            </span>
+          </label>
           <label>
             发送时间
             <HGSelectPage value={sendForm.scheduleType}

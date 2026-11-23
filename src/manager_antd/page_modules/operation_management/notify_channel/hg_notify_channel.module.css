@@ -242,6 +242,11 @@
 .sendGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .sendGrid label { display: grid; gap: 7px; color: #344056; font-size: 13px; font-weight: 600; }
 
+/* 模板下拉单选行：下拉占据剩余宽度，刷新与加载更多为紧凑小按钮。 */
+.templatePickerRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.templatePickerRow > * { flex-shrink: 0; }
+.templateSelect { flex: 1 1 260px; min-width: 220px; }
+
 .datetimeInput {
   padding: 8px 10px;
   border: 1px solid #d5dde9;
