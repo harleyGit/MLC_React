@@ -52,7 +52,7 @@ const HG_CHANNEL_OPTIONS = Object.freeze([
 const HG_PREVIEW_BELL_PATH =
   "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z";
 
-/** 系统通知模板管理页：角色与站内模板均显式发布，实际通知发送由服务端完成。 */
+/** 系统通知模板管理页：通用发布与站内发送发布分离，实际通知发送由服务端完成。 */
 export default class HGSystemNotifyTemplatePage extends React.Component {
   static contextType = HGIAMContext;
   static defaultProps = {
@@ -350,43 +350,60 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
     }
   };
 
-  /** 列表所见版本供服务端锁定核对；普通站内模板的自审资格由服务端校验。 */
-  hgPublish = async (item) => {
-    const hgRoleTemplate = item.template_code === "iam.role.updated"; // 角色模板走既有专用接口，其他模板走站内发布接口。
+  /** 列表所见版本供服务端锁定核对；通用发布不等于站内发送授权，服务端校验自审资格。 */
+  hgPublish = async (item, hgTarget = "general") => {
+    const hgRoleTemplate = item.template_code === "iam.role.updated"; // 角色模板走专用接口，普通模板按目标区分通用/发送。
     if (!window.confirm(hgRoleTemplate
       ? `发布角色更新模板「${item.name}」的 v${item.version}？`
-      : `发布站内模板「${item.name}」的 v${item.version}？仅超级管理员可发布本人创建的版本，其他账号需另一人复核。`)) return;
+      : hgTarget === "send"
+        ? `将「${item.name}」的 v${item.version} 发布供站内发送？仅超级管理员可自审，其他账号需另一人复核。`
+        : `通用发布「${item.name}」的 v${item.version}？此操作不会使模板可用于运营发送。${item.published_version != null
+          ? "若之前已有发送版，新发送任务须再次发布供站内发送；已创建的任务不受影响。" : ""}仅超级管理员可自审。`)) return;
     try {
       if (hgRoleTemplate) await HGSystemNotifyTemplateVM.publish(item.id, item.version);
-      else await HGSystemNotifyTemplateVM.publishSend(item.id, item.version);
+      else if (hgTarget === "send") await HGSystemNotifyTemplateVM.publishSend(item.id, item.version);
+      else await HGSystemNotifyTemplateVM.publishGeneral(item.id, item.version);
       if (!this.hgMounted) return;
-      hgMessage.success(hgRoleTemplate ? "角色更新模板已发布" : "站内模板已发布");
+      hgMessage.success(hgRoleTemplate ? "角色更新模板已发布"
+        : hgTarget === "send" ? "站内发送版已发布" : "通用版本已发布；尚不可用于运营发送");
       this.hgLoad(true);
     } catch (error) {
       if (this.hgMounted) this.setState({ hgError: HGSystemNotifyTemplateVM.errorMessage(error) });
     }
   };
 
-  /** 使用稳定模板 ID 渲染卡片；按模板类型选择发布权限，从未发布版本才可删除。 */
+  /** 使用稳定模板 ID 渲染卡片；通用与站内发送分别显式发布，从未发布版本才可删除。 */
   hgRenderCard = (item) => (
     <article className={styles.card}>
       <div className={styles.cardTop}>
         <strong>{item.name}</strong>
         <span>
-          {item.category} · {item.status} · v{item.version}
+          {item.category} · {item.publication_status === "published_general" ? "通用发布"
+            : item.publication_status === "published" ? "已发布"
+            : item.publication_status === "draft" ? "草稿" : item.status} · v{item.version}
+          {item.publication_status === "draft" && item.published_version != null
+            ? `（已发布 v${item.published_version}）` : ""}
         </span>
       </div>
       <p className={styles.code}>{item.template_code}</p>
       <p>{item.title_template}</p>
       <p className={styles.body}>{item.body_template}</p>
       <div className={styles.actions}>
-        {item.published_version !== item.version &&
-          (item.template_code === "iam.role.updated" ||
-            hgPublishableSendTemplate(hgNormalizeSendTemplate(item))) &&
-          this.hgCan(item.template_code === "iam.role.updated"
-            ? HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE
-            : HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) && (
+        {item.template_code === "iam.role.updated" &&
+          item.published_version !== item.version &&
+          this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE) && (
             <button type="button" onClick={() => this.hgPublish(item)}>发布当前版本</button>
+          )}
+        {item.template_code !== "iam.role.updated" &&
+          item.publication_status === "draft" &&
+          this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) && (
+            <button type="button" onClick={() => this.hgPublish(item)}>发布通用版本</button>
+          )}
+        {item.template_code !== "iam.role.updated" &&
+          item.publication_status !== "published" &&
+          hgPublishableSendTemplate(hgNormalizeSendTemplate(item)) &&
+          this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_PUBLISH) && (
+            <button type="button" onClick={() => this.hgPublish(item, "send")}>发布供站内发送</button>
           )}
         {!this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_UPDATE) && (
           <button
@@ -427,7 +444,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
       <div className={styles.header}>
         <div>
           <h2>系统通知模板</h2>
-          <p>保存仅生成草稿；角色更新与符合站内发送要求的模板需分别显式发布，发送只使用已发布版本。</p>
+          <p>保存仅生成草稿；通用发布可供未来业务读取，但只有另行发布供站内发送的版本才能创建发送任务。</p>
         </div>
         {this.hgCan(HG_PERMISSIONS.NOTIFICATION_TEMPLATE_CREATE) && (
           <div className={styles.actions}>
@@ -835,7 +852,7 @@ export default class HGSystemNotifyTemplatePage extends React.Component {
           </button>
         </div>
         <p>
-          保存仅生成草稿；角色更新模板和符合站内发送要求的模板需单独发布，发送时只使用已发布版本。
+          保存仅生成草稿；通用发布只供未来业务读取，不代表可以创建运营发送任务。符合站内发送要求的模板可另行发布供发送。
           {!editing && " 新建已预填最全示例模板，请按业务修改编码、变量与正文。"}
         </p>
         {this.state.hgError && (

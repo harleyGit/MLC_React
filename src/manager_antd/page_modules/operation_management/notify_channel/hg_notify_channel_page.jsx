@@ -790,7 +790,8 @@ class HGNotifyChannelPage extends React.Component {
   /** 模板创建/编辑仍在现有模板页面完成；此处只复核可发送的站内草稿。 */
   renderPublishSection = () => {
     const drafts = this.state.reviewTemplates.filter((item) =>
-      item.status !== "deleted" && item.publishedVersion !== item.version &&
+      item.status !== "deleted" && item.publicationStatus === "draft" &&
+      item.publishedVersion !== item.version &&
       hgPublishableSendTemplate(item));
     return (
       <HGCardPage title="模板复核发布" extra={<span className={styles.cardExtraText}>仅超级管理员可自审；只可发布符合要求的最新站内纯文本版本</span>}>

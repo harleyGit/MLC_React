@@ -236,7 +236,7 @@ export const HGMANAGER_API = {
   ADMIN_NOTIFY_DELIVERIES: "/admin/v1/notification/deliveries", // 投递任务与失败重试
   ADMIN_NOTIFY_TEST_SEND: "/admin/v1/notification/test-send", // 管理员本人站内试通知
   ADMIN_NOTIFY_TEMPLATE_LIST: "/api/v1/admin/notification/templates", // 模板游标列表；发送页仅选择当前已发布版
-  ADMIN_NOTIFY_TEMPLATE_PUBLISHED: "/api/v1/admin/notification/templates/published", // 当前发布版快照，不等于最新草稿
+  ADMIN_NOTIFY_TEMPLATE_PUBLISHED: "/api/v1/admin/notification/templates/published", // 当前通用或发送发布版快照；须按 publication_status 区分发送资格
   ADMIN_NOTIFY_TEMPLATE_PUBLISH_SEND: "/api/v1/admin/notification/templates/publish-send", // 另一位管理员复核并发布
   ADMIN_NOTIFY_SEND_TASK: "/api/v1/admin/notification/send-tasks", // 最多 100 人的即时站内任务
   ADMIN_NOTIFY_SEND_TASK_DETAIL: "/api/v1/admin/notification/send-tasks/detail", // 仅创建人可读

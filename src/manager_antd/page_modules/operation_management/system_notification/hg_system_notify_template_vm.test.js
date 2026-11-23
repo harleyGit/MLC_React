@@ -45,6 +45,7 @@ test("角色更新模板通过既有带鉴权请求层使用创建、列表、�
     HGVM.update("9007199254740993", body);
     HGVM.publish("9007199254740993", 2);
     HGVM.publishSend("9007199254740993", 2);
+    HGVM.publishGeneral("9007199254740993", 2);
     assert.deepEqual(calls, [
       ["post", base, { ...body, template_code: "iam.role.updated" }, { _hasRetried: true }],
       ["get", base, {}],
@@ -52,6 +53,7 @@ test("角色更新模板通过既有带鉴权请求层使用创建、列表、�
       ["put", `${base}/update?id=9007199254740993`, body, { _hasRetried: true }],
       ["post", `${base}/publish?id=9007199254740993`, { version: 2 }, { _hasRetried: true }],
       ["post", `${base}/publish-send?id=9007199254740993`, { version: 2 }, { _hasRetried: true }],
+      ["post", `${base}/publish-general?id=9007199254740993`, { version: 2 }, { _hasRetried: true }],
     ]);
   } finally {
     delete globalThis.__hgTemplateCalls;

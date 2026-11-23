@@ -5,7 +5,7 @@ import test from "node:test";
 import { transformSync } from "@swc/core";
 import React from "react";
 import {
-  hgBuildSendCommand, hgDefaultSendVariables, hgSendableTemplate,
+  hgBuildSendCommand, hgDefaultSendVariables, hgPublishableSendTemplate, hgSendableTemplate,
   hgValidateSendInput, hgValidateSendSchedule,
 } from "./hg_notify_send_contract.js";
 
@@ -36,7 +36,8 @@ function hgLoadPage(file, api, messages = []) {
         USER_READ: "user:directory:read", NOTIFICATION_SEND_READ: "notification:send:read",
       } };
       if (path === "./hg_notify_send_contract.js") return {
-        hgBuildSendCommand, hgDefaultSendVariables, hgValidateSendInput, hgValidateSendSchedule,
+        hgBuildSendCommand, hgDefaultSendVariables, hgPublishableSendTemplate,
+        hgValidateSendInput, hgValidateSendSchedule,
       };
       if (path.endsWith(".module.css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
       return { __esModule: true, default: () => null };
@@ -54,6 +55,22 @@ function hgInstance(Type, props) {
   };
   return page;
 }
+
+test("通用发布版不出现在发送页的可发送选择或待复核列表", () => {
+  const Type = hgLoadPage("./hg_notify_send_page.jsx", { isRemote: () => true, isSendable: hgSendableTemplate });
+  const page = hgInstance(Type, Type.defaultProps);
+  const general = {
+    templateId: "7", templateCode: "system.notice", templateName: "通用通知",
+    category: "system", status: "published", version: 2, publishedVersion: 2,
+    publicationStatus: "published_general", actionType: "none", actionConfig: {},
+    variablesSchema: {}, channels: ["in_app"],
+  };
+  page.setState({ templates: [general], reviewTemplates: [general] });
+  assert.equal(hgSendableTemplate(general), false);
+  assert.match(page.renderPublishSection().props.children[0].props.children, /没有待发布的站内模板/);
+  page.setState({ reviewTemplates: [{ ...general, status: "draft", version: 3, publicationStatus: "draft" }] });
+  assert.equal(page.renderPublishSection().props.children[0].length, 1, "新草稿仍允许进入原有复核列表");
+});
 
 test("投递列表请求失败时渠道仍展示服务端渠道卡片，发送表单不再出现在渠道页", async () => {
   const errors = [];
@@ -82,7 +99,7 @@ test("投递列表请求失败时渠道仍展示服务端渠道卡片，发送�
 test("模板下拉按 title_template 展示，选择后回填默认变量并显示标题正文", () => {
   const template = {
     templateId: "9007199254740993", templateCode: "system.notice", templateName: "站内通知",
-    version: 2, status: "published", publishedVersion: 2, category: "system",
+    version: 2, status: "published", publishedVersion: 2, publicationStatus: "published", category: "system",
     actionType: "none", actionConfig: {}, channels: ["in_app"],
     titleTemplate: "通知 {{name}}", bodyTemplate: "您好 {{name}}",
     variablesSchema: { name: { type: "string", required: true, default: "小明" } },

@@ -74,21 +74,23 @@ function hgTestPage(api, messages, permissions = null) {
   return page;
 }
 
-test("按发布权限与模板类型展示按钮，角色模板与普通站内模板分别调用原有发布接口", async () => {
+test("通用发布与站内发送显式分离；角色更新模板仍走专用发布", async () => {
   const calls = [];
   const messages = [];
   const page = hgTestPage({
     publish: async (id, version) => calls.push(["role", id, version]),
     publishSend: async (id, version) => calls.push(["send", id, version]),
+    publishGeneral: async (id, version) => calls.push(["general", id, version]),
     list: async () => ({ list: [], nextCursor: "" }),
     errorMessage: (error) => error.message,
   }, messages, ["notification:template:publish"]);
-  const role = { id: "1", template_code: "iam.role.updated", version: 2, published_version: null };
+  const role = { id: "1", template_code: "iam.role.updated", version: 2, published_version: null, publication_status: "draft" };
   const send = {
-    id: "2", template_code: "system.notice", version: 2, published_version: 1,
+    id: "2", template_code: "system.notice", version: 2, published_version: 1, publication_status: "draft",
     category: "system", action_type: "none", action_config: {}, variables_schema: {},
     channels: ["in_app"],
   };
+  const security = { ...send, id: "3", template_code: "security.code", category: "security", channels: ["in_app", "realtime"] };
   const buttons = (item) => {
     const found = [];
     function collect(element) {
@@ -100,15 +102,22 @@ test("按发布权限与模板类型展示按钮，角色模板与普通站内�
     return found;
   };
   assert.equal(buttons(role).some((button) => button.props.children === "发布当前版本"), false);
-  const sendButton = buttons(send).find((button) => button.props.children === "发布当前版本");
-  assert.ok(sendButton, "站内模板的发布权限不依赖编辑权限");
+  const sendButton = buttons(send).find((button) => button.props.children === "发布供站内发送");
+  assert.ok(sendButton, "站内发送版发布权限不依赖编辑权限");
+  assert.ok(buttons(send).some((button) => button.props.children === "发布通用版本"));
   assert.equal(buttons({ ...send, channels: ["in_app", "realtime"] })
-    .some((button) => button.props.children === "发布当前版本"), false, "不符合站内发送条件的版本不显示发布");
+    .some((button) => button.props.children === "发布供站内发送"), false, "不符合站内发送条件不能发布发送版");
+  assert.ok(buttons(security).some((button) => button.props.children === "发布通用版本"));
+  assert.equal(buttons(security).some((button) => button.props.children === "发布供站内发送"), false);
+  await buttons(security).find((button) => button.props.children === "发布通用版本").props.onClick();
+  assert.deepEqual(calls, [["general", "3", 2]]);
+  assert.deepEqual(messages, ["通用版本已发布；尚不可用于运营发送"]);
   await sendButton.props.onClick();
-  assert.deepEqual(calls, [["send", "2", 2]]);
-  assert.deepEqual(messages, ["站内模板已发布"]);
-  assert.equal(buttons({ ...send, published_version: 2 })
-    .some((button) => button.props.children === "发布当前版本"), false);
+  assert.deepEqual(calls, [["general", "3", 2], ["send", "2", 2]]);
+  assert.ok(buttons({ ...send, published_version: 2, publication_status: "published_general" })
+    .some((button) => button.props.children === "发布供站内发送"), "通用发布后仍可单独审核升级为发送版");
+  assert.equal(buttons({ ...send, published_version: 2, publication_status: "published" })
+    .some((button) => button.props.children === "发布供站内发送"), false);
   const rolePage = hgTestPage({
     publish: async (id, version) => calls.push(["role", id, version]),
     list: async () => ({ list: [], nextCursor: "" }),
@@ -122,7 +131,7 @@ test("按发布权限与模板类型展示按钮，角色模板与普通站内�
   }
   collectRole(rolePage.hgRenderCard(role));
   await roleButtons.find((button) => button.props.children === "发布当前版本").props.onClick();
-  assert.deepEqual(calls, [["send", "2", 2], ["role", "1", 2]]);
+  assert.deepEqual(calls, [["general", "3", 2], ["send", "2", 2], ["role", "1", 2]]);
 });
 
 test("预填角色更新模板，经创建接口提交后刷新列表、读取详情回填并按版本编辑", async () => {

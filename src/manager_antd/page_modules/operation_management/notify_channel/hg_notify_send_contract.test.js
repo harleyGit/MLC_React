@@ -4,7 +4,7 @@ import { hgAcceptedSendStatus, hgBuildSendCommand, hgDefaultSendVariables, hgNor
 
 const hgRaw = {
   id: "9007199254740993", template_code: "system.maintenance", name: "维护通知",
-  category: "system", status: "published", version: 2, published_version: 2,
+  category: "system", status: "published", version: 2, published_version: 2, publication_status: "published",
   title_template: "维护 {{name}}", body_template: "请阅读 {{name}}",
   variables_schema: { name: { type: "string", required: true, max_length: 16 } },
   action_type: "none", action_config: {}, channels: ["in_app"],
@@ -14,6 +14,8 @@ test("仅允许当前已发布且纯站内的版本，模板 ID 保留字符串�
   const template = hgNormalizeSendTemplate(hgRaw);
   assert.equal(template.templateId, hgRaw.id);
   assert.equal(hgSendableTemplate(template), true);
+  assert.equal(hgSendableTemplate({ ...template, publicationStatus: "published_general" }), false);
+  assert.equal(hgSendableTemplate({ ...template, publicationStatus: undefined }), false);
   assert.equal(hgSendableTemplate({ ...template, publishedVersion: 1 }), false);
   // 同一模板存在 v3 草稿时，发布版接口应返回 v2 快照，不以 v3 覆盖可发送内容。
   assert.equal(hgSendableTemplate(hgNormalizeSendTemplate({ ...hgRaw, version: 3 })), false);
@@ -24,7 +26,7 @@ test("仅允许当前已发布且纯站内的版本，模板 ID 保留字符串�
 });
 
 test("最新草稿发布入口只面向符合站内发送契约的普通模板", () => {
-  const draft = hgNormalizeSendTemplate({ ...hgRaw, status: "draft", version: 3 });
+  const draft = hgNormalizeSendTemplate({ ...hgRaw, status: "draft", version: 3, publication_status: "draft" });
   assert.equal(hgPublishableSendTemplate(draft), true);
   assert.equal(hgPublishableSendTemplate({ ...draft, templateCode: "iam.role.updated" }), false);
   assert.equal(hgPublishableSendTemplate({ ...draft, channels: ["in_app", "realtime"] }), false);

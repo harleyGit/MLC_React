@@ -54,8 +54,11 @@ export default class HGSystemNotifyTemplateVM {
   /** 站内模板使用带复核/超级管理员自审校验的发布入口，不绕过服务端版本锁。 */
   static publishSend = (id, version) =>
     HGNet.post(`${hgBase}/publish-send?id=${encodeURIComponent(id)}`, { version }, { _hasRetried: true });
+  /** 通用发布只公开不可变版本，不赋予运营站内发送资格。 */
+  static publishGeneral = (id, version) =>
+    HGNet.post(`${hgBase}/publish-general?id=${encodeURIComponent(id)}`, { version }, { _hasRetried: true });
   static errorMessage = (error) =>
     Number(error?.status) === 409 || Number(error?.code) === 409
-      ? "模板编码重复或版本已变更。请核对列表并重新打开编辑，不会覆盖现有版本。"
+      ? "模板编码重复、版本已变更或不满足发布复核条件。请刷新列表后核对；不会覆盖现有版本。"
       : getRequestErrorMessage(error, "请求失败，请稍后重试");
 }

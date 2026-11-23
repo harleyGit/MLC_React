@@ -1,6 +1,6 @@
 /** 当前仅有界站内通知；不把模板接口允许的 realtime 或其它类型当作发送已接入。 */
 export function hgSendableTemplate(item) {
-  return item?.status === "published" &&
+  return item?.status === "published" && item.publicationStatus === "published" &&
     item.publishedVersion === item.version && hgPublishableSendTemplate(item);
 }
 
@@ -26,6 +26,7 @@ export function hgNormalizeSendTemplate(item) {
     version: item.version,
     status: item.status,
     publishedVersion: item.published_version,
+    publicationStatus: item.publication_status,
     titleTemplate: item.title_template,
     bodyTemplate: item.body_template,
     variablesSchema: item.variables_schema,
