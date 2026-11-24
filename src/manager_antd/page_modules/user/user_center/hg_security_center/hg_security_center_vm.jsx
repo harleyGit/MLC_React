@@ -10,6 +10,8 @@ import HGNet from "../../../../net_handle/hg_net_manager_vm";
  * 约束：绑定密钥只在 enroll 响应中出现一次，本层不做任何持久化。
  */
 export default class HGSecurityCenterVM {
+  /** /mfa/enroll 已启用因子的专用业务码；普通 IAM 状态冲突仍为 100009。 */
+  static hgMfaAlreadyEnabledCode = 404008;
   /** 首次绑定需要当前登录密码；密钥只在该响应中返回一次。 */
   static enrollMFA = (password) => HGNet.post(HGMANAGER_API.IAM_MFA_ENROLL, { password });
   /** 激活 TOTP 因子，并消费首次验证码。 */

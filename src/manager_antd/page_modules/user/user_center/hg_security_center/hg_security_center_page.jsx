@@ -85,10 +85,28 @@ class HGSecurityCenterPage extends Component {
       })
       .catch((error) => {
         if (!this.hgMounted) return;
-        if (error?.status === 409 && error?.code === 100009) {
-          // enroll 仅在已有因子启用时返回 IAM 冲突；不展示通用“角色或授权状态冲突”。
-          this.setState({ hgMfaPassword: "", hgMfaSecret: "", hgMfaUri: "" });
+        if (error?.status === 409 && error?.code === HGSecurityCenterVM.hgMfaAlreadyEnabledCode) {
+          // 仅后端“因子已启用”专用业务码对应已绑定；普通冲突不能据 HTTP 状态猜测。
+          this.setState({
+            hgMfaPassword: "",
+            hgMfaSecret: "",
+            hgMfaUri: "",
+            hgMfaConfirmCode: "",
+            hgConfirmModalOpen: false,
+          });
           message.warning("你已经绑定了 MFA，请使用原验证器的动态码；如已丢失，请联系管理员恢复，勿重复绑定。");
+          return;
+        }
+        if (error?.status === 403) {
+          message.warning("密码校验失败、权限不足或 MFA 尝试次数过多，请核实后重试。");
+          return;
+        }
+        if (error?.status === 429) {
+          message.warning("操作过于频繁，请稍后再试。");
+          return;
+        }
+        if (error?.status === 503) {
+          message.error("MFA 服务暂不可用，请稍后再试。");
           return;
         }
         message.error(error?.message || "MFA 绑定失败");
