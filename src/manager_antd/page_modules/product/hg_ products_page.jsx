@@ -4,7 +4,7 @@
  * @LastEditors: GangHuang harleysor@qq.com
  * @LastEditTime: 2026-11-07 17:52:15
  * @FilePath: /MLC_React/src/manager_antd/page_modules/product/hg_ products_page.jsx
- * @Description: 商品列表页面外壳（PC 端），目录由 HGMallCatalog 渲染；详情走独立路由页。
+ * @Description: 商品列表页面外壳（PC 端）；人民币与 M币商品在类目下分开展示。
  */
 import React, { Component } from "react";
 import HGCommerceCatalogPage from "../../../pages/mall/hg_commerce_catalog_page.jsx";
@@ -12,8 +12,8 @@ import styles from "./hg_ products.module.css";
 
 /**
  * HGProducts 商品列表页面外壳。
- * 职责：PC 商品入口使用人民币商品目录与平台类目，不将 M币目录和人民币类目交叉筛选。
- * 点击卡片进入人民币商品详情，M币商品及商家工作台保持独立。
+ * 职责：PC 商品入口使用平台类目；M币虚拟子类目进入独立的 M币商品与详情接口。
+ * 人民币商品与 M币商品不共享筛选 ID、货币单位或购买链路。
  */
 class HGProducts extends Component {
   /** 页头条：标题 + 说明，提示当前为公开商品目录。 */
@@ -23,7 +23,7 @@ class HGProducts extends Component {
         <div className={styles.shopHeaderMain}>
           <h1 className={styles.shopTitle}>商品</h1>
           <p className={styles.shopSubtitle}>
-            浏览已审核上架的人民币商品，点击卡片进入商品详情页。
+            浏览已审核商品；人民币与 M币按类目分开展示。
           </p>
         </div>
       </header>
