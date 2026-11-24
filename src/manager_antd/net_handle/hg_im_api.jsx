@@ -30,7 +30,8 @@ export default class HGIMAPI {
   hgRegister = () => HGNet.post(HGAPI.IM_DEVICE_REGISTER, {}, this.hgOptions);
   hgPending = (_credential, after = 0) => this.hgRPC("pending", { after });
   hgAck = (_credential, messageId) => this.hgRPC("ack", { messageId });
-  hgRevoke = (credential) => HGNet.post(HGAPI.IM_DEVICE_REVOKE, credential, this.hgOptions);
+  /** 主动退出可关闭自动续签，避免用已失效的旧 refresh 重放设备撤销。 */
+  hgRevoke = (credential, hgOptions = {}) => HGNet.post(HGAPI.IM_DEVICE_REVOKE, credential, { ...this.hgOptions, ...hgOptions });
   hgRealtimeToken = (credential) => HGNet.post(HGAPI.IM_REALTIME_TOKEN, credential, this.hgOptions);
   hgUploadInit = (body) => HGNet.post(HGAPI.IM_MEDIA_INIT, body, this.hgOptions);
   hgUploadComplete = (mediaId) => HGNet.post(HGAPI.IM_MEDIA_COMPLETE, { mediaId }, this.hgOptions);

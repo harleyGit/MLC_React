@@ -119,7 +119,7 @@ class NetAPI {
 
   // request 统一合并 token、公共 header 和业务 header，并根据请求体生成签名后发起请求。
   // 这里会避免给 GET / HEAD 塞 body，防止浏览器或服务端对请求语义判断出错。
-  async request({ url, method = "GET", headers = {}, body, timeout = 5000, _hasRetried = false, signal, responseType = "json", maxResponseBytes = 4 * 1024 * 1024, validateRequest }) {
+  async request({ url, method = "GET", headers = {}, body, timeout = 5000, _hasRetried = false, skipAuthRefresh = false, signal, responseType = "json", maxResponseBytes = 4 * 1024 * 1024, validateRequest }) {
     validateRequest?.();
     signal?.throwIfAborted();
     // 浏览器原生 API，专门用来手动中断异步请求（fetch、DOM 事件监听、流式读取等），搭配 fetch 的 signal 属性使用。
@@ -187,6 +187,16 @@ class NetAPI {
 
       if (!response.ok) {
         if (response.status === 401) {
+          // 主动退出不可用旧 refresh 重试：若服务端已不认可登录态，直接交给退出流程决定本地清理。
+          if (skipAuthRefresh) {
+            const errorData = await response.json().catch(() => null);
+            throw {
+              type: "AUTH_ERROR",
+              status: 401,
+              code: errorData?.code,
+              message: errorData?.message || "服务端会话撤销未确认",
+            };
+          }
           await response.body?.cancel();
           return this.handle401({
             url,

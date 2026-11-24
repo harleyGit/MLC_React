@@ -16,7 +16,7 @@ export const hgIAMRealtimeGrant = () => HGNet.get("/api/v1/iam/me/realtime", {},
 });
 
 /** 用户主动退出时先撤销服务端会话并断开本人 Socket；失败由页面决定是否仅本地退出。 */
-export const hgRevokeIAMLogin = () => HGNet.post("/api/v1/iam/me/logout", {});
+export const hgRevokeIAMLogin = () => HGNet.post("/api/v1/iam/me/logout", {}, { skipAuthRefresh: true });
 
 /** 无资源时预判全局授权；具体资源目前仅支持已上架商品编辑，业务 API 仍须二次鉴权。 */
 export const hgAuthorize = (permission, resource) =>

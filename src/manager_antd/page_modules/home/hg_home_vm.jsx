@@ -385,7 +385,7 @@ export default class HGHomeVM {
 
   /** 退出显式撤销；失败由页面提示，避免声称已吊销。 */
   async hgRevoke() {
-    if (this.hgCredential) await this.hgAPI.hgRevoke(this.hgCredential);
+    if (this.hgCredential) await this.hgAPI.hgRevoke(this.hgCredential, { skipAuthRefresh: true });
     hgIMSession(this.hgOwner, { credential: null, callId: "" });
     this.hgCredential = null;
     this.hgRealtime?.hgClose();

@@ -29,7 +29,7 @@ import { hgUserRepository } from "../../../modules/user/HGUserRepository";
 import { logout } from "../../auth/hg_auth";
 import { hgRevokeIMDevice } from "../../auth/hg_im_device";
 import { ROUTE_PATH } from "../../router/hg_router_path";
-import { hgIMOwner } from "../../storage/hg_im_session";
+import { hgIMOwner, hgIMSessionID } from "../../storage/hg_im_session";
 import HGUserProfileStorage from "../../storage/hg_user_profile_storage";
 import {
   HG_IM_CONNECTION_EVENT,
@@ -272,19 +272,32 @@ class HGTopNavLayout extends Component {
   };
 
   /**
-   * 退出登录：先撤销本标签页聊天设备，再清除本地登录态。
-   * 撤销失败时由用户决定是否仅退出本地登录，不声称已释放设备额度。
+   * 退出登录：先撤销本标签页聊天设备，再撤销登录会话。
+   * 旧凭据遭 401 时直接结束本地登录并说明远端未确认；其他失败由用户决定。
    */
   gotoLogoutPage = async () => {
     if (this.hgLoggingOut) return;
     this.hgLoggingOut = true;
     const hgOwner = hgIMOwner(); // 异步撤销期间若账号切换，不清空新账号登录态。
+    const hgSessionID = hgIMSessionID(); // 同账号重新登录会更换 sid，不清空新会话。
+    const hgSameSession = () => hgIMOwner() === hgOwner && hgIMSessionID() === hgSessionID;
     this.setState({ showUserDropdown: false });
+    const hgFinishLocalLogout = () => {
+      if (!hgSameSession()) return; // 异步请求返回后仍须检查账号及会话归属。
+      logout();
+      this.props.pageNavigator.open({ page: PAGE.LOGIN });
+    };
     try {
       if (import.meta.env.MODE === "debug") {
         try {
-          await hgRevokeIMDevice();
-        } catch {
+          await hgRevokeIMDevice(false, true);
+        } catch (hgError) {
+          if (!hgSameSession()) return;
+          if (hgError?.type === "AUTH_ERROR" && hgError.status === 401) {
+            message.warning("旧登录态已无法鉴权，设备及服务端会话撤销未确认；仅清除本地登录态。", 8000);
+            hgFinishLocalLogout();
+            return;
+          }
           message.warning("设备撤销未确认，仍可能占用聊天设备名额。", 8000);
           if (
             !window.confirm(
@@ -294,15 +307,20 @@ class HGTopNavLayout extends Component {
             return;
         }
       }
-      if (hgIMOwner() !== hgOwner) return;
+      if (!hgSameSession()) return;
       try {
         await hgRevokeIAMLogin();
-      } catch {
+      } catch (hgError) {
+        if (!hgSameSession()) return;
+        if (hgError?.type === "AUTH_ERROR" && hgError.status === 401) {
+          message.warning("旧登录态已无法鉴权，服务端会话撤销未确认；仅清除本地登录态。", 8000);
+          hgFinishLocalLogout();
+          return;
+        }
         message.warning("服务端会话或实时连接撤销未确认。", 8000);
         if (!window.confirm("服务端撤销未确认，是否仅退出本地登录？旧连接可能仍存活。")) return;
       }
-      logout();
-      this.props.pageNavigator.open({ page: PAGE.LOGIN });
+      hgFinishLocalLogout();
     } finally {
       this.hgLoggingOut = false;
     }

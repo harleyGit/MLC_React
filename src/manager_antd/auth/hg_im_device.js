@@ -23,12 +23,12 @@ export async function hgRegisterIMDevice() {
   return { ...hgCredential, legacyReplaced: hgResponse?.legacyReplaced === true };
 }
 
-/** 登出前撤销本标签页已知设备；失败向上传递，不假装服务端已释放额度。 */
-export async function hgRevokeIMDevice(hgIncludePrevious = false) {
+/** 登出前撤销本标签页已知设备；主动退出关闭续签，失败向上传递且不假装已释放额度。 */
+export async function hgRevokeIMDevice(hgIncludePrevious = false, hgSkipAuthRefresh = false) {
   const hgOwner = hgIMOwner(); // JWT 所属用户；不使用客户端自报用户 ID。
   if (!hgOwner) return;
   const hgCredential = hgIMSession(hgOwner, undefined, hgIncludePrevious).credential; // 默认不撤销其他会话设备。
   if (!hgValidCredential(hgCredential)) return;
-  await new HGIMAPI(new AbortController().signal).hgRevoke(hgCredential);
+  await new HGIMAPI(new AbortController().signal).hgRevoke(hgCredential, { skipAuthRefresh: hgSkipAuthRefresh });
   if (hgIMOwner() === hgOwner) hgIMSession(hgOwner, { credential: null, sessionID: "", callId: "" });
 }

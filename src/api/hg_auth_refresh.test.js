@@ -42,6 +42,7 @@ function hgFixture() {
     navigator: hgNavigator,
     window: { dispatchEvent: (event) => hgEvents.push(event.type) },
     Event: class { constructor(type) { this.type = type; } },
+    AbortController, Blob, Uint8Array, ArrayBuffer, setTimeout, clearTimeout,
     fetch: (...args) => hgFetch(...args),
   });
   const hgNet = hgModule.exports.default;
@@ -113,4 +114,42 @@ test("旧请求迟到的 401 发现当前令牌已更新时直接重试，不二
     return "已使用新令牌";
   };
   assert.equal(await hg.net.handle401({ _accessToken: "Bearer access-old" }), "已使用新令牌");
+});
+
+test("主动退出遭 401 不触发自动续签，也不丢失后端拒绝原因", async () => {
+  const hg = hgFixture();
+  let requests = 0;
+  let refreshes = 0;
+  hg.setFetch(async () => {
+    requests++;
+    return { ok: false, status: 401, json: async () => ({ code: 300001, message: "登录会话已失效" }) };
+  });
+  hg.net.ensureFreshToken = () => { refreshes++; throw new Error("退出时不应重试旧 refresh token"); };
+  await assert.rejects(
+    hg.net.postWithURL("/api/v1/iam/me/logout", {}, { skipAuthRefresh: true }),
+    (error) => error.type === "AUTH_ERROR" && error.status === 401 &&
+      error.code === 300001 && error.message === "登录会话已失效"
+  );
+  assert.equal(requests, 1);
+  assert.equal(refreshes, 0);
+  assert.equal(hg.storage.get("refresh_token"), "refresh-old");
+});
+
+test("普通受保护请求仍可在 401 后续签并重试一次", async () => {
+  const hg = hgFixture();
+  let requests = 0;
+  let refreshes = 0;
+  hg.setFetch(async () => {
+    requests++;
+    if (requests === 1) return { ok: false, status: 401, body: { cancel: async () => {} } };
+    return { ok: true, json: async () => ({ code: 200, result: { ok: true } }) };
+  });
+  hg.net.ensureFreshToken = async () => {
+    refreshes++;
+    hg.storage.set("manager_token", "access-new");
+  };
+  const result = await hg.net.postWithURL("/api/v1/iam/me/access", {});
+  assert.equal(result.ok, true);
+  assert.equal(requests, 2);
+  assert.equal(refreshes, 1);
 });

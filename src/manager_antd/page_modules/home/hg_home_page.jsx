@@ -7,6 +7,7 @@ import { hgFormatConversationTime } from "../../../components/hg_im_messages/hg_
 import { PAGE } from "../../../components/hg_navigation/hg_page_registry";
 import { hgRevokeIAMLogin } from "../../../modules/iam/hg_iam_api";
 import { logout } from "../../auth/hg_auth";
+import { hgIMOwner, hgIMSessionID } from "../../storage/hg_im_session";
 import styles from "./hg_home.module.css";
 import HGHomeVM from "./hg_home_vm";
 import { HG_IM_RECONNECT_EVENT } from "./hg_im_connection_events";
@@ -243,24 +244,45 @@ export default class HGHomePage extends React.Component {
     }
   };
 
-  /** 登出前尝试释放本机通话和设备；服务端失败不谎报撤销，但仍允许用户结束本地登录。 */
+  /** 登出前尝试释放本机通话和设备；旧登录态 401 可仅本地退出，不谎报远端已撤销。 */
   hgLogout = async () => {
+    const hgOwner = hgIMOwner(); // 异步撤销的原账号；切号后不清空新账号。
+    const hgSessionID = hgIMSessionID(); // 同账号重新登录也属于不同会话。
+    const hgSameSession = () => hgIMOwner() === hgOwner && hgIMSessionID() === hgSessionID;
     this.hgCall.current?.hgDisconnect();
     try {
       await this.hgVM?.hgRevoke();
-    } catch {
+    } catch (hgError) {
+      if (!hgSameSession()) return;
+      if (hgError?.type === "AUTH_ERROR" && hgError.status === 401) {
+        if (window.confirm("旧登录态无法鉴权，设备及服务端会话撤销未确认。是否仅退出本地登录？")) {
+          logout();
+          window.location.href = "/login";
+        }
+        return;
+      }
       if (this.hgMounted)
         this.setState({
           hgNotice: "设备撤销未确认；可重试撤销或直接退出本地登录。",
         });
       return;
     }
+    if (!hgSameSession()) return;
     try {
       await hgRevokeIAMLogin();
-    } catch {
+    } catch (hgError) {
+      if (!hgSameSession()) return;
+      if (hgError?.type === "AUTH_ERROR" && hgError.status === 401) {
+        if (window.confirm("旧登录态无法鉴权，服务端会话撤销未确认。是否仅退出本地登录？")) {
+          logout();
+          window.location.href = "/login";
+        }
+        return;
+      }
       if (this.hgMounted) this.setState({ hgNotice: "服务端会话撤销未确认；可重试或仅退出本地登录，旧连接可能仍存活。" });
       return;
     }
+    if (!hgSameSession()) return;
     logout();
     window.location.href = "/login";
   };
