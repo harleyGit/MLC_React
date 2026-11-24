@@ -11,6 +11,7 @@ import styles from "./hg_mall_page.module.css";
 import { hgSecureRequestId } from "./hg_mall_security.js";
 import HGMallVM from "./hg_mall_vm.js";
 import HGCommerceVM from "./hg_commerce_vm.js";
+import HGTabPlacement from "../../components/hg_tab_placement/hg_tab_placement.jsx";
 import HGMerchantApplyPage from "../../manager_antd/page_modules/user/user_center/hg_merchant_apply/hg_merchant_apply_page";
 
 const hgPendingBuyKey = "mlc.mall.pending-buy"; // 仅在会话内保存幂等键和请求摘要，不落盘收件隐私明文。
@@ -182,7 +183,7 @@ export default class HGMallCatalog extends React.Component {
   };
 
   /**
-   * 点击二级类目（占位）：当前仅记录选中态。
+   * 点击二级类目（占位）：由 HGTabPlacement 的 onChange 触发，仅记录选中态。
    * TODO(细分下钻): 后端 /admin/categories 暂无 parentId 下钻参数，二级类目的再细分请求
    * 待后端支持后在此触发；目前不重复请求目录，服务端也暂不支持按二级类目过滤商品。
    */
@@ -574,6 +575,14 @@ export default class HGMallCatalog extends React.Component {
       hgSubCategory,
     } = this.state;
     const hgSubTabs = this.hgSubTabs(); // 二级类目行仅在选中一级大类且接口有子类目时出现。
+    // 二级类目标签数据：固定「全部」项（key 空字符串）+ 接口二级类目；选中态由 hgSubCategory 受控。
+    const hgSubTabItems = [
+      { key: "", label: "全部" },
+      ...hgSubTabs.map((hgSub) => ({
+        key: hgSub.categoryId,
+        label: hgSub.name,
+      })),
+    ];
     return (
       <>
         <p className={styles.shopFilterHint}>
@@ -594,25 +603,16 @@ export default class HGMallCatalog extends React.Component {
           ))}
         </nav>
         {hgSubTabs.length > 0 && (
-          <nav className={styles.shopSubCategoryBar} aria-label="二级类目">
-            <button
-              type="button"
-              aria-pressed={!hgSubCategory}
-              onClick={() => this.hgSelectSubCategory("")}
-            >
-              全部
-            </button>
-            {hgSubTabs.map((hgSub) => (
-              <button
-                key={hgSub.categoryId}
-                type="button"
-                aria-pressed={hgSubCategory === hgSub.categoryId}
-                onClick={() => this.hgSelectSubCategory(hgSub.categoryId)}
-              >
-                {hgSub.name}
-              </button>
-            ))}
-          </nav>
+          // 二级类目栏复用 HGTabPlacement：pill 描边胶囊保持原二级类目视觉，
+          // tabPlacement 支持后续四向布局需求，窄屏下 start/end 自动降级为 top。
+          <HGTabPlacement
+            ariaLabel="二级类目"
+            tabPlacement="top"
+            hgVariant="pill"
+            activeKey={hgSubCategory}
+            onChange={this.hgSelectSubCategory}
+            tabs={hgSubTabItems}
+          />
         )}
         <div className={styles.shopFilterBar}>
           <span className={styles.shopFilterCount}>

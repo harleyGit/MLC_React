@@ -63,6 +63,16 @@ function hgCategoryButtons(hgInstance, hgLabel) {
   return hgNav ? React.Children.toArray(hgNav.props.children) : [];
 }
 
+/** 从目录渲染树读取二级类目 HGTabPlacement 的标签文案（组件经 require 替身注入）。
+ * Array.from 在主 realm 构造数组，避免 vm realm 数组原型导致 deepEqual 误报。 */
+function hgSubTabLabels(hgInstance) {
+  const hgChildren = React.Children.toArray(hgInstance.renderProductList().props.children);
+  const hgTabsNode = hgChildren.find(
+    (hgChild) => hgChild.props?.ariaLabel === "二级类目"
+  );
+  return Array.from(hgTabsNode?.props.tabs || [], (hgTab) => hgTab.label);
+}
+
 test("审核员加载平台类目后展示一级、二级文案并按白名单编码筛选商品", async () => {
   const { hgInstance, hgProductFilters, hgCategoryCalls } = hgCatalog([
     { categoryId: "digital-root", name: "数码影音", depth: 1 },
@@ -78,10 +88,7 @@ test("审核员加载平台类目后展示一级、二级文案并按白名单�
   hgTopButtons[1].props.onClick();
   await Promise.resolve();
   assert.equal(hgProductFilters.at(-1), "digital");
-  assert.deepEqual(
-    hgCategoryButtons(hgInstance, "二级类目").map((hgButton) => hgButton.props.children),
-    ["全部", "手机"]
-  );
+  assert.deepEqual(hgSubTabLabels(hgInstance), ["全部", "手机"]);
   hgTopButtons[2].props.onClick();
   await Promise.resolve();
   assert.equal(hgProductFilters.at(-1), "", "未映射的动态类目不能作为 M币商品筛选编码");

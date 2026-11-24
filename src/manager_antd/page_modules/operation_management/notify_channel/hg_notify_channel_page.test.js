@@ -5,7 +5,7 @@ import test from "node:test";
 import { transformSync } from "@swc/core";
 import React from "react";
 import {
-  hgBuildSendCommand, hgDefaultSendVariables, hgPublishableSendTemplate, hgSendableTemplate,
+  hgBuildSendCommand, hgDefaultSendVariables, hgNormalizeSendTemplate, hgPublishableSendTemplate, hgSendableTemplate,
   hgValidateSendInput, hgValidateSendSchedule,
 } from "./hg_notify_send_contract.js";
 
@@ -19,7 +19,7 @@ function hgLoadPage(file, api, messages = []) {
   const module = { exports: {} };
   runInNewContext(code, {
     module, exports: module.exports, React,
-    window: { addEventListener() {}, removeEventListener() {} },
+    window: { addEventListener() {}, removeEventListener() {}, confirm: () => true },
     require(path) {
       if (path === "react") return React;
       if (path === "./hg_notify_channel_page") return { __esModule: true, default: hgLoadPage("./hg_notify_channel_page.jsx", api, messages) };
@@ -31,10 +31,12 @@ function hgLoadPage(file, api, messages = []) {
       if (path.endsWith("hg_iam_session")) return { hgCurrentIAMUser: () => "ADMIN" };
       if (path.endsWith("hg_message_page")) return { hgMessage: {
         error: (text) => messages.push(text), warning: (text) => messages.push(text),
+        success: (text) => messages.push(text),
       } };
-      if (path.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: {
-        USER_READ: "user:directory:read", NOTIFICATION_SEND_READ: "notification:send:read",
-      } };
+       if (path.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: {
+         USER_READ: "user:directory:read", NOTIFICATION_SEND_READ: "notification:send:read",
+         NOTIFICATION_TEMPLATE_READ: "notification:template:read",
+       } };
       if (path === "./hg_notify_send_contract.js") return {
         hgBuildSendCommand, hgDefaultSendVariables, hgPublishableSendTemplate,
         hgValidateSendInput, hgValidateSendSchedule,
@@ -56,7 +58,7 @@ function hgInstance(Type, props) {
   return page;
 }
 
-test("通用发布版不出现在发送页的可发送选择或待复核列表", () => {
+test("接口返回通用发布版时下拉展示不可发送原因，并提供站内发送复核入口", () => {
   const Type = hgLoadPage("./hg_notify_send_page.jsx", { isRemote: () => true, isSendable: hgSendableTemplate });
   const page = hgInstance(Type, Type.defaultProps);
   const general = {
@@ -65,11 +67,58 @@ test("通用发布版不出现在发送页的可发送选择或待复核列表",
     publicationStatus: "published_general", actionType: "none", actionConfig: {},
     variablesSchema: {}, channels: ["in_app"],
   };
-  page.setState({ templates: [general], reviewTemplates: [general] });
+  page.setState({ templates: [general, { ...general, templateId: "8", templateName: "另一个通用通知" }],
+    reviewTemplates: [general] });
   assert.equal(hgSendableTemplate(general), false);
-  assert.match(page.renderPublishSection().props.children[0].props.children, /没有待发布的站内模板/);
+  const selector = page.renderSendSection().props.children[1].props.children[0].props.children[1].props.children[0];
+  assert.equal(selector.props.options.length, 2);
+  assert.ok(selector.props.options.every((item) => item.disabled && /通用发布/.test(item.label)));
+  assert.match(page.renderSendSection().props.children[1].props.children[0].props.children[2].props.children, /2 个仅通用发布/);
+  assert.equal(page.renderPublishSection().props.children[0][0].props.children[2].props.children, "复核发布供站内发送");
   page.setState({ reviewTemplates: [{ ...general, status: "draft", version: 3, publicationStatus: "draft" }] });
   assert.equal(page.renderPublishSection().props.children[0].length, 1, "新草稿仍允许进入原有复核列表");
+});
+
+test("两个通用发布快照经站内发送复核后，只有获准版本可被选择", async () => {
+  const raw = {
+    id: "7", template_code: "system.notice", name: "系统通知", category: "system",
+    status: "published", version: 2, published_version: 2, publication_status: "published_general",
+    title_template: "系统通知", body_template: "正文", variables_schema: {},
+    action_type: "none", action_config: {}, channels: ["in_app"],
+  };
+  let upgraded = false;
+  const calls = [];
+  const api = {
+    isRemote: () => true, isSendable: hgSendableTemplate,
+    fetchPublishedTemplates: async () => ({
+      list: [hgNormalizeSendTemplate({ ...raw, publication_status: upgraded ? "published" : "published_general" }),
+        hgNormalizeSendTemplate({ ...raw, id: "8", name: "另一条系统通知" })],
+      nextCursor: "",
+    }),
+    fetchTemplates: async () => ({
+      list: [hgNormalizeSendTemplate({ ...raw, publication_status: upgraded ? "published" : "published_general" })],
+      nextCursor: "",
+    }),
+    publishTemplate: async (id, version) => { calls.push({ id, version }); upgraded = true; },
+  };
+  const Type = hgLoadPage("./hg_notify_send_page.jsx", api);
+  const page = hgInstance(Type, Type.defaultProps);
+  page.hgMounted = true;
+  page.hgOwner = "ADMIN";
+  page.hgCan = () => true;
+  page.hgRequire = () => true;
+  page.handleQueryTemplates({ silent: true });
+  await new Promise((resolve) => globalThis.setImmediate(resolve));
+  const options = () => page.renderSendSection().props.children[1].props.children[0].props.children[1].props.children[0].props.options;
+  assert.equal(page.state.templates.length, 2);
+  assert.ok(options().every((item) => item.disabled));
+  page.renderPublishSection().props.children[0][0].props.children[2].props.onClick();
+  await new Promise((resolve) => globalThis.setImmediate(resolve));
+  assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{ id: "7", version: 2 }]);
+  assert.equal(options()[0].disabled, false);
+  assert.equal(options()[1].disabled, true);
+  page.handleSelectTemplate("7");
+  assert.equal(page.getSelectedTemplate().templateId, "7");
 });
 
 test("投递列表请求失败时渠道仍展示服务端渠道卡片，发送表单不再出现在渠道页", async () => {
@@ -116,12 +165,49 @@ test("模板下拉按 title_template 展示，选择后回填默认变量并显�
   assert.equal(page.state.sendForm.templateId, template.templateId);
   assert.equal(page.state.sendForm.variables.name, "小明");
   const section = page.renderSendSection();
-  const toolbar = section.props.children[0];
-  const selector = toolbar.props.children[1];
+  const toolbar = section.props.children[1].props.children[0].props.children[1];
+  const selector = toolbar.props.children[0];
   assert.match(selector.props.options[0].label, /^通知 \{\{name\}\}/);
   const summary = page.renderSelectedTemplate(template);
   assert.match(JSON.stringify(summary), /您好 \{\{name\}\}/);
   assert.match(JSON.stringify(summary), /您好 小明/);
+});
+
+test("草稿请求失败不影响已发布模板进入发送单选", async () => {
+  const errors = [];
+  const template = {
+    templateId: "9007199254740993", templateCode: "system.notice", templateName: "站内通知",
+    version: 2, status: "published", publishedVersion: 2, publicationStatus: "published", category: "system",
+    actionType: "none", actionConfig: {}, channels: ["in_app"],
+    titleTemplate: "服务通知", bodyTemplate: "请查收通知", variablesSchema: {},
+  };
+  const Type = hgLoadPage("./hg_notify_send_page.jsx", {
+    isRemote: () => true, isSendable: hgSendableTemplate,
+    fetchPublishedTemplates: async () => ({ list: [template], nextCursor: "" }),
+    fetchTemplates: async () => { throw new Error("草稿接口不可用"); },
+  }, errors);
+  const page = hgInstance(Type, Type.defaultProps);
+  page.hgMounted = true;
+  page.hgOwner = "ADMIN";
+  page.hgCan = () => true;
+  page.handleQueryTemplates({ silent: true });
+  await new Promise((resolve) => globalThis.setImmediate(resolve));
+  assert.equal(page.state.templatesLoading, false);
+  assert.equal(page.state.templates.length, 1);
+  assert.equal(page.state.reviewTemplates.length, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(page.renderSendSection().props.children[1].props.children[0].props.children[1].props.children[0].props.options)),
+    [{ value: template.templateId, label: "服务通知（system.notice · v2）", disabled: false }]);
+  page.handleSelectTemplate(template.templateId);
+  assert.equal(page.getSelectedTemplate().templateId, template.templateId);
+  assert.ok(errors.some((text) => text.includes("草稿接口不可用")));
+});
+
+test("缺少模板读取权限时，发送页提示授权而非误报无已发布模板", () => {
+  const Type = hgLoadPage("./hg_notify_send_page.jsx", { isRemote: () => true, isSendable: hgSendableTemplate });
+  const page = hgInstance(Type, Type.defaultProps);
+  page.hgCan = () => false;
+  const hint = page.renderSendSection().props.children[1].props.children[0].props.children[2];
+  assert.match(hint.props.children, /缺少 notification:template:read 权限/);
 });
 
 test("用户目录弹窗跨页多选并确认后才提交 ID，取消不改变已选用户", async () => {
@@ -153,7 +239,7 @@ test("用户目录弹窗跨页多选并确认后才提交 ID，取消不改变�
   assert.deepEqual(JSON.parse(JSON.stringify(page.state.sendForm.recipients)), [
     { id: "U1", name: "小明" }, { id: "U2", name: "小李" },
   ]);
-  const table = page.renderAudienceFields().props.children[1];
+  const table = page.renderAudienceFields().props.children[1].props.children[0];
   assert.equal(table.props.columns[0].render("小明", table.props.dataSource[0]), "小明（U1）");
   page.setState({ templates: [{ templateId: "1", version: 2, variablesSchema: {} }],
     sendForm: { ...page.state.sendForm, templateId: "1" } });

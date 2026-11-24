@@ -1,0 +1,199 @@
+/*
+ * HGTabPlacement 样式：tabPlacement 四向布局 + line/pill 两种视觉变体。
+ * 颜色沿用商城主色 #e22e1f；移动端断点 620px 与商城页一致，
+ * 窄屏下 start/end 竖向布局自动降级为 top（对齐 antd tabPlacement 行为）。
+ */
+
+/* 根容器：按位置决定标签栏与内容区的排布方向；bottom 用 column-reverse 让标签栏落在底部。 */
+.tabPlacement {
+  display: flex;
+  min-width: 0;
+}
+.placementTop {
+  flex-direction: column;
+}
+.placementBottom {
+  flex-direction: column-reverse;
+}
+.placementStart {
+  flex-direction: row;
+}
+.placementEnd {
+  flex-direction: row-reverse;
+}
+
+/* 标签栏：横向贴底分隔线，竖向贴 start/end 侧分隔线，窄屏可横向滚动。 */
+.tabList {
+  display: flex;
+  min-width: 0;
+}
+.placementTop .tabList,
+.placementBottom .tabList {
+  flex-direction: row;
+  gap: 24px;
+  border-bottom: 1px solid #f0f1f5;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.placementStart .tabList {
+  flex-direction: column;
+  align-items: stretch;
+  border-right: 1px solid #f0f1f5;
+  padding-right: 12px;
+  min-width: 88px;
+}
+.placementEnd .tabList {
+  flex-direction: column;
+  align-items: stretch;
+  border-left: 1px solid #f0f1f5;
+  padding-left: 12px;
+  min-width: 88px;
+}
+
+/* 标签按钮：选中态由 aria-selected 驱动，指示器用 ::after 按位置画在分隔线上。 */
+.tabItem {
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 8px 2px;
+  color: #4b5164;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.tabItem:hover {
+  color: #e22e1f;
+}
+.tabItem:focus-visible {
+  outline: 2px solid #e22e1f;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+.tabItem:disabled {
+  color: #c3c6d1;
+  cursor: not-allowed;
+}
+.tabItem[aria-selected="true"] {
+  color: #e22e1f;
+  font-weight: 600;
+}
+.tabItem[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  background: #e22e1f;
+}
+.placementTop .tabItem[aria-selected="true"]::after {
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+}
+.placementBottom .tabItem[aria-selected="true"]::after {
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+}
+.placementStart .tabItem[aria-selected="true"]::after {
+  top: 6px;
+  bottom: 6px;
+  right: -13px;
+  width: 2px;
+}
+.placementEnd .tabItem[aria-selected="true"]::after {
+  top: 6px;
+  bottom: 6px;
+  left: -13px;
+  width: 2px;
+}
+
+/* 内容区：占满剩余空间并按位置留出与标签栏的间距。 */
+.tabContent {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.placementTop .tabContent {
+  padding-top: 12px;
+}
+.placementBottom .tabContent {
+  padding-bottom: 12px;
+}
+.placementStart .tabContent {
+  padding-left: 16px;
+}
+.placementEnd .tabContent {
+  padding-right: 16px;
+}
+
+/* pill 变体：描边胶囊、浅红选中底，不使用指示线；对齐商城二级类目行观感。 */
+.variantPill .tabList {
+  gap: 8px;
+  border: 0;
+  overflow: visible;
+  min-width: 0;
+}
+.variantPill .tabItem {
+  padding: 5px 14px;
+  border: 1px solid #f0d5d1;
+  border-radius: 999px;
+  background: #fff;
+  color: #4b5164;
+  font-size: 13px;
+  font-weight: 400;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.variantPill .tabItem:hover {
+  color: #e22e1f;
+  border-color: #e22e1f;
+}
+.variantPill .tabItem[aria-selected="true"] {
+  color: #e22e1f;
+  border-color: #e22e1f;
+  background: #fff3f1;
+  font-weight: 600;
+}
+.variantPill .tabItem[aria-selected="true"]::after {
+  content: none;
+}
+.variantPill .tabItem:disabled {
+  border-color: #f0f1f5;
+  background: #fafafa;
+  color: #c3c6d1;
+}
+
+/* 移动端窄屏（<=620px）：start/end 自动降级为 top，指示线随布局移到标签底部。 */
+@media (max-width: 620px) {
+  .placementStart,
+  .placementEnd {
+    flex-direction: column;
+  }
+  .placementStart .tabList,
+  .placementEnd .tabList {
+    flex-direction: row;
+    gap: 24px;
+    min-width: 0;
+    border-right: 0;
+    border-left: 0;
+    border-bottom: 1px solid #f0f1f5;
+    padding: 0;
+    overflow-x: auto;
+  }
+  .placementStart .tabItem[aria-selected="true"]::after,
+  .placementEnd .tabItem[aria-selected="true"]::after {
+    top: auto;
+    right: auto;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+  }
+  .placementStart .tabContent,
+  .placementEnd .tabContent {
+    padding: 12px 0 0;
+  }
+}
