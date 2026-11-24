@@ -12,7 +12,6 @@ const INITIAL_VALUES = {
   name: "",
   description: "",
   permissions: [],
-  mfaCode: "",
 };
 
 /** 组件替身只承接真实页面生成的 props，不启动 DOM 或网络。 */
@@ -32,12 +31,13 @@ function hgRoleFormPage(props, vmOverrides = {}, messages = []) {
       name: [],
       description: [],
       permissions: [],
-      mfaCode: [],
+      mfaCode: [{ pattern: /^\d{6}$/, message: "请输入 6 位 MFA 验证码" }],
     }),
     transformSubmitData: (values) => values,
     fetchPermissions: async () => ({ list: [], selected: [] }),
     submitRole: async () => ({}),
     submitRoleEdit: async () => ({}),
+    permissionsChanged: (before, after) => JSON.stringify([...before].sort()) !== JSON.stringify([...after].sort()),
     selectNotificationTemplatePermissions: hgSelectNotificationTemplatePermissions,
     ...vmOverrides,
   };
@@ -150,7 +150,6 @@ test("编辑模式核对 URL 角色 ID，并回填基础信息与服务端已选
     name: "内容编辑",
     description: "维护内容",
     permissions: [],
-    mfaCode: "",
   });
   await page.componentDidMount();
   assert.deepEqual(calls, ["101"]);
@@ -158,11 +157,11 @@ test("编辑模式核对 URL 角色 ID，并回填基础信息与服务端已选
     "video:read",
   ]);
   assert.deepEqual(JSON.parse(JSON.stringify(formValues)), [
-    { permissions: ["video:read"], mfaCode: "" },
+    { permissions: ["video:read"] },
   ]);
 });
 
-test("编辑提交复用同一表单，携带角色 ID 和初始权限快照，成功后返回列表", async () => {
+test("编辑提交先弹 MFA 确认，输入正确后才携带角色 ID 和权限快照请求", async () => {
   const submissions = [];
   const messages = [];
   let backs = 0;
@@ -195,13 +194,22 @@ test("编辑提交复用同一表单，携带角色 ID 和初始权限快照，�
   page.state.permissionsLoading = false;
   page.state.initialPermissions = ["video:read"];
 
-  await page.handleFinish({
+  page.handleFinish({
     code: "content_editor",
     name: "内容主管",
     description: "维护内容",
     permissions: ["video:write"],
-    mfaCode: "123456",
   });
+  assert.deepEqual(submissions, [], "点击保存尚未调用接口");
+  assert.equal(page.renderMFAModal().props.visible, true);
+  assert.equal(page.state.mfaCode, "");
+  page.handleConfirmSubmit();
+  assert.deepEqual(submissions, [], "缺少 MFA 时不调用接口");
+  assert.match(page.state.mfaError, /6 位 MFA/);
+  page.renderMFAField().props.children[0].props.children[1].props.onChange({ target: { value: "12a3456" } });
+  assert.equal(page.state.mfaCode, "123456");
+  assert.equal(page.state.mfaError, "");
+  await page.handleConfirmSubmit();
   assert.deepEqual(JSON.parse(JSON.stringify(submissions)), [
     [
       {
@@ -217,6 +225,116 @@ test("编辑提交复用同一表单，携带角色 ID 和初始权限快照，�
   ]);
   assert.deepEqual(messages, ["角色已更新，权限申请 approval-1 待审批"]);
   assert.equal(backs, 1);
+  assert.equal(page.renderMFAModal().props.visible, false);
+  assert.equal(page.state.mfaCode, "");
+});
+
+test("创建角色取消确认只关闭弹窗并清空验证码，重新保存必须重新输入", () => {
+  const submissions = [];
+  const page = hgRoleFormPage({ selectedKey: "role_create" }, {
+    submitRole: async (data) => { submissions.push(data); return {}; },
+  });
+  page.state.permissionsLoading = false;
+  const values = { code: "editor", name: "编辑", description: "", permissions: ["video:read"] };
+  page.handleFinish(values);
+  const modal = page.renderMFAModal();
+  assert.equal(modal.props.visible, true);
+  page.state.mfaCode = "123456";
+  modal.props.onCancel();
+  assert.equal(page.state.pendingSubmitData, null);
+  assert.equal(page.state.mfaCode, "");
+  assert.deepEqual(submissions, []);
+  page.handleFinish(values);
+  assert.equal(page.state.mfaCode, "");
+  page.state.mfaCode = "654321";
+  page.renderMFAModal().props.onClose();
+  assert.deepEqual(submissions, []);
+  assert.equal(page.state.mfaCode, "");
+});
+
+test("创建角色选择权限时确认前不发请求，确认后仅使用弹窗内的 MFA", async () => {
+  const submissions = [];
+  const page = hgRoleFormPage({ selectedKey: "role_create" }, {
+    submitRole: async (data) => { submissions.push(data); return { approvalId: "approval-2" }; },
+  });
+  page.state.permissionsLoading = false;
+  page.handleFinish({
+    code: "editor", name: "编辑", description: "", permissions: ["video:read"],
+    mfaCode: "000000", // 旧主表单值不能绕开弹窗或作为申请人的验证码。
+  });
+  assert.equal(submissions.length, 0);
+  assert.equal(page.state.pendingSubmitData.mfaCode, "");
+  page.handleConfirmSubmit();
+  assert.equal(submissions.length, 0);
+  page.state.mfaCode = "654321";
+  await page.handleConfirmSubmit();
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0].mfaCode, "654321");
+});
+
+test("创建空权限角色仍先弹确认，但不要求不会被验证的 MFA", async () => {
+  const submissions = [];
+  const page = hgRoleFormPage({ selectedKey: "role_create" }, {
+    submitRole: async (data) => { submissions.push(data); return {}; },
+  });
+  page.state.permissionsLoading = false;
+  page.handleFinish({ code: "reader", name: "只读", description: "", permissions: [] });
+  assert.deepEqual(submissions, []);
+  const modal = page.renderMFAModal();
+  assert.equal(modal.props.visible, true);
+  assert.equal(page.renderMFAField().props.children[0].props.children[1].props.disabled, true);
+  await modal.props.onOk();
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0].mfaCode, "");
+});
+
+test("编辑仅更新基础信息也要确认，但不发送无需验证的 MFA", async () => {
+  const submissions = [];
+  const page = hgRoleFormPage({
+    selectedKey: "role_edit",
+    location: {
+      search: "?roleId=101",
+      state: { role: { id: "101", code: "editor", name: "编辑", description: "" } },
+    },
+  }, {
+    submitRoleEdit: async (data, initial) => {
+      submissions.push([data, initial]);
+      return {};
+    },
+  });
+  page.state.permissionsLoading = false;
+  page.state.initialPermissions = ["video:read"];
+  page.handleFinish({ code: "editor", name: "新名称", description: "", permissions: ["video:read"] });
+  assert.deepEqual(submissions, []);
+  assert.equal(page.renderMFAField().props.children[0].props.children[1].props.disabled, true);
+  await page.handleConfirmSubmit();
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0][0].mfaCode, "");
+});
+
+test("重复点击确认仅提交一次，失败清除验证码且保留主表单草稿", async () => {
+  let calls = 0;
+  let rejectRequest;
+  const messages = [];
+  const page = hgRoleFormPage({ selectedKey: "role_create" }, {
+    submitRole: () => {
+      calls += 1;
+      return new Promise((_, reject) => { rejectRequest = reject; });
+    },
+  }, messages);
+  page.state.permissionsLoading = false;
+  page.handleFinish({ code: "reader", name: "只读", description: "", permissions: ["video:read"] });
+  page.state.mfaCode = "123456";
+  const pending = page.handleConfirmSubmit();
+  page.handleConfirmSubmit();
+  page.handleCancelSubmit();
+  assert.equal(calls, 1);
+  assert.equal(page.state.mfaCode, "");
+  assert.equal(page.state.pendingSubmitData, null);
+  rejectRequest(new Error("服务端拒绝"));
+  await pending;
+  assert.deepEqual(messages, ["服务端拒绝"]);
+  assert.equal(page.state.submitting, false);
 });
 
 test("编辑 URL 与回填角色不一致时拒绝展示表单", () => {

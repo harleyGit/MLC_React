@@ -12,6 +12,7 @@ import HGCardPage from "../../../../components/hg_card/hg_card_page";
 import { HGFormPage as Form, HGFormItem as Item } from "../../../../components/hg_form/hg_form_page";
 import HGInputPage, { HGInputTextArea } from "../../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
+import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGPageHeaderPage from "../../../../components/hg_page_header/hg_page_header_page";
 import HGTreeSelectPage from "../../../../components/hg_tree_select/hg_tree_select_page";
 import HGRoleCreateVM, {
@@ -39,6 +40,7 @@ class HGRoleCreatePage extends Component {
     super(props);
     this.formRef = React.createRef();
     this.returnAfterSubmit = false; // 编辑成功后在提交状态收尾完成再返回，避免卸载后继续 setState。
+    this.hgSubmitting = false; // 同步防重入标记；React 批量更新 submitting 前也只能发送一次。
     this.state = {
       /** @type {boolean} 创建或编辑提交中；置位期间禁用提交按钮，防止重复提交 */
       submitting: false,
@@ -50,6 +52,12 @@ class HGRoleCreatePage extends Component {
       permissionsLoading: true,
       /** @type {string} 编辑回填或权限目录错误；空字符串表示当前可编辑 */
       loadError: "",
+      /** @type {Object|null} 已通过主表单校验的待确认草稿；null 表示弹窗关闭，不存放 MFA */
+      pendingSubmitData: null,
+      /** @type {string} 当前弹窗输入的 6 位一次性验证码；空字符串表示未输入，取消或提交时清空 */
+      mfaCode: "",
+      /** @type {string} 弹窗内 MFA 校验反馈；空字符串表示无需展示错误 */
+      mfaError: "",
     };
   }
 
@@ -84,7 +92,6 @@ class HGRoleCreatePage extends Component {
       name: role.name,
       description: role.description,
       permissions: this.state.initialPermissions,
-      mfaCode: "",
     };
   };
 
@@ -110,7 +117,6 @@ class HGRoleCreatePage extends Component {
           () => {
             this.formRef.current?.setFieldsValue({
               permissions: selected,
-              mfaCode: "",
             });
           }
         );
@@ -125,29 +131,55 @@ class HGRoleCreatePage extends Component {
   }
 
   /**
-   * 表单提交处理：清洗字段后调用 VM 提交创建与权限申请。
-   * 流程编排在 VM.submitRole，页面只负责结果反馈与表单收尾。
+   * 主表单校验通过后只暂存当前草稿；用户在弹窗确认前不得创建或更新角色。
    * @param {Object} values 表单字段值
    */
   handleFinish = (values) => {
-    const { permissionsLoading, initialPermissions } = this.state;
-    if (permissionsLoading) {
-      message.error("角色数据仍在加载，请稍后再试");
+    const { permissionsLoading, pendingSubmitData, submitting, loadError } = this.state;
+    if (permissionsLoading || loadError) {
+      message.error(loadError || "角色数据仍在加载，请稍后再试");
       return;
     }
-    const submitData = HGRoleCreateVM.transformSubmitData(values);
+    if (submitting || this.hgSubmitting || pendingSubmitData) return;
+    const submitData = HGRoleCreateVM.transformSubmitData({ ...values, mfaCode: "" });
     const editRole = this.getEditRole();
     if (this.isEditMode() && !editRole) {
       message.error("角色回填数据无效，请返回列表后重试");
       return;
     }
 
-    this.setState({ submitting: true });
+    this.setState({
+      pendingSubmitData: this.isEditMode() ? { ...submitData, id: editRole.id } : submitData,
+      mfaCode: "",
+      mfaError: "",
+    });
+  };
+
+  /** 关闭弹窗即丢弃草稿与 MFA；不会触发任何角色写入。 */
+  handleCancelSubmit = () => {
+    if (this.hgSubmitting || this.state.submitting) return;
+    this.setState({ pendingSubmitData: null, mfaCode: "", mfaError: "" });
+  };
+
+  /** 是否需要申请角色权限；只更新基础信息时现有接口不校验 MFA。 */
+  requiresMFA = (submitData) => this.isEditMode()
+    ? HGRoleCreateVM.permissionsChanged(this.state.initialPermissions, submitData.permissions)
+    : submitData.permissions.length > 0;
+
+  /** 确认时校验本次 MFA 后才启动 VM 编排；失败也不保留一次性验证码。 */
+  handleConfirmSubmit = () => {
+    const { pendingSubmitData, mfaCode, initialPermissions } = this.state;
+    if (!pendingSubmitData || this.hgSubmitting || this.state.submitting) return;
+    const mfaRule = HGRoleCreateVM.getFormRules().mfaCode[0]; // 与 VM 的 6 位数字规则保持一致。
+    if (this.requiresMFA(pendingSubmitData) && !mfaRule.pattern.test(mfaCode)) {
+      this.setState({ mfaError: mfaRule.message });
+      return;
+    }
+    this.hgSubmitting = true;
+    const submitData = { ...pendingSubmitData, mfaCode }; // 仅当前确认动作携带验证码。
+    this.setState({ submitting: true, pendingSubmitData: null, mfaCode: "", mfaError: "" });
     const request = this.isEditMode()
-      ? HGRoleCreateVM.submitRoleEdit(
-          { ...submitData, id: editRole.id },
-          initialPermissions
-        )
+      ? HGRoleCreateVM.submitRoleEdit(submitData, initialPermissions)
       : HGRoleCreateVM.submitRole(submitData);
     return request
       .then(this.handleSubmitSuccess)
@@ -184,6 +216,7 @@ class HGRoleCreatePage extends Component {
 
   /** 提交结束：先恢复按钮状态；编辑成功时随后返回，避免卸载后更新状态。 */
   handleSubmitSettled = () => {
+    this.hgSubmitting = false;
     this.setState({ submitting: false }, () => {
       if (this.returnAfterSubmit) {
         this.returnAfterSubmit = false;
@@ -197,6 +230,8 @@ class HGRoleCreatePage extends Component {
    * 约束：仅恢复初始值，不触发提交或校验。
    */
   handleReset = () => {
+    if (this.hgSubmitting || this.state.submitting) return;
+    this.handleCancelSubmit();
     if (this.formRef.current) {
       this.formRef.current.resetFields();
     }
@@ -321,28 +356,57 @@ class HGRoleCreatePage extends Component {
   );
 
   /**
-   * 渲染 MFA 验证码字段：仅在申请角色权限时需要。
-   * @param {Object} rules 表单校验规则
-   * @returns {React.ReactNode} MFA 验证码表单项
+   * 渲染弹窗内的一次性 MFA 验证码；不加入主表单，也不随草稿缓存。
+   * @returns {React.ReactNode} MFA 输入及验证反馈
    */
-  renderMFAField = (rules) => (
-    <Item
-      label="申请人 MFA 验证码"
-      name="mfaCode"
-      rules={rules.mfaCode}
-      extra="仅勾选角色权限时需要，用于校验申请人身份并发起审批。"
-    >
-      <HGInputPage maxLength={6} placeholder="选择权限时输入验证器 6 位验证码" className={styles.roleCreateInput} />
-    </Item>
+  renderMFAField = () => (
+    <div>
+      <label>
+        申请人 MFA 验证码
+        <HGInputPage
+          value={this.state.mfaCode}
+          maxLength={6}
+          disabled={!this.state.pendingSubmitData || !this.requiresMFA(this.state.pendingSubmitData)}
+          autoComplete="one-time-code"
+          placeholder="申请权限时输入验证器 6 位验证码"
+          className={styles.roleCreateInput}
+          onChange={(event) => this.setState({
+            mfaCode: event.target.value.replace(/\D/g, "").slice(0, 6),
+            mfaError: "",
+          })}
+        />
+      </label>
+      {this.state.mfaError && <p role="alert">{this.state.mfaError}</p>}
+    </div>
   );
+
+  /** 保存前统一展示 MFA 确认；权限不变时只确认基础信息，不伪称 MFA 已验证。 */
+  renderMFAModal = () => {
+    const submitData = this.state.pendingSubmitData; // null 表示未请求保存或已取消。
+    return (
+      <HGModalPage
+        visible={Boolean(submitData)}
+        title={this.isEditMode() ? "确认保存角色" : "确认创建角色"}
+        onClose={this.handleCancelSubmit}
+        onCancel={this.handleCancelSubmit}
+        onOk={this.handleConfirmSubmit}
+        okText="确认保存"
+      >
+        <p>{submitData && this.requiresMFA(submitData)
+          ? "本次将申请角色权限，需输入本人 MFA 验证码；权限经另一名管理员审批后才生效。"
+          : "本次不申请角色权限，仅确认保存基础信息；MFA 不会用于本次请求。"}</p>
+        {this.renderMFAField()}
+      </HGModalPage>
+    );
+  };
 
   /**
    * 渲染提交和重置按钮。
    * @returns {React.ReactNode} 操作按钮区域
    */
   renderActions = () => {
-    const { submitting, permissionsLoading, loadError } = this.state;
-    const disabled = permissionsLoading || Boolean(loadError);
+    const { submitting, permissionsLoading, loadError, pendingSubmitData } = this.state;
+    const disabled = permissionsLoading || Boolean(loadError) || Boolean(pendingSubmitData);
 
     return (
       <div className={styles.roleCreateActions}>
@@ -355,7 +419,7 @@ class HGRoleCreatePage extends Component {
         >
           {this.isEditMode() ? "保存角色" : "创建角色"}
         </HGButtonPage>
-        <HGButtonPage onClick={this.handleReset} className={styles.roleCreateButton}>
+        <HGButtonPage onClick={this.handleReset} disabled={submitting || Boolean(pendingSubmitData)} className={styles.roleCreateButton}>
           {this.isEditMode() ? "恢复原值" : "重置"}
         </HGButtonPage>
       </div>
@@ -363,7 +427,7 @@ class HGRoleCreatePage extends Component {
   };
 
   /**
-   * 渲染角色表单：创建和编辑均按“基础信息 -> 权限 -> 验证”顺序组装字段。
+   * 渲染角色表单：主表单仅含基础信息与权限，MFA 在确认弹窗输入。
    * @returns {React.ReactNode} 表单节点
    */
   renderForm = () => {
@@ -380,7 +444,6 @@ class HGRoleCreatePage extends Component {
         {this.renderNameField(rules)}
         {this.renderDescriptionField(rules)}
         {this.renderPermissionsField(rules)}
-        {this.renderMFAField(rules)}
         {this.renderActions()}
       </Form>
     );
@@ -416,6 +479,7 @@ class HGRoleCreatePage extends Component {
             this.renderForm()
           )}
         </HGCardPage>
+        {this.renderMFAModal()}
       </div>
     );
   }

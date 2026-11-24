@@ -19,7 +19,6 @@ export const INITIAL_ROLE_CREATE_FORM_VALUES = {
   name: "",
   description: "",
   permissions: [],
-  mfaCode: "", // 角色权限申请的一次性 MFA 验证码。
 };
 
 /**
@@ -45,7 +44,7 @@ export default class HGRoleCreateVM {
     ],
     description: [{ max: 255, message: "角色描述最多 255 个字符" }],
     permissions: [{ type: "array", max: 50, message: "权限最多 50 项" }],
-    mfaCode: [{ pattern: /^\d{6}$/, message: "请选择权限时需输入 6 位 MFA 验证码" }],
+    mfaCode: [{ pattern: /^\d{6}$/, message: "请输入 6 位 MFA 验证码" }],
   });
 
   /** 从 IAM 权限目录加载角色可选权限；编辑时同时返回指定角色的已选权限。 */
