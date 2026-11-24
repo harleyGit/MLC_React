@@ -5,7 +5,7 @@ export const hgFetchAccess = () => HGNet.get("/api/v1/iam/me/access", {}, {
   headers: { "Cache-Control": "no-store" },
 });
 
-/** 仅在实时频道重连、明确授权变更或有限期绑定到期时同步本人权威快照。 */
+/** 显式请求本人权威快照；实时频道断线及重连不主动调用。 */
 export const hgSyncAccess = () => HGNet.get("/api/v1/iam/me/sync", {}, {
   headers: { "Cache-Control": "no-store" },
 });

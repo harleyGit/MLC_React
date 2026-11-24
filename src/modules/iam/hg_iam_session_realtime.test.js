@@ -62,7 +62,19 @@ test("按本人身份和修订号接收完整推送，持久化后拒绝乱序�
   assert.equal(hg.records.get("operator-b").user_id, "operator-b");
 });
 
-test("重连同步和实时推送交错时，旧 HTTP 响应不能覆盖新权限", async () => {
+test("仅从本地恢复当前账号未过期且结构完整的展示快照", async () => {
+  const hg = hgFixture();
+  hg.records.set("operator-a", { ...hgSnapshot("operator-a", 1), roles: null });
+  assert.equal(await hg.session.hgLoadLocalIAM(), null);
+  hg.records.set("operator-a", hgSnapshot("operator-b", 2));
+  assert.equal(await hg.session.hgLoadLocalIAM(), null);
+  hg.records.set("operator-a", { ...hgSnapshot("operator-a", 3), expires_at: "2020-01-01T00:00:00Z" });
+  assert.equal(await hg.session.hgLoadLocalIAM(), null);
+  hg.records.set("operator-a", hgSnapshot("operator-a", 4));
+  assert.equal((await hg.session.hgLoadLocalIAM()).policy_version, 4);
+});
+
+test("显式同步和实时推送交错时，旧 HTTP 响应不能覆盖新权限", async () => {
   const hg = hgFixture();
   const login = hg.session.hgRefreshIAM();
   await Promise.resolve();

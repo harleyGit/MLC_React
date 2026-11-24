@@ -61,7 +61,7 @@ export function hgSubscribeIAM(listener) {
   return () => hgListeners.delete(listener);
 }
 
-/** 本地副本仅用于显示；进入受保护视图前仍须从服务端核对。 */
+/** 仅恢复当前 JWT 本人未过期的展示副本；业务请求仍由服务端鉴权。 */
 export async function hgLoadLocalIAM() {
   const owner = hgCurrentIAMUser();
   if (!owner) return null;
@@ -69,7 +69,7 @@ export async function hgLoadLocalIAM() {
   const generation = hgGeneration;
   await hgPersistence.catch(() => {}); // 登出删除排队中时，不得读回旧账号的待删除记录。
   const cached = await hgReadAccess(owner);
-  if (generation === hgGeneration && owner === hgCurrentIAMUser() && cached) {
+  if (generation === hgGeneration && owner === hgCurrentIAMUser() && hgValidSnapshot(owner, cached)) {
     hgSnapshot = cached;
     hgNotify();
   }

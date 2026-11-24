@@ -53,7 +53,7 @@ export function HGRouteGuard({
   preserveOnRefresh = false, // 默认复核时卸载子树；编辑页可保留此前已授权的草稿，但复核期间隐藏并禁用交互。
 }) {
   const access = useHGPermission({ permission, anyOf, allOf });
-  const [hgApprovedOwner, hgSetApprovedOwner] = React.useState(""); // 上一次通过服务端核验的账号；空值表示尚未授权，不能首次挂载页面。
+  const [hgApprovedOwner, hgSetApprovedOwner] = React.useState(""); // 上一次持有有效展示快照的账号；空值表示尚未展示过受保护页面。
   const hgCurrentOwner = preserveOnRefresh ? hgCurrentIAMUser() : ""; // 当前 JWT 的账号仅用于隔离旧草稿，不作为授权证明。
   React.useEffect(() => {
     if (!preserveOnRefresh) return;
@@ -64,7 +64,7 @@ export function HGRouteGuard({
     }
   }, [access.status, access.allowed, hgCurrentOwner, preserveOnRefresh]);
   if (preserveOnRefresh) {
-    const hgReady = access.status === "ready" && access.allowed; // 只有服务端已确认权限时才可展示和交互。
+    const hgReady = access.status === "ready" && access.allowed; // 仅按未过期展示快照预判，实际操作由服务端鉴权。
     const hgRetainHidden = !hgReady && (access.loading || access.status === "error") &&
       Boolean(hgCurrentOwner) && hgApprovedOwner === hgCurrentOwner; // 仅当前账号短暂复核/网络失败时保留已挂载的草稿。
     if (hgReady || hgRetainHidden) {

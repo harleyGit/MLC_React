@@ -8,11 +8,11 @@ function hgDispatchRefresh() {
   }
 }
 
-/** 授权变更成功或收到服务端 403 后，清空旧展示并从 HTTP 权威接口刷新。 */
+/** 广播授权变更提示；IAM 页面仅接收本人频道推送，不因此自动发 HTTP 请求。 */
 export function hgNotifyIAMChanged({ broadcast = true } = {}) {
   hgDispatchRefresh();
   if (!broadcast || !hgChannel) return;
-  try { hgChannel.postMessage("refresh"); } catch { /* 其他标签页会在焦点/快照到期时核对。 */ }
+  try { hgChannel.postMessage("refresh"); } catch { /* 广播失败不影响服务端逐请求鉴权。 */ }
 }
 
 if (typeof window !== "undefined" && typeof BroadcastChannel !== "undefined") {

@@ -29,16 +29,22 @@ function hgFixture() {
   let hgRealtimeStarts = 0; // 同一账号 503 后不应在下一次权限复核时再次申请频道票据。
   let hgRealtimeFailure = false; // true 模拟未启用 IM 的旧环境。
   let hgRealtimeInstance = null; // 测试触发的当前账号 Socket 回调。
+  let hgLocalSnapshot = null; // 已按账号隔离且未过期的 IndexedDB 展示副本；null 表示缓存未命中。
+  let hgPushedSnapshot = null; // 已通过本人频道更新的展示快照；null 表示尚未收到有效消息。
   runInNewContext(hgCode, {
     module: hgModule, exports: hgModule.exports,
     require: (id) => {
       if (id === "react") return React;
       if (id.endsWith("hg_iam_session")) return {
-        hgClearIAM: () => {}, hgGetIAMSnapshot: () => null,
-        hgLoadLocalIAM: async () => null,
+        hgClearIAM: () => {}, hgGetIAMSnapshot: () => hgPushedSnapshot,
+        hgLoadLocalIAM: async () => hgLocalSnapshot?.user_id === hgOwner ? hgLocalSnapshot : null,
         hgCurrentIAMUser: () => hgOwner,
         hgCurrentIAMExpiry: () => Date.now() + 3_600_000,
-        hgApplyPushedIAM: async () => false,
+        hgApplyPushedIAM: async (snapshot) => {
+          if (snapshot?.user_id !== hgOwner) return false;
+          hgPushedSnapshot = snapshot;
+          return true;
+        },
         hgRefreshIAM: ({ sync } = {}) => {
           hgFetchCount += 1;
           hgRequestModes.push(sync);
@@ -77,6 +83,7 @@ function hgFixture() {
     requestModes: () => hgRequestModes,
     realtimeStarts: () => hgRealtimeStarts,
     realtimeUnavailable: () => { hgRealtimeFailure = true; },
+    setLocalSnapshot: (snapshot) => { hgLocalSnapshot = snapshot; },
     realtime: () => hgRealtimeInstance,
     events: () => hgEvents,
     switchOwner: (owner) => { hgOwner = owner; },
@@ -101,7 +108,7 @@ test("窗口获焦不触发权限拉取，同一账号并发变更仅复核一�
   hg.provider.componentWillUnmount();
 });
 
-test("通知提示只由当前账号传播，重连补拉通知与 IAM 快照", async () => {
+test("通知提示只由当前账号传播，重连不请求 IAM 快照", async () => {
   const hg = hgFixture();
   hg.provider.componentDidMount();
   await hgFlush();
@@ -113,11 +120,9 @@ test("通知提示只由当前账号传播，重连补拉通知与 IAM 快照", 
   assert.equal(hg.events().at(-1)?.detail?.category, "marketing");
   original.recover();
   await hgFlush();
-  assert.equal(hg.fetchCount(), 2);
-  assert.deepEqual(hg.requestModes(), [false, true]);
+  assert.equal(hg.fetchCount(), 1);
+  assert.deepEqual(hg.requestModes(), [false]);
   assert.equal(hg.events().at(-1)?.detail, undefined);
-  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
-  await hgFlush();
   const beforeSwitch = hg.events().length;
   hg.switchOwner("operator-b");
   original.handlers.get("notification.inbox.updated.v1")({ category: "system" });
@@ -125,32 +130,38 @@ test("通知提示只由当前账号传播，重连补拉通知与 IAM 快照", 
   hg.provider.componentWillUnmount();
 });
 
-test("实时频道断线后仅凭服务端 IAM 复核恢复菜单授权，失败时继续隐藏", async () => {
+test("实时频道断线和恢复均保留最近快照，不触发 IAM 请求", async () => {
+  const hg = hgFixture();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
+  await hgFlush();
+  const latest = hg.provider.state.snapshot;
+  hg.realtime().offline();
+  await hgFlush();
+  assert.equal(hg.provider.state.status, "ready");
+  assert.equal(hg.provider.state.snapshot, latest);
+  hg.realtime().recover();
+  await hgFlush();
+  assert.equal(hg.provider.state.snapshot, latest);
+  assert.deepEqual(hg.requestModes(), [false]);
+  hg.provider.componentWillUnmount();
+});
+
+test("Socket 恢复后仅收到本人新快照消息才更新展示", async () => {
   const hg = hgFixture();
   hg.provider.componentDidMount();
   await hgFlush();
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
   await hgFlush();
   hg.realtime().offline();
-  assert.equal(hg.provider.state.status, "loading", "断线时先撤销页面展示并启动权威复核");
-  await hgFlush();
-  assert.equal(hg.fetchCount(), 2);
-  assert.deepEqual(hg.requestModes(), [false, false], "频道断开时不调用 /me/sync");
-  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
-  await hgFlush();
-  assert.equal(hg.provider.state.status, "ready");
   hg.realtime().recover();
+  const pushed = { user_id: "operator-a", roles: ["editor"], grants: [], policy_version: 2,
+    expires_at: "2099-01-01T00:00:00Z" };
+  hg.realtime().handlers.get("iam.access.updated.v1")({ snapshot: pushed });
   await hgFlush();
-  assert.deepEqual(hg.requestModes(), [false, false, true], "重新订阅后再走同步入口");
-  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 120_000).toISOString() });
-  await hgFlush();
-  hg.realtime().offline();
-  await hgFlush();
-  assert.deepEqual(hg.requestModes(), [false, false, true, false]);
-  hg.resolve(Promise.reject(new Error("服务端不可用")));
-  await hgFlush();
-  assert.equal(hg.provider.state.status, "error");
-  assert.equal(hg.provider.state.snapshot, null);
+  assert.equal(hg.provider.state.snapshot, pushed);
+  assert.deepEqual(hg.requestModes(), [false]);
   hg.provider.componentWillUnmount();
 });
 
@@ -179,7 +190,7 @@ test("后续业务复用当前用户 Socket，旧账号提示不可投递到新�
   hg.provider.componentWillUnmount();
 });
 
-test("IM 返回 503 后不随旧环境一分钟复核反复请求实时凭据", async () => {
+test("IM 返回 503 后保留最近快照，不主动补拉", async () => {
   const hg = hgFixture();
   hg.realtimeUnavailable();
   hg.provider.componentDidMount();
@@ -188,36 +199,50 @@ test("IM 返回 503 后不随旧环境一分钟复核反复请求实时凭据", 
   await hgFlush();
   assert.equal(hg.realtimeStarts(), 1);
   assert.deepEqual(hg.requestModes(), [false]);
-  const refresh = hg.provider.hgRefresh();
+  assert.equal(hg.provider.state.status, "ready");
+  assert.equal(hg.provider.state.snapshot.user_id, "operator-a");
+  hg.provider.componentWillUnmount();
+});
+
+test("冷启动使用本人未过期缓存，无需重新请求授权快照", async () => {
+  const hg = hgFixture();
+  hg.realtimeUnavailable();
+  hg.setLocalSnapshot({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  hg.provider.componentDidMount();
   await hgFlush();
-  assert.deepEqual(hg.requestModes(), [false, false], "频道不可用时主动复核仍使用 /me/access");
-  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
-  await refresh;
+  assert.equal(hg.provider.state.status, "ready");
+  assert.equal(hg.provider.state.snapshot.user_id, "operator-a");
+  assert.deepEqual(hg.requestModes(), []);
   assert.equal(hg.realtimeStarts(), 1);
   hg.provider.componentWillUnmount();
 });
 
-test("IM 不可用且权限快照到期时仅调用 /me/access", async () => {
+test("IM 不可用且快照到期时仅补拉一次 /me/access，二次到期本地失效", async () => {
   const hg = hgFixture();
   hg.realtimeUnavailable();
   hg.provider.componentDidMount();
   await hgFlush();
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await hgFlush();
-  hg.provider.hgScheduleExpiry({ expires_at: new Date(Date.now() - 1).toISOString() });
+  hg.provider.hgScheduleExpiry({ user_id: "operator-a", expires_at: new Date(Date.now() - 1).toISOString() });
   await hgFlush();
   assert.deepEqual(hg.requestModes(), [false, false]);
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await hgFlush();
+  hg.provider.hgScheduleExpiry({ user_id: "operator-a", expires_at: new Date(Date.now() - 1).toISOString() });
+  await hgFlush();
+  assert.deepEqual(hg.requestModes(), [false, false]);
+  assert.equal(hg.provider.state.status, "error");
+  assert.equal(hg.provider.state.snapshot, null);
   hg.provider.componentWillUnmount();
 });
 
-test("请求进行期间收到权限变更时，首个响应后必须再次请求", async () => {
+test("请求进行期间收到登录变更时，首个响应后必须再次请求", async () => {
   const hg = hgFixture();
   hg.provider.componentDidMount();
   await hgFlush();
-  hg.listeners.get("hg:iam-access-changed")({ detail: { force: true } });
-  hg.listeners.get("hg:iam-access-changed")({ detail: { force: true } });
+  hg.listeners.get("hg:auth-changed")();
+  hg.listeners.get("hg:auth-changed")();
   assert.equal(hg.fetchCount(), 1);
   hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
   await hgFlush();
