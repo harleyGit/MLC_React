@@ -6,8 +6,8 @@ import { transformSync } from "@swc/core";
 import React from "react";
 import { HG_MALL_CATEGORIES } from "./hg_mall_categories.js";
 
-/** 用真实 JSX 和本地请求替身核对目录类目，不启动服务或读取登录态。 */
-function hgCatalog(hgCategories, hgAccess = { canReview: true }) {
+/** 用真实 JSX 和本地请求替身核对 M币目录只接受白名单编码，不访问 CNY 类目。 */
+function hgCatalog() {
   const hgModule = { exports: {} }; // 转换后的页面模块，仅用于当前测试实例。
   const hgSource = readFileSync(new URL("./hg_mall_catalog.jsx", import.meta.url), "utf8");
   const hgCode = transformSync(hgSource, {
@@ -15,7 +15,6 @@ function hgCatalog(hgCategories, hgAccess = { canReview: true }) {
     jsc: { parser: { syntax: "ecmascript", jsx: true }, target: "es2022" },
     module: { type: "commonjs" },
   }).code;
-  let hgCategoryCalls = 0; // 管理类目接口调用次数；无权限时必须为零。
   const hgProductFilters = []; // 目录请求传给 M币商品接口的筛选编码。
   runInNewContext(hgCode, {
     module: hgModule,
@@ -27,12 +26,9 @@ function hgCatalog(hgCategories, hgAccess = { canReview: true }) {
         return { ROUTE_PATH: { COMMERCE_PRODUCTS: "/commerce/products", MALL_CNY: "/mall/cny" } };
       if (hgDependency.endsWith("hg_mall_categories.js"))
         return { HG_MALL_CATEGORIES, __esModule: true };
-      if (hgDependency.endsWith("hg_commerce_vm.js"))
-        return { default: { adminCategories: async () => { hgCategoryCalls += 1; return hgCategories; } }, __esModule: true };
       if (hgDependency.endsWith("hg_mall_vm.js"))
         return {
           default: {
-            reviewAccess: async () => hgAccess,
             products: async (hgCategory) => {
               hgProductFilters.push(hgCategory);
               return { list: [], hasMore: false, nextCursor: "" };
@@ -51,7 +47,7 @@ function hgCatalog(hgCategories, hgAccess = { canReview: true }) {
     };
   };
   hgInstance.hgMounted = true; // 模拟目录已挂载，允许异步接口更新状态。
-  return { hgInstance, hgProductFilters, hgCategoryCalls: () => hgCategoryCalls };
+  return { hgInstance, hgProductFilters };
 }
 
 /** 从目录真实渲染树读取类目按钮，断言用户实际能看到的文案。 */
@@ -63,43 +59,15 @@ function hgCategoryButtons(hgInstance, hgLabel) {
   return hgNav ? React.Children.toArray(hgNav.props.children) : [];
 }
 
-/** 从目录渲染树读取二级类目 HGTabPlacement 的标签文案（组件经 require 替身注入）。
- * Array.from 在主 realm 构造数组，避免 vm realm 数组原型导致 deepEqual 误报。 */
-function hgSubTabLabels(hgInstance) {
-  const hgChildren = React.Children.toArray(hgInstance.renderProductList().props.children);
-  const hgTabsNode = hgChildren.find(
-    (hgChild) => hgChild.props?.ariaLabel === "二级类目"
-  );
-  return Array.from(hgTabsNode?.props.tabs || [], (hgTab) => hgTab.label);
-}
-
-test("审核员加载平台类目后展示一级、二级文案并按白名单编码筛选商品", async () => {
-  const { hgInstance, hgProductFilters, hgCategoryCalls } = hgCatalog([
-    { categoryId: "digital-root", name: "数码影音", depth: 1 },
-    { categoryId: "phones", parentId: "digital-root", name: "手机", depth: 2 },
-    { categoryId: "custom-root", name: "新类目", depth: 1 },
-  ]);
-  await hgInstance.hgLoadPlatformCategories();
-  assert.equal(hgCategoryCalls(), 1);
+test("M币目录仅提供自身白名单类目，不混用人民币的二级类目 ID", async () => {
+  const { hgInstance, hgProductFilters } = hgCatalog();
   const hgTopButtons = hgCategoryButtons(hgInstance, "商品类目");
-  assert.deepEqual(hgTopButtons.map((hgButton) => hgButton.props.children), [
-    "全部商品", "数码影音", "新类目",
-  ]);
+  assert.deepEqual(Array.from(hgTopButtons, (hgButton) => hgButton.props.children),
+    HG_MALL_CATEGORIES.map(([, hgName], hgIndex) => hgIndex === 0 ? "全部商品" : hgName));
   hgTopButtons[1].props.onClick();
   await Promise.resolve();
   assert.equal(hgProductFilters.at(-1), "digital");
-  assert.deepEqual(hgSubTabLabels(hgInstance), ["全部", "手机"]);
-  hgTopButtons[2].props.onClick();
-  await Promise.resolve();
-  assert.equal(hgProductFilters.at(-1), "", "未映射的动态类目不能作为 M币商品筛选编码");
-});
-
-test("无审核权或接口无一级类目时保留可见的静态类目", async () => {
-  const hgDenied = hgCatalog([], { canReview: false });
-  await hgDenied.hgInstance.hgLoadPlatformCategories();
-  assert.equal(hgDenied.hgCategoryCalls(), 0);
-  assert.equal(hgCategoryButtons(hgDenied.hgInstance, "商品类目")[0].props.children, "全部商品");
-  const hgNoRoots = hgCatalog([{ categoryId: "child", name: "手机", depth: 2 }]);
-  await hgNoRoots.hgInstance.hgLoadPlatformCategories();
-  assert.equal(hgCategoryButtons(hgNoRoots.hgInstance, "商品类目")[1].props.children, "数码影音");
+  assert.equal(React.Children.toArray(hgInstance.renderProductList().props.children).some(
+    (hgChild) => hgChild.props?.ariaLabel === "二级类目"
+  ), false);
 });

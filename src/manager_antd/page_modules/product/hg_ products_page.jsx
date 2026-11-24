@@ -7,13 +7,13 @@
  * @Description: 商品列表页面外壳（PC 端），目录由 HGMallCatalog 渲染；详情走独立路由页。
  */
 import React, { Component } from "react";
-import HGMallCatalog from "../../../pages/mall/hg_mall_catalog.jsx";
+import HGCommerceCatalogPage from "../../../pages/mall/hg_commerce_catalog_page.jsx";
 import styles from "./hg_ products.module.css";
 
 /**
  * HGProducts 商品列表页面外壳。
- * 职责：仅提供 PC 端页面容器、标题条与说明；商品目录交互委托给 HGMallCatalog，
- * 点击卡片跳转独立商品详情路由页（/products/:productId），不在此处内联渲染详情。
+ * 职责：PC 商品入口使用人民币商品目录与平台类目，不将 M币目录和人民币类目交叉筛选。
+ * 点击卡片进入人民币商品详情，M币商品及商家工作台保持独立。
  */
 class HGProducts extends Component {
   /** 页头条：标题 + 说明，提示当前为公开商品目录。 */
@@ -23,7 +23,7 @@ class HGProducts extends Component {
         <div className={styles.shopHeaderMain}>
           <h1 className={styles.shopTitle}>商品</h1>
           <p className={styles.shopSubtitle}>
-            浏览全部已审核商品，点击卡片进入商品详情页。
+            浏览已审核上架的人民币商品，点击卡片进入商品详情页。
           </p>
         </div>
       </header>
@@ -35,7 +35,7 @@ class HGProducts extends Component {
       <div className={styles.shopPage}>
         {this.renderHeader()}
         <div className={styles.shopContent}>
-          <HGMallCatalog hgInitialView="catalog" />
+          <HGCommerceCatalogPage />
         </div>
       </div>
     );

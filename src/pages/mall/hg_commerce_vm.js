@@ -8,8 +8,12 @@ export default class HGCommerceVM {
   static categories() {
     return this.hgRequest("get", "COMMERCE_CATEGORIES");
   }
-  static adminCategories() {
-    return this.hgRequest("get", "COMMERCE_ADMIN_CATEGORIES");
+  static adminCategories(parentId = "") {
+    return this.hgRequest("get", "COMMERCE_ADMIN_CATEGORIES", parentId ? { parentId } : undefined);
+  }
+  /** 已登录买家读取根类目或指定父类目下的直属子类目，不依赖审核员权限。 */
+  static publicCategories(parentId = "") {
+    return this.hgRequest("get", "COMMERCE_PUBLIC_CATEGORIES", parentId ? { parentId } : undefined);
   }
   static createCategory(body) {
     return this.hgRequest("post", "COMMERCE_CATEGORY_CREATE", body);
@@ -62,8 +66,8 @@ export default class HGCommerceVM {
   static mineDetail(productId) {
     return this.hgRequest("get", "COMMERCE_MINE_DETAIL", { productId });
   }
-  static products(cursor = "") {
-    return this.hgRequest("get", "COMMERCE_PRODUCTS", { cursor });
+  static products(cursor = "", categoryId = "") {
+    return this.hgRequest("get", "COMMERCE_PRODUCTS", { cursor, ...(categoryId ? { categoryId } : {}) });
   }
   static detail(productId) {
     return this.hgRequest("get", "COMMERCE_DETAIL", { productId });
