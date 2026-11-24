@@ -1,4 +1,4 @@
-/* IAM 员工角色管理页：授权查询、角色申请、MFA 绑定与双人授权审批。 */
+/* IAM 员工角色管理页：授权查询、角色申请与双人授权审批；MFA 绑定已迁移至个人中心「安全中心」。 */
 import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../../components/hg_card/hg_card_page";
@@ -52,10 +52,6 @@ class HGEmployeeRolePage extends Component {
       approvalDecisionId: "", // 当前用户申请裁决中的编号；空值表示空闲。
       hgSelectedBindingId: "", // 当前查看的绑定 ID；空值表示新授权申请模式。
       granting: false, // 新授权申请提交进行中。
-      mfaPassword: "", // 当前登录密码；仅用于 MFA 首次绑定，初始为空。
-      mfaSecret: "", // 绑定密钥仅首次展示，不持久化，初始为空。
-      mfaURI: "", // 绑定 URI 仅首次展示，初始为空。
-      mfaConfirmCode: "", // 验证器生成的 6 位动态码；初始为空，只在首次确认请求中发送，不由服务端获取。
       approvalCode: "", // 指定用户申请的审批动态码；清空后不保留。
       queueApprovalCode: "", // 独立审批队列的动态码；不与指定用户审批或申请 MFA 共用。
       approvals: [], // 独立的待审批队列，空数组代表暂无数据或未加载。
@@ -375,44 +371,6 @@ class HGEmployeeRolePage extends Component {
     return { valid: true };
   };
 
-  /** 密码复核通过后显示一次性 TOTP 绑定密钥；响应和页面均不持久化密钥。 */
-  enrollMFA = () => {
-    if (!this.state.mfaPassword) {
-      message.error("请输入当前登录密码");
-      return;
-    }
-    HGEmployeeRoleVM.enrollMFA(this.state.mfaPassword)
-      .then((result) => {
-        if (this.hgMounted)
-          this.setState({
-            mfaSecret: result?.secret || "",
-            mfaURI: result?.otpauthUri || "",
-            mfaPassword: "",
-          });
-      })
-      .catch((error) => {
-        if (this.hgMounted) message.error(error?.message || "MFA 绑定失败");
-      });
-  };
-
-  /** 激活后立即清除页面中的明文密钥与验证码。 */
-  confirmMFA = () => {
-    if (!/^\d{6}$/.test(this.state.mfaConfirmCode)) {
-      message.error("请从验证器输入 6 位动态码（不是短信验证码）");
-      return;
-    }
-    HGEmployeeRoleVM.confirmMFA(this.state.mfaConfirmCode)
-      .then(() => {
-        if (this.hgMounted) {
-          this.setState({ mfaSecret: "", mfaURI: "", mfaConfirmCode: "" });
-          message.success("MFA 已启用");
-        }
-      })
-      .catch((error) => {
-        if (this.hgMounted) message.error(error?.message || "MFA 验证失败");
-      });
-  };
-
   /** 审批列表按游标分页，处理后只刷新首页避免旧状态残留。 */
   loadApprovals = (cursor = 0) => {
     const request = ++this.hgApprovalRequest;
@@ -666,55 +624,6 @@ class HGEmployeeRolePage extends Component {
     );
   };
 
-  renderMFA = () => (
-    <div className={styles.formItem}>
-      <h3>绑定管理员 MFA</h3>
-      <p>
-        先输入当前登录密码生成绑定密钥，再将密钥或绑定 URI 添加到支持 TOTP
-        的验证器。动态码由验证器生成，服务端不会提供获取动态码的接口。
-      </p>
-      <input
-        type="password"
-        autoComplete="current-password"
-        value={this.state.mfaPassword}
-        onChange={(event) => this.setState({ mfaPassword: event.target.value })}
-        placeholder="当前登录密码"
-        className={styles.inputField}
-      />
-      <HGButtonPage onClick={this.enrollMFA}>生成绑定密钥</HGButtonPage>
-      {this.state.mfaSecret && (
-        <p>
-          一次性密钥：<code>{this.state.mfaSecret}</code>
-          <br />
-          绑定 URI：<code>{this.state.mfaURI}</code>
-        </p>
-      )}
-      <label htmlFor="hg-iam-mfa-confirm-code">
-        验证器【Google Authenticator（Google 身份验证器）】显示的 6
-        位动态码（非短信验证码）
-      </label>
-      <input
-        id="hg-iam-mfa-confirm-code"
-        type="text"
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        maxLength={6}
-        value={this.state.mfaConfirmCode}
-        onChange={(event) =>
-          this.setState({ mfaConfirmCode: event.target.value })
-        }
-        placeholder="输入验证器中的 6 位动态码"
-        className={styles.inputField}
-      />
-      <HGButtonPage
-        onClick={this.confirmMFA}
-        disabled={!/^\d{6}$/.test(this.state.mfaConfirmCode)}
-      >
-        确认并启用 MFA
-      </HGButtonPage>
-    </div>
-  );
-
   renderApprovals = () => (
     <div className={styles.formItem}>
       <h3>待审批授权</h3>
@@ -790,7 +699,6 @@ class HGEmployeeRolePage extends Component {
         <h2 className={styles.formTitle}>管理员工角色</h2>
         {this.renderUserLookup()}
         {this.renderGrantForm()}
-        {this.renderMFA()}
         {this.renderApprovals()}
       </div>
     );

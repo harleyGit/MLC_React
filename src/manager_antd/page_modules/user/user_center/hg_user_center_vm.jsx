@@ -1,4 +1,12 @@
 /*
+ * @Author: GangHuang harleysor@qq.com
+ * @Date: 2026-11-01 14:38:51
+ * @LastEditors: GangHuang harleysor@qq.com
+ * @LastEditTime: 2026-11-24 17:11:31
+ * @FilePath: /MLC_React/src/manager_antd/page_modules/user/user_center/hg_user_center_vm.jsx
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+/*
  * @Description: 个人中心 ViewModel，集中维护左侧菜单配置与默认选中项。
  */
 
@@ -15,6 +23,7 @@ export const USER_CENTER_MENU_KEYS = {
   CONTACTS: "im_contacts", // 即时通信 → 联系人（通讯录，好友按字母分组）。
   FRIEND_REQUESTS: "im_requests", // 即时通信 → 新的朋友（好友申请接受/拒绝）。
   IM_GROUPS: "im_groups", // 即时通信 → 群组（群聊列表与群资料）。
+  SECURITY_MFA: "security_mfa", // 安全中心 → MFA 动态口令（TOTP 绑定与激活）。
 };
 
 /**
@@ -39,8 +48,14 @@ export const USER_CENTER_MENU_ITEMS = [
       { key: USER_CENTER_MENU_KEYS.MERCHANT_PRODUCTS, label: "我的商品" },
       { key: USER_CENTER_MENU_KEYS.MERCHANT_PUBLISH, label: "新增商品" },
       { key: USER_CENTER_MENU_KEYS.MERCHANT_ORDERS, label: "本店订单与发货" },
-      { key: USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE, label: "人民币商品·发布审核" },
-      { key: USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE_CATEGORY, label: "普通类目管理" },
+      {
+        key: USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE,
+        label: "人民币商品·发布审核",
+      },
+      {
+        key: USER_CENTER_MENU_KEYS.MERCHANT_COMMERCE_CATEGORY,
+        label: "普通类目管理",
+      },
     ],
   },
   {
@@ -50,6 +65,13 @@ export const USER_CENTER_MENU_ITEMS = [
       { key: USER_CENTER_MENU_KEYS.CONTACTS, label: "联系人" },
       { key: USER_CENTER_MENU_KEYS.FRIEND_REQUESTS, label: "新的朋友" },
       { key: USER_CENTER_MENU_KEYS.IM_GROUPS, label: "群组" },
+    ],
+  },
+  {
+    key: "security_center",
+    label: "安全中心",
+    children: [
+      { key: USER_CENTER_MENU_KEYS.SECURITY_MFA, label: "MFA 动态口令绑定" },
     ],
   },
 ];

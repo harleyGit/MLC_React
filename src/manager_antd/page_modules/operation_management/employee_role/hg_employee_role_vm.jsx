@@ -20,10 +20,6 @@ export default class HGEmployeeRoleVM {
     mfaCode: String(mfaCode || "").trim(),
   });
 
-  /** 首次绑定需要当前密码；密钥只在该响应中返回一次。 */
-  static enrollMFA = (password) => HGNet.post(HGMANAGER_API.IAM_MFA_ENROLL, { password });
-  /** 激活 TOTP 因子，并消费首次验证码。 */
-  static confirmMFA = (code) => HGNet.post(HGMANAGER_API.IAM_MFA_CONFIRM, { code });
   /** 按 id 游标读取待审批队列。 */
   static fetchApprovals = (cursor = 0) => HGNet.get(HGMANAGER_API.IAM_APPROVAL_LIST, { cursor, pageSize: 20 });
   /** 审批人输入一次性验证码后裁决申请。 */

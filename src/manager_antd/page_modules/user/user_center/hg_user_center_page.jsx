@@ -15,6 +15,7 @@ import HGMerchantOrdersPage from "../../../../pages/mall/hg_merchant_orders_page
 import HGMerchantCommercePage from "../../../../pages/mall/hg_merchant_commerce_page";
 import HGCommerceCategoryPage from "../../../../pages/mall/hg_commerce_category_page";
 import HGImContactsPage from "../../../../pages/im_contacts/hg_im_contacts_page";
+import HGSecurityCenterPage from "./hg_security_center/hg_security_center_page";
 import HGUserCenterVM, {
   USER_CENTER_MENU_ITEMS,
   USER_CENTER_MENU_KEYS,
@@ -94,6 +95,10 @@ class HGUserCenterPage extends Component {
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.IM_GROUPS) {
       return <HGImContactsPage hgInitialFilter="groups" pageNavigator={this.props.pageNavigator} />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.SECURITY_MFA) {
+      // 安全中心：MFA 绑定与激活全部由页面内按钮显式触发，进入时不自动请求。
+      return <HGSecurityCenterPage />;
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;
   };
