@@ -15,8 +15,7 @@ export class HGIAMAccessProvider extends React.Component {
   };
   hgMounted = false; // 异步请求生命周期标记；卸载后不可更新 UI。
   hgSequence = 0; // 刷新序号，防止较旧响应覆盖新账号状态。
-  hgExpiryTimer = null; // 有限期快照到期时最多补拉一次；再次到期只在本地失效。
-  hgExpiryRefreshUsedOwner = ""; // 当前账号已消费的一次到期补拉；空串表示尚未补拉或收到新推送。
+  hgExpiryTimer = null; // 有限期快照到期时重新核验；新快照仍有期限时继续按期限安排核验。
   hgInFlight = null; // 当前账号进行中的刷新；同账号的普通重复触发共用该请求。
   hgQueuedRefresh = false; // 请求期间收到明确变更信号时，完成后再核验一次。
   hgRealtime = null; // 当前账号的唯一用户业务 Socket；Chat 设备 Socket 独立。
@@ -32,6 +31,7 @@ export class HGIAMAccessProvider extends React.Component {
       if (this.hgMounted) this.setState({ snapshot: hgGetIAMSnapshot() });
     });
     window.addEventListener("hg:auth-changed", this.hgQueueRefresh);
+    window.addEventListener("hg:token-refreshed", this.hgOnTokenRefreshed);
     window.addEventListener("storage", this.hgOnStorage);
     this.hgRefresh({ sync: false, preferLocal: true });
   }
@@ -46,6 +46,7 @@ export class HGIAMAccessProvider extends React.Component {
     this.hgBusinessListeners.clear();
     this.hgUnsubscribe?.();
     window.removeEventListener("hg:auth-changed", this.hgQueueRefresh);
+    window.removeEventListener("hg:token-refreshed", this.hgOnTokenRefreshed);
     window.removeEventListener("storage", this.hgOnStorage);
   }
 
@@ -67,10 +68,19 @@ export class HGIAMAccessProvider extends React.Component {
     return this.hgRefresh();
   };
 
+  /** 过期 access 冷启动后首次续签必须重新读取本人权限；同账号续签只重排到期计时器。 */
+  hgOnTokenRefreshed = () => {
+    const owner = hgCurrentIAMUser();
+    if (owner && (this.state.status !== "ready" || this.state.snapshot?.user_id !== owner)) {
+      void this.hgQueueRefresh();
+      return;
+    }
+    this.hgScheduleAuthExpiry();
+  };
+
   /** 只合并同账号的重复请求；跨账号切换仍立即开始新请求。 */
   hgRefresh = (options = {}) => {
     const owner = hgCurrentIAMUser();
-    if (this.hgExpiryRefreshUsedOwner && this.hgExpiryRefreshUsedOwner !== owner) this.hgExpiryRefreshUsedOwner = "";
     if (this.hgRealtimeDisabledOwner && this.hgRealtimeDisabledOwner !== owner) this.hgRealtimeDisabledOwner = "";
     if (this.hgRealtimeOwner && this.hgRealtimeOwner !== owner) this.hgCloseRealtime();
     for (const entry of this.hgBusinessListeners) {
@@ -145,7 +155,7 @@ export class HGIAMAccessProvider extends React.Component {
     }, Math.min(Math.max(1, expiry - Date.now()), 2_147_483_647));
   };
 
-  /** 到期只补拉一次权威快照；再次到期只让旧展示失效，避免未启用实时能力时每分钟轮询。 */
+  /** 只在权威快照真正到期时复核；每次成功都按新期限安排，失败时停止并提示重试。 */
   hgScheduleExpiry = (snapshot) => {
     clearTimeout(this.hgExpiryTimer);
     const expires = Date.parse(snapshot.expires_at); // 毫秒时间戳；2099 表示无限期投影上限。
@@ -157,11 +167,6 @@ export class HGIAMAccessProvider extends React.Component {
       const current = hgGetIAMSnapshot(); // 新推送可能已替换旧定时器，不允许用旧快照触发补拉。
       if (current && (current.policy_version !== snapshot.policy_version ||
           current.expires_at !== snapshot.expires_at)) return;
-      if (this.hgExpiryRefreshUsedOwner === owner) {
-        this.setState({ snapshot: null, status: "error" });
-        return;
-      }
-      this.hgExpiryRefreshUsedOwner = owner;
       void this.hgRefresh({ sync: false });
       return;
     }
@@ -221,7 +226,6 @@ export class HGIAMAccessProvider extends React.Component {
       if (!this.hgMounted || this.hgRealtime !== realtime || owner !== hgCurrentIAMUser()) return;
       if (await hgApplyPushedIAM(snapshot) && this.hgMounted && owner === hgCurrentIAMUser()) {
         const current = hgGetIAMSnapshot();
-        this.hgExpiryRefreshUsedOwner = "";
         this.setState({ snapshot: current, status: "ready" });
         this.hgScheduleExpiry(current);
         this.hgScheduleAuthExpiry();

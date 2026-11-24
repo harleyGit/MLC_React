@@ -217,7 +217,7 @@ test("冷启动使用本人未过期缓存，无需重新请求授权快照", as
   hg.provider.componentWillUnmount();
 });
 
-test("IM 不可用且快照到期时仅补拉一次 /me/access，二次到期本地失效", async () => {
+test("IM 不可用且连续快照到期时逐次复核权威权限，不把仍有效的菜单隐藏", async () => {
   const hg = hgFixture();
   hg.realtimeUnavailable();
   hg.provider.componentDidMount();
@@ -231,9 +231,44 @@ test("IM 不可用且快照到期时仅补拉一次 /me/access，二次到期本
   await hgFlush();
   hg.provider.hgScheduleExpiry({ user_id: "operator-a", expires_at: new Date(Date.now() - 1).toISOString() });
   await hgFlush();
-  assert.deepEqual(hg.requestModes(), [false, false]);
-  assert.equal(hg.provider.state.status, "error");
-  assert.equal(hg.provider.state.snapshot, null);
+  assert.deepEqual(hg.requestModes(), [false, false, false]);
+  hg.resolve({ user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() });
+  await hgFlush();
+  assert.equal(hg.provider.state.status, "ready");
+  assert.equal(hg.provider.state.snapshot?.user_id, "operator-a");
+  hg.provider.componentWillUnmount();
+});
+
+test("续签 access token 只更新登录到期计时，不额外请求权限或清空菜单", async () => {
+  const hg = hgFixture();
+  hg.provider.componentDidMount();
+  await hgFlush();
+  const snapshot = { user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() };
+  hg.resolve(snapshot);
+  await hgFlush();
+  hg.listeners.get("hg:token-refreshed")();
+  assert.equal(hg.provider.state.snapshot, snapshot);
+  assert.deepEqual(hg.requestModes(), [false]);
+  hg.provider.componentWillUnmount();
+});
+
+test("过期 access 冷启动续签后重新读取本人权限，菜单无需再次刷新页面", async () => {
+  const hg = hgFixture();
+  hg.switchOwner("");
+  hg.provider.componentDidMount();
+  await hgFlush();
+  hg.resolve(null);
+  await hgFlush();
+  assert.equal(hg.provider.state.status, "unauthenticated");
+  hg.switchOwner("operator-a");
+  hg.listeners.get("hg:token-refreshed")();
+  await hgFlush();
+  assert.equal(hg.fetchCount(), 2);
+  const snapshot = { user_id: "operator-a", grants: [], expires_at: new Date(Date.now() + 60_000).toISOString() };
+  hg.resolve(snapshot);
+  await hgFlush();
+  assert.equal(hg.provider.state.snapshot, snapshot);
+  assert.equal(hg.provider.state.status, "ready");
   hg.provider.componentWillUnmount();
 });
 

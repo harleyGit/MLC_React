@@ -195,6 +195,7 @@ class NetAPI {
             body,
             timeout,
             _hasRetried,
+            _accessToken: authHeaders.Authorization,
             signal, responseType, maxResponseBytes, validateRequest,
           });
         }
@@ -247,6 +248,7 @@ class NetAPI {
           body,
           timeout,
           _hasRetried,
+          _accessToken: authHeaders.Authorization,
           signal, responseType, maxResponseBytes, validateRequest,
         });
       }
@@ -641,12 +643,11 @@ class NetAPI {
       };
     }
 
-    if (!this.refreshTokenPromise) {// token刷想
-      this.refreshTokenPromise = this.refreshToken();
-    }
-
     try {
-      await this.refreshTokenPromise;
+      // 另一请求或标签页已换发令牌时，直接用新令牌重试，避免重放一次性的 refresh token。
+      if (originalRequest._accessToken === this.getAuthHeaders().Authorization) {
+        await this.ensureFreshToken();
+      }
       originalRequest?.validateRequest?.();
       return this.request({
         ...originalRequest,
@@ -658,9 +659,17 @@ class NetAPI {
         status: 401,
         message: err?.message || "登录状态失效，请重新登录",
       };
-    } finally {
-      this.refreshTokenPromise = null;
     }
+  }
+
+  // 同一标签页内所有主动续签与 401 续签共享一次请求；失败后允许显式重试。
+  ensureFreshToken() {
+    if (!this.refreshTokenPromise) {
+      this.refreshTokenPromise = this.refreshToken().finally(() => {
+        this.refreshTokenPromise = null;
+      });
+    }
+    return this.refreshTokenPromise;
   }
 
   async refreshToken() {
@@ -673,50 +682,46 @@ class NetAPI {
     const apiBase = getApiBase();
     const url = joinApiURL(apiBase, "/api/v1/auth/refresh");
     const body = { refreshToken };
-    const commonHeaders = this.getCommonHeaders();
-    const requestHeaders = {
-      "Content-Type": "application/json",
-      ...commonHeaders,
-    };
-    requestHeaders["X-Signature"] = await this.buildSignature({
-      url,
-      method: "POST",
-      headers: requestHeaders,
-      body,
-    });
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: requestHeaders,
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      // 服务端明确拒绝续签才执行本地登出；网络故障不可清除有效会话。
-      if (res.status === 401 && (localStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem("refreshToken")) === refreshToken) {
-        redirectToLogin();
+    const currentRefreshToken = () =>
+      localStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem("refreshToken");
+    const renew = async () => {
+      // navigator.locks 串行化同源标签页；等待期间若已由别的标签续签则不重放旧令牌。
+      if (currentRefreshToken() !== refreshToken) return;
+      const requestHeaders = {
+        "Content-Type": "application/json",
+        ...this.getCommonHeaders(),
+      };
+      requestHeaders["X-Signature"] = await this.buildSignature({
+        url,
+        method: "POST",
+        headers: requestHeaders,
+        body,
+      });
+      if (currentRefreshToken() !== refreshToken) return;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: requestHeaders,
+        body: JSON.stringify(body),
+      });
+      if (currentRefreshToken() !== refreshToken) return;
+      if (!res.ok) {
+        // 后端依赖故障也可能返回 401；不自动删除 refresh token，由受保护路由阻止访问并提供重试。
+        throw { type: "AUTH_ERROR", status: res.status, message: "刷新 token 失败" };
       }
-      throw { type: "AUTH_ERROR", message: "刷新 token 失败" };
+      const data = await res.json();
+      if (currentRefreshToken() !== refreshToken) return;
+      if (data.code !== 200 || !data?.result?.token ||
+          !(data?.result?.refreshToken || data?.result?.refresh_token)) {
+        throw { type: "AUTH_ERROR", message: data.message || "刷新 token 失败" };
+      }
+      localStorage.setItem(TOKEN_KEY, data.result.token);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.result.refreshToken ?? data.result.refresh_token);
+      window.dispatchEvent(new Event("hg:token-refreshed"));
+    };
+    if (navigator.locks?.request) {
+      return navigator.locks.request("hg-auth-refresh", renew);
     }
-
-    const data = await res.json();
-
-    if (data.code !== 200) {
-      throw { type: "AUTH_ERROR", message: data.message || "刷新 token 失败" };
-    }
-
-    // 刷新期间登出或换号时不能把旧账号 token 写回当前登录态。
-    if ((localStorage.getItem(REFRESH_TOKEN_KEY) || localStorage.getItem("refreshToken")) !== refreshToken) {
-      throw { type: "AUTH_ERROR", message: "登录身份已变化，已忽略旧刷新结果" };
-    }
-
-    localStorage.setItem(TOKEN_KEY, data?.result?.token);
-    if (data?.result?.refreshToken || data?.result?.refresh_token) {
-      localStorage.setItem(
-        REFRESH_TOKEN_KEY,
-        data?.result?.refreshToken ?? data?.result?.refresh_token
-      );
-    }
+    return renew();
   }
 }
 
