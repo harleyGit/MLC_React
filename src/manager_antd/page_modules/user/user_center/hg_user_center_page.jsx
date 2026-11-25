@@ -16,6 +16,7 @@ import HGMerchantCommercePage from "../../../../pages/mall/hg_merchant_commerce_
 import HGCommerceCategoryPage from "../../../../pages/mall/hg_commerce_category_page";
 import HGImContactsPage from "../../../../pages/im_contacts/hg_im_contacts_page";
 import HGSecurityCenterPage from "./hg_security_center/hg_security_center_page";
+import HGMFARecoveryPage from "./hg_security_center/hg_mfa_recovery_page";
 import HGUserCenterVM, {
   USER_CENTER_MENU_ITEMS,
   USER_CENTER_MENU_KEYS,
@@ -97,8 +98,10 @@ class HGUserCenterPage extends Component {
       return <HGImContactsPage hgInitialFilter="groups" pageNavigator={this.props.pageNavigator} />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.SECURITY_MFA) {
-      // 安全中心进入时只读取状态；绑定、发信和重置仍需用户显式操作。
-      return <HGSecurityCenterPage />;
+      return <HGSecurityCenterPage hgRecoveryUrl={hgBuildSubMenuUrl(ROUTE_PATH.USER_CENTER, USER_CENTER_MENU_KEYS.SECURITY_MFA_RECOVERY)} />;
+    }
+    if (selectedKey === USER_CENTER_MENU_KEYS.SECURITY_MFA_RECOVERY) {
+      return <HGMFARecoveryPage hgMfaUrl={hgBuildSubMenuUrl(ROUTE_PATH.USER_CENTER, USER_CENTER_MENU_KEYS.SECURITY_MFA)} />;
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;
   };

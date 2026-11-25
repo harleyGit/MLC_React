@@ -16,6 +16,28 @@
   line-height: 1.7;
 }
 
+.guideList,
+.recoveryLink {
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.guideList {
+  padding-inline-start: 1.5em;
+}
+
+.guideList li + li {
+  margin-block-start: 8px;
+}
+
+.guideList a,
+.recoveryLink a,
+.stepDesc a {
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
 .stepSection {
   display: flex;
   flex-direction: column;
@@ -107,13 +129,6 @@
   margin: 0;
   color: var(--color-text-muted, #71849b);
   font-size: 13px;
-}
-
-.modalHint {
-  margin: 0 0 10px;
-  color: var(--color-text-secondary, #61758e);
-  font-size: 13px;
-  line-height: 1.7;
 }
 
 .modalFooter {

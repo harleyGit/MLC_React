@@ -10,7 +10,7 @@ const HG_SOURCE = new URL("./hg_security_center_page.jsx", import.meta.url); // 
 const HGStub = () => null; // 非交互组件仅作为 JSX 渲染占位。
 
 /** 编译真实页面，注入可控请求与 toast；不访问真实认证器或服务端。 */
-function hgSecurityPage(enrollMFA) {
+async function hgSecurityPage(enrollMFA, confirmMFA) {
   const hgMessages = []; // toast 事件按类型保留，检查用户实际可见反馈。
   const hgModule = { exports: {} }; // CommonJS 转译结果的局部模块容器。
   const hgCode = transformSync(readFileSync(HG_SOURCE, "utf8"), {
@@ -34,17 +34,23 @@ function hgSecurityPage(enrollMFA) {
         };
       }
       if (hgDependency.endsWith("hg_security_center_vm")) {
-        return { default: { enrollMFA, hgMfaAlreadyEnabledCode: 404008 }, __esModule: true };
+        return {
+          default: { enrollMFA, confirmMFA, recoveryStatus: async () => ({ mfaEnabled: false }), hgMfaAlreadyEnabledCode: 404008 },
+          __esModule: true,
+        };
       }
+      if (hgDependency.endsWith("hg_im_session")) return { hgIMOwner: () => "fixture-user", hgIMSessionID: () => "fixture-sid" };
+      if (hgDependency === "react-router-dom") return { Link: "link-stub" };
       if (hgDependency.endsWith(".module.css")) return { default: {} };
       return { default: HGStub, __esModule: true };
     },
   });
-  const hgPage = new hgModule.exports.default({}); // 不挂载 DOM；手动标记挂载以验证异步状态更新。
+  const hgPage = new hgModule.exports.default({ hgRecoveryUrl: "/account/center?menu=security_mfa_recovery" }); // 模拟个人中心传入子页 URL。
   hgPage.setState = (hgUpdate) => {
     hgPage.state = { ...hgPage.state, ...hgUpdate };
   };
   hgPage.componentDidMount();
+  await hgFlush();
   return { hgPage, hgMessages };
 }
 
@@ -52,7 +58,7 @@ function hgSecurityPage(enrollMFA) {
 const hgFlush = () => new Promise((hgResolve) => setImmediate(hgResolve));
 
 test("专用业务码提示已绑定及恢复方式，不展示通用错误并清空敏感输入", async () => {
-  const { hgPage, hgMessages } = hgSecurityPage(async () => {
+  const { hgPage, hgMessages } = await hgSecurityPage(async () => {
     throw { status: 409, code: 404008, message: "当前账号已绑定 MFA" };
   });
   hgPage.state.hgMfaPassword = "fixture-password";
@@ -81,7 +87,7 @@ test("403、429、503 和普通 409 分别提示，不把其他失败误报为�
     { status: 503, code: 500001, message: "MFA 服务暂不可用", type: "error", text: /暂不可用/ },
     { status: 409, code: 100009, message: "角色或授权状态冲突", type: "error", text: /角色或授权状态冲突/ },
   ]) {
-    const { hgPage, hgMessages } = hgSecurityPage(async () => { throw hgCase; });
+    const { hgPage, hgMessages } = await hgSecurityPage(async () => { throw hgCase; });
     hgPage.state.hgMfaPassword = "fixture-password";
     hgPage.hgEnrollMFA();
     await hgFlush();
@@ -95,7 +101,7 @@ test("403、429、503 和普通 409 分别提示，不把其他失败误报为�
 test("生成中的重复点击只发一次请求，成功后正常展示绑定信息", async () => {
   let hgCalls = 0;
   let hgResolveRequest;
-  const { hgPage, hgMessages } = hgSecurityPage(() => {
+  const { hgPage, hgMessages } = await hgSecurityPage(() => {
     hgCalls += 1;
     return new Promise((hgResolve) => { hgResolveRequest = hgResolve; });
   });
@@ -108,4 +114,23 @@ test("生成中的重复点击只发一次请求，成功后正常展示绑定�
   assert.equal(hgPage.state.hgMfaPassword, "");
   assert.equal(hgPage.state.hgMfaSecret, "fixture-secret");
   assert.deepEqual(hgMessages, []);
+});
+
+test("确认激活后清空密钥，并引导到独立的恢复邮箱子页", async () => {
+  const hgCalls = [];
+  const { hgPage, hgMessages } = await hgSecurityPage(
+    async () => ({ secret: "fixture-secret", otpauthUri: "fixture-uri" }),
+    async (hgCode) => { hgCalls.push(hgCode); }
+  );
+  hgPage.setState({ hgMfaPassword: "fixture-password" });
+  await hgPage.hgEnrollMFA();
+  hgPage.setState({ hgMfaConfirmCode: "000001", hgConfirmModalOpen: true });
+  await hgPage.hgConfirmMFA();
+  assert.deepEqual(hgCalls, ["000001"]);
+  assert.equal(hgPage.state.hgMfaEnabled, true);
+  assert.equal(hgPage.state.hgMfaSecret, "");
+  assert.equal(hgPage.state.hgConfirmModalOpen, false);
+  assert.match(hgMessages.at(-1)[1], /建议接着绑定恢复邮箱/);
+  const hgCard = hgPage.render().props.children[0];
+  assert.equal(hgCard.props.children[2].props.children[1].props.to, hgPage.props.hgRecoveryUrl);
 });

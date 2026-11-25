@@ -2,7 +2,7 @@
  * @Author: GangHuang harleysor@qq.com
  * @Date: 2026-11-01 14:38:51
  * @LastEditors: GangHuang harleysor@qq.com
- * @LastEditTime: 2026-11-24 17:11:31
+ * @LastEditTime: 2026-11-25 16:32:58
  * @FilePath: /MLC_React/src/manager_antd/page_modules/user/user_center/hg_user_center_vm.jsx
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -24,6 +24,7 @@ export const USER_CENTER_MENU_KEYS = {
   FRIEND_REQUESTS: "im_requests", // 即时通信 → 新的朋友（好友申请接受/拒绝）。
   IM_GROUPS: "im_groups", // 即时通信 → 群组（群聊列表与群资料）。
   SECURITY_MFA: "security_mfa", // 安全中心 → MFA 动态口令（TOTP 绑定与激活）。
+  SECURITY_MFA_RECOVERY: "security_mfa_recovery", // 安全中心 → 恢复邮箱的绑定、更换及找回。
 };
 
 /**
@@ -71,7 +72,8 @@ export const USER_CENTER_MENU_ITEMS = [
     key: "security_center",
     label: "安全中心",
     children: [
-      { key: USER_CENTER_MENU_KEYS.SECURITY_MFA, label: "MFA 与恢复邮箱" },
+      { key: USER_CENTER_MENU_KEYS.SECURITY_MFA, label: "绑定 MFA 验证器" },
+      { key: USER_CENTER_MENU_KEYS.SECURITY_MFA_RECOVERY, label: "MFA 绑定恢复邮箱" },
     ],
   },
 ];

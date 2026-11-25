@@ -3,9 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { transformSync } from "@swc/core";
+import { hgBuildSubMenuUrl, hgReadSubMenuKey } from "../../../../../components/hg_navigation/hg_sub_nav.js";
 
 /** 转换真实 JSX；模拟浏览器会话和网络，不读存储、不连接邮件服务。 */
-function hgLoadPage(path, imports, globals = {}) {
+function hgLoadModule(path, imports, globals = {}) {
   const hgModule = { exports: {} };
   const hgCode = transformSync(readFileSync(new URL(path, import.meta.url), "utf8"), {
     filename: path,
@@ -22,8 +23,10 @@ function hgLoadPage(path, imports, globals = {}) {
     require: (id) => id === "react" ? { __esModule: true, Component: HGComponent, default: hgReact } : imports[id.split("/").at(-1)] ?? {},
     ...globals,
   });
-  return hgModule.exports.default;
+  return hgModule.exports;
 }
+
+const hgLoadPage = (...args) => hgLoadModule(...args).default;
 
 function hgSecurityFixture() {
   const hgCalls = [];
@@ -36,8 +39,9 @@ function hgSecurityFixture() {
     bindRecovery: async (email, emailCode, mfaCode) => { hgCalls.push(["bind", email, emailCode, mfaCode]); },
     resetMFA: async () => ({ reloginRequired: true }),
   };
-  const HGPage = hgLoadPage("./hg_security_center_page.jsx", {
+  const HGPage = hgLoadPage("./hg_mfa_recovery_page.jsx", {
     hg_security_center_vm: hgVM,
+    "react-router-dom": { Link: "link-stub" },
     hg_auth: { logout: () => hgCalls.push(["logout"]) },
     hg_im_session: { hgIMOwner: () => "fixture-user", hgIMSessionID: () => hgSID },
     hg_message_page: { hgMessage: { success: () => {}, error: (msg) => hgCalls.push(["error", msg]) } },
@@ -46,7 +50,7 @@ function hgSecurityFixture() {
     setTimeout: (fn) => { hgTimers.add(fn); return fn; },
     clearTimeout: (fn) => hgTimers.delete(fn),
   });
-  const page = new HGPage({});
+  const page = new HGPage({ hgMfaUrl: "/account/center?menu=security_mfa" });
   page.hgMounted = true;
   page.hgPageSession = page.hgSessionIdentity();
   return { page, hgCalls, hgTimers, hgVM, switchSession: () => { hgSID = "new-sid"; }, rejectConfirm: () => { hgConfirm = false; } };
@@ -54,11 +58,47 @@ function hgSecurityFixture() {
 
 function hgFindButton(tree, label) {
   if (tree?.children?.includes(label)) return tree;
-  for (const child of tree?.children || []) {
+  for (const child of Array.isArray(tree) ? tree : tree?.children || []) {
     const found = hgFindButton(child, label);
     if (found) return found;
   }
 }
+
+test("安全中心两个子菜单按 URL 打开独立页面，并互相提供导航地址", () => {
+  const hgMenu = hgLoadModule("../hg_user_center_vm.jsx", {});
+  const { SECURITY_MFA, SECURITY_MFA_RECOVERY } = hgMenu.USER_CENTER_MENU_KEYS;
+  const hgSecurity = hgMenu.USER_CENTER_MENU_ITEMS.find(({ key }) => key === "security_center");
+  assert.deepEqual(Array.from(hgSecurity.children, ({ key }) => key), [SECURITY_MFA, SECURITY_MFA_RECOVERY]);
+
+  const HGMfa = () => null; // 内容区根据菜单键只挂载一个子页。
+  const HGRecovery = () => null;
+  const HGCenter = hgLoadPage("../hg_user_center_page.jsx", {
+    hg_user_center_vm: hgMenu,
+    hg_sub_nav: { hgBuildSubMenuUrl, hgReadSubMenuKey },
+    hg_route_path: { ROUTE_PATH: { USER_CENTER: "/account/center" } },
+    hg_security_center_page: HGMfa,
+    hg_mfa_recovery_page: HGRecovery,
+  });
+  let hgNavigated;
+  const hgPage = new HGCenter({ location: { search: "?menu=security_mfa" }, navigate: (url) => { hgNavigated = url; } });
+  const hgMfaView = hgPage.renderContent();
+  assert.equal(hgMfaView.element, HGMfa);
+  hgPage.handleMenuSelect(SECURITY_MFA_RECOVERY);
+  assert.equal(hgNavigated, hgMfaView.props.hgRecoveryUrl);
+  hgPage.props = { ...hgPage.props, location: { search: new URL(hgNavigated, "https://example.test").search } };
+  const hgRecoveryView = hgPage.renderContent();
+  assert.equal(hgRecoveryView.element, HGRecovery);
+  assert.equal(hgRecoveryView.props.hgMfaUrl, "/account/center?menu=security_mfa");
+});
+
+test("尚未启用 MFA 的账号看到设置入口，而不是恢复邮箱绑定或重置表单", async () => {
+  const { page, hgVM } = hgSecurityFixture();
+  hgVM.recoveryStatus = async () => ({ mfaEnabled: false, emailVerified: false });
+  await page.hgLoadRecoveryStatus();
+  assert.equal(hgFindButton(page.renderRecoveryEmail(), "绑定并启用 MFA 验证器").props.to, page.props.hgMfaUrl);
+  assert.equal(hgFindButton(page.renderRecoveryEmail(), "发送邮箱验证码"), undefined);
+  assert.equal(page.renderRecoveryReset(), null);
+});
 
 test("先选择邮箱服务商，同域名才允许发送；切换服务商清除旧地址和验证码", async () => {
   const { page } = hgSecurityFixture();
@@ -100,8 +140,15 @@ test("只有发信成功并录入两个验证码后才绑定恢复邮箱；更�
   assert.deepEqual(hgCalls.slice(0, 2), [["error", "发信失败"], ["send-bind", "fixture@icloud.com"]]);
   page.setState({ hgRecoveryEmailCode: "000011", hgRecoveryMfaCode: "000022" });
   assert.equal(bind().props.disabled, false);
+  const hgBindSuccess = hgVM.bindRecovery;
+  hgVM.bindRecovery = async () => { throw new Error("MFA 动态码无效"); };
   await bind().props.onClick();
-  assert.deepEqual(hgCalls.at(-1), ["bind", "fixture@icloud.com", "000011", "000022"]);
+  assert.equal(page.state.hgRecoveryEmailCode, "000011");
+  assert.equal(page.state.hgBindSentTo, "fixture@icloud.com");
+  hgVM.bindRecovery = hgBindSuccess;
+  page.setState({ hgRecoveryMfaCode: "000023" });
+  await bind().props.onClick();
+  assert.deepEqual(hgCalls.at(-1), ["bind", "fixture@icloud.com", "000011", "000023"]);
   assert.equal(page.state.hgRecoveryEmailCode, "");
   page.setState({ hgBindSentTo: "fixture@icloud.com", hgRecoveryEmailCode: "000011" });
   page.hgSetRecoveryAddress({ target: { value: "another@qq.com" } });
