@@ -1,8 +1,8 @@
 /* IAM 员工角色办理页：角色申请与独立审批队列；目标授权查询、撤销和逐项审批位于管理员列表弹窗。 */
 import React, { Component } from "react";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
-import HGCardPage from "../../../../components/hg_card/hg_card_page";
 import HGInputPage from "../../../../components/hg_input/hg_input_page";
+import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import styles from "./hg_employee_role.module.css";
 import HGEmployeeRoleVM, { INITIAL_BINDING_FORM } from "./hg_employee_role_vm";
@@ -26,6 +26,7 @@ class HGEmployeeRolePage extends Component {
       hgPermissionLoading: false, // 角色权限请求进行中。
       hgPermissionError: "", // 权限请求失败文案；空值表示无错误。
       granting: false, // 新授权申请提交进行中。
+      grantModalVisible: false, // 授权申请弹窗显示状态；默认隐藏，关闭时清除 MFA 验证码。
       queueApprovalCode: "", // 独立审批队列的动态码；不与指定用户审批或申请 MFA 共用。
       approvals: [], // 独立的待审批队列，空数组代表暂无数据或未加载。
       approvalNextCursor: "", // 审批队列续页游标。
@@ -62,6 +63,15 @@ class HGEmployeeRolePage extends Component {
         [field]: value,
         ...(field === "scopeType" && value === "global" ? { scopeId: "" } : {}),
       },
+    }));
+  };
+
+  /** 关闭授权弹窗时保留未提交的业务字段，但清除一次性验证码；提交期间禁止关闭。 */
+  closeGrantModal = () => {
+    if (this.hgGranting) return;
+    this.setState((previous) => ({
+      grantModalVisible: false,
+      form: { ...previous.form, mfaCode: "" },
     }));
   };
 
@@ -203,11 +213,11 @@ class HGEmployeeRolePage extends Component {
       });
   };
 
-  /** 新角色申请表单；目标用户从表单输入，现有授权和待审批由管理员列表弹窗查看。 */
+  /** 弹窗中的新角色申请表单；目标用户从表单输入，已生效授权由管理员列表查看。 */
   renderGrantForm = () => {
     const { form, roles, nextCursor, hasMore, hgRolePermissions, hgSelectedPermission, hgPermissionLoading, hgPermissionError } = this.state;
     return (
-      <HGCardPage title="授予新角色" className={styles.card}>
+      <div>
         <div className={styles.formGrid}>
           <label className={styles.field}>
             <span className={styles.label}>目标管理员用户 ID</span>
@@ -311,7 +321,7 @@ class HGEmployeeRolePage extends Component {
             提交授权申请
           </HGAuthButton>
         </div>
-      </HGCardPage>
+      </div>
     );
   };
 
@@ -388,8 +398,25 @@ class HGEmployeeRolePage extends Component {
     return (
       <div className={styles.employeeRoleContainer}>
         <h2 className={styles.formTitle}>管理员工角色</h2>
-        {this.renderGrantForm()}
+        <div className={styles.grantActionRow}>
+          <HGAuthButton permission={HG_PERMISSIONS.IAM_GRANT}
+            onClick={() => this.setState({ grantModalVisible: true })}>
+            分配管理员角色权限
+          </HGAuthButton>
+        </div>
         {this.renderApprovals()}
+        {this.state.grantModalVisible && (
+          <HGModalPage
+            visible
+            size="large"
+            title="分配管理员角色权限"
+            closable={!this.state.granting}
+            onClose={this.closeGrantModal}
+            footer={null}
+          >
+            {this.renderGrantForm()}
+          </HGModalPage>
+        )}
       </div>
     );
   }

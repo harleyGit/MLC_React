@@ -8,6 +8,7 @@ import React from "react";
 
 const HGTestButton = () => null; // 保留按钮回调，不触达 DOM 或真实 IAM。
 const HGTestInput = () => null; // 保留目标用户输入的 onChange/value 协议。
+const HGTestModal = () => null; // 检查弹窗显隐与关闭回调，不访问真实 DOM。
 
 /** 转换当前员工角色页；授权查询/撤销已经迁移，替身只提供申请与独立审批队列。 */
 function hgEmployeePage(vm) {
@@ -30,6 +31,7 @@ function hgEmployeePage(vm) {
       if (path.endsWith("hg_permission")) return { HGAuthButton: HGTestButton };
       if (path.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant", IAM_APPROVE: "iam:approval:approve" } };
       if (path.endsWith("hg_input_page")) return { __esModule: true, default: HGTestInput };
+      if (path.endsWith("hg_modal_page")) return { __esModule: true, default: HGTestModal };
       if (path.endsWith(".module.css")) return { __esModule: true, default: {} };
       if (path.endsWith("hg_message_page")) return {
         hgMessage: { error: (text) => messages.errors.push(text), success: (text) => messages.successes.push(text) },
@@ -77,9 +79,33 @@ test("员工角色页删除目标授权查询区，仅保留目标输入、新�
   assert.ok(input);
   input.props.onChange({ target: { value: "hgid_A" } });
   assert.equal(page.state.form.userId, "hgid_A");
-  assert.equal(page.renderGrantForm().props.title, "授予新角色");
   assert.match(hgText(page.render()), /待审批授权/);
   assert.doesNotMatch(hgText(page.render()), /查询角色授权|加载目标授权|查看回填/);
+});
+
+test("左上角按钮打开授权弹窗，关闭清除 MFA 且提交中不能关闭", () => {
+  const { page } = hgEmployeePage({});
+  assert.equal(hgFind(page.render(), (node) => node.type === HGTestModal).length, 0);
+  const button = hgFind(page.render(), (node) => node.type === HGTestButton && hgText(node) === "分配管理员角色权限")[0];
+  assert.ok(button);
+  button.props.onClick();
+  let modal = hgFind(page.render(), (node) => node.type === HGTestModal)[0];
+  assert.equal(modal.props.title, "分配管理员角色权限");
+  assert.ok(hgFind(modal, (node) => node.type === HGTestInput && node.props.id === "hg-iam-user-id").length);
+  page.setField("userId", "hgid_A");
+  page.setField("mfaCode", "123456");
+  page.hgGranting = true;
+  page.setState({ granting: true });
+  modal = hgFind(page.render(), (node) => node.type === HGTestModal)[0];
+  assert.equal(modal.props.closable, false);
+  modal.props.onClose();
+  assert.equal(page.state.grantModalVisible, true);
+  page.hgGranting = false;
+  page.setState({ granting: false });
+  modal.props.onClose();
+  assert.equal(hgFind(page.render(), (node) => node.type === HGTestModal).length, 0);
+  assert.equal(page.state.form.userId, "hgid_A");
+  assert.equal(page.state.form.mfaCode, "");
 });
 
 test("申请表单的业务权限仍只展示所选角色权限，旧角色响应不可覆盖", async () => {

@@ -55,9 +55,8 @@
   min-width: 100px;
 }
 
-/* 新授权申请表单沿用原页面的布局与状态语义。 */
-.card {
-  width: 100%;
+/* 页头操作与下方审批队列保持间距；授权表单仅在弹窗中展示。 */
+.grantActionRow {
   margin-bottom: 20px;
 }
 

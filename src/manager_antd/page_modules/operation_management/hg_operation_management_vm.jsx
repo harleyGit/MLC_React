@@ -50,10 +50,14 @@ export const OPERATION_MENU_ITEMS = [
       },
       {
         key: "role_employee",
-        label: "管理员工角色",
+        label: "IAM[身份与访问管理]审批",
         icon: <HGIconPage type="user" />,
       },
-      { key: "role_scope_type", label: "作用域类型", icon: <HGIconPage type="table" /> },
+      {
+        key: "role_scope_type",
+        label: "作用域类型",
+        icon: <HGIconPage type="table" />,
+      },
       // 创建角色页不再单独占菜单，入口收敛到角色列表页头的「创建角色」按钮。
     ],
   },
