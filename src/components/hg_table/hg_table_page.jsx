@@ -301,7 +301,7 @@ class VirtualRow extends React.PureComponent {
  *     { title: "金额", dataIndex: "amount", align: "right" },
  *   ]}
  * />
- * @extends {React.Component<Partial<typeof HGTablePage.defaultProps>>}
+ * @extends {React.Component<import("./hg_table_contract.js").HGTableProps>}
  */
 class HGTablePage extends React.Component {
   /** JavaScript columns 配置辅助函数；点击可查看 columns[] 全部属性、默认值与作用。 */

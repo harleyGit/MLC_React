@@ -5,6 +5,7 @@ import {
   HG_TABLE_COLUMN_DEFAULTS,
   HG_TABLE_PAGINATION_DEFAULTS,
   hgTableColumns,
+  hgTableProps,
   hgNormalizeTableAlign,
 } from "./hg_table_contract.js";
 import { hgStartDrag, hgMoveDrag } from "../hg_drag_scroll/hg_drag_scroll.js";
@@ -204,6 +205,9 @@ test("表格 JavaScript 契约公开 columns 子属性的默认值、作用及�
     contract,
     /export function hgTableColumns\(columns\)/
   );
+  const props = { columns: hgTableColumns([{ title: "管理员", align: "left" }]), pagination: false };
+  assert.equal(hgTableProps(props), props); // JSX 属性契约只提供编辑器导航，不改传给组件的对象。
+  assert.equal(hgTableProps(props).columns, props.columns);
 });
 
 test("自然行高的内容在被图片撑高的单元格中保持竖直居中", () => {
