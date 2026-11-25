@@ -60,9 +60,33 @@ function hgFindButton(tree, label) {
   }
 }
 
+test("先选择邮箱服务商，同域名才允许发送；切换服务商清除旧地址和验证码", async () => {
+  const { page } = hgSecurityFixture();
+  await page.hgLoadRecoveryStatus();
+  const send = () => hgFindButton(page.renderRecoveryEmail(), "发送邮箱验证码");
+  page.hgSetRecoveryAddress({ target: { value: "fixture@icloud.com" } });
+  assert.equal(send().props.disabled, true);
+  page.hgSetRecoveryProvider({ target: { value: "icloud" } });
+  page.hgSetRecoveryAddress({ target: { value: "fixture@gmail.com" } });
+  assert.equal(send().props.disabled, true);
+  page.hgSetRecoveryAddress({ target: { value: "fixture@ME.COM" } });
+  assert.equal(send().props.disabled, false);
+  page.setState({ hgRecoveryEmailCode: "000011", hgRecoveryMfaCode: "000022" });
+  page.hgSetRecoveryProvider({ target: { value: "qq" } });
+  assert.equal(page.state.hgRecoveryEmail, "");
+  assert.equal(page.state.hgRecoveryEmailCode, "");
+  assert.equal(page.state.hgRecoveryMfaCode, "");
+  page.hgSetRecoveryAddress({ target: { value: "fixture@qq.com" } });
+  assert.equal(send().props.disabled, false);
+  page.hgSetRecoveryProvider({ target: { value: "other" } });
+  page.hgSetRecoveryAddress({ target: { value: "fixture@custom.example" } });
+  assert.equal(send().props.disabled, false);
+});
+
 test("只有发信成功并录入两个验证码后才绑定恢复邮箱；更换输入地址清空旧码", async () => {
   const { page, hgCalls, hgVM } = hgSecurityFixture();
   await page.hgLoadRecoveryStatus();
+  page.hgSetRecoveryProvider({ target: { value: "icloud" } });
   page.hgSetRecoveryAddress({ target: { value: "fixture@icloud.com" } });
   const send = () => hgFindButton(page.renderRecoveryEmail(), "发送邮箱验证码");
   const bind = () => hgFindButton(page.renderRecoveryEmail(), "验证邮箱并绑定");

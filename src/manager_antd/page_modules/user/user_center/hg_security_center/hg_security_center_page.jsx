@@ -14,6 +14,14 @@ import { logout } from "../../../../auth/hg_auth";
 import { hgIMOwner, hgIMSessionID } from "../../../../storage/hg_im_session";
 import styles from "./hg_security_center_page.module.css";
 
+// 仅用于收件地址交互；自定义域名使用“其他”，不将供应商选项发给后端。
+const HG_RECOVERY_MAIL_PROVIDERS = [
+  { value: "icloud", label: "iCloud", domains: ["icloud.com", "me.com", "mac.com"] },
+  { value: "gmail", label: "Gmail", domains: ["gmail.com", "googlemail.com"] },
+  { value: "qq", label: "QQ 邮箱", domains: ["qq.com", "vip.qq.com", "foxmail.com"] },
+  { value: "other", label: "其他邮箱", domains: [] },
+];
+
 /**
  * 安全中心页面（MFA 动态口令）。
  * 职责：按「密码复核 → 添加验证器 → 确认激活」三步引导绑定管理员 TOTP。
@@ -32,6 +40,7 @@ class HGSecurityCenterPage extends Component {
     hgRecoveryLoadFailed: false, // 状态读失败时显示重试，不无限显示加载中。
     hgRecoveryReady: false, // 恢复邮箱冷却期结束后才显示可发送；后端仍独立验证。
     hgRecoveryEmail: "", // 新恢复邮箱；空字符串表示尚未输入。
+    hgRecoveryProvider: "", // 收件邮箱类型，空字符串表示尚未选择。
     hgBindSentTo: "", // 最近确认发信的地址；改地址不复用旧验证码。
     hgResetSent: false, // 本次页面已确认发送找回码；刷新页面可以重新发送。
     hgRecoveryEmailCode: "", // 绑定邮箱的邮件码；只存页面内存，提交后清空。
@@ -126,6 +135,11 @@ class HGSecurityCenterPage extends Component {
   /** 新地址与上次已发送地址不同时，不使用之前的邮件码。 */
   hgSetRecoveryAddress = (event) => this.setState({
     hgRecoveryEmail: event.target.value, hgBindSentTo: "", hgRecoveryEmailCode: "", hgRecoveryMfaCode: "",
+  });
+
+  /** 更换收件邮箱类型时丢弃旧地址和验证码，不把旧邮件码用于新的邮箱。 */
+  hgSetRecoveryProvider = (event) => this.setState({
+    hgRecoveryProvider: event.target.value, hgRecoveryEmail: "", hgBindSentTo: "", hgRecoveryEmailCode: "", hgRecoveryMfaCode: "",
   });
 
   /** 邮箱码与密码由服务端在重置事务前核验；成功立即清理本地会话，不用旧 JWT 续签。 */
@@ -428,10 +442,14 @@ class HGSecurityCenterPage extends Component {
   renderRecoveryEmail = () => {
     const {
       hgRecoveryStatus: hgStatus, hgRecoveryEmail: hgEmail, hgRecoveryEmailCode: hgCode,
-      hgRecoveryMfaCode: hgMfa, hgRecoveryBusy: hgBusy, hgBindSentTo, hgRecoveryLoadFailed,
+      hgRecoveryMfaCode: hgMfa, hgRecoveryBusy: hgBusy, hgBindSentTo, hgRecoveryLoadFailed, hgRecoveryProvider,
     } = this.state;
+    const hgProvider = HG_RECOVERY_MAIL_PROVIDERS.find(({ value }) => value === hgRecoveryProvider); // 找不到时禁止填写与发送。
     const hgAddress = hgEmail.trim(); // 页面仅做基础输入提示，服务端规范化和验证地址。
-    const hgCanSend = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hgAddress) && hgAddress.length <= 254;
+    const hgValidAddress = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(hgAddress) && hgAddress.length <= 254;
+    const hgDomain = hgAddress.split("@")[1]?.toLowerCase(); // 域名大小写不影响邮箱类型校验。
+    const hgDomainMatches = hgProvider && (!hgProvider.domains.length || hgProvider.domains.includes(hgDomain));
+    const hgCanSend = hgValidAddress && !!hgDomainMatches; // 不允许选错邮箱类型后误发。
     const hgCanBind = hgCanSend && hgBindSentTo === hgAddress && /^\d{6}$/.test(hgCode) && /^\d{6}$/.test(hgMfa);
     return (
       <HGCardPage title="恢复邮箱" className={styles.card}>
@@ -446,9 +464,19 @@ class HGSecurityCenterPage extends Component {
             )}
             {hgStatus.mfaEnabled ? (
               <section className={styles.stepSection}>
+                <label className={styles.fieldLabel} htmlFor="hg-recovery-provider">收件邮箱类型</label>
+                <select id="hg-recovery-provider" className={`${styles.control} ${styles.mailProvider}`}
+                  value={hgRecoveryProvider} onChange={this.hgSetRecoveryProvider} disabled={hgBusy}>
+                  <option value="" disabled>请选择邮箱类型</option>
+                  {HG_RECOVERY_MAIL_PROVIDERS.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                </select>
                 <label className={styles.fieldLabel} htmlFor="hg-recovery-email">新恢复邮箱</label>
                 <HGInputPage id="hg-recovery-email" type="email" className={styles.control} value={hgEmail}
-                  onChange={this.hgSetRecoveryAddress} autoComplete="email" maxLength={254} disabled={hgBusy} />
+                  onChange={this.hgSetRecoveryAddress} autoComplete="email" maxLength={254} disabled={!hgProvider || hgBusy}
+                  placeholder={hgProvider?.domains.length ? `例如 name@${hgProvider.domains[0]}` : "请输入完整邮箱地址"} />
+                {hgProvider && hgValidAddress && !hgDomainMatches && (
+                  <p className={styles.stepDesc} role="status">邮箱后缀与所选类型不符，可切换为正确类型或选择「其他邮箱」。</p>
+                )}
                 <HGButtonPage disabled={!hgCanSend || hgBusy} loading={hgBusy}
                   onClick={() => this.hgRecoveryAction(
                     () => HGSecurityCenterVM.sendBindCode(hgAddress, this.hgRequestOptions()),
