@@ -552,9 +552,13 @@ class HGAdminListPage extends Component {
     {
       title: "角色权限",
       dataIndex: "id",
-      width: 205,
+      width: 240,
+      align: "center",
       render: (_, record) => (
-        <HGSpacePage>
+        <HGSpacePage
+          size="small"
+          style={{ justifyContent: "center", flexWrap: "nowrap" }}
+        >
           <HGButtonPage
             type="link"
             disabled={!record.id}
