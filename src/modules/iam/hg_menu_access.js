@@ -15,7 +15,6 @@ export const HG_OPERATION_PERMISSIONS = Object.freeze({
   role_employee: HG_PERMISSIONS.IAM_READ,
   role_create: HG_PERMISSIONS.IAM_GRANT,
   role_edit: HG_PERMISSIONS.IAM_GRANT,
-  permission_config: HG_PERMISSIONS.IAM_READ,
   permission_menu: HG_PERMISSIONS.OPS_MENU_READ,
   resource_file: HG_PERMISSIONS.OPS_FILE_READ,
   resource_file_list: HG_PERMISSIONS.OPS_FILE_READ,

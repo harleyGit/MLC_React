@@ -10,6 +10,7 @@ import { HGMANAGER_API } from "../../../api/hg_api_constants";
 import HGNet from "../../../net_handle/hg_net_manager_vm";
 
 export const ADMIN_LIST_PAGE_SIZE = 20;
+const HG_ROLE_PAGE_SIZE = 100; // 单页角色上限；最多读取五页，避免弹窗无界扫描角色目录。
 
 /**
  * 管理员列表 ViewModel。
@@ -34,6 +35,55 @@ export default class HGAdminListVM {
    */
   static searchAdmins = (keyword) => {
     return HGNet.get(HGMANAGER_API.OPS_ADMIN_SEARCH, { keyword, limit: ADMIN_LIST_PAGE_SIZE });
+  };
+
+  /** 按精确管理员业务 ID 读取一页有效绑定；续页游标保持服务端字符串精度。 */
+  static fetchBindings = (userId, cursor = "0") =>
+    HGNet.get(HGMANAGER_API.IAM_BINDING_LIST, { userId, cursor, pageSize: ADMIN_LIST_PAGE_SIZE });
+
+  /** 仅为当前页绑定查找角色名称；未读到的角色由页面明确展示编码，不冒充名称。 */
+  static fetchRoleNames = async (roleIds) => {
+    const missing = new Set(roleIds.map(String)); // 当前页尚未匹配的角色 ID，空集合不访问目录。
+    const names = {}; // 已匹配角色 ID -> 名称；缺失表示当前目录页未查到该角色。
+    let cursor = "0"; // 首次从角色列表首页读取，续页始终沿用服务端字符串。
+    for (let page = 0; page < 5 && missing.size; page += 1) {
+      const result = await HGNet.get(HGMANAGER_API.IAM_ROLE_LIST, { cursor, pageSize: HG_ROLE_PAGE_SIZE });
+      if (!Array.isArray(result?.list)) throw new Error("角色目录响应无效");
+      result.list.forEach((role) => {
+        if (missing.has(String(role.id))) {
+          names[String(role.id)] = role.name || "";
+          missing.delete(String(role.id));
+        }
+      });
+      if (!result.hasMore) break;
+      if (!result.nextCursor || String(result.nextCursor) === cursor || result.list.length === 0) {
+        throw new Error("角色目录游标无效");
+      }
+      cursor = String(result.nextCursor);
+    }
+    return names;
+  };
+
+  /** 最多四个并行请求读取当前页角色权限；绑定权限子集不可从角色权限推算，调用方必须跳过。 */
+  static fetchRolePermissions = async (roleIds) => {
+    const ids = [...new Set(roleIds.map(String))]; // 去重角色 ID，防止多个作用域重复请求。
+    const permissions = {}; // 角色 ID -> { list, error }；错误不伪装成空权限。
+    let next = 0; // worker 下一项索引；每页至多 20 个不同角色。
+    const worker = async () => {
+      while (next < ids.length) {
+        const roleId = ids[next++];
+        try {
+          const result = await HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
+          if (!Array.isArray(result?.list) || !Array.isArray(result?.selected)) throw new Error("角色权限响应无效");
+          const selected = new Set(result.selected); // 服务端选中编码，目录未登记的编码不展示为有效权限。
+          permissions[roleId] = { list: result.list.filter((item) => selected.has(item.code)), error: "" };
+        } catch {
+          permissions[roleId] = { list: [], error: "业务权限加载失败，请重试" };
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, ids.length) }, () => worker()));
+    return permissions;
   };
 
   /**

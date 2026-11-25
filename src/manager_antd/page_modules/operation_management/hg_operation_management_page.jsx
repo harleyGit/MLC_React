@@ -39,9 +39,6 @@ const HGFileManagementPage = lazy(() =>
   import("./file_management/hg_file_management_page")
 );
 const HGPermissionMenuPage = lazy(() => import("./hg_permission_menu_page"));
-const HGPermissionConfigPage = lazy(() =>
-  import("./permission_config/hg_permission_config_page")
-);
 const HGRoleCreatePage = lazy(() =>
   import("./role_create/hg_role_create_page")
 );
@@ -240,7 +237,6 @@ const PAGE_MAP = {
   permission_list: PermissionListPage,
   permission_menu: HGPermissionMenuPage,
   permission_role: HGRoleListPage,
-  permission_config: HGPermissionConfigPage,
   // 系统配置：基础配置、安全配置、通知配置对应的占位/业务页面。
   system_basic_site: SystemBasicSitePage,
   system_basic_email: SystemBasicEmailPage,

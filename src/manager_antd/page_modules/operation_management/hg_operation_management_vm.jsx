@@ -72,11 +72,6 @@ export const OPERATION_MENU_ITEMS = [
         label: "菜单权限",
         icon: <HGIconPage type="menu" />,
       },
-      {
-        key: "permission_config",
-        label: "权限配置",
-        icon: <HGIconPage type="config" />,
-      },
     ],
   },
   {
