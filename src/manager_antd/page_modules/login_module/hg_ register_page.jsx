@@ -31,6 +31,8 @@ import HGClickCaptchaPage from "../../../components/hg_click_captcha/hg_click_ca
 class HGRegisterPage extends Component {
   formRef = React.createRef();
   timer = null;
+  hgEmailCodeInFlight = false; // 等待本次邮件提交确认，防止重复消耗点选验证凭证。
+  hgMounted = false; // 发信响应在离开注册页后不写页面状态或启动倒计时。
 
   constructor(props) {
     super(props);
@@ -50,51 +52,14 @@ class HGRegisterPage extends Component {
     };
   }
 
-  componentWillUnmount() {
-    this.timer && clearInterval(this.timer);
+  componentDidMount() {
+    this.hgMounted = true;
   }
 
-  /**
-   * 发送验证码（V2 版本），根据注册类型从表单获取手机号或邮箱并调用发送接口。
-   * @returns {void}
-   */
-  handleSendCodeV2 = () => {
-    const formValues = this.formRef.current?.getFieldsValue();
-    const isEmail = this.state.registerType == HGRegisterType.EMAIL;
-    const target = isEmail ? formValues.email : formValues.phone;
-
-    if (!target) {
-      message.error(
-        this.state.registerType ? "请先输入邮箱" : "请先输入手机号"
-      );
-      return;
-    }
-
-    // 调用发送验证码 API
-    this.sendCodeAPI(target, isEmail ? "email" : "phone");
-  };
-  /**
-   * 发送验证码（V3 版本），通过表单校验后根据指定类型获取目标联系方式并调用发送接口。
-   * @param {string} type - 注册类型（手机号或邮箱）。
-   * @returns {void}
-   */
-  handleSendCodeV3 = (type) => {
-    const form = formRef.current;
-    form.validateFields().then((values) => {
-      let target;
-      if (type === RegisterType.PHONE) {
-        target = values.phone;
-      } else if (type === RegisterType.EMAIL) {
-        target = values.email;
-      }
-
-      // 调用 API
-      api
-        .sendVerificationCode({ target, type })
-        .then(() => startCountdown())
-        .catch(showError);
-    });
-  };
+  componentWillUnmount() {
+    this.hgMounted = false;
+    this.timer && clearInterval(this.timer);
+  }
 
   /** 发送验证码 */
   handleSendCode = async () => {
@@ -117,6 +82,7 @@ class HGRegisterPage extends Component {
    * @param {string} verifyToken - 验证通过后的 token。
    */
   handleCaptchaSuccess = (verifyToken) => {
+    if (this.hgEmailCodeInFlight || this.state.codeLoading) return;
     this.setState({ captchaVisible: false });
 
     const contactWay = this.formRef.current?.getFieldValue(
@@ -124,24 +90,32 @@ class HGRegisterPage extends Component {
     );
 
     this.setState({ codeLoading: true });
-    showSuccess("验证码发送成功");
-    this.startCountdown();
 
     const isEmail = this.state.registerType === HGRegisterType.EMAIL;
+    if (isEmail) this.hgEmailCodeInFlight = true;
     const requestPromise = isEmail
       ? HGLoginVM.requestSendEmailVerifyCode({ email: contactWay, verifyToken })
       : HGLoginVM.requestSendVerifyCode({ phone: contactWay, verifyToken });
 
     requestPromise
       .then((verifyCode) => {
-        if (this.formRef.current) {
-          this.formRef.current.setFieldsValue({ code: verifyCode });
+        if (!this.hgMounted) return;
+        if (isEmail) {
+          this.setState({ verifyCode: "" });
+          this.formRef.current?.setFieldsValue({ code: "" });
+        } else {
+          this.formRef.current?.setFieldsValue({ code: verifyCode });
+          this.setState({ verifyCode });
         }
-        this.setState({ verifyCode: verifyCode });
+        showSuccess(isEmail ? "邮件已发送，请查收并手动输入验证码" : "验证码发送成功");
+        this.startCountdown();
       })
-      .catch(handleError)
+      .catch((error) => {
+        if (this.hgMounted) handleError(error);
+      })
       .finally(() => {
-        this.setState({ codeLoading: false });
+        this.hgEmailCodeInFlight = false;
+        if (this.hgMounted) this.setState({ codeLoading: false });
       });
   };
 
@@ -183,7 +157,7 @@ class HGRegisterPage extends Component {
         });
 
     registerPromise
-      .then((res) => {
+      .then(() => {
         message.success("注册成功，请登录");
         this.props.pageNavigator.open({ page: PAGE.LOGIN });
       })
@@ -356,4 +330,5 @@ class HGRegisterPage extends Component {
   }
 }
 
-export default WithNavigation(HGRegisterPage);
+const HGRegisterPageWithNavigation = WithNavigation(HGRegisterPage);
+export default HGRegisterPageWithNavigation;

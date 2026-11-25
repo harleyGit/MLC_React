@@ -166,6 +166,13 @@ export const HGMANAGER_API = {
   IAM_BINDING_GRANT_DIRECT_BATCH: "/api/v1/iam/bindings/grant-direct-batch", // 一次 MFA 原子授予最多 12 个绑定
   IAM_BINDING_REVOKE: "/api/v1/iam/bindings/revoke", // 撤销员工角色
   IAM_MFA_ENROLL: "/api/v1/iam/mfa/enroll", // 复核密码后绑定 TOTP
+  OWN_MFA_ENROLL: "/api/v1/iam/me/mfa/enroll", // 本人登记 TOTP（无需 IAM 管理权限）
+  OWN_MFA_CONFIRM: "/api/v1/iam/me/mfa/confirm", // 本人激活 TOTP
+  OWN_MFA_RECOVERY: "/api/v1/iam/me/mfa/recovery", // 读取本人恢复邮箱状态
+  OWN_MFA_RECOVERY_SEND_BIND: "/api/v1/iam/me/mfa/recovery/send-bind", // 给新邮箱发送绑定码
+  OWN_MFA_RECOVERY_BIND: "/api/v1/iam/me/mfa/recovery/bind", // 用邮件码和当前 TOTP 验证邮箱
+  OWN_MFA_RECOVERY_SEND_RESET: "/api/v1/iam/me/mfa/recovery/send-reset", // 给已验证邮箱发送找回码
+  OWN_MFA_RECOVERY_RESET: "/api/v1/iam/me/mfa/recovery/reset", // 用密码和邮件码找回 MFA
   IAM_MFA_CONFIRM: "/api/v1/iam/mfa/confirm", // 激活 TOTP
   IAM_APPROVAL_LIST: "/api/v1/iam/approvals/list", // 待审批授权
   IAM_APPROVAL_APPROVE: "/api/v1/iam/approvals/approve", // 批准授权

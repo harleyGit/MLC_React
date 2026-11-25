@@ -353,6 +353,9 @@ class HGLoginPage extends Component {
         />
         <div className={styles.card}>
           <h2 className={styles.title}>用户登录</h2>
+          {new URLSearchParams(this.props.location?.search).get("mfaReset") === "1" && (
+            <p role="status">请重新登录，然后打开安全中心绑定新验证器。</p>
+          )}
 
           {this.renderLoginForm()}
 

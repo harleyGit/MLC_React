@@ -97,7 +97,7 @@ class HGUserCenterPage extends Component {
       return <HGImContactsPage hgInitialFilter="groups" pageNavigator={this.props.pageNavigator} />;
     }
     if (selectedKey === USER_CENTER_MENU_KEYS.SECURITY_MFA) {
-      // 安全中心：MFA 绑定与激活全部由页面内按钮显式触发，进入时不自动请求。
+      // 安全中心进入时只读取状态；绑定、发信和重置仍需用户显式操作。
       return <HGSecurityCenterPage />;
     }
     return <p className={styles.placeholderText}>请选择菜单项</p>;

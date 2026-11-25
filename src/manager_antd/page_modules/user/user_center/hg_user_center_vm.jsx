@@ -71,7 +71,7 @@ export const USER_CENTER_MENU_ITEMS = [
     key: "security_center",
     label: "安全中心",
     children: [
-      { key: USER_CENTER_MENU_KEYS.SECURITY_MFA, label: "MFA 动态口令绑定" },
+      { key: USER_CENTER_MENU_KEYS.SECURITY_MFA, label: "MFA 与恢复邮箱" },
     ],
   },
 ];

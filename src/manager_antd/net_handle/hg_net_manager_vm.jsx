@@ -89,7 +89,7 @@ class HGNetManagerVM extends HGNetManager {
     if (verifyToken) {
       params.verifyToken = verifyToken;
     }
-    return this.get(HGMANAGER_API.SEND_EMAIL_CODE, params);
+    return this.post(HGMANAGER_API.SEND_EMAIL_CODE, params, { timeout: 10_000 });
   }
 
   // 注册新用户

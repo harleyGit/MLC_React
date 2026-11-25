@@ -81,15 +81,11 @@ export default class HGLoginVM {
   };
 
   /*发送邮箱验证码
-    curl -X GET "http://localhost:8080/api/v1/auth/send_email_code?email=test@example.com&verifyToken=xxx"
-
-    邮箱验证码和手机验证码共用同一套点选验证码前置校验。
-    这里不消费 verifyToken，只负责透传；真正的一次性消费在 Go 后端 ValidateVerifyToken 中完成。
+    邮箱验证码和手机验证码共用点选前置校验；邮箱与凭证走 POST 请求体，不放进 URL。
+    验证码仅由邮件送达，不读取接口响应中的验证码。
   */
   static requestSendEmailVerifyCode = ({ email, verifyToken }) => {
-    return HGNet.sendEmailCode({ email, verifyToken }).then((res) => {
-      return res?.verifyCode;
-    });
+    return HGNet.sendEmailCode({ email, verifyToken });
   };
 
   /* 登录
