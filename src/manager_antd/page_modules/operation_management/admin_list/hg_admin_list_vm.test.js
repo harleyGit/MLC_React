@@ -14,8 +14,8 @@ const hgBundle = await build({
       plugin.onResolve({ filter: /hg_api_constants|hg_net_manager_vm/ }, (args) => ({ path: args.path, namespace: "mock-network" }));
       plugin.onLoad({ filter: /.*/, namespace: "mock-network" }, (args) => ({
         contents: args.path.includes("hg_api_constants")
-          ? 'export const HGMANAGER_API = { IAM_BINDING_LIST: "/bindings/list", IAM_ROLE_LIST: "/roles/list", IAM_PERMISSION_LIST: "/permissions/list" };'
-          : 'export default { get: (...args) => globalThis.__hgAdminGet(...args) };',
+          ? 'export const HGMANAGER_API = { IAM_BINDING_LIST: "/bindings/list", IAM_BINDING_PENDING: "/bindings/pending", IAM_ROLE_LIST: "/roles/list", IAM_PERMISSION_LIST: "/permissions/list", IAM_BINDING_REVOKE: "/bindings/revoke", IAM_APPROVAL_APPROVE: "/approvals/approve", IAM_APPROVAL_REJECT: "/approvals/reject" };'
+          : 'export default { get: (...args) => globalThis.__hgAdminGet(...args), post: (...args) => globalThis.__hgAdminPost(...args) };',
         loader: "js",
       }));
     },
@@ -35,7 +35,35 @@ test("绑定查询使用精确管理员 ID 和字符串游标，不读取待审�
   }
 });
 
-test("角色名称按游标查找，权限只展示服务端选中编码且同角色去重", async () => {
+test("授权查询待审批使用独立只读接口及审批游标，保留大整数精度", async () => {
+  const requests = []; // 独立审批游标；不复用生效绑定的绑定 ID。
+  globalThis.__hgAdminGet = (...args) => { requests.push(args); return Promise.resolve({ list: [] }); };
+  try {
+    await HGAdminListVM.fetchPendingGrants("hgid_123", "9007199254740993");
+    assert.deepEqual(requests, [["/bindings/pending", { userId: "hgid_123", cursor: "9007199254740993", pageSize: 20 }]]);
+  } finally {
+    delete globalThis.__hgAdminGet;
+  }
+});
+
+test("迁移的目标授权操作仍按申请编号审批、按绑定 ID 撤销，维持原有 POST 协议", async () => {
+  const calls = []; // 不保存任何真实验证码；仅验证本地测试的固定占位值。
+  globalThis.__hgAdminPost = (...args) => { calls.push(args); return Promise.resolve({}); };
+  try {
+    await HGAdminListVM.decideApproval("9007199254740993", "123456", true);
+    await HGAdminListVM.decideApproval("8", "123456", false);
+    await HGAdminListVM.revokeBinding("hgid_A", "9007199254740994");
+    assert.deepEqual(calls, [
+      ["/approvals/approve", { id: "9007199254740993", mfaCode: "123456" }],
+      ["/approvals/reject", { id: "8", mfaCode: "123456" }],
+      ["/bindings/revoke", { userId: "hgid_A", bindingId: "9007199254740994" }],
+    ]);
+  } finally {
+    delete globalThis.__hgAdminPost;
+  }
+});
+
+test("角色名称按游标查找，权限目录与已选编码分开保留且同角色去重", async () => {
   const requests = []; // 两页角色目录及单个角色权限请求。
   globalThis.__hgAdminGet = async (url, params) => {
     requests.push([url, params]);
@@ -47,7 +75,11 @@ test("角色名称按游标查找，权限只展示服务端选中编码且同�
   try {
     assert.deepEqual(await HGAdminListVM.fetchRoleNames(["2"]), { "2": "审核" });
     assert.deepEqual(await HGAdminListVM.fetchRolePermissions(["2", "2"]), {
-      "2": { list: [{ code: "a:read", description: "读取" }], error: "" },
+      "2": {
+        list: [{ code: "a:read", description: "读取" }, { code: "b:write", description: "修改" }],
+        selected: ["a:read"],
+        error: "",
+      },
     });
     assert.equal(requests.filter(([url]) => url === "/permissions/list").length, 1);
     assert.equal(requests[1][1].cursor, "9007199254740993");
@@ -60,7 +92,7 @@ test("角色权限失败保留错误，不误报暂无权限", async () => {
   globalThis.__hgAdminGet = async () => { throw new Error("权限服务不可用"); };
   try {
     assert.deepEqual(await HGAdminListVM.fetchRolePermissions(["1"]), {
-      "1": { list: [], error: "业务权限加载失败，请重试" },
+      "1": { list: [], selected: [], error: "业务权限加载失败，请重试" },
     });
   } finally {
     delete globalThis.__hgAdminGet;

@@ -10,6 +10,7 @@ import React, { Component } from "react";
 import HGAvatarPage from "../../../../components/hg_avatar/hg_avatar_page";
 import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import HGCardPage from "../../../../components/hg_card/hg_card_page";
+import { HGCheckbox } from "../../../../components/hg_checkbox/hg_checkbox_page";
 import { HGInputSearch } from "../../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
@@ -18,6 +19,8 @@ import HGSpacePage from "../../../../components/hg_space/hg_space_page";
 import HGStatCardPage from "../../../../components/hg_stat_card/hg_stat_card_page";
 import HGStatusTagPage from "../../../../components/hg_status_tag/hg_status_tag_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
+import { HGAuthButton } from "../../../../modules/iam/hg_permission";
+import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 import styles from "./hg_admin_list.module.css";
 import HGAdminListVM, { ADMIN_LIST_PAGE_SIZE } from "./hg_admin_list_vm";
 
@@ -31,6 +34,9 @@ class HGAdminListPage extends Component {
     super(props);
     this.hgMounted = false; // 页面挂载标记；卸载后不再更新弹窗内的授权信息。
     this.hgBindingRequest = 0; // 弹窗查询序号；切换管理员或关闭时废弃旧响应。
+    this.hgSelectionRequest = 0; // “查看回填”权限查询序号；换绑定、退出查看或关闭弹窗时使旧响应失效。
+    this.hgDecidingApprovalId = ""; // 提交中的申请编号；防止同一次 MFA 并发裁决。
+    this.hgRevokingBindingId = ""; // 提交中的绑定编号；防止重复撤销。
     this.state = {
       data: [], // 当前页管理员记录；空数组表示尚未加载或查询无结果。
       loading: false, // 管理员列表/搜索请求标记；默认 false。
@@ -49,9 +55,23 @@ class HGAdminListPage extends Component {
       bindingLoaded: false, // 首页是否成功返回，用于区分初始态与空态。
       bindingError: "", // 绑定请求错误；空字符串表示无错误。
       bindingRoles: {}, // 角色 ID -> 角色名称；缺失时只展示角色编码。
-      bindingPermissions: {}, // 角色 ID -> {list, error}；不含被单独限制权限的绑定。
+      bindingPermissions: {}, // 角色 ID -> {list, selected, error}；授权查询仅在点击查看回填后填入。
       bindingDetailLoading: false, // 当前页角色名称及权限查询进行中。
+      bindingPermissionLoading: false, // “查看回填”选中角色的权限查询中；默认 false，不影响列表分页。
       bindingRoleError: "", // 角色目录错误；空字符串表示无错误。
+      bindingView: "permissions", // 弹窗展示模式：permissions 只查生效角色，authorization 同时查待审批申请。
+      pendingGrants: [], // 当前管理员已加载的待审批申请；不算作活动授权。
+      pendingCursor: "", // 待审批申请的下一页字符串游标；空字符串表示无续页。
+      pendingHasMore: false, // 服务端是否还有未加载的待审批申请。
+      pendingLoading: false, // 待审批页请求进行中，避免重复查询。
+      pendingLoaded: false, // 待审批首页是否成功返回；与空态区分。
+      pendingDetailLoading: false, // 待审批申请的角色名称加载中。
+      pendingError: "", // 待审批接口错误；不与活动绑定错误混淆。
+      pendingRoleError: "", // 待审批角色名称查询错误；不影响已生效权限展示。
+      approvalCode: "", // 审批人的一次性 MFA；弹窗关闭或提交后清空。
+      approvalDecisionId: "", // 当前正在裁决的申请编号，空字符串表示空闲。
+      revokingBindingId: "", // 当前正在撤销的绑定编号，空字符串表示空闲。
+      selectedBindingId: "", // 授权查询里被“查看回填”选中的活动绑定 ID；空字符串表示只看列表。
     };
   }
 
@@ -64,41 +84,101 @@ class HGAdminListPage extends Component {
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgBindingRequest += 1;
+    this.hgSelectionRequest += 1;
   }
 
-  /** 打开目标管理员的只读授权弹窗；必须使用当前行的精确业务用户 ID。 */
-  openBindings = (admin) => {
+  /** 按当前行精确业务用户 ID 打开弹窗；授权查询额外加载待审批，不能将其视作生效角色。 */
+  openBindings = (admin, view = "permissions") => {
     if (!admin.id) {
       message.error("该管理员缺少业务用户 ID，无法查询角色");
       return;
     }
     const request = ++this.hgBindingRequest; // 当前弹窗身份；旧管理员的响应不可覆盖新管理员。
-    this.setState({
-      bindingAdmin: admin, bindings: [], bindingCursor: "", bindingHasMore: false,
-      bindingLoading: false, bindingLoaded: false, bindingError: "",
-      bindingRoles: {}, bindingPermissions: {}, bindingDetailLoading: false, bindingRoleError: "",
-    }, () => this.loadBindings("0", request, admin.id));
+    this.hgSelectionRequest += 1; // 重开弹窗后不能显示上次“查看回填”的迟到权限。
+    this.setState(
+      {
+        bindingAdmin: admin,
+        bindings: [],
+        bindingCursor: "",
+        bindingHasMore: false,
+        bindingLoading: false,
+        bindingLoaded: false,
+        bindingError: "",
+        bindingRoles: {},
+        bindingPermissions: {},
+        bindingDetailLoading: false,
+        bindingPermissionLoading: false,
+        bindingRoleError: "",
+        bindingView: view,
+        pendingGrants: [],
+        pendingCursor: "",
+        pendingHasMore: false,
+        pendingLoading: false,
+        pendingLoaded: false,
+        pendingDetailLoading: false,
+        pendingError: "",
+        pendingRoleError: "",
+        approvalCode: "",
+        approvalDecisionId: "",
+        revokingBindingId: "",
+        selectedBindingId: "",
+      },
+      () => {
+        this.loadBindings("0", request, admin.id);
+        if (view === "authorization")
+          this.loadPendingGrants("0", request, admin.id);
+      }
+    );
   };
 
   /** 关闭弹窗并使在途绑定及权限请求失效；下次打开重新读取授权。 */
   closeBindings = () => {
     this.hgBindingRequest += 1;
-    this.setState({ bindingAdmin: null, bindings: [], bindingLoading: false, bindingDetailLoading: false });
+    this.hgSelectionRequest += 1;
+    this.setState({
+      bindingAdmin: null,
+      bindings: [],
+      bindingLoading: false,
+      bindingDetailLoading: false,
+      bindingPermissionLoading: false,
+      pendingGrants: [],
+      pendingLoading: false,
+      pendingDetailLoading: false,
+      approvalCode: "",
+      selectedBindingId: "",
+    });
   };
 
   /** 按绑定 ID 字符串游标加载一页，避免将权限接口失败当作用户没有角色。 */
-  loadBindings = async (cursor, request = this.hgBindingRequest, userId = this.state.bindingAdmin?.id) => {
-    if (!userId || request !== this.hgBindingRequest || userId !== this.state.bindingAdmin?.id ||
-      this.state.bindingLoading || this.state.bindingDetailLoading) return;
+  loadBindings = async (
+    cursor,
+    request = this.hgBindingRequest,
+    userId = this.state.bindingAdmin?.id
+  ) => {
+    if (
+      !userId ||
+      request !== this.hgBindingRequest ||
+      userId !== this.state.bindingAdmin?.id ||
+      this.state.bindingLoading ||
+      this.state.bindingDetailLoading
+    )
+      return;
     this.setState({ bindingLoading: true, bindingError: "" });
     try {
       const result = await HGAdminListVM.fetchBindings(userId, cursor);
       if (!this.hgMounted || request !== this.hgBindingRequest) return;
-      if (!Array.isArray(result?.list) || (result.hasMore && (!result.nextCursor || String(result.nextCursor) === String(cursor) || result.list.length === 0))) {
+      if (
+        !Array.isArray(result?.list) ||
+        (result.hasMore &&
+          (!result.nextCursor ||
+            String(result.nextCursor) === String(cursor) ||
+            result.list.length === 0))
+      ) {
         throw new Error("绑定响应无效");
       }
       this.setState((previous) => ({
-        bindings: cursor === "0" ? result.list : [...previous.bindings, ...result.list],
+        bindings:
+          cursor === "0" ? result.list : [...previous.bindings, ...result.list],
         bindingCursor: result.nextCursor || "",
         bindingHasMore: Boolean(result.hasMore),
         bindingLoaded: true,
@@ -107,29 +187,271 @@ class HGAdminListPage extends Component {
       }));
       if (!result.list.length) return;
 
-      const roleIds = [...new Set(result.list.map((binding) => String(binding.roleId)))]; // 本页角色名称去重查询。
-      const permissionIds = [...new Set(result.list.filter((binding) => !binding.permissionsLimited)
-        .map((binding) => String(binding.roleId)))]; // 权限受限的绑定不能用角色权限冒充实际权限。
+      const roleIds = [
+        ...new Set(result.list.map((binding) => String(binding.roleId))),
+      ]; // 本页角色名称去重查询。
+      const permissionIds =
+        this.state.bindingView === "permissions"
+          ? [
+              ...new Set(
+                result.list
+                  .filter((binding) => !binding.permissionsLimited)
+                  .map((binding) => String(binding.roleId))
+              ),
+            ]
+          : []; // 授权查询不预取权限，由“查看回填”点击时单独请求；受限绑定不推断实际权限。
       const [names, permissions] = await Promise.allSettled([
         HGAdminListVM.fetchRoleNames(roleIds),
-        HGAdminListVM.fetchRolePermissions(permissionIds),
+        permissionIds.length
+          ? HGAdminListVM.fetchRolePermissions(permissionIds)
+          : Promise.resolve({}),
       ]);
       if (!this.hgMounted || request !== this.hgBindingRequest) return;
       this.setState((previous) => ({
-        bindingRoles: { ...previous.bindingRoles, ...(names.status === "fulfilled" ? names.value : {}) },
+        bindingRoles: {
+          ...previous.bindingRoles,
+          ...(names.status === "fulfilled" ? names.value : {}),
+        },
         bindingPermissions: {
           ...previous.bindingPermissions,
           ...(permissions.status === "fulfilled"
             ? permissions.value
-            : Object.fromEntries(permissionIds.map((roleId) => [roleId, { list: [], error: "业务权限加载失败，请重试" }]))),
+            : Object.fromEntries(
+                permissionIds.map((roleId) => [
+                  roleId,
+                  { list: [], selected: [], error: "业务权限加载失败，请重试" },
+                ])
+              )),
         },
-        bindingRoleError: names.status === "rejected" ? "角色名称加载失败，请重试" : "",
+        bindingRoleError:
+          names.status === "rejected" ? "角色名称加载失败，请重试" : "",
         bindingDetailLoading: false,
       }));
     } catch {
       if (this.hgMounted && request === this.hgBindingRequest) {
-        this.setState({ bindingError: "角色绑定加载失败，请重试", bindingLoading: false, bindingDetailLoading: false });
+        this.setState({
+          bindingError: "角色绑定加载失败，请重试",
+          bindingLoading: false,
+          bindingDetailLoading: false,
+        });
       }
+    }
+  };
+
+  /** 点击活动绑定时才查询原角色权限接口；切换绑定、退出或关闭后丢弃迟到响应。 */
+  selectBinding = async (binding) => {
+    const current = this.state.bindings.find(
+      (item) => String(item.id) === String(binding.id)
+    ); // 只允许回填本页活动绑定。
+    if (
+      !this.hgMounted ||
+      this.state.bindingView !== "authorization" ||
+      !this.state.bindingAdmin ||
+      !current
+    )
+      return;
+    const roleId = String(current.roleId); // 与原“查看回填”选择角色后使用同一权限接口参数。
+    const request = this.hgBindingRequest; // 当前弹窗身份。
+    const selection = ++this.hgSelectionRequest; // 当前回填身份，同角色重复点击也发起新查询。
+    this.setState({
+      selectedBindingId: String(current.id),
+      bindingPermissions: {},
+      bindingPermissionLoading: true,
+    });
+    try {
+      const result = await HGAdminListVM.fetchRolePermissions([roleId]);
+      if (
+        !this.hgMounted ||
+        request !== this.hgBindingRequest ||
+        selection !== this.hgSelectionRequest
+      )
+        return;
+      const detail = result?.[roleId]; // VM 返回的角色权限目录及 selected；错误不得伪装为未配置权限。
+      this.setState({
+        bindingPermissions: {
+          [roleId]:
+            detail?.error ||
+            (Array.isArray(detail?.list) && Array.isArray(detail?.selected))
+              ? detail
+              : { list: [], selected: [], error: "业务权限加载失败，请重试" },
+        },
+      });
+    } catch {
+      if (
+        this.hgMounted &&
+        request === this.hgBindingRequest &&
+        selection === this.hgSelectionRequest
+      ) {
+        this.setState({
+          bindingPermissions: {
+            [roleId]: {
+              list: [],
+              selected: [],
+              error: "业务权限加载失败，请重试",
+            },
+          },
+        });
+      }
+    } finally {
+      if (
+        this.hgMounted &&
+        request === this.hgBindingRequest &&
+        selection === this.hgSelectionRequest
+      ) {
+        this.setState({ bindingPermissionLoading: false });
+      }
+    }
+  };
+
+  /** 收起只读详情并使正在返回的权限查询失效；不影响已经加载的授权列表。 */
+  clearBindingSelection = () => {
+    this.hgSelectionRequest += 1;
+    this.setState({
+      selectedBindingId: "",
+      bindingPermissions: {},
+      bindingPermissionLoading: false,
+    });
+  };
+
+  /** 待审批申请独立游标加载；响应失效或查询失败不影响另一来源的授权结果。 */
+  loadPendingGrants = async (
+    cursor,
+    request = this.hgBindingRequest,
+    userId = this.state.bindingAdmin?.id
+  ) => {
+    if (
+      !userId ||
+      request !== this.hgBindingRequest ||
+      userId !== this.state.bindingAdmin?.id ||
+      this.state.bindingView !== "authorization" ||
+      this.state.pendingLoading ||
+      this.state.pendingDetailLoading
+    )
+      return;
+    this.setState({ pendingLoading: true, pendingError: "" });
+    try {
+      const result = await HGAdminListVM.fetchPendingGrants(userId, cursor);
+      if (!this.hgMounted || request !== this.hgBindingRequest) return;
+      if (
+        !Array.isArray(result?.list) ||
+        (result.hasMore &&
+          (!result.nextCursor ||
+            String(result.nextCursor) === String(cursor) ||
+            result.list.length === 0))
+      ) {
+        throw new Error("待审批响应无效");
+      }
+      this.setState((previous) => ({
+        pendingGrants:
+          cursor === "0"
+            ? result.list
+            : [...previous.pendingGrants, ...result.list],
+        pendingCursor: result.nextCursor || "",
+        pendingHasMore: Boolean(result.hasMore),
+        pendingLoaded: true,
+        pendingLoading: false,
+        pendingDetailLoading: result.list.length > 0,
+      }));
+      if (!result.list.length) return;
+      const roleIds = [
+        ...new Set(result.list.map((grant) => String(grant.roleId))),
+      ]; // 当前页待审批角色 ID；复用角色目录而不读取权限当作生效授权。
+      try {
+        const names = await HGAdminListVM.fetchRoleNames(roleIds);
+        if (this.hgMounted && request === this.hgBindingRequest) {
+          this.setState((previous) => ({
+            bindingRoles: { ...previous.bindingRoles, ...names },
+            pendingRoleError: "",
+            pendingDetailLoading: false,
+          }));
+        }
+      } catch {
+        if (this.hgMounted && request === this.hgBindingRequest) {
+          this.setState({
+            pendingRoleError: "待审批角色名称加载失败，请重试",
+            pendingDetailLoading: false,
+          });
+        }
+      }
+    } catch {
+      if (this.hgMounted && request === this.hgBindingRequest) {
+        this.setState({
+          pendingError: "待审批授权加载失败，请重试",
+          pendingLoading: false,
+          pendingDetailLoading: false,
+        });
+      }
+    }
+  };
+
+  /** 按原有双人审批流程裁决目标申请；服务端仍复核审批人与 MFA，切换目标后不刷新新用户。 */
+  decideApproval = async (grant, approve) => {
+    const admin = this.state.bindingAdmin; // 提交时目标账号快照，避免异步期间切换目标。
+    const request = this.hgBindingRequest; // 当前弹窗身份；响应迟到时不写入其他管理员的状态。
+    const approvalId = String(grant.approvalId); // 待审批申请 ID，不是绑定 ID。
+    if (
+      this.state.bindingView !== "authorization" ||
+      !admin ||
+      this.hgDecidingApprovalId ||
+      !this.state.pendingGrants.some(
+        (item) => String(item.approvalId) === approvalId
+      )
+    )
+      return;
+    const mfaCode = this.state.approvalCode.trim(); // 审批人验证码只在内存持有至本次提交。
+    if (!/^\d{6}$/.test(mfaCode)) {
+      message.error("请输入审批人的 6 位 MFA 验证码");
+      return;
+    }
+    this.hgDecidingApprovalId = approvalId;
+    this.setState({ approvalDecisionId: approvalId, approvalCode: "" });
+    try {
+      await HGAdminListVM.decideApproval(approvalId, mfaCode, approve);
+      if (this.hgMounted && request === this.hgBindingRequest) {
+        message.success(approve ? "审批通过并已生效" : "申请已拒绝");
+        this.openBindings(admin, "authorization");
+      }
+    } catch (error) {
+      if (this.hgMounted && request === this.hgBindingRequest)
+        message.error(error?.message || "审批失败");
+    } finally {
+      this.hgDecidingApprovalId = "";
+      if (this.hgMounted)
+        this.setState({ approvalDecisionId: "" });
+    }
+  };
+
+  /** 按原有后端签名接口精确撤销活动绑定；不能撤销引导超管绑定或待审批申请。 */
+  revokeBinding = async (binding) => {
+    const admin = this.state.bindingAdmin; // 操作目标快照，重开弹窗后不刷新别的管理员。
+    const request = this.hgBindingRequest; // 防止旧撤销请求覆盖当前查询。
+    const bindingId = String(binding.id); // 后端绑定主键字符串；不能用 roleId。
+    const currentBinding = this.state.bindings.find(
+      (item) => String(item.id) === bindingId
+    ); // 必须校验当前页的活动绑定。
+    if (
+      this.state.bindingView !== "authorization" ||
+      !admin ||
+      this.hgRevokingBindingId ||
+      !currentBinding ||
+      currentBinding.roleCode === "super_admin"
+    )
+      return;
+    this.hgRevokingBindingId = bindingId;
+    this.setState({ revokingBindingId: bindingId });
+    try {
+      await HGAdminListVM.revokeBinding(admin.id, bindingId);
+      if (this.hgMounted && request === this.hgBindingRequest) {
+        message.success("授权已撤销");
+        this.openBindings(admin, "authorization");
+      }
+    } catch (error) {
+      if (this.hgMounted && request === this.hgBindingRequest)
+        message.error(error?.message || "撤销失败");
+    } finally {
+      this.hgRevokingBindingId = "";
+      if (this.hgMounted)
+        this.setState({ revokingBindingId: "" });
     }
   };
 
@@ -308,84 +630,443 @@ class HGAdminListPage extends Component {
     {
       title: "角色权限",
       dataIndex: "id",
-      width: 125,
+      width: 205,
       render: (_, record) => (
-        <HGButtonPage type="link" disabled={!record.id} onClick={() => this.openBindings(record)}>
-          查看权限
-        </HGButtonPage>
+        <HGSpacePage>
+          <HGButtonPage
+            type="link"
+            disabled={!record.id}
+            onClick={() => this.openBindings(record)}
+          >
+            查看权限
+          </HGButtonPage>
+          <HGButtonPage
+            type="link"
+            disabled={!record.id}
+            onClick={() => this.openBindings(record, "authorization")}
+          >
+            授权查询
+          </HGButtonPage>
+        </HGSpacePage>
       ),
     },
   ];
 
-  /** 展示角色当前权限；绑定单独限制权限时后端不返回子集，明确不推断实际权限。 */
+  /** 只读展示角色权限目录：selected 中的权限勾选，未选权限不勾选；受限绑定不推断实际权限。 */
   renderBindingPermissions = (binding) => {
-    if (binding.permissionsLimited) {
-      return <span>该绑定已限制权限；接口未返回实际权限子集，无法确认业务权限</span>;
+    const limited = Boolean(binding.permissionsLimited); // 单独限制的绑定不能把角色配置当作实际权限。
+    if (limited && this.state.bindingView !== "authorization") {
+      return (
+        <span>该绑定已限制权限；接口未返回实际权限子集，无法确认业务权限</span>
+      );
     }
     const result = this.state.bindingPermissions[String(binding.roleId)]; // 当前角色权限加载结果；undefined 表示仍未加载。
-    if (!result) return <span>{this.state.bindingDetailLoading ? "业务权限加载中..." : "业务权限未能加载，请重试"}</span>;
-    if (result.error) return <span role="alert">{result.error}</span>;
-    if (!result.list.length) return <span>该角色暂无业务权限</span>;
+    const loading =
+      this.state.bindingView === "authorization"
+        ? this.state.bindingPermissionLoading
+        : this.state.bindingDetailLoading; // 授权查询只等待被点击的角色。
+    const notice = limited && (
+      <p className={styles.permissionHint}>
+        该绑定已限制权限；下方仅为角色配置，接口未返回此绑定的实际权限子集。
+      </p>
+    ); // 即使接口返回角色的 selected，也不能声称受限绑定拥有这些权限。
+    if (!result)
+      return (
+        <>
+          {notice}
+          <span>{loading ? "业务权限加载中..." : "业务权限未能加载，请重试"}</span>
+        </>
+      );
+    if (result.error)
+      return (
+        <>
+          {notice}
+          <span role="alert">{result.error}</span>
+        </>
+      );
+    if (!result.list.length)
+      return (
+        <>
+          {notice}
+          <span>暂无可展示的业务权限目录</span>
+        </>
+      );
+    const selected = new Set(result.selected); // 服务端该角色已配置的权限编码，不能由目录条目本身推定授权。
     return (
-      <ul className={styles.permissionList}>
-        {result.list.map((item) => (
-          <li key={item.code}>{item.description || item.code}（{item.code}）</li>
-        ))}
-      </ul>
+      <>
+        {notice || (
+          <p className={styles.permissionHint}>
+            勾选表示角色已配置；实际访问仍受适用范围限制（仅查看）。
+          </p>
+        )}
+        <div
+          className={styles.permissionGrid}
+          role="group"
+          aria-label="角色业务权限（仅查看）"
+        >
+          {result.list.map((item) => (
+            <div className={styles.permissionItem} key={item.code}>
+              <HGCheckbox checked={selected.has(item.code)} readOnly>
+                {item.description || item.code}（{item.code}）
+              </HGCheckbox>
+            </div>
+          ))}
+        </div>
+      </>
     );
   };
 
-  /** 单条活动绑定展示角色名称、业务权限与适用作用域，不将待审批角色混入。 */
+  /** 单条活动绑定的只读详情：查看权限直接展示，授权查询由“查看回填”展开。 */
   renderBinding = (binding) => {
     const roleName = this.state.bindingRoles[String(binding.roleId)]; // 权威角色目录中的名称；缺失仅回退编码。
     const scopeNames = { global: "全局", shop: "店铺", org: "组织" }; // 已知作用域中文名；其他类型保留原值。
     const scope = scopeNames[binding.scopeType] || binding.scopeType || "未知"; // 绑定作用域，非 global 需显示资源 ID。
     return (
       <article key={binding.id} className={styles.bindingCard}>
-        <h4 className={styles.bindingTitle}>{roleName || `角色名称未获取（${binding.roleCode || binding.roleId}）`}</h4>
+        <h4 className={styles.bindingTitle}>
+          {roleName ||
+            `角色名称未获取（${binding.roleCode || binding.roleId}）`}
+        </h4>
         <p>角色编码：{binding.roleCode || "—"}</p>
-        <p>适用范围：{scope}{binding.scopeId ? ` · ${binding.scopeId}` : ""}</p>
-        <p>有效期：{binding.expiresAt ? `至 ${new Date(binding.expiresAt).toLocaleString()}` : "长期有效"}</p>
+        <p>
+          适用范围：{scope}
+          {binding.scopeId ? ` · ${binding.scopeId}` : ""}
+        </p>
+        <p>
+          有效期：
+          {binding.expiresAt
+            ? `至 ${new Date(binding.expiresAt).toLocaleString()}`
+            : "长期有效"}
+        </p>
         <div>业务权限：{this.renderBindingPermissions(binding)}</div>
       </article>
     );
   };
 
-  /** 弹窗只按用户主动点击加载，支持失败重试与有界游标续页。 */
+  /** 原“查询角色授权”合并表：行键区分绑定与申请，分页和错误仍按来源独立处理。 */
+  renderAuthorizationTable = () => {
+    const {
+      bindingAdmin,
+      bindings,
+      bindingCursor,
+      bindingHasMore,
+      bindingLoading,
+      bindingLoaded,
+      bindingDetailLoading,
+      bindingError,
+      bindingRoleError,
+      bindingRoles,
+      selectedBindingId,
+      pendingGrants,
+      pendingCursor,
+      pendingHasMore,
+      pendingLoading,
+      pendingLoaded,
+      pendingDetailLoading,
+      pendingError,
+      pendingRoleError,
+      approvalCode,
+      approvalDecisionId,
+      revokingBindingId,
+    } = this.state;
+    const rows = [
+      ...bindings.map((binding) => ({
+        ...binding,
+        hgRecordType: "binding",
+        hgRowKey: `binding-${binding.id}`,
+      })),
+      ...pendingGrants.map((grant) => ({
+        ...grant,
+        hgRecordType: "pending",
+        hgRowKey: `approval-${grant.approvalId}`,
+      })),
+    ]; // 两种记录只在渲染时合并，申请编号不会进入活动绑定操作。
+    const selectedBinding = bindings.find(
+      (binding) => String(binding.id) === selectedBindingId
+    ); // 只展开当前已加载的绑定。
+    const columns = [
+      {
+        title: "角色",
+        dataIndex: "roleId",
+        width: 180,
+        align: "left",
+        render: (_, record) =>
+          record.hgRecordType === "binding"
+            ? bindingRoles[String(record.roleId)] ||
+              record.roleCode ||
+              `角色 #${record.roleId}`
+            : bindingRoles[String(record.roleId)] || `角色 #${record.roleId}`,
+      },
+      {
+        title: "作用域",
+        dataIndex: "scopeType",
+        width: 180,
+        align: "left",
+        render: (value, record) =>
+          `${value || "未知"}${record.scopeId ? ` / ${record.scopeId}` : ""}`,
+      },
+      {
+        title: "失效时间",
+        dataIndex: "expiresAt",
+        width: 190,
+        align: "left",
+        render: (value, record) =>
+          value
+            ? new Date(value).toLocaleString()
+            : record.hgRecordType === "pending"
+            ? "长期（审批后）"
+            : "长期",
+      },
+      {
+        title: "状态",
+        dataIndex: "hgRecordType",
+        width: 100,
+        align: "left",
+        render: (value) => (
+          <span
+            className={
+              value === "pending" ? styles.pendingStatus : styles.activeStatus
+            }
+          >
+            {value === "pending" ? "待审批" : "已授权"}
+          </span>
+        ),
+      },
+      {
+        title: "操作",
+        dataIndex: "hgRowKey",
+        width: 260,
+        align: "left",
+        render: (_, record) =>
+          record.hgRecordType === "pending" ? (
+            <div className={styles.bindingActions}>
+              <span>申请 #{record.approvalId}</span>
+              <HGAuthButton
+                appearance="link"
+                allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
+                onClick={() => this.decideApproval(record, true)}
+                disabled={Boolean(approvalDecisionId || this.hgDecidingApprovalId)}
+              >
+                允许
+              </HGAuthButton>
+              <HGAuthButton
+                appearance="link"
+                danger
+                allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
+                onClick={() => this.decideApproval(record, false)}
+                disabled={Boolean(approvalDecisionId || this.hgDecidingApprovalId)}
+              >
+                拒绝
+              </HGAuthButton>
+            </div>
+          ) : (
+            <div className={styles.bindingActions}>
+              <HGButtonPage
+                type="link"
+                onClick={() => this.selectBinding(record)}
+              >
+                查看回填
+              </HGButtonPage>
+              <HGAuthButton
+                appearance="link"
+                danger
+                permission={HG_PERMISSIONS.IAM_GRANT}
+                onClick={() => this.revokeBinding(record)}
+                disabled={
+                  record.roleCode === "super_admin" ||
+                  Boolean(revokingBindingId || this.hgRevokingBindingId)
+                }
+              >
+                撤销
+              </HGAuthButton>
+            </div>
+          ),
+      },
+    ]; // 保留原查询表格的列与操作，权限细节仅在选中活动绑定后展开。
+    return (
+      <section className={styles.bindingSection} aria-label="查询角色授权">
+        <h4>查询角色授权</h4>
+        <p>
+          已授权与待审批分别查询；待审批不会获得权限，查看回填仅展示已生效绑定。
+        </p>
+        <HGButtonPage
+          disabled={
+            bindingLoading ||
+            pendingLoading ||
+            bindingDetailLoading ||
+            pendingDetailLoading
+          }
+          onClick={() => this.openBindings(bindingAdmin, "authorization")}
+        >
+          查询角色授权
+        </HGButtonPage>
+        <HGTablePage
+          rowKey="hgRowKey"
+          columns={columns}
+          dataSource={rows}
+          loading={bindingLoading || pendingLoading}
+          pagination={false}
+          autoRowHeight
+        />
+        {selectedBinding && (
+          <div className={styles.bindingSelection}>
+            <HGButtonPage onClick={this.clearBindingSelection}>
+              退出查看
+            </HGButtonPage>
+            {this.renderBinding(selectedBinding)}
+            {!this.state.bindingPermissionLoading &&
+              this.state.bindingPermissions[String(selectedBinding.roleId)]
+                ?.error && (
+                <HGButtonPage
+                  onClick={() => this.selectBinding(selectedBinding)}
+                >
+                  重新查询权限
+                </HGButtonPage>
+              )}
+          </div>
+        )}
+        {bindingLoading && <p role="status">角色绑定加载中...</p>}
+        {bindingError && <p role="alert">{bindingError}</p>}
+        {bindingRoleError && (
+          <p role="alert">{bindingRoleError}；已使用角色编码标识</p>
+        )}
+        {pendingLoading && <p role="status">待审批申请加载中...</p>}
+        {pendingError && <p role="alert">{pendingError}</p>}
+        {pendingRoleError && (
+          <p role="alert">{pendingRoleError}；已使用角色 ID 标识</p>
+        )}
+        {this.hgDecidingApprovalId && (
+          <p role="status">上一笔审批正在处理，请稍候</p>
+        )}
+        {this.hgRevokingBindingId && (
+          <p role="status">上一笔撤销正在处理，请稍候</p>
+        )}
+        {bindingDetailLoading && <p role="status">角色名称加载中...</p>}
+        {pendingDetailLoading && <p role="status">待审批角色名称加载中...</p>}
+        {bindingLoaded &&
+          pendingLoaded &&
+          !bindingLoading &&
+          !pendingLoading &&
+          !bindingError &&
+          !pendingError &&
+          rows.length === 0 && <p>暂无已授权或待审批角色</p>}
+        {pendingGrants.length > 0 && (
+          <label className={styles.approvalField}>
+            <span>审批人 MFA 验证码（申请人不可自批）</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={approvalCode}
+              onChange={(event) =>
+                this.setState({ approvalCode: event.target.value })
+              }
+              placeholder="由另一名有审批权限的管理员输入 6 位动态码"
+            />
+          </label>
+        )}
+        {(bindingError ||
+          bindingRoleError ||
+          pendingError ||
+          pendingRoleError) && (
+          <HGButtonPage
+            onClick={() => this.openBindings(bindingAdmin, "authorization")}
+          >
+            重新加载
+          </HGButtonPage>
+        )}
+        {bindingHasMore && (
+          <HGButtonPage
+            disabled={bindingLoading || bindingDetailLoading}
+            loading={bindingLoading}
+            onClick={() => this.loadBindings(bindingCursor)}
+          >
+            加载更多授权
+          </HGButtonPage>
+        )}
+        {pendingHasMore && (
+          <HGButtonPage
+            disabled={pendingLoading || pendingDetailLoading}
+            loading={pendingLoading}
+            onClick={() => this.loadPendingGrants(pendingCursor)}
+          >
+            加载更多待审批
+          </HGButtonPage>
+        )}
+      </section>
+    );
+  };
+
+  /** “查看权限”保留卡片展示，“授权查询”直接承载原查询表格。 */
   renderBindingsModal = () => {
     const {
-      bindingAdmin, bindings, bindingCursor, bindingHasMore, bindingLoading,
-      bindingDetailLoading, bindingLoaded, bindingError, bindingRoleError,
+      bindingAdmin,
+      bindings,
+      bindingCursor,
+      bindingHasMore,
+      bindingLoading,
+      bindingDetailLoading,
+      bindingLoaded,
+      bindingError,
+      bindingRoleError,
+      bindingView,
     } = this.state;
     if (!bindingAdmin) return null;
     return (
       <HGModalPage
         visible
         size="large"
-        title={`角色权限 · ${bindingAdmin.name || bindingAdmin.nickName || bindingAdmin.id}`}
+        title={`${
+          bindingView === "authorization" ? "授权查询" : "角色权限"
+        } · ${bindingAdmin.name || bindingAdmin.nickName || bindingAdmin.id}`}
         onClose={this.closeBindings}
         footer={<HGButtonPage onClick={this.closeBindings}>关闭</HGButtonPage>}
       >
         <div className={styles.bindingDetails}>
           <p>管理员 ID：{bindingAdmin.id}</p>
-          {bindingLoading && <p role="status">角色绑定加载中...</p>}
-          {bindingError && <p role="alert">{bindingError}</p>}
-          {bindingRoleError && <p role="alert">{bindingRoleError}；已使用角色编码标识</p>}
-          {bindingLoaded && !bindingLoading && !bindingError && bindings.length === 0 && <p>暂无已生效的角色绑定</p>}
-          {bindings.map(this.renderBinding)}
-          {bindingDetailLoading && <p role="status">角色名称及业务权限加载中...</p>}
-          {(bindingError || bindingRoleError || (!bindingDetailLoading && bindings.some((binding) =>
-            !binding.permissionsLimited && this.state.bindingPermissions[String(binding.roleId)]?.error))) && (
-            <HGButtonPage onClick={() => this.openBindings(bindingAdmin)}>重新加载</HGButtonPage>
-          )}
-          {bindingHasMore && (
-            <HGButtonPage
-              disabled={bindingLoading || bindingDetailLoading}
-              loading={bindingLoading}
-              onClick={() => this.loadBindings(bindingCursor)}
-            >
-              加载更多绑定
-            </HGButtonPage>
+          {bindingView === "authorization" ? (
+            this.renderAuthorizationTable()
+          ) : (
+            <>
+              {bindingLoading && <p role="status">角色绑定加载中...</p>}
+              {bindingError && <p role="alert">{bindingError}</p>}
+              {bindingRoleError && (
+                <p role="alert">{bindingRoleError}；已使用角色编码标识</p>
+              )}
+              {bindingLoaded &&
+                !bindingLoading &&
+                !bindingError &&
+                bindings.length === 0 && <p>暂无已生效的角色绑定</p>}
+              {bindings.map(this.renderBinding)}
+              {bindingDetailLoading && (
+                <p role="status">角色名称及业务权限加载中...</p>
+              )}
+              {(bindingError ||
+                bindingRoleError ||
+                (!bindingDetailLoading &&
+                  bindings.some(
+                    (binding) =>
+                      !binding.permissionsLimited &&
+                      this.state.bindingPermissions[String(binding.roleId)]
+                        ?.error
+                  ))) && (
+                <HGButtonPage
+                  onClick={() => this.openBindings(bindingAdmin, bindingView)}
+                >
+                  重新加载
+                </HGButtonPage>
+              )}
+              {bindingHasMore && (
+                <HGButtonPage
+                  disabled={bindingLoading || bindingDetailLoading}
+                  loading={bindingLoading}
+                  onClick={() => this.loadBindings(bindingCursor)}
+                >
+                  加载更多绑定
+                </HGButtonPage>
+              )}
+            </>
           )}
         </div>
       </HGModalPage>

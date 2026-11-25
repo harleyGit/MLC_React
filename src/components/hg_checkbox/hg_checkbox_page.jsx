@@ -21,6 +21,8 @@ class HGCheckbox extends React.Component {
     checked: false,
     /** 默认允许勾选；true 禁用交互。 */
     disabled: false,
+    /** 默认可交互；true 只读展示选中状态，不接收点击或变更，视觉上保持清晰。 */
+    readOnly: false,
     /** 复选框旁的标签，默认 undefined 不显示。 @type {React.ReactNode} */
     children: undefined,
     /** 勾选变化事件，可读取 event.target.checked；默认 undefined 不通知。 @type {Function|undefined} */
@@ -28,17 +30,18 @@ class HGCheckbox extends React.Component {
   };
 
   handleChange = (e) => {
-    const { onChange, disabled } = this.props;
-    if (disabled) return;
+    const { onChange, disabled, readOnly } = this.props;
+    if (disabled || readOnly) return;
     onChange?.(e.target.checked);
   };
 
   render() {
-    const { checked = false, disabled = false, children } = this.props;
+    const { checked = false, disabled = false, readOnly = false, children } = this.props;
     const rootClass = [
       styles.checkbox,
       checked ? styles.checked : "",
       disabled ? styles.disabled : "",
+      readOnly ? styles.readOnly : "",
     ]
       .filter(Boolean)
       .join(" ");
@@ -49,7 +52,7 @@ class HGCheckbox extends React.Component {
           type="checkbox"
           className={styles.checkboxInput}
           checked={checked}
-          disabled={disabled}
+          disabled={disabled || readOnly}
           onChange={this.handleChange}
         />
         <span className={styles.checkboxInner}>

@@ -41,6 +41,20 @@ export default class HGAdminListVM {
   static fetchBindings = (userId, cursor = "0") =>
     HGNet.get(HGMANAGER_API.IAM_BINDING_LIST, { userId, cursor, pageSize: ADMIN_LIST_PAGE_SIZE });
 
+  /** 按精确业务用户 ID 读取一页未过期的待审批授权；申请未批准前不是活动绑定。 */
+  static fetchPendingGrants = (userId, cursor = "0") =>
+    HGNet.get(HGMANAGER_API.IAM_BINDING_PENDING, { userId, cursor, pageSize: ADMIN_LIST_PAGE_SIZE });
+
+  /** 原目标用户授权办理：一次 MFA 裁决待审批申请，编号不是活动绑定 ID。 */
+  static decideApproval = (approvalId, mfaCode, approve) =>
+    HGNet.post(approve ? HGMANAGER_API.IAM_APPROVAL_APPROVE : HGMANAGER_API.IAM_APPROVAL_REJECT, {
+      id: String(approvalId), mfaCode,
+    });
+
+  /** 精确撤销当前管理员的一条活动绑定，不能用待审批申请编号调用。 */
+  static revokeBinding = (userId, bindingId) =>
+    HGNet.post(HGMANAGER_API.IAM_BINDING_REVOKE, { userId, bindingId: String(bindingId) });
+
   /** 仅为当前页绑定查找角色名称；未读到的角色由页面明确展示编码，不冒充名称。 */
   static fetchRoleNames = async (roleIds) => {
     const missing = new Set(roleIds.map(String)); // 当前页尚未匹配的角色 ID，空集合不访问目录。
@@ -64,10 +78,10 @@ export default class HGAdminListVM {
     return names;
   };
 
-  /** 最多四个并行请求读取当前页角色权限；绑定权限子集不可从角色权限推算，调用方必须跳过。 */
+  /** 最多四个并行请求读取角色权限目录；不能将角色结果当作受限绑定的实际权限子集。 */
   static fetchRolePermissions = async (roleIds) => {
     const ids = [...new Set(roleIds.map(String))]; // 去重角色 ID，防止多个作用域重复请求。
-    const permissions = {}; // 角色 ID -> { list, error }；错误不伪装成空权限。
+    const permissions = {}; // 角色 ID -> { list, selected, error }；目录与已选编码分开保留。
     let next = 0; // worker 下一项索引；每页至多 20 个不同角色。
     const worker = async () => {
       while (next < ids.length) {
@@ -75,10 +89,9 @@ export default class HGAdminListVM {
         try {
           const result = await HGNet.get(HGMANAGER_API.IAM_PERMISSION_LIST, { roleId });
           if (!Array.isArray(result?.list) || !Array.isArray(result?.selected)) throw new Error("角色权限响应无效");
-          const selected = new Set(result.selected); // 服务端选中编码，目录未登记的编码不展示为有效权限。
-          permissions[roleId] = { list: result.list.filter((item) => selected.has(item.code)), error: "" };
+          permissions[roleId] = { list: result.list, selected: result.selected, error: "" };
         } catch {
-          permissions[roleId] = { list: [], error: "业务权限加载失败，请重试" };
+          permissions[roleId] = { list: [], selected: [], error: "业务权限加载失败，请重试" };
         }
       }
     };

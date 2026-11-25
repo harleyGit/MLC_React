@@ -63,3 +63,32 @@
   background: #f5f5f5;
   border-color: #d9d9d9;
 }
+
+/* 只读权限展示：禁交互但不按“不可用”状态淡化，支持深浅色主题。 */
+.readOnly {
+  cursor: default;
+  user-select: text;
+}
+
+.readOnly .checkboxInner,
+.readOnly:hover .checkboxInner {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-surface);
+}
+
+.readOnly.checked .checkboxInner,
+.readOnly.checked:hover .checkboxInner {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.readOnly.checked .checkIcon {
+  color: var(--color-text-inverse);
+}
+
+.readOnly .checkboxLabel {
+  min-width: 0;
+  color: var(--color-text);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
