@@ -131,6 +131,9 @@ test("确认激活后清空密钥，并引导到独立的恢复邮箱子页", as
   assert.equal(hgPage.state.hgMfaSecret, "");
   assert.equal(hgPage.state.hgConfirmModalOpen, false);
   assert.match(hgMessages.at(-1)[1], /建议接着绑定恢复邮箱/);
-  const hgCard = hgPage.render().props.children[0];
-  assert.equal(hgCard.props.children[2].props.children[1].props.to, hgPage.props.hgRecoveryUrl);
+  const hgStatusPanel = hgPage.renderMfaSetup();
+  const hgRecoveryLink = hgStatusPanel.props.children[2].props.children;
+  assert.equal(hgRecoveryLink.props.to, hgPage.props.hgRecoveryUrl);
+  assert.equal(hgRecoveryLink.props.children, "设置或更换恢复邮箱");
+  assert.match(hgStatusPanel.props.children[1].props.children, /验证器丢失.*右上角「重置 MFA」/);
 });

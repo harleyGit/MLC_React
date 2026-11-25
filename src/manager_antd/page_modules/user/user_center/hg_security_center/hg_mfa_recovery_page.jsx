@@ -9,7 +9,6 @@ import HGInputPage, {
   HGInputPassword,
 } from "../../../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../../../components/hg_message/hg_message_page";
-import { logout } from "../../../../auth/hg_auth";
 import { hgIMOwner, hgIMSessionID } from "../../../../storage/hg_im_session";
 import styles from "./hg_security_center_page.module.css";
 import HGSecurityCenterVM from "./hg_security_center_vm";
@@ -31,29 +30,28 @@ const HG_RECOVERY_MAIL_PROVIDERS = [
 ];
 
 /**
- * 恢复邮箱页面：绑定、更换及找回 MFA；敏感输入只保存在当前页面内存。
+ * 恢复邮箱页面：绑定、更换及找回指引；敏感输入只保存在当前页面内存。
  * @param {object} props
- * @param {string} props.hgMfaUrl 个人中心传入的 MFA 验证器子页地址；必传，无默认值。
+ * @param {string} props.hgMfaUrl 个人中心传入的 MFA 验证器子页地址；不传时只显示说明。
  */
 class HGMFARecoveryPage extends Component {
+  static defaultProps = {
+    hgMfaUrl: undefined, // 验证器子页 URL；缺省时只显示文字指引，不生成链接。
+  };
+
   state = {
     hgRecoveryStatus: null, // 服务端权威邮箱状态；null 表示未加载，不能推断未绑定。
     hgRecoveryLoadFailed: false, // 状态读失败时显示重试，不无限显示加载中。
-    hgRecoveryReady: false, // 恢复邮箱冷却期结束后才显示可发送；后端仍独立验证。
     hgRecoveryEmail: "", // 新恢复邮箱；空字符串表示尚未输入。
     hgRecoveryProvider: "", // 收件邮箱类型，空字符串表示尚未选择。
     hgBindSentTo: "", // 最近确认发信的地址；改地址不复用旧验证码。
-    hgResetSent: false, // 本次页面已确认发送找回码；刷新页面可以重新发送。
     hgRecoveryEmailCode: "", // 绑定邮箱的邮件码；只存页面内存，提交后清空。
     hgRecoveryMfaCode: "", // 当前验证器的 TOTP；用于绑定或更换邮箱，提交后清空。
-    hgResetPassword: "", // 当前登录密码，仅用于找回 MFA 时复核，提交后清空。
-    hgResetEmailCode: "", // 已验证恢复邮箱的邮件码；不与绑定邮箱码共用。
     hgRecoveryBusy: false, // 发信或提交恢复操作进行中；阻止重复请求。
   };
 
   hgMounted = false; // 页面挂载标记，卸载后丢弃异步响应，不写敏感状态。
   hgRecoveryFlight = false; // 本人恢复邮箱请求锁；卸载后不写页面状态。
-  hgRecoveryTimer = null; // 冷却结束时唤醒界面，离开页面后清理。
   hgRecoveryRead = 0; // 仅应用最近一次状态响应。
   hgPageSession = ""; // 账号与会话身份快照；续签不更换 sid。
 
@@ -66,7 +64,6 @@ class HGMFARecoveryPage extends Component {
   componentWillUnmount() {
     this.hgMounted = false;
     this.hgRecoveryRead++;
-    clearTimeout(this.hgRecoveryTimer);
   }
 
   /** 不持有令牌原值；账号切换后不发出旧请求、也不清理新会话。 */
@@ -91,33 +88,13 @@ class HGMFARecoveryPage extends Component {
       const hgStatus = await HGSecurityCenterVM.recoveryStatus(
         this.hgRequestOptions()
       );
-      if (!this.hgMounted || hgRead !== this.hgRecoveryRead) return;
-      clearTimeout(this.hgRecoveryTimer);
-      const hgWait = hgStatus.availableAt
-        ? Date.parse(hgStatus.availableAt) - Date.now()
-        : NaN; // 冷却剩余毫秒；未绑定时为 NaN。
-      this.setState({
-        hgRecoveryStatus: hgStatus,
-        hgRecoveryReady: hgWait <= 0,
-      });
-      if (hgWait > 0) {
-        this.hgRecoveryTimer = setTimeout(() => {
-          if (
-            !this.hgMounted ||
-            this.hgSessionIdentity() !== this.hgPageSession
-          )
-            return;
-          if (hgWait <= 3_600_000) this.setState({ hgRecoveryReady: true });
-          else void this.hgLoadRecoveryStatus();
-        }, Math.min(hgWait, 3_600_000));
-      }
+      if (!this.hgMounted || hgRead !== this.hgRecoveryRead || this.hgSessionIdentity() !== this.hgPageSession) return;
+      this.setState({ hgRecoveryStatus: hgStatus });
     } catch (hgError) {
-      if (this.hgMounted && hgRead === this.hgRecoveryRead) {
-        clearTimeout(this.hgRecoveryTimer);
+      if (this.hgMounted && hgRead === this.hgRecoveryRead && this.hgSessionIdentity() === this.hgPageSession) {
         this.setState({
           hgRecoveryLoadFailed: true,
           hgRecoveryStatus: null,
-          hgRecoveryReady: false,
         });
         message.error(hgError?.message || "无法获取恢复邮箱状态");
       }
@@ -144,14 +121,6 @@ class HGMFARecoveryPage extends Component {
     }
   };
 
-  /** MFA 丢失后只能发送到已验证且冷却期结束的邮箱，不允许客户端指定目的地址。 */
-  hgSendResetCode = () =>
-    this.hgRecoveryAction(
-      () => HGSecurityCenterVM.sendResetCode(this.hgRequestOptions()),
-      "找回邮件已发送，请查看已绑定邮箱",
-      { hgResetSent: true, hgResetEmailCode: "" }
-    );
-
   /** 新地址与上次已发送地址不同时，不使用之前的邮件码。 */
   hgSetRecoveryAddress = (event) =>
     this.setState({
@@ -170,39 +139,6 @@ class HGMFARecoveryPage extends Component {
       hgRecoveryEmailCode: "",
       hgRecoveryMfaCode: "",
     });
-
-  /** 邮箱码与密码由服务端在重置事务前核验；成功立即清理本地会话，不用旧 JWT 续签。 */
-  hgResetMFA = async () => {
-    if (this.hgRecoveryFlight) return;
-    const { hgResetPassword, hgResetEmailCode } = this.state; // 点击时的敏感输入快照。
-    if (
-      !this.state.hgResetSent ||
-      !hgResetPassword ||
-      !/^\d{6}$/.test(hgResetEmailCode)
-    )
-      return;
-    if (!window.confirm("重置 MFA 会让所有旧设备退出登录。是否继续？")) return;
-    this.hgRecoveryFlight = true;
-    this.setState({ hgRecoveryBusy: true });
-    try {
-      const hgResult = await HGSecurityCenterVM.resetMFA(
-        hgResetPassword,
-        hgResetEmailCode,
-        this.hgRequestOptions()
-      );
-      if (!hgResult?.reloginRequired)
-        throw new Error("服务端未确认 MFA 已重置，请检查安全中心状态");
-      if (this.hgSessionIdentity() !== this.hgPageSession) return;
-      logout();
-      window.location.replace("/login?mfaReset=1");
-    } catch (hgError) {
-      if (this.hgMounted) message.error(hgError?.message || "MFA 找回失败");
-    } finally {
-      this.hgRecoveryFlight = false;
-      if (this.hgMounted)
-        this.setState({ hgRecoveryBusy: false, hgResetPassword: "" });
-    }
-  };
 
   /** 恢复邮箱状态与绑定表单；已绑定时可使用当前 MFA 更换，生效时间由服务端决定。 */
   renderRecoveryEmail = () => {
@@ -396,9 +332,6 @@ class HGMFARecoveryPage extends Component {
                         hgBindSentTo: "",
                         hgRecoveryEmailCode: "",
                         hgRecoveryMfaCode: "",
-                        hgResetSent: false,
-                        hgResetEmailCode: "",
-                        hgResetPassword: "",
                       },
                       true
                     )
@@ -410,7 +343,7 @@ class HGMFARecoveryPage extends Component {
             ) : (
               <p className={styles.stepDesc}>
                 还不能绑定恢复邮箱。请先
-                <Link to={this.props.hgMfaUrl}>绑定并启用 MFA 验证器</Link>。
+                {this.renderMfaLink("绑定并启用 MFA 验证器")}。
               </p>
             )}
           </>
@@ -419,89 +352,25 @@ class HGMFARecoveryPage extends Component {
     );
   };
 
-  /** 找回表单不要求已丢失的 MFA，但必须密码加已验证邮箱码，成功后全部旧会话下线。 */
-  renderRecoveryReset = () => {
-    const {
-      hgRecoveryStatus: hgStatus,
-      hgResetPassword,
-      hgResetEmailCode,
-      hgRecoveryBusy: hgBusy,
-      hgRecoveryReady,
-      hgResetSent,
-    } = this.state;
-    if (!hgStatus?.mfaEnabled || !hgStatus.emailVerified) return null;
-    const hgReady = hgStatus.resetEnabled && hgRecoveryReady; // 部署已开放且过了冷却期。
+  /** 恢复表单统一由验证器页的弹窗处理，恢复邮箱页保留导航和前置条件说明。 */
+  renderRecoveryHelp = () => {
+    const { hgRecoveryStatus: hgStatus } = this.state; // 用权威状态区分未启用和未验证邮箱。
+    if (!hgStatus?.mfaEnabled) return null;
     return (
       <HGCardPage title="验证器丢失 · 找回 MFA" className={styles.card}>
-        <p className={styles.intro}>
-          找回邮件只发送到已验证邮箱 {hgStatus.emailMasked}
-          。请准备当前登录密码和邮件码，不需要旧验证器的动态码。
+        <p className={styles.stepDesc}>
+          {hgStatus.emailVerified ? (
+            <>请前往「{this.renderMfaLink("绑定 MFA 验证器")}」，点击标题右侧的「重置 MFA」。</>
+          ) : "此账号尚未绑定已验证的恢复邮箱，不能通过邮件自行重置 MFA。如果验证器已丢失，请联系管理员。"}
         </p>
-        {!hgStatus.resetEnabled ? (
-          <p role="status">当前环境暂未开放找回 MFA，请联系管理员。</p>
-        ) : (
-          !hgReady && (
-            <p role="status">恢复能力尚在冷却期，请等待生效时间后操作。</p>
-          )
-        )}
-        <section className={styles.stepSection}>
-          <HGButtonPage
-            disabled={!hgReady || hgBusy}
-            loading={hgBusy}
-            onClick={this.hgSendResetCode}
-          >
-            发送找回邮件码
-          </HGButtonPage>
-          <label className={styles.fieldLabel} htmlFor="hg-recovery-reset-code">
-            邮件中的六位验证码
-          </label>
-          <HGInputPage
-            id="hg-recovery-reset-code"
-            className={styles.control}
-            value={hgResetEmailCode}
-            maxLength={6}
-            autoComplete="one-time-code"
-            inputMode="numeric"
-            disabled={!hgResetSent || hgBusy}
-            onChange={(event) =>
-              this.setState({
-                hgResetEmailCode: event.target.value
-                  .replace(/\D/g, "")
-                  .slice(0, 6),
-              })
-            }
-          />
-          <label className={styles.fieldLabel} htmlFor="hg-recovery-password">
-            当前登录密码
-          </label>
-          <HGInputPassword
-            id="hg-recovery-password"
-            className={styles.control}
-            value={hgResetPassword}
-            autoComplete="current-password"
-            disabled={!hgResetSent || hgBusy}
-            onChange={(event) =>
-              this.setState({ hgResetPassword: event.target.value })
-            }
-          />
-          <HGButtonPage
-            danger
-            loading={hgBusy}
-            disabled={
-              !hgReady ||
-              !hgResetSent ||
-              !hgResetPassword ||
-              !/^\d{6}$/.test(hgResetEmailCode) ||
-              hgBusy
-            }
-            onClick={this.hgResetMFA}
-          >
-            验证并重置 MFA
-          </HGButtonPage>
-        </section>
       </HGCardPage>
     );
   };
+
+  /** 个人中心提供内部导航；缺省地址时只显示文字。 */
+  renderMfaLink = (hgLabel) => this.props.hgMfaUrl
+    ? <Link to={this.props.hgMfaUrl}>{hgLabel}</Link>
+    : hgLabel;
 
   /** 先区分日常验证与找回，再解释绑定前置条件和重置影响。 */
   renderRecoveryGuide = () => {
@@ -517,7 +386,7 @@ class HGMFARecoveryPage extends Component {
         </p>
         <ol className={styles.guideList}>
           <li>
-            先<Link to={this.props.hgMfaUrl}>绑定并启用 MFA 验证器</Link>
+            先{this.renderMfaLink("绑定并启用 MFA 验证器")}
             ，再选择一个自己长期能访问的邮箱。
           </li>
           <li>
@@ -545,8 +414,8 @@ class HGMFARecoveryPage extends Component {
   render() {
     return (
       <div className={styles.securityCenterContainer}>
+        {this.renderRecoveryHelp()}
         {this.renderRecoveryEmail()}
-        {this.renderRecoveryReset()}
         {this.renderRecoveryGuide()}
       </div>
     );
