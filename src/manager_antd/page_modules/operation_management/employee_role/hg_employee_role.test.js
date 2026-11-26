@@ -11,7 +11,7 @@ const HGTestInput = () => null; // 保留目标用户输入的 onChange/value �
 const HGTestModal = () => null; // 检查弹窗显隐与关闭回调，不访问真实 DOM。
 
 /** 转换当前员工角色页；授权查询/撤销已经迁移，替身只提供申请与独立审批队列。 */
-function hgEmployeePage(vm) {
+function hgEmployeePage(vm, props = {}) {
   const module = { exports: {} }; // 当前隔离页面模块。
   const code = transformSync(readFileSync(new URL("./hg_employee_role_page.jsx", import.meta.url), "utf8"), {
     filename: "hg_employee_role_page.jsx",
@@ -39,7 +39,7 @@ function hgEmployeePage(vm) {
       return { __esModule: true, default: () => null };
     },
   });
-  const page = new module.exports.default({}); // 测试中手动控制挂载/状态更新。
+  const page = new module.exports.default(props); // 测试中手动控制挂载/状态更新。
   page.hgMounted = true;
   page.setState = (update) => {
     const previous = page.state; // 用真实生命周期检测切换角色后的权限重新加载。
@@ -106,6 +106,23 @@ test("左上角按钮打开授权弹窗，关闭清除 MFA 且提交中不能关
   assert.equal(hgFind(page.render(), (node) => node.type === HGTestModal).length, 0);
   assert.equal(page.state.form.userId, "hgid_A");
   assert.equal(page.state.form.mfaCode, "");
+});
+
+test("仅授权弹窗提示须先成为管理员，按钮切换到管理员列表菜单", () => {
+  const selected = []; // 仅记录菜单 key，不触发真实路由或授权请求。
+  const { page } = hgEmployeePage({}, { onMenuSelect: (key) => selected.push(key) });
+  const css = readFileSync(new URL("./hg_employee_role.module.css", import.meta.url), "utf8"); // 警示色必须来自主题语义 token。
+  assert.match(css, /\.adminPrerequisiteText\s*\{[^}]*color:\s*var\(--color-danger\)/s);
+  assert.doesNotMatch(hgText(page.render()), /否则无法提交授权申请|查看管理员列表/);
+  page.setState({ grantModalVisible: true });
+  const modal = hgFind(page.render(), (node) => node.type === HGTestModal)[0];
+  assert.match(hgText(modal), /目标用户必须先添加为启用的管理员.*否则无法提交授权申请/);
+  const modalButton = hgFind(modal, (node) => node.type === HGTestButton && hgText(node) === "查看管理员列表")[0];
+  assert.ok(modalButton);
+  modalButton.props.onClick();
+  assert.deepEqual(selected, ["admin_list"]);
+  page.setState({ granting: true });
+  assert.equal(hgFind(page.render(), (node) => node.type === HGTestButton && hgText(node) === "查看管理员列表")[0].props.disabled, true);
 });
 
 test("申请表单的业务权限仍只展示所选角色权限，旧角色响应不可覆盖", async () => {

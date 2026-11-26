@@ -60,6 +60,26 @@
   margin-bottom: 20px;
 }
 
+/* 管理员身份是双人审批授权的前置条件，仅在授权弹窗中醒目提示。 */
+.adminPrerequisite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-danger);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.adminPrerequisiteText {
+  flex: 1 1 260px;
+  color: var(--color-danger);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
