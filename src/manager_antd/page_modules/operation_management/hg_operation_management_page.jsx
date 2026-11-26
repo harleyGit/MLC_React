@@ -32,8 +32,11 @@ const HGAdminRoleAssignPage = lazy(() =>
 const HGEmployeeRolePage = lazy(() =>
   import("./employee_role/hg_employee_role_page")
 );
-const HGFileListPage = lazy(() =>
-  import("./file_management/file_list/hg_file_list_page")
+const HGOwnerAssetLookupPage = lazy(() =>
+  import("./file_management/file_list/hg_owner_asset_lookup_page")
+);
+const HGMediaInventoryPage = lazy(() =>
+  import("./file_management/hg_media_inventory/hg_media_inventory_page")
 );
 const HGFileManagementPage = lazy(() =>
   import("./file_management/hg_file_management_page")
@@ -249,9 +252,10 @@ const PAGE_MAP = {
   system_notify_send_records: HGNotifySendRecordsPage,
   system_notify_channel: HGNotifyChannelPage,
   system_notify_sms: HGSmsTemplatePage,
-  // 资源管理：文件管理入口和文件列表页面。
+  // 资源管理：本人上传、本人查询和全平台盘点入口独立。
   resource_file: HGFileManagementPage,
-  resource_file_list: HGFileListPage,
+  resource_file_list: HGOwnerAssetLookupPage,
+  resource_media_inventory: HGMediaInventoryPage,
   bilibili_douga_tags: HGBilibiliTagPage,
   coin_operations: HGCoinOperationsPage,
   hg_recharge_sku: HGRechargeSkuPage,

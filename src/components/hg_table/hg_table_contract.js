@@ -20,9 +20,12 @@
  * @typedef {Object} HGTablePagination
  * @property {number} [current=1] 当前页码。
  * @property {number} [pageSize=10] 每页条数。
- * @property {number} [total=0] 供分页器计算页数的记录数。
- * @property {boolean} [showSizeChanger=false] 是否显示每页条数选择。
- * @property {boolean} [showQuickJumper=false] 是否显示页码跳转输入。
+ * @property {number} [total=0] 页码模式下供分页器计算页数；游标模式忽略，回调中返回 0（总量未知）。
+ * @property {boolean} [showSizeChanger=false] 页码模式下是否显示每页条数选择。
+ * @property {boolean} [showQuickJumper=false] 页码模式下是否显示页码跳转输入。
+ * @property {'numbered'|'cursor'} [mode='numbered'] 默认按已知总数分页；cursor 只允许使用调用方提供的相邻游标。
+ * @property {boolean} [hasPreviousPage=false] 游标模式是否能向前翻；没有已保存的前页游标时为 false。
+ * @property {boolean} [hasNextPage=false] 游标模式是否能向后翻；服务端未返回后页游标时为 false。
  */
 
 /**
@@ -89,6 +92,9 @@ export const HG_TABLE_PAGINATION_DEFAULTS = Object.freeze({
   total: 0,
   showSizeChanger: false,
   showQuickJumper: false,
+  mode: "numbered",
+  hasPreviousPage: false,
+  hasNextPage: false,
 });
 
 /** 表格允许的对齐值，供运行时校验与编辑器跳转查看。 */

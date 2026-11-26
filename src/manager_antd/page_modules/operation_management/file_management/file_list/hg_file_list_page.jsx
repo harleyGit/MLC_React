@@ -1,10 +1,14 @@
 import React, { Component } from "react";
 import HGButtonPage from "../../../../../components/hg_button/hg_button_page";
-import HGInputPage from "../../../../../components/hg_input/hg_input_page";
+import HGModalPage from "../../../../../components/hg_modal/hg_modal_page";
 import HGSelectPage from "../../../../../components/hg_select/hg_select_page";
-import { hgMessage as message } from "../../../../../components/hg_message/hg_message_page";
-import HGFileManagementVM, { SCENE_OPTIONS } from "../hg_file_management_vm";
+import HGTablePage from "../../../../../components/hg_table/hg_table_page";
+import { hgTableColumns, hgTableProps } from "../../../../../components/hg_table/hg_table_contract";
+import HGFileManagementVM, { HG_MEDIA_INVENTORY_PAGE_SIZE, SCENE_OPTIONS } from "../hg_file_management_vm";
 import styles from "./hg_file_list.module.css";
+
+// 最多保留最近 100 页的入口游标，不缓存全站记录。
+const hgCursorHistoryLimit = 100;
 
 const hgKindOptions = [
   { value: "", label: "全部种类" },
@@ -15,16 +19,15 @@ const hgKindOptions = [
 ]; // 服务端在游标分页前按类别筛选，不能只筛本页结果。
 
 const hgSourceLabels = {
-  new: "新媒体", legacy_mall: "旧商城图片", legacy_video: "旧视频文件",
-  legacy_avatar: "旧用户头像", legacy_im: "旧 IM 私有附件",
+  new: "新媒体",
+  legacy_mall: "旧商城图片",
+  legacy_video: "旧视频文件",
+  legacy_avatar: "旧用户头像",
+  legacy_im: "旧 IM 私有附件",
 }; // 旧来源仅允许查看元数据；不提供预览、删除或业务引用。
 
-/** 管理端元数据盘点：独立 IAM 权限，固定来源顺序逐来源主键游标，不查询旧文件字节。 */
+/** 独立盘点页的表格及筛选；旧记录只读，新图片预览仍走原上传者授权。 */
 class HGFileListPage extends Component {
-  static defaultProps = {
-    hgAssetIDs: [], // 独立列表页没有刚上传的资源，默认空数组。
-    hgEmbedded: false, // 默认独立页面；嵌入文件管理页时取消重复的外边距。
-  };
   state = {
     kind: "", // 空字符串表示全部种类；其它值为 image/video/audio/file。
     items: [], // 后端返回的当前页最多 20 条元数据；不缓存全站文件。
@@ -32,16 +35,14 @@ class HGFileListPage extends Component {
     historyBase: 0, // cursors[0] 对应的绝对页码，避免深分页时内存无限增长。
     pageIndex: 0, // 当前绝对页码从 0 开始，可继续向后翻至完整来源末尾。
     nextCursor: "", // 为空表示当前筛选范围已遍历到底。
-    loading: false, // 列表请求中禁用重复翻页。
+    loading: true, // 首次挂载或列表请求中禁用重复翻页。
     error: "", // 列表查询错误；有错时不展示过期结果。
-    assetID: "", // 单独点查本人资源的 UUID；不改变管理员列表的过滤条件。
-    ownerAsset: null, // 本人点查结果；null 表示尚未查到，不提供跨用户预览。
-    ownerLoading: false, // 本人点查期间禁止重复点击。
+    preview: null, // 当前弹窗的数据；null 表示关闭，URL 只保留在打开的弹窗中。
   };
   hgMounted = false; // 页面卸载后停止状态更新。
   hgRequest = 0; // 最新列表请求序号，避免旧响应覆盖新筛选。
   hgAbort = null; // 当前列表请求取消信号；切换筛选或卸载时中断。
-  hgOwnerRequest = 0; // 本人点查序号，避免旧响应覆盖新 ID。
+  hgPreviewAbort = null; // 当前本人预览请求；关闭、翻页或卸载时取消并清理签名。
 
   componentDidMount() {
     this.hgMounted = true;
@@ -51,117 +52,178 @@ class HGFileListPage extends Component {
     this.hgMounted = false;
     this.hgAbort?.abort();
     this.hgRequest += 1;
-    this.hgOwnerRequest += 1;
-  }
-
-  componentDidUpdate(prevProps) {
-    const newest = this.props.hgAssetIDs.at(-1);
-    if (newest && newest !== prevProps.hgAssetIDs.at(-1)) this.loadAsset(newest);
+    this.hgPreviewAbort?.abort();
   }
 
   /** 列表由服务端先过滤再分页；任何失败均清空旧结果，不将其伪装成当前类别。 */
   loadInventory = async (kind, cursor, pageIndex) => {
+    this.closePreview();
     this.hgAbort?.abort();
     this.hgAbort = new AbortController();
-    const request = ++this.hgRequest;
+    const request = ++this.hgRequest; // 只接收本次请求的结果和错误。
     this.setState((state) => ({
-      kind, loading: true, error: "", items: [], nextCursor: "", pageIndex,
-      cursors: (pageIndex > 0 && kind === state.kind ? [...state.cursors.slice(0, pageIndex - state.historyBase), cursor] : [cursor]).slice(-100),
-      historyBase: pageIndex > 0 && kind === state.kind ? Math.max(state.historyBase, pageIndex - 99) : 0,
+      kind,
+      loading: true,
+      error: "",
+      items: [],
+      nextCursor: "",
+      pageIndex,
+      cursors: (pageIndex > 0 && kind === state.kind
+        ? [...state.cursors.slice(0, pageIndex - state.historyBase), cursor]
+        : [cursor]
+      ).slice(-hgCursorHistoryLimit),
+      historyBase:
+        pageIndex > 0 && kind === state.kind
+          ? Math.max(state.historyBase, pageIndex - hgCursorHistoryLimit + 1)
+          : 0,
     }));
     try {
-      const result = await HGFileManagementVM.getInventory(kind, cursor, this.hgAbort.signal);
-      if (this.hgMounted && request === this.hgRequest) this.setState({
-        items: result.items, nextCursor: result.next_cursor,
-      });
+      const result = await HGFileManagementVM.getInventory(
+        kind,
+        cursor,
+        this.hgAbort.signal
+      );
+      if (this.hgMounted && request === this.hgRequest)
+        this.setState({
+          items: result.items,
+          nextCursor: result.next_cursor,
+        });
     } catch (error) {
-      if (this.hgMounted && request === this.hgRequest && error.name !== "AbortError") {
+      if (
+        this.hgMounted &&
+        request === this.hgRequest &&
+        error.name !== "AbortError"
+      ) {
         this.setState({ error: error.message || "媒体列表暂不可用" });
       }
     } finally {
-      if (this.hgMounted && request === this.hgRequest) this.setState({ loading: false });
+      if (this.hgMounted && request === this.hgRequest)
+        this.setState({ loading: false });
     }
   };
 
-  /** 仅本人已审核资源可申请有限预览，管理员列表不会转交任何私有读取权限。 */
-  loadAsset = async (assetID) => {
-    if (!assetID) return;
-    const request = ++this.hgOwnerRequest;
-    this.setState({ ownerLoading: true, ownerAsset: null });
+  /** 表格回调为 1 基页码，只接受相邻且有入口游标的页。 */
+  handlePageChange = ({ current }) => {
+    const { kind, pageIndex, cursors, historyBase, nextCursor, loading } = this.state;
+    if (loading) return;
+    const target = current - 1; // 组件内部的 0 基页码。
+    if (target === pageIndex + 1 && nextCursor)
+      return this.loadInventory(kind, nextCursor, target);
+    if (target === pageIndex - 1 && target >= historyBase)
+      return this.loadInventory(kind, cursors[target - historyBase], target);
+  };
+
+  closePreview = () => {
+    this.hgPreviewAbort?.abort();
+    this.hgPreviewAbort = null;
+    this.setState({ preview: null });
+  };
+
+  /** 只传 UUID，服务端重新核验本人归属、审核状态和用途；列表权限不能换取私有链接。 */
+  handlePreview = async (item) => {
+    if (item.source !== "new" || !HGFileManagementVM.canPreviewImage(item)) return;
+    this.closePreview();
+    const abort = new AbortController(); // 仅这个弹窗可接收本次签名结果。
+    this.hgPreviewAbort = abort;
+    this.setState({ preview: {} });
     try {
-      const asset = await HGFileManagementVM.getAsset(assetID.trim());
-      if (this.hgMounted && request === this.hgOwnerRequest) this.setState({ ownerAsset: asset });
-    } catch (error) {
-      if (this.hgMounted && request === this.hgOwnerRequest) message.error(error.message || "无法查询本人资源状态");
-    } finally {
-      if (this.hgMounted && request === this.hgOwnerRequest) this.setState({ ownerLoading: false });
+      const url = await HGFileManagementVM.getImagePreviewURL(item.id, abort.signal);
+      if (!abort.signal.aborted) this.setState({ preview: { url } });
+    } catch {
+      if (!abort.signal.aborted) this.setState({ preview: { error: "无法预览。图片须属于当前登录人且已通过审核。" } });
     }
   };
 
-  handlePreview = async (asset) => {
-    try { await HGFileManagementVM.previewImage(asset); }
-    catch (error) { if (this.hgMounted) message.error(error.message || "预览不可用"); }
+  /** 忽略已经关闭或替换的预览图片错误，避免晚到事件重新打开弹窗。 */
+  handlePreviewImageError = (url) => {
+    this.setState(({ preview }) => preview?.url === url
+      ? { preview: { error: "图片暂不可用，请关闭后重新申请预览。" } }
+      : null);
   };
 
   renderFilters() {
-    const { kind, loading, pageIndex, historyBase, cursors, nextCursor } = this.state;
-    return <div className={styles.filterBar}>
-      <label>媒体种类 <HGSelectPage value={kind} options={hgKindOptions}
-        onChange={(value) => this.loadInventory(value || "", "", 0)} disabled={loading} /></label>
-      <HGButtonPage onClick={() => this.loadInventory(kind, cursors[pageIndex - historyBase], pageIndex)} disabled={loading}>刷新</HGButtonPage>
-      <div className={styles.pagination}>
-        <HGButtonPage disabled={loading || pageIndex === historyBase}
-          onClick={() => this.loadInventory(kind, cursors[pageIndex - 1 - historyBase], pageIndex - 1)}>上一页</HGButtonPage>
-        <span className={styles.paginationInfo}>第 {pageIndex + 1} 页</span>
-        <HGButtonPage disabled={loading || !nextCursor}
-          onClick={() => this.loadInventory(kind, nextCursor, pageIndex + 1)}>下一页</HGButtonPage>
+    const { kind } = this.state; // 空字符串表示全部种类，切换时重新从第一页请求。
+    return (
+      <div className={styles.filterBar}>
+        <label>
+          媒体种类{" "}
+          <HGSelectPage
+            value={kind}
+            options={hgKindOptions}
+            onChange={(value) => this.loadInventory(value || "", "", 0)}
+          />
+        </label>
       </div>
-    </div>;
+    );
   }
+
+  /** 表格对新旧来源统一展示元数据；仅在原授权策略允许的记录上展示本人预览入口。 */
+  hgColumns = hgTableColumns([
+    { title: "来源", dataIndex: "source", width: 124, render: (value) => hgSourceLabels[value] },
+    { title: "来源内 ID", dataIndex: "id", width: 292, align: "left" },
+    { title: "种类", dataIndex: "kind", width: 74, render: (value) => hgKindOptions.find((option) => option.value === value)?.label || value },
+    { title: "业务用途", dataIndex: "purpose", minWidth: 130, render: (value) => SCENE_OPTIONS.find((option) => option.value === value)?.label || value },
+    { title: "声明类型", dataIndex: "mime_type", minWidth: 140, render: (value) => value || "未登记" },
+    { title: "登记大小", dataIndex: "file_size", width: 100, render: (value) => (value ? HGFileManagementVM.formatFileSize(value) : "未知") },
+    { title: "状态", dataIndex: "status", minWidth: 110, render: (value) => (value?.startsWith("legacy:") ? `旧链路：${value.slice(7)}` : value) },
+    {
+      title: "操作",
+      key: "action",
+      width: 108,
+      render: (_, item) => item.source === "new" && HGFileManagementVM.canPreviewImage(item)
+        ? <HGButtonPage size="small" onClick={() => this.handlePreview(item)}>本人预览</HGButtonPage>
+        : "—",
+    },
+  ]);
 
   renderInventory() {
-    const { items, loading, error } = this.state;
-    if (loading) return <div className={styles.emptyState} role="status">正在加载媒体元数据...</div>;
-    if (error) return <div className={styles.emptyState} role="alert">{error}</div>;
-    if (!items.length) return <div className={styles.emptyState}>当前范围没有更多媒体记录。</div>;
-    return <div className={styles.tableContainer}><table className={styles.fileTable}>
-      <thead><tr className={styles.tableHeaderRow}>
-        <th className={styles.thCell}>来源</th><th className={styles.thCell}>来源内 ID</th>
-        <th className={styles.thCell}>种类</th><th className={styles.thCell}>业务用途</th>
-        <th className={styles.thCell}>声明类型</th><th className={styles.thCell}>登记大小</th>
-        <th className={styles.thCell}>状态</th>
-      </tr></thead><tbody>{items.map((item) => <tr key={`${item.source}:${item.id}`} className={styles.trRow}>
-        <td className={styles.tdCell}>{hgSourceLabels[item.source]}</td>
-        <td className={styles.tdCell} title={item.id}>{item.id}</td>
-        <td className={styles.tdCell}>{hgKindOptions.find((option) => option.value === item.kind)?.label || item.kind}</td>
-        <td className={styles.tdCell}>{SCENE_OPTIONS.find((option) => option.value === item.purpose)?.label || item.purpose}</td>
-        <td className={styles.tdCell}>{item.mime_type || "未登记"}</td>
-        <td className={styles.tdCell}>{item.file_size ? HGFileManagementVM.formatFileSize(item.file_size) : "未知"}</td>
-        <td className={styles.tdCell}>{item.status?.startsWith("legacy:") ? `旧链路：${item.status.slice(7)}` : item.status}</td>
-      </tr>)}</tbody></table></div>;
+    const { kind, items, loading, error, pageIndex, historyBase, cursors, nextCursor } = this.state;
+    return (
+      <>
+        {error && <div className={styles.filterBar} role="alert">
+          <span>{error}</span>
+          <HGButtonPage onClick={() => this.loadInventory(kind, cursors[pageIndex - historyBase], pageIndex)}>
+            重试
+          </HGButtonPage>
+        </div>}
+        <HGTablePage {...hgTableProps({
+          columns: this.hgColumns,
+          dataSource: items,
+          rowKey: (item) => `${item.source}:${item.id}`, // 不同来源的 ID 可能相同。
+          loading,
+          pagination: {
+            mode: "cursor",
+            current: pageIndex + 1,
+            pageSize: HG_MEDIA_INVENTORY_PAGE_SIZE,
+            hasPreviousPage: pageIndex > historyBase,
+            hasNextPage: Boolean(nextCursor),
+          },
+          onChange: this.handlePageChange,
+        })} />
+      </>
+    );
   }
 
-  renderOwnerLookup() {
-    const { assetID, ownerAsset, ownerLoading } = this.state;
-    return <div className={styles.filterBar}>
-      <HGInputPage placeholder="按资源 ID 点查本人文件（UUID）" value={assetID}
-        onChange={(event) => this.setState({ assetID: event?.target ? event.target.value : event })} />
-      <HGButtonPage onClick={() => this.loadAsset(assetID)} disabled={ownerLoading || !assetID.trim()}>查询本人资源</HGButtonPage>
-      {ownerAsset && <span>本人资源：{ownerAsset.asset_id}（{ownerAsset.status}）
-        {ownerAsset.status === "ready" && ownerAsset.mime_type?.startsWith("image/") &&
-          <HGButtonPage onClick={() => this.handlePreview(ownerAsset)}>申请本人预览</HGButtonPage>}
-      </span>}
-    </div>;
+  renderPreview() {
+    const { preview } = this.state; // 未授权或已关闭时不挂载任何媒体 URL。
+    if (!preview) return null;
+    return (
+      <HGModalPage visible title="本人图片预览" onClose={this.closePreview} cancelText="关闭" onCancel={this.closePreview}>
+        {preview.url ? <img className={styles.previewImage} src={preview.url} alt="本人已审核图片"
+          referrerPolicy="no-referrer" onError={() => this.handlePreviewImageError(preview.url)} />
+          : preview.error ? <p role="alert">{preview.error}</p> : <p role="status">正在申请本人预览…</p>}
+      </HGModalPage>
+    );
   }
 
   render() {
-    return <div className={`${styles.fileListContainer} ${this.props.hgEmbedded ? styles.embedded : ""}`}>
-      <h2 className={styles.pageTitle}>媒体资源盘点</h2>
-      <p className={styles.pageDesc}>盘点新媒体与已登记的旧 IM、头像、商城图片、视频元数据。来源按固定顺序逐表分页；旧文件未迁移，任何状态都不代表可跨用户预览或删除。</p>
-      {this.renderFilters()}
-      {this.renderInventory()}
-      {this.renderOwnerLookup()}
-    </div>;
+    return (
+      <>
+        {this.renderFilters()}
+        {this.renderInventory()}
+        {this.renderPreview()}
+      </>
+    );
   }
 }
 

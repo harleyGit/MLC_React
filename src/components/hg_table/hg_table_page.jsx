@@ -699,7 +699,7 @@ class HGTablePage extends React.Component {
    */
   emitChange = (page, size) => {
     const { pagination, onChange } = this.props;
-    const total = pagination ? pagination.total || 0 : 0;
+    const total = pagination && pagination.mode !== "cursor" ? pagination.total || 0 : 0;
     if (onChange) onChange({ current: page, pageSize: size, total });
   };
 
@@ -716,12 +716,34 @@ class HGTablePage extends React.Component {
     );
   };
 
+  /** 游标不提供总数或任意页跳转；发出相邻页码，由业务页持有实际游标。 */
+  renderCursorPagination = ({
+    current = HG_TABLE_PAGINATION_DEFAULTS.current, // 从 1 开始的当前页码。
+    pageSize = HG_TABLE_PAGINATION_DEFAULTS.pageSize, // 回调使用的每页条数，组件不截取结果。
+    hasPreviousPage = HG_TABLE_PAGINATION_DEFAULTS.hasPreviousPage, // 缺少前页游标时不允许回退。
+    hasNextPage = HG_TABLE_PAGINATION_DEFAULTS.hasNextPage, // 缺少后页游标时不允许前进。
+  }) => {
+    const { loading } = this.props; // 请求期间两侧按钮都不可操作。
+    return (
+      <nav className={styles.pagination} ref={this.paginationRef} aria-label="表格分页">
+        <button type="button" className={styles.pageBtn} aria-label="上一页"
+          disabled={loading || current <= 1 || !hasPreviousPage}
+          onClick={() => this.emitChange(current - 1, pageSize)}>‹</button>
+        <span className={styles.totalText} aria-current="page">第 {current} 页</span>
+        <button type="button" className={styles.pageBtn} aria-label="下一页"
+          disabled={loading || !hasNextPage}
+          onClick={() => this.emitChange(current + 1, pageSize)}>›</button>
+      </nav>
+    );
+  };
+
   /**
    * 渲染分页器。
    */
   renderPagination = () => {
     const { pagination } = this.props;
     if (pagination === false || !pagination) return null;
+    if (pagination.mode === "cursor") return this.renderCursorPagination(pagination);
 
     const {
       current = 1,

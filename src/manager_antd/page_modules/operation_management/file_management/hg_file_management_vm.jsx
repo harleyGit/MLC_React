@@ -16,7 +16,13 @@ export const SCENE_OPTIONS = [
   { value: "marketing_poster", label: "营销海报（图片）", mimes: ["image/jpeg", "image/png", "image/webp"], max: 10 << 20 },
 ];
 
+export const HG_MEDIA_INVENTORY_PAGE_SIZE = 20; // 服务端游标每页固定 20 条。
 const hgUUID = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
+// 与后端本人低敏图片用途一致；仅用于展示入口，最终仍由后端重新核验。
+const hgOwnerPreviewPurposes = new Set([
+  "user_avatar", "user_cover", "product_main", "product_detail", "product_sku",
+  "shop_logo", "video_cover", "comment_image", "marketing_poster",
+]);
 
 /** 本人媒体操作：页面不能指定 owner、对象键或审核状态。 */
 export default class HGFileManagementVM {
@@ -62,7 +68,7 @@ export default class HGFileManagementVM {
     return session.asset_id;
   }
 
-  /** 点查本人资源；列表接口尚不存在，禁止用全站数据或本地模拟列表冒充。 */
+  /** 点查本人资源；全站盘点不能代替当前上传者的授权。 */
   static async getAsset(assetID) {
     if (!hgUUID.test(assetID)) throw new Error("请输入有效的资源 ID");
     const asset = await hgNet.get(HGMANAGER_API.MEDIA_ASSET_STATUS, { asset_id: assetID });
@@ -76,8 +82,8 @@ export default class HGFileManagementVM {
       throw new Error("媒体类别或分页游标不合法");
     }
     const result = await hgNet.get(HGMANAGER_API.MEDIA_ADMIN_INVENTORY,
-      { kind, cursor, limit: 20 }, { signal, timeout: 12000 });
-    if (!Array.isArray(result?.items) || result.items.length > 20 || typeof result.next_cursor !== "string" || result.next_cursor.length > 90 ||
+      { kind, cursor, limit: HG_MEDIA_INVENTORY_PAGE_SIZE }, { signal, timeout: 12000 });
+    if (!Array.isArray(result?.items) || result.items.length > HG_MEDIA_INVENTORY_PAGE_SIZE || typeof result.next_cursor !== "string" || result.next_cursor.length > 90 ||
         result.items.some((item) => !["new", "legacy_mall", "legacy_video", "legacy_avatar", "legacy_im"].includes(item?.source) ||
           !["image", "video", "audio", "file"].includes(item?.kind) || (kind && kind !== item.kind) || typeof item.id !== "string")) {
       throw new Error("媒体盘点响应不符合协议");
@@ -85,15 +91,21 @@ export default class HGFileManagementVM {
     return result;
   }
 
+  static canPreviewImage(asset) {
+    return asset?.status === "ready" && typeof asset.mime_type === "string" &&
+      asset.mime_type.startsWith("image/") && hgOwnerPreviewPurposes.has(asset.purpose);
+  }
+
   /** 下载授权仅供本人且已审核的低敏图片，后台不拥有跨用户预览权限。 */
-  static async previewImage(asset) {
-    if (asset?.status !== "ready" || !asset.mime_type?.startsWith("image/") ||
-        !["user_avatar", "user_cover", "product_main", "product_detail", "product_sku", "shop_logo", "video_cover", "marketing_poster"].includes(asset.purpose)) {
-      throw new Error("仅可打开本人已审核的低敏图片");
-    }
-    const result = await hgNet.get(HGMANAGER_API.MEDIA_ASSET_DOWNLOAD, { asset_id: asset.asset_id });
+  static async getImagePreviewURL(assetID, signal) {
+    if (!hgUUID.test(assetID)) throw new Error("请输入有效的资源 ID");
+    const result = await hgNet.get(HGMANAGER_API.MEDIA_ASSET_DOWNLOAD, { asset_id: assetID }, { signal });
     if (!result?.download_url || result.expires_in !== 30) throw new Error("私有读取授权不可用");
-    const target = hgIMEndpoint(result.download_url, false);
-    window.open(target, "_blank", "noopener,noreferrer");
+    return hgIMEndpoint(result.download_url, false);
+  }
+
+  static async previewImage(asset) {
+    if (!HGFileManagementVM.canPreviewImage(asset)) throw new Error("仅可打开本人已审核的低敏图片");
+    window.open(await HGFileManagementVM.getImagePreviewURL(asset.asset_id), "_blank", "noopener,noreferrer");
   }
 }

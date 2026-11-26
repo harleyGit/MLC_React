@@ -18,6 +18,7 @@ export const HG_OPERATION_PERMISSIONS = Object.freeze({
   permission_menu: HG_PERMISSIONS.OPS_MENU_READ,
   resource_file: HG_PERMISSIONS.OPS_FILE_READ,
   resource_file_list: HG_PERMISSIONS.OPS_FILE_READ,
+  resource_media_inventory: HG_PERMISSIONS.MEDIA_INVENTORY_READ,
   bilibili_douga_tags: HG_PERMISSIONS.OPS_TAG_READ,
   coin_operations: HG_PERMISSIONS.ASSET_BALANCE_READ,
   hg_recharge_sku: HG_PERMISSIONS.RECHARGE_READ,

@@ -46,3 +46,18 @@ test("通知菜单递归过滤无权子项，发送页允许创建者或审批�
   }]);
   assert.equal(hgFilterOperationMenu(items, snapshot(HG_PERMISSIONS.USER_READ)).length, 0);
 });
+
+test("全站媒体盘点要求全局独立授权，本人资源入口不依赖盘点权限", () => {
+  const { hgCanOpenOperation } = hgLoadMenuAccess();
+  const snapshot = (permission, scope_type = "global", scope_id = "") => ({
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    grants: [{ permission, scope_type, scope_id }],
+  });
+  const fileRead = snapshot(HG_PERMISSIONS.OPS_FILE_READ);
+  const inventoryRead = snapshot(HG_PERMISSIONS.MEDIA_INVENTORY_READ);
+  assert.equal(hgCanOpenOperation(fileRead, "resource_file_list"), true);
+  assert.equal(hgCanOpenOperation(fileRead, "resource_media_inventory"), false);
+  assert.equal(hgCanOpenOperation(inventoryRead, "resource_media_inventory"), true);
+  assert.equal(hgCanOpenOperation(inventoryRead, "resource_file_list"), false);
+  assert.equal(hgCanOpenOperation(snapshot(HG_PERMISSIONS.MEDIA_INVENTORY_READ, "shop", "42"), "resource_media_inventory"), false);
+});

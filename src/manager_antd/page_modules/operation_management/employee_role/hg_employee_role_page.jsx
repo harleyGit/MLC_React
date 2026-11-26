@@ -6,7 +6,7 @@ import { hgMessage as message } from "../../../../components/hg_message/hg_messa
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
 import HGTablePage from "../../../../components/hg_table/hg_table_page";
 import { hgTableColumns } from "../../../../components/hg_table/hg_table_contract";
-import { hgCurrentIAMUser } from "../../../../modules/iam/hg_iam_session";
+import { hgCurrentIAMUser, hgGetIAMSnapshot } from "../../../../modules/iam/hg_iam_session";
 import { HGAuthButton } from "../../../../modules/iam/hg_permission";
 import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 import styles from "./hg_employee_role.module.css";
@@ -283,11 +283,12 @@ class HGEmployeeRolePage extends Component {
     this.setState({ approvalCursorByPage: { 1: 0 } }, () => this.loadApprovals(1));
   };
 
-  /** 本人申请不得裁决；本地仅提前提示，最终身份仍由服务端从 JWT 复核。 */
+  /** 普通管理员不能自审；快照仅供提前提示，超管资格仍由服务端事务内复核。 */
   openQueueApproval = (item, approve) => {
     if (this.hgApprovalDeciding) return;
     const actor = hgCurrentIAMUser(); // 当前会话账号仅用于提示；空值交由服务端鉴权。
-    if (actor && actor === item.applicantId) {
+    const roles = actor === item.applicantId ? hgGetIAMSnapshot()?.roles : null; // 当前账号的展示角色；缺失时不拦截请求。
+    if (actor && actor === item.applicantId && Array.isArray(roles) && !roles.includes("super_admin")) {
       message.error("不能审批本人提交的申请，请由另一名有审批权限的管理员处理");
       return;
     }

@@ -3,7 +3,7 @@ import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import HGSelectPage from "../../../../components/hg_select/hg_select_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGFileManagementVM, { SCENE_OPTIONS } from "./hg_file_management_vm";
-import HGFileListPage from "./file_list/hg_file_list_page";
+import HGOwnerAssetLookupPage from "./file_list/hg_owner_asset_lookup_page";
 import styles from "./hg_file_management.module.css";
 
 /** 仅以当前登录人身份创建隔离上传；业务引用需由各业务服务单独授权。 */
@@ -87,7 +87,7 @@ class HGFileManagementPage extends Component {
     return <div className={styles.fileManagementContainer}>
       <h2 className={styles.formTitle}>文件管理</h2>
       {this.renderUploadForm()}
-      <HGFileListPage ref={this.hgListRef} hgAssetIDs={this.state.assetIDs} hgEmbedded />
+      <HGOwnerAssetLookupPage ref={this.hgListRef} hgAssetIDs={this.state.assetIDs} hgEmbedded />
     </div>;
   }
 }

@@ -90,7 +90,12 @@ export const OPERATION_MENU_ITEMS = [
       },
       {
         key: "resource_file_list",
-        label: "文件列表",
+        label: "本人资源查询",
+        icon: <HGIconPage type="table" />,
+      },
+      {
+        key: "resource_media_inventory",
+        label: "全部媒体资源",
         icon: <HGIconPage type="table" />,
       },
     ],

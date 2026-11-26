@@ -12,7 +12,7 @@ const HGTestModal = () => null; // 检查弹窗显隐与关闭回调，不访问
 const HGTestTable = () => null; // 检查审批列与游标数据，不访问真实 DOM。
 
 /** 转换当前员工角色页；授权查询/撤销已经迁移，替身只提供申请与独立审批队列。 */
-function hgEmployeePage(vm, props = {}, actor = "") {
+function hgEmployeePage(vm, props = {}, actor = "", snapshot = null) {
   const module = { exports: {} }; // 当前隔离页面模块。
   const code = transformSync(readFileSync(new URL("./hg_employee_role_page.jsx", import.meta.url), "utf8"), {
     filename: "hg_employee_role_page.jsx",
@@ -31,7 +31,7 @@ function hgEmployeePage(vm, props = {}, actor = "") {
       if (path.endsWith("hg_button_page")) return { __esModule: true, default: HGTestButton };
       if (path.endsWith("hg_permission")) return { HGAuthButton: HGTestButton };
       if (path.endsWith("hg_permission_codes")) return { HG_PERMISSIONS: { IAM_GRANT: "iam:role:grant", IAM_APPROVE: "iam:approval:approve" } };
-      if (path.endsWith("hg_iam_session")) return { hgCurrentIAMUser: () => actor };
+      if (path.endsWith("hg_iam_session")) return { hgCurrentIAMUser: () => actor, hgGetIAMSnapshot: () => snapshot };
       if (path.endsWith("hg_input_page")) return { __esModule: true, default: HGTestInput };
       if (path.endsWith("hg_modal_page")) return { __esModule: true, default: HGTestModal };
       if (path.endsWith("hg_table_page")) return { __esModule: true, default: HGTestTable };
@@ -342,13 +342,23 @@ test("提交时先关闭审批弹窗，阻止重复请求；成功刷新，失�
 });
 
 test("本人申请不打开审批弹窗也不提交 MFA，须换另一名管理员", () => {
-  const { page, messages } = hgEmployeePage({}, {}, "CURRENT");
+  const { page, messages } = hgEmployeePage({}, {}, "CURRENT", { roles: ["operator"] });
   page.openQueueApproval({ id: "6", applicantId: "CURRENT" }, true);
   assert.equal(page.state.queueApprovalTarget, null);
   assert.equal(hgFind(page.render(), (node) => node.type === HGTestModal).length, 0);
   assert.match(messages.errors.at(-1), /不能审批本人提交的申请/);
   page.openQueueApproval({ id: "6", applicantId: "OTHER" }, true);
   assert.equal(page.state.queueApprovalTarget.id, "6");
+});
+
+test("超级管理员可打开本人审批弹窗，未知快照不替代服务端资格复核", () => {
+  const { page, messages } = hgEmployeePage({}, {}, "CURRENT", { roles: ["super_admin"] });
+  page.openQueueApproval({ id: "6", applicantId: "CURRENT" }, true);
+  assert.equal(page.state.queueApprovalTarget.id, "6");
+  assert.equal(messages.errors.length, 0);
+  const withoutSnapshot = hgEmployeePage({}, {}, "CURRENT");
+  withoutSnapshot.page.openQueueApproval({ id: "7", applicantId: "CURRENT" }, true);
+  assert.equal(withoutSnapshot.page.state.queueApprovalTarget.id, "7");
 });
 
 test("审批冲突不冒充 MFA 错误，重新读取首页", async () => {

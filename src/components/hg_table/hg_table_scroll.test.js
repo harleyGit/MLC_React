@@ -39,6 +39,25 @@ new Function("require", "module", "exports", hgCode)((name) => {
 }, hgModule, hgModule.exports);
 const HGTablePage = hgModule.exports.default;
 
+test("游标分页只发出相邻页，未知总数不显示，加载时禁用翻页", () => {
+  const changes = [];
+  const table = new HGTablePage({
+    pagination: { mode: "cursor", current: 7, pageSize: 20, total: 999, hasPreviousPage: false, hasNextPage: true },
+    onChange: (page) => changes.push(page),
+  });
+  const [previous, current, next] = table.renderPagination().props.children;
+  assert.equal(previous.props.disabled, true);
+  assert.deepEqual(current.props.children, ["第 ", 7, " 页"]);
+  assert.equal(next.props.disabled, false);
+  next.props.onClick();
+  assert.deepEqual(changes, [{ current: 8, pageSize: 20, total: 0 }]);
+
+  const busy = new HGTablePage({ ...table.props, loading: true });
+  assert.equal(busy.renderPagination().props.children[2].props.disabled, true);
+  const numbered = new HGTablePage({ pagination: { current: 1, pageSize: 20, total: 31 } });
+  assert.equal(numbered.renderPagination().props.children[0].props.children, "1-20 / 31");
+});
+
 test("显式关闭填充时由内容撑高，scroll.y 优先于填充模式约束高度", () => {
   const table = new HGTablePage({ dataSource: [{ id: 1 }] });
   assert.equal(table.renderAutoRowHeightBody().props.style, undefined);
