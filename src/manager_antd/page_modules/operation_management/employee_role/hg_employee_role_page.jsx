@@ -9,6 +9,16 @@ import HGEmployeeRoleVM, { INITIAL_BINDING_FORM } from "./hg_employee_role_vm";
 import { HGAuthButton } from "../../../../modules/iam/hg_permission";
 import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 
+// /bindings/grant 业务码与 Go IAM 错误映射保持一致；只显示可操作的公开提示，不依赖 HTTP 状态。
+const HG_GRANT_ERROR_TOAST = {
+  404009: "当前账号尚未绑定 MFA，请先绑定验证器",
+  404010: "当前账号的 MFA 尚未启用，请先完成验证",
+  404011: "MFA 验证码错误或已过期，请输入当前动态码",
+  404012: "MFA 验证码已使用，请等待下一组动态码",
+  404013: "MFA 尝试次数过多，请稍后再试",
+  404014: "目标不是活动管理员：请核对 ID，先在「添加管理员」中开通并启用；普通用户的非超管角色请走即时授权",
+};
+
 class HGEmployeeRolePage extends Component {
   constructor(props) {
     super(props);
@@ -144,7 +154,14 @@ class HGEmployeeRolePage extends Component {
         this.loadApprovals(0);
       }
     } catch (error) {
-      if (this.hgMounted && this.state.form.userId.trim() === form.userId.trim()) message.error(error?.message || "授权申请失败");
+      if (this.hgMounted && this.state.form.userId.trim() === form.userId.trim()) {
+        message.error(HG_GRANT_ERROR_TOAST[error?.code] || error?.message || "授权申请失败");
+        this.setState((previous) => ({
+          form: previous.form.mfaCode === form.mfaCode
+            ? { ...previous.form, mfaCode: "" }
+            : previous.form,
+        })); // 已提交的动态码不可重试，保留提交期间新输入的验证码。
+      }
     } finally {
       this.hgGranting = false;
       if (this.hgMounted) this.setState({ granting: false });

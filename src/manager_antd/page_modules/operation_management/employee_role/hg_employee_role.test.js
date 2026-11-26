@@ -151,6 +151,31 @@ test("新授权申请保留 MFA、作用域校验与并发锁；服务端负责�
   assert.match(messages.successes.at(-1), /等待另一名管理员审批/);
 });
 
+test("授权申请按后端 MFA 与目标业务码 toast 提示，失败时只清除已提交动态码", async () => {
+  for (const [code, expected] of [
+    [404009, /尚未绑定 MFA/],
+    [404010, /MFA 尚未启用/],
+    [404011, /验证码错误或已过期/],
+    [404012, /验证码已使用/],
+    [404013, /次数过多/],
+    [404014, /目标不是活动管理员/],
+    [300004, /无权执行此操作/],
+  ]) {
+    const { page, messages } = hgEmployeePage({
+      grant: async () => { throw { type: "HTTP_ERROR", code, message: "无权执行此操作" }; },
+    });
+    page.setField("userId", "TARGET");
+    page.setField("roleId", "8");
+    page.setField("mfaCode", "123456");
+    await page.grantRole();
+    assert.match(messages.errors.at(-1), expected);
+    assert.equal(messages.errors.length, 1);
+    assert.equal(page.state.form.mfaCode, "");
+    assert.equal(page.state.form.userId, "TARGET");
+    assert.equal(page.state.form.roleId, "8");
+  }
+});
+
 test("独立审批队列仍能使用本人 MFA 裁决，并在成功后刷新队列", async () => {
   const decisions = []; // 仅记录申请编号和裁决方向，不记录验证码。
   let reads = 0; // 审批后应刷新一次首页。
