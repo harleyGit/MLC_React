@@ -92,35 +92,50 @@ export default class HGRoleCreateVM {
   };
 
   /**
-   * 提交角色编辑：基础信息立即更新；权限发生变化时另行提交 MFA 双人审批。
+   * 提交角色编辑：仅在基础信息变更时更新；权限变化另行申请 MFA 双人审批。
+   * 内置运维角色只能变更权限，其他内置角色不可通过此入口变更。
    * @param {{id: string, name: string, description: string, permissions: string[], mfaCode: string}} data 编辑表单数据。
    * @param {string[]} initialPermissions 页面加载时的权限快照。
+   * @param {{id: string, code: string, name: string, description: string, builtIn: boolean}} originalRole 列表页的角色快照；缺省时保持旧调用者更新行为。
    * @returns {Promise<Object>} 更新结果，权限有变化时包含 approvalId。
    */
-  static submitRoleEdit = async (data, initialPermissions = []) => {
+  static submitRoleEdit = async (data, initialPermissions = [], originalRole) => {
     const permissionChanged = HGRoleCreateVM.permissionsChanged(
       initialPermissions,
       data.permissions
     );
+    const metadataChanged = !originalRole || // 缺少原始快照的旧调用者保留原有更新路径。
+      data.name !== originalRole.name || data.description !== originalRole.description;
+    if (originalRole && String(data.id) !== String(originalRole.id)) {
+      throw new Error("角色 ID 与编辑记录不一致，请重新打开编辑页");
+    }
+    if (originalRole?.builtIn && metadataChanged) {
+      throw new Error("内置角色名称与描述由系统维护，不支持修改");
+    }
+    if (originalRole?.builtIn && originalRole.code !== "ops_engineer" && permissionChanged) {
+      throw new Error("该内置角色权限由系统维护，不支持修改");
+    }
     if (permissionChanged && !/^\d{6}$/.test(data.mfaCode)) {
       throw new Error("修改权限时请输入 6 位 MFA 验证码");
     }
-    const role = await HGNet.post(HGMANAGER_API.IAM_ROLE_UPDATE, {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-    });
-    if (!permissionChanged) return role;
+    const role = metadataChanged // 无信息变更时直接进入权限申请，避免内置角色的更新冲突。
+      ? await HGNet.post(HGMANAGER_API.IAM_ROLE_UPDATE, {
+          id: data.id,
+          name: data.name,
+          description: data.description,
+        })
+      : { id: data.id };
+    if (!permissionChanged) return metadataChanged ? role : { ...role, unchanged: true };
     try {
       const approval = await HGNet.post(HGMANAGER_API.IAM_ROLE_PERMISSIONS, {
         roleId: data.id,
         permissions: data.permissions,
         mfaCode: data.mfaCode,
       });
-      return { ...role, approvalId: approval?.approvalId };
+      return { ...role, approvalId: approval?.approvalId, metadataUpdated: metadataChanged };
     } catch (error) {
       throw new Error(
-        `角色基础信息已更新，但权限审批申请失败：${error?.message || "请返回角色列表重试"}`
+        `${metadataChanged ? "角色基础信息已更新，但" : ""}权限审批申请失败：${error?.message || "请返回角色列表重试"}`
       );
     }
   };

@@ -80,6 +80,7 @@ class HGRoleCreatePage extends Component {
       code: String(role.code || ""),
       name: String(role.name || ""),
       description: String(role.description || ""),
+      builtIn: Boolean(role.builtIn), // 列表快照只控制表单交互；写入仍以服务端角色状态为准。
     };
   };
 
@@ -179,7 +180,7 @@ class HGRoleCreatePage extends Component {
     const submitData = { ...pendingSubmitData, mfaCode }; // 仅当前确认动作携带验证码。
     this.setState({ submitting: true, pendingSubmitData: null, mfaCode: "", mfaError: "" });
     const request = this.isEditMode()
-      ? HGRoleCreateVM.submitRoleEdit(submitData, initialPermissions)
+      ? HGRoleCreateVM.submitRoleEdit(submitData, initialPermissions, this.getEditRole())
       : HGRoleCreateVM.submitRole(submitData);
     return request
       .then(this.handleSubmitSuccess)
@@ -191,8 +192,10 @@ class HGRoleCreatePage extends Component {
   handleSubmitSuccess = (result) => {
     if (this.isEditMode()) {
       const successText = result?.approvalId
-        ? `角色已更新，权限申请 ${result.approvalId} 待审批`
-        : "角色更新成功";
+        ? result?.metadataUpdated === false
+          ? `权限申请 ${result.approvalId} 待审批`
+          : `角色已更新，权限申请 ${result.approvalId} 待审批`
+        : result?.unchanged ? "角色信息与权限未变化，无需提交" : "角色更新成功";
       message.success(successText);
       this.returnAfterSubmit = true;
       return;
@@ -254,6 +257,8 @@ class HGRoleCreatePage extends Component {
    */
   handleNotificationTemplatePreset = () => {
     if (this.state.permissionsLoading || this.state.loadError || this.state.submitting) return;
+    const role = this.getEditRole(); // 内置角色中仅运维角色可以申请权限变更。
+    if (role?.builtIn && role.code !== "ops_engineer") return;
     const form = this.formRef.current; // 当前角色的受控表单；未挂载时不能修改权限。
     if (!form) return;
     try {
@@ -292,6 +297,7 @@ class HGRoleCreatePage extends Component {
     <Item label="角色名称" name="name" rules={rules.name}>
       <HGInputPage
         allowClear
+        disabled={Boolean(this.getEditRole()?.builtIn)}
         maxLength={64}
         placeholder="请输入角色名称，如：运营主管"
         className={styles.roleCreateInput}
@@ -312,6 +318,7 @@ class HGRoleCreatePage extends Component {
       extra="建议说明角色可操作的业务域，例如“可审核视频与弹幕，不可操作商城订单”。"
     >
       <HGInputTextArea
+        disabled={Boolean(this.getEditRole()?.builtIn)}
         maxLength={255}
         rows={4}
         placeholder="请输入角色职责说明，可为空"
@@ -336,7 +343,8 @@ class HGRoleCreatePage extends Component {
         <HGTreeSelectPage
           treeData={this.buildPermissionTreeData()}
           placeholder="请选择权限（可多选）"
-          disabled={this.state.permissionsLoading || Boolean(this.state.loadError)}
+          disabled={this.state.permissionsLoading || Boolean(this.state.loadError) ||
+            (this.getEditRole()?.builtIn && this.getEditRole()?.code !== "ops_engineer")}
           allowClear
           treeCheckable
           treeDefaultExpandAll
@@ -346,7 +354,8 @@ class HGRoleCreatePage extends Component {
       <div className={styles.rolePermissionPreset}>
         <HGButtonPage
           onClick={this.handleNotificationTemplatePreset}
-          disabled={this.state.permissionsLoading || Boolean(this.state.loadError) || this.state.submitting}
+          disabled={this.state.permissionsLoading || Boolean(this.state.loadError) || this.state.submitting ||
+            (this.getEditRole()?.builtIn && this.getEditRole()?.code !== "ops_engineer")}
         >
           预选系统通知模板管理权限
         </HGButtonPage>
@@ -383,6 +392,9 @@ class HGRoleCreatePage extends Component {
   /** 保存前统一展示 MFA 确认；权限不变时只确认基础信息，不伪称 MFA 已验证。 */
   renderMFAModal = () => {
     const submitData = this.state.pendingSubmitData; // null 表示未请求保存或已取消。
+    const originalRole = this.getEditRole(); // 用于区分信息编辑与未变化的确认文案。
+    const metadataChanged = originalRole &&
+      (submitData?.name !== originalRole.name || submitData?.description !== originalRole.description);
     return (
       <HGModalPage
         visible={Boolean(submitData)}
@@ -394,7 +406,9 @@ class HGRoleCreatePage extends Component {
       >
         <p>{submitData && this.requiresMFA(submitData)
           ? "本次将申请角色权限，需输入本人 MFA 验证码；权限经另一名管理员审批后才生效。"
-          : "本次不申请角色权限，仅确认保存基础信息；MFA 不会用于本次请求。"}</p>
+          : this.isEditMode() && !metadataChanged
+            ? "角色信息与权限未变化，确认后无需提交；MFA 不会用于本次请求。"
+            : "本次不申请角色权限，仅确认保存基础信息；MFA 不会用于本次请求。"}</p>
         {this.renderMFAField()}
       </HGModalPage>
     );

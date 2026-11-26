@@ -26,23 +26,21 @@
   color: #1f2c4a;
 }
 
-.inputField {
-  width: 100%;
-  min-height: 36px;
-  box-sizing: border-box;
+.approvalPermissions {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
-.formItem table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+.approvalPaginationHint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
-.formItem th,
-.formItem td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #e5eaf2;
-  white-space: nowrap;
+.approvalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .submitRow {

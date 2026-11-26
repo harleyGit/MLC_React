@@ -4,10 +4,13 @@ import HGButtonPage from "../../../../components/hg_button/hg_button_page";
 import HGInputPage from "../../../../components/hg_input/hg_input_page";
 import { hgMessage as message } from "../../../../components/hg_message/hg_message_page";
 import HGModalPage from "../../../../components/hg_modal/hg_modal_page";
+import HGTablePage from "../../../../components/hg_table/hg_table_page";
+import { hgTableColumns } from "../../../../components/hg_table/hg_table_contract";
+import { hgCurrentIAMUser } from "../../../../modules/iam/hg_iam_session";
 import { HGAuthButton } from "../../../../modules/iam/hg_permission";
 import { HG_PERMISSIONS } from "../../../../modules/iam/hg_permission_codes";
 import styles from "./hg_employee_role.module.css";
-import HGEmployeeRoleVM, { INITIAL_BINDING_FORM } from "./hg_employee_role_vm";
+import HGEmployeeRoleVM, { HG_APPROVAL_PAGE_SIZE, INITIAL_BINDING_FORM } from "./hg_employee_role_vm";
 
 // /bindings/grant 业务码与 Go IAM 错误映射保持一致；只显示可操作的公开提示，不依赖 HTTP 状态。
 const HG_GRANT_ERROR_TOAST = {
@@ -21,12 +24,18 @@ const HG_GRANT_ERROR_TOAST = {
 };
 
 class HGEmployeeRolePage extends Component {
+  static defaultProps = {
+    /** 运维容器注入的菜单导航回调；缺省 undefined 时“查看管理员列表”不触发导航。 */
+    onMenuSelect: undefined,
+  };
+
   constructor(props) {
     super(props);
     this.hgMounted = false; // 页面挂载标记，阻止异步响应在卸载后写入敏感状态。
     this.hgPermissionRequest = 0; // 角色权限查询序号，切换角色时忽略旧响应。
     this.hgGranting = false; // 申请提交中的同步锁，避免同一次 MFA 重复提交。
     this.hgApprovalRequest = 0; // 审批游标请求序号，避免刷新后被旧页响应覆盖。
+    this.hgApprovalDeciding = false; // 裁决提交同步锁；卸载或请求结束后释放。
     this.state = {
       form: { ...INITIAL_BINDING_FORM }, // 新授权申请表单；空 userId 表示尚未指定目标。
       roles: [], // 可选角色分页；空数组表示未加载或没有角色。
@@ -38,11 +47,14 @@ class HGEmployeeRolePage extends Component {
       hgPermissionError: "", // 权限请求失败文案；空值表示无错误。
       granting: false, // 新授权申请提交进行中。
       grantModalVisible: false, // 授权申请弹窗显示状态；默认隐藏，关闭时清除 MFA 验证码。
-      queueApprovalCode: "", // 独立审批队列的动态码；不与指定用户审批或申请 MFA 共用。
-      approvals: [], // 独立的待审批队列，空数组代表暂无数据或未加载。
-      approvalNextCursor: "", // 审批队列续页游标。
-      approvalHasMore: false, // 审批队列是否有续页。
-      approvalLoading: false, // 双人审批队列及验证码。
+      queueApprovalCode: "", // 当前审批弹窗的一次性动态码；关闭或提交立即清空。
+      queueApprovalTarget: null, // 当前待裁决的 {id, approve}；null 表示审批弹窗关闭。
+      approvalDeciding: false, // 裁决请求是否进行中；期间禁用其他行的操作。
+      approvals: [], // 当前审批页数据；空数组表示当前页无待审批申请。
+      approvalCursorByPage: { 1: 0 }, // 页码到服务端游标映射；首页固定从 0 开始。
+      approvalCurrentPage: 1, // 当前审批表格页码，从 1 开始。
+      approvalTotal: 0, // 供表格显示下一页的最小条数，不是服务端精确总数。
+      approvalLoading: false, // 审批队列是否正在加载。
     };
   }
 
@@ -50,7 +62,7 @@ class HGEmployeeRolePage extends Component {
   componentDidMount() {
     this.hgMounted = true;
     this.loadRoles(0);
-    this.loadApprovals(0);
+    this.loadApprovals(1);
   }
 
   /** 角色切换同步读取已生效权限，不修改角色授权范围。 */
@@ -184,7 +196,7 @@ class HGEmployeeRolePage extends Component {
               ? { ...INITIAL_BINDING_FORM, userId: previous.form.userId }
               : { ...previous.form, mfaCode: "" },
         })); // 提交期间若已编辑下一份申请，不覆盖新输入，但清除旧验证码。
-        this.loadApprovals(0);
+        this.reloadApprovals();
       }
     } catch (error) {
       if (
@@ -230,19 +242,24 @@ class HGEmployeeRolePage extends Component {
     return { valid: true };
   };
 
-  /** 审批列表按游标分页，处理后只刷新首页避免旧状态残留。 */
-  loadApprovals = (cursor = 0) => {
+  /** 页码映射为后端游标，服务端不提供精确 total，仅合成允许下一页的最小数量。 */
+  loadApprovals = (page = 1) => {
+    const cursor = this.state.approvalCursorByPage[page]; // 仅允许访问首页或已知游标的页面。
+    if (cursor === undefined) return;
     const request = ++this.hgApprovalRequest;
     this.setState({ approvalLoading: true });
     HGEmployeeRoleVM.fetchApprovals(cursor)
       .then((result) => {
         if (!this.hgMounted || request !== this.hgApprovalRequest) return;
+        const rows = result?.list || []; // 当前游标页的原始审批数据；不拼接旧页。
+        const hasNext = Boolean(result?.hasMore && result?.nextCursor); // 缺少游标时不展示不可达的下一页。
         this.setState((previous) => ({
-          approvals: cursor
-            ? [...previous.approvals, ...(result?.list || [])]
-            : result?.list || [],
-          approvalNextCursor: result?.nextCursor || "",
-          approvalHasMore: Boolean(result?.hasMore),
+          approvals: rows,
+          approvalCurrentPage: page,
+          approvalTotal: (page - 1) * HG_APPROVAL_PAGE_SIZE + rows.length + (hasNext ? 1 : 0),
+          approvalCursorByPage: hasNext
+            ? { ...previous.approvalCursorByPage, [page + 1]: result.nextCursor }
+            : previous.approvalCursorByPage,
         }));
       })
       .catch(() => {
@@ -255,22 +272,67 @@ class HGEmployeeRolePage extends Component {
       });
   };
 
-  /** 服务端复核申请人与审批人不同、权限和 MFA，裁决结果不可由页面自行生效。 */
-  decideQueueApproval = (id, approve) => {
-    if (!/^\d{6}$/.test(this.state.queueApprovalCode)) {
+  /** 仅切换已获得游标的页面；页容量与后端固定值保持一致。 */
+  handleApprovalPageChange = ({ current }) => {
+    if (this.state.approvalLoading) return;
+    this.loadApprovals(current);
+  };
+
+  /** 提交新申请或完成裁决后重建游标链，避免旧页重复或漏行。 */
+  reloadApprovals = () => {
+    this.setState({ approvalCursorByPage: { 1: 0 } }, () => this.loadApprovals(1));
+  };
+
+  /** 本人申请不得裁决；本地仅提前提示，最终身份仍由服务端从 JWT 复核。 */
+  openQueueApproval = (item, approve) => {
+    if (this.hgApprovalDeciding) return;
+    const actor = hgCurrentIAMUser(); // 当前会话账号仅用于提示；空值交由服务端鉴权。
+    if (actor && actor === item.applicantId) {
+      message.error("不能审批本人提交的申请，请由另一名有审批权限的管理员处理");
+      return;
+    }
+    this.setState({ queueApprovalTarget: { id: item.id, approve }, queueApprovalCode: "" });
+  };
+
+  /** 取消审批时丢弃动态码，不发起裁决请求。 */
+  closeQueueApproval = () => {
+    if (this.hgApprovalDeciding) return;
+    this.setState({ queueApprovalTarget: null, queueApprovalCode: "" });
+  };
+
+  /** 弹窗关闭后提交一次性 MFA；最终权限、申请人与审批人关系仍由服务端复核。 */
+  decideQueueApproval = () => {
+    const { queueApprovalTarget, queueApprovalCode } = this.state; // 本次裁决快照，避免异步期间读取下一次输入。
+    if (!queueApprovalTarget || this.hgApprovalDeciding) return;
+    if (!/^\d{6}$/.test(queueApprovalCode)) {
       message.error("请输入审批人的 6 位 MFA 验证码");
       return;
     }
-    HGEmployeeRoleVM.decideApproval(id, this.state.queueApprovalCode, approve)
-      .then(() => {
-        if (!this.hgMounted) return;
-        this.setState({ queueApprovalCode: "" });
-        message.success(approve ? "审批通过并已生效" : "申请已拒绝");
-        this.loadApprovals(0);
-      })
-      .catch((error) => {
-        if (this.hgMounted) message.error(error?.message || "审批失败");
-      });
+    this.hgApprovalDeciding = true;
+    this.setState(
+      { queueApprovalTarget: null, queueApprovalCode: "", approvalDeciding: true },
+      () => {
+        HGEmployeeRoleVM.decideApproval(queueApprovalTarget.id, queueApprovalCode, queueApprovalTarget.approve)
+          .then(() => {
+            if (!this.hgMounted) return;
+            message.success(queueApprovalTarget.approve ? "审批通过并已生效" : "申请已拒绝");
+            this.reloadApprovals();
+          })
+          .catch((error) => {
+            if (!this.hgMounted) return;
+            if (error?.code === 100009) {
+              message.error("审批冲突：请核对申请人、审批有效期、目标授权或角色版本；列表将重新加载");
+              this.reloadApprovals();
+              return;
+            }
+            message.error(error?.message || "审批失败");
+          })
+          .finally(() => {
+            this.hgApprovalDeciding = false;
+            if (this.hgMounted) this.setState({ approvalDeciding: false });
+          });
+      }
+    );
   };
 
   /** 复用运维容器的菜单导航，切换到管理员列表而不拼接源码文件路径。 */
@@ -452,77 +514,156 @@ class HGEmployeeRolePage extends Component {
     );
   };
 
-  renderApprovals = () => (
-    <div className={styles.formItem}>
-      <h3>待审批授权</h3>
-      <input
-        type="text"
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        maxLength={6}
-        value={this.state.queueApprovalCode}
-        onChange={(event) =>
-          this.setState({ queueApprovalCode: event.target.value })
-        }
-        placeholder="审批人 MFA 验证码"
-        className={styles.inputField}
-      />
-      <HGButtonPage
-        onClick={() => this.loadApprovals(0)}
-        loading={this.state.approvalLoading}
+  /** 授权与角色权限变更共享列表，按协议字段分别展开为可读列。 */
+  renderApprovals = () => {
+    const columns = hgTableColumns([
+      { title: "申请单", dataIndex: "id", width: 120 },
+      { title: "申请人", dataIndex: "applicantId", width: 160 },
+      { title: "操作", dataIndex: "action", width: 180 },
+      {
+        title: "目标管理员 ID",
+        key: "targetUserId",
+        dataIndex: "payload",
+        width: 180,
+        render: (payload) => payload?.userId || "—",
+      },
+      {
+        title: "角色 ID",
+        key: "targetRoleId",
+        dataIndex: "payload",
+        width: 120,
+        render: (payload) => payload?.roleId ?? "—",
+      },
+      {
+        title: "作用域",
+        key: "targetScopeType",
+        dataIndex: "payload",
+        width: 120,
+        render: (payload) => payload?.scopeType || "—",
+      },
+      {
+        title: "作用域 ID",
+        key: "targetScopeId",
+        dataIndex: "payload",
+        width: 160,
+        render: (payload) => payload?.scopeId || "—",
+      },
+      {
+        title: "授权到期",
+        key: "grantExpiresAt",
+        dataIndex: "payload",
+        width: 180,
+        render: (payload) => payload?.expiresAt ? new Date(payload.expiresAt).toLocaleString() : "—",
+      },
+      {
+        title: "权限编码",
+        key: "rolePermissions",
+        dataIndex: "payload",
+        minWidth: 240,
+        render: (payload) => Array.isArray(payload?.permissions)
+          ? <span className={styles.approvalPermissions}>{payload.permissions.join("、") || "清空权限"}</span>
+          : "—",
+      },
+      {
+        title: "角色版本",
+        key: "roleVersion",
+        dataIndex: "payload",
+        width: 120,
+        render: (payload) => payload?.version ?? "—",
+      },
+      {
+        title: "审批截止",
+        dataIndex: "expiresAt",
+        width: 180,
+        render: (expiresAt) => new Date(expiresAt).toLocaleString(),
+      },
+      {
+        title: "裁决",
+        key: "decision",
+        width: 180,
+        render: (_, item) => (
+          <div className={styles.approvalActions}>
+            <HGAuthButton
+              allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
+              disabled={this.state.approvalDeciding}
+              onClick={() => this.openQueueApproval(item, true)}
+            >
+              批准
+            </HGAuthButton>
+            <HGAuthButton
+              allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
+              danger
+              disabled={this.state.approvalDeciding}
+              onClick={() => this.openQueueApproval(item, false)}
+            >
+              拒绝
+            </HGAuthButton>
+          </div>
+        ),
+      },
+    ]);
+    return (
+      <div className={styles.formItem}>
+        <h3>角色权限改变后待审批授权</h3>
+        <HGTablePage
+          rowKey="id"
+          columns={columns}
+          dataSource={this.state.approvals}
+          loading={this.state.approvalLoading}
+          fillHeight={false}
+          align="left"
+          pagination={{
+            current: this.state.approvalCurrentPage,
+            pageSize: HG_APPROVAL_PAGE_SIZE,
+            total: this.state.approvalTotal,
+          }}
+          onChange={this.handleApprovalPageChange}
+        />
+        <p className={styles.approvalPaginationHint}>审批接口未提供总数；分页器中的条数仅用于提示是否可以翻到下一页。</p>
+      </div>
+    );
+  };
+
+  /** 只在选中一条申请后显示 MFA 输入；取消或确认均不保留动态码。 */
+  renderApprovalModal = () => {
+    const { queueApprovalTarget, queueApprovalCode } = this.state;
+    if (!queueApprovalTarget) return null;
+    return (
+      <HGModalPage
+        visible
+        title={`${queueApprovalTarget.approve ? "批准" : "拒绝"}申请单 #${queueApprovalTarget.id}`}
+        onClose={this.closeQueueApproval}
+        footer={null}
       >
-        刷新待审批
-      </HGButtonPage>
-      <table>
-        <thead>
-          <tr>
-            <th>申请单</th>
-            <th>申请人</th>
-            <th>操作</th>
-            <th>变更内容</th>
-            <th>失效时间</th>
-            <th>裁决</th>
-          </tr>
-        </thead>
-        <tbody>
-          {this.state.approvals.map((item) => (
-            <tr key={item.id}>
-              <td>{item.id}</td>
-              <td>{item.applicantId}</td>
-              <td>{item.action}</td>
-              <td>
-                <code>{JSON.stringify(item.payload)}</code>
-              </td>
-              <td>{new Date(item.expiresAt).toLocaleString()}</td>
-              <td>
-                <HGAuthButton
-                  allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
-                  onClick={() => this.decideQueueApproval(item.id, true)}
-                >
-                  批准
-                </HGAuthButton>
-                <HGAuthButton
-                  allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
-                  danger
-                  onClick={() => this.decideQueueApproval(item.id, false)}
-                >
-                  拒绝
-                </HGAuthButton>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {this.state.approvalHasMore && (
-        <HGButtonPage
-          onClick={() => this.loadApprovals(this.state.approvalNextCursor)}
-        >
-          加载更多
-        </HGButtonPage>
-      )}
-      {this.state.approvals.length === 0 && <p>暂无待审批申请</p>}
-    </div>
-  );
+        <form onSubmit={(event) => { event.preventDefault(); this.decideQueueApproval(); }}>
+          <label className={styles.field}>
+            <span className={styles.label}>审批人 MFA 验证码</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              autoFocus
+              value={queueApprovalCode}
+              onChange={(event) => this.setState({ queueApprovalCode: event.target.value })}
+              placeholder="请输入 6 位动态码"
+              className={styles.control}
+            />
+          </label>
+          <div className={styles.submitRow}>
+            <HGButtonPage onClick={this.closeQueueApproval}>取消</HGButtonPage>
+            <HGAuthButton
+              allOf={[HG_PERMISSIONS.IAM_GRANT, HG_PERMISSIONS.IAM_APPROVE]}
+              danger={!queueApprovalTarget.approve}
+              type="submit"
+            >
+              确认{queueApprovalTarget.approve ? "批准" : "拒绝"}
+            </HGAuthButton>
+          </div>
+        </form>
+      </HGModalPage>
+    );
+  };
 
   render() {
     return (
@@ -537,6 +678,7 @@ class HGEmployeeRolePage extends Component {
           </HGAuthButton>
         </div>
         {this.renderApprovals()}
+        {this.renderApprovalModal()}
         {this.state.grantModalVisible && (
           <HGModalPage
             visible

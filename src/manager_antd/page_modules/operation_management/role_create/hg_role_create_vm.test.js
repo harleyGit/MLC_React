@@ -152,6 +152,70 @@ test("编辑修改权限时先校验 MFA，再更新基础信息并提交权限�
   delete globalThis.__hgRoleFormPost;
 });
 
+test("运维内置角色保存权限时不调用基础信息更新接口", async () => {
+  const calls = [];
+  globalThis.__hgRoleFormPost = async (...args) => {
+    calls.push(args);
+    return { approvalId: "approval-ops", status: "pending" };
+  };
+  try {
+    const role = { id: "6", code: "ops_engineer", name: "运维人员", description: "系统观测与受控操作", builtIn: true };
+    const data = { ...role, permissions: ["ops:metrics:read"], mfaCode: "123456" };
+    const result = await HGRoleCreateVM.submitRoleEdit(data, [], role);
+    assert.deepEqual(calls, [
+      ["/roles/permissions", { roleId: "6", permissions: ["ops:metrics:read"], mfaCode: "123456" }],
+    ]);
+    assert.equal(result.approvalId, "approval-ops");
+    await assert.rejects(
+      HGRoleCreateVM.submitRoleEdit({ ...data, name: "新名称" }, [], role),
+      /内置角色/
+    );
+    assert.equal(calls.length, 1);
+  } finally {
+    delete globalThis.__hgRoleFormPost;
+  }
+});
+
+test("角色基础信息未变更时仅申请发生变化的权限", async () => {
+  const calls = [];
+  globalThis.__hgRoleFormPost = async (...args) => {
+    calls.push(args);
+    return { approvalId: "approval-custom" };
+  };
+  try {
+    const role = { id: "101", code: "custom_ops", name: "运营主管", description: "", builtIn: false };
+    const data = { ...role, permissions: ["ops:metrics:read"], mfaCode: "123456" };
+    const result = await HGRoleCreateVM.submitRoleEdit(data, [], role);
+    assert.deepEqual(calls, [
+      ["/roles/permissions", { roleId: "101", permissions: ["ops:metrics:read"], mfaCode: "123456" }],
+    ]);
+    assert.equal(result.approvalId, "approval-custom");
+  } finally {
+    delete globalThis.__hgRoleFormPost;
+  }
+});
+
+test("其他内置角色不可通过编辑入口提交权限，自定义角色无变更不发请求", async () => {
+  const calls = [];
+  globalThis.__hgRoleFormPost = async (...args) => {
+    calls.push(args);
+    return { id: "101" };
+  };
+  try {
+    const protectedRole = { id: "1", code: "super_admin", name: "超级管理员", description: "", builtIn: true };
+    await assert.rejects(
+      HGRoleCreateVM.submitRoleEdit({ ...protectedRole, permissions: ["iam:role:read"], mfaCode: "123456" }, [], protectedRole),
+      /该内置角色权限/
+    );
+    const role = { id: "101", code: "custom_ops", name: "运营主管", description: "", builtIn: false };
+    const result = await HGRoleCreateVM.submitRoleEdit({ ...role, permissions: [], mfaCode: "" }, [], role);
+    assert.equal(result.unchanged, true);
+    assert.deepEqual(calls, []);
+  } finally {
+    delete globalThis.__hgRoleFormPost;
+  }
+});
+
 test("通知模板预选仅使用后端目录四项权限，保留原有选择且不接受缺项或超限", () => {
   const codes = [
     "notification:template:read", "notification:template:create",

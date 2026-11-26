@@ -184,8 +184,8 @@ test("编辑提交先弹 MFA 确认，输入正确后才携带角色 ID 和权�
       },
     },
     {
-      submitRoleEdit: async (values, initialPermissions) => {
-        submissions.push([values, initialPermissions]);
+      submitRoleEdit: async (values, initialPermissions, originalRole) => {
+        submissions.push([values, initialPermissions, originalRole]);
         return { approvalId: "approval-1" };
       },
     },
@@ -221,12 +221,50 @@ test("编辑提交先弹 MFA 确认，输入正确后才携带角色 ID 和权�
         mfaCode: "123456",
       },
       ["video:read"],
+      {
+        id: "101",
+        code: "content_editor",
+        name: "内容编辑",
+        description: "",
+        builtIn: false,
+      },
     ],
   ]);
   assert.deepEqual(messages, ["角色已更新，权限申请 approval-1 待审批"]);
   assert.equal(backs, 1);
   assert.equal(page.renderMFAModal().props.visible, false);
   assert.equal(page.state.mfaCode, "");
+});
+
+test("运维内置角色保存弹窗只提交权限申请，基础信息字段不可编辑", async () => {
+  const submissions = [];
+  const messages = [];
+  const role = {
+    id: "6", code: "ops_engineer", name: "运维人员",
+    description: "系统观测与受控操作", builtIn: true,
+  };
+  const page = hgRoleFormPage({
+    selectedKey: "role_edit",
+    location: { search: "?roleId=6", state: { role } },
+  }, {
+    submitRoleEdit: async (...args) => {
+      submissions.push(args);
+      return { approvalId: "approval-ops", metadataUpdated: false };
+    },
+  }, messages);
+  page.state.permissionsLoading = false;
+  page.state.initialPermissions = ["ops:metrics:read"];
+  assert.equal(page.renderNameField([]).props.children.props.disabled, true);
+  assert.equal(page.renderDescriptionField([]).props.children.props.disabled, true);
+  assert.equal(page.renderPermissionsField([]).props.children[0].props.children.props.disabled, false);
+  page.handleFinish({ code: role.code, name: role.name, description: role.description, permissions: ["ops:metrics:read", "ops:menu:read"] });
+  assert.equal(page.renderMFAModal().props.visible, true);
+  assert.equal(submissions.length, 0);
+  page.state.mfaCode = "123456";
+  await page.handleConfirmSubmit();
+  assert.equal(submissions.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(submissions[0][2])), role);
+  assert.deepEqual(messages, ["权限申请 approval-ops 待审批"]);
 });
 
 test("创建角色取消确认只关闭弹窗并清空验证码，重新保存必须重新输入", () => {
