@@ -23,6 +23,8 @@ const hgOwnerPreviewPurposes = new Set([
   "user_avatar", "user_cover", "product_main", "product_detail", "product_sku",
   "shop_logo", "video_cover", "comment_image", "marketing_poster",
 ]);
+// 新媒体音视频草稿允许原上传者尝试操作；业务引用、归属和审核状态由服务端判定。
+const hgDraftAVPurposes = new Set(["video_source", "comment_video", "chat_audio", "chat_video"]);
 
 /** 本人媒体操作：页面不能指定 owner、对象键或审核状态。 */
 export default class HGFileManagementVM {
@@ -94,6 +96,37 @@ export default class HGFileManagementVM {
   static canPreviewImage(asset) {
     return asset?.status === "ready" && typeof asset.mime_type === "string" &&
       asset.mime_type.startsWith("image/") && hgOwnerPreviewPurposes.has(asset.purpose);
+  }
+
+  /** 预判操作入口，绝不等价于服务端授权；旧来源统一仅展示详情。 */
+  static canAdminActOn(asset) {
+    return asset?.source === "new" && hgUUID.test(asset.id) &&
+      (hgOwnerPreviewPurposes.has(asset.purpose) || asset.owned_by_me === true && hgDraftAVPurposes.has(asset.purpose));
+  }
+
+  /** 申请管理预览；只接受与列表 MIME 对应的短时受信地址。 */
+  static async getAdminPreview(asset, signal) {
+    if (!HGFileManagementVM.canAdminActOn(asset) || asset.status !== "ready" ||
+        !["image", "video", "audio"].includes(asset.kind)) throw new Error("该资源不支持预览");
+    const result = await hgNet.get(HGMANAGER_API.MEDIA_ADMIN_PREVIEW, { asset_id: asset.id }, { signal, timeout: 12000 });
+    const expiresIn = asset.kind === "image" ? 30 : 300; // 允许音视频在短时窗口内分段读取。
+    if (!result?.preview_url || result.mime_type !== asset.mime_type ||
+        !result.mime_type.startsWith(`${asset.kind}/`) || result.expires_in !== expiresIn) {
+      throw new Error("媒体预览响应不符合协议");
+    }
+    return hgIMEndpoint(result.preview_url, false);
+  }
+
+  /** 只提交新媒体 UUID，不由前端传文件路径。返回状态不是物理删除完成承诺。 */
+  static async requestAdminDelete(asset) {
+    if (!HGFileManagementVM.canAdminActOn(asset) || !["ready", "failed"].includes(asset.status)) {
+      throw new Error("该资源当前不支持删除");
+    }
+    const result = await hgNet.post(HGMANAGER_API.MEDIA_ADMIN_DELETE, { asset_id: asset.id }, { timeout: 12000 });
+    if (result?.asset_id !== asset.id || !["deleting", "deleted"].includes(result.status)) {
+      throw new Error("未能确认删除结果，请重新进入列表核对资源状态");
+    }
+    return result;
   }
 
   /** 下载授权仅供本人且已审核的低敏图片，后台不拥有跨用户预览权限。 */

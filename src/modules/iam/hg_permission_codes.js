@@ -12,6 +12,8 @@ export const HG_PERMISSIONS = Object.freeze({
   OPS_METRICS_READ: "ops:metrics:read",
   OPS_FILE_READ: "ops:file:read",
   MEDIA_INVENTORY_READ: "media:inventory:read",
+  MEDIA_ASSET_PREVIEW: "media:asset:preview",
+  MEDIA_ASSET_DELETE: "media:asset:delete",
   OPS_MENU_READ: "ops:menu:read",
   OPS_TAG_READ: "ops:bilibili_tag:read",
   ASSET_BALANCE_READ: "asset:coin_balance:read",

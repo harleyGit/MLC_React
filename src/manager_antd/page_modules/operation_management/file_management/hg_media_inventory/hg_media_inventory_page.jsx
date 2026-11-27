@@ -9,7 +9,8 @@ class HGMediaInventoryPage extends Component {
       <section className={styles.fileListContainer}>
         <h2 className={styles.pageTitle}>全部媒体资源</h2>
         <p className={styles.pageDesc}>
-          盘点新媒体与已登记的旧商城图片、视频、头像和 IM 附件。图片预览仅限本人上传且已通过审核的可预览资源；其余记录仅供查询。
+          所有记录均可查看详情。预览和删除须单独授权，仅适用于符合条件的新媒体；
+          音视频仅限本人上传且未绑定业务的草稿，旧资源仅提供详情。
         </p>
         <HGFileListPage />
       </section>

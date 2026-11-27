@@ -233,6 +233,8 @@ export const HGMANAGER_API = {
   MEDIA_ASSET_STATUS: "/api/v1/media/assets/status", // 按 UUID 查询本人资源审核状态
   MEDIA_ASSET_DOWNLOAD: "/api/v1/media/assets/download", // 本人已审核低敏图片的短时读取授权
   MEDIA_ADMIN_INVENTORY: "/api/v1/media/admin/assets/list", // 需 media:inventory:read 的新旧媒体元数据游标盘点
+  MEDIA_ADMIN_PREVIEW: "/api/v1/media/admin/assets/preview", // 额外需 media:asset:preview，只对合规封存资源签名
+  MEDIA_ADMIN_DELETE: "/api/v1/media/admin/assets/delete", // 额外需 media:asset:delete，仅将单个新资源提交异步清理
   IM_CALLS: "/api/v1/im/calls", // 创建/读取单聊呼叫
   IM_CALL_ACTION: "/api/v1/im/calls/action", // 接听/拒绝/取消/结束
   IM_CALL_TOKEN: "/api/v1/im/calls/token", // 已接听设备的 LiveKit 凭据
